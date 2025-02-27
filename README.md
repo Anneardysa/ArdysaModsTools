@@ -23,8 +23,6 @@ Before using any mod features, you need to detect your Dota 2 folder. Use either
 
 ## Install Mods
 
-Installs mods by copying local files and downloading mod-specific files.
-
 1. **Detect Folder:** Use "Auto Detect" or "Manual Detect" first to enable the "Install Mods" button.
 2. Click **"Install Mods"**.
 3. Watch the console log:
