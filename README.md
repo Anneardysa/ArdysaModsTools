@@ -14,7 +14,7 @@ Before using any mod features, you need to detect your Dota 2 folder. Use either
 ### Manual Detect Dota 2
 
 1. Click **"Manual Detect Dota 2"**.
-2. A folder browser opens—all buttons disable while you choose.
+2. A folder browser opens
 3. Navigate to your Dota 2 folder (e.g., `C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta`) and click **OK**.
 - The folder name must be exactly "dota 2 beta" (case doesn’t matter).
 4. If correct, you’ll see:`[17:03] Dota 2 folder manually selected: C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta`
@@ -66,7 +66,7 @@ Updates your Dota 2 patcher files to keep mods compatible—use this if you see 
 4. Wait for the progress bar
 5. **If You See "Patch is Outdated" Issue:**
 - This means your Dota 2 patch doesn’t match the mod files.
-- Run "Update Patcher" to download the latest compatible files from Google Drive.
+- Run "Update Patcher" to download the latest compatible files
 - If it still fails (e.g., `[HH:mm] Download failed: [error]`), check your internet or contact support—the patch files online might need updating by the developer.
 6. **If It Fails:**
 - Logs like `[HH:mm] Patcher update failed: [error]` indicate network or permission issues—retry with Administrator rights or stable internet.
