@@ -73,10 +73,10 @@ Updates your Dota 2 patcher files to keep mods compatible—use this if you see 
 
 ## Troubleshooting Tips
 
+- **Keep Showing Error while Finding Match:** Make sure Dota 2 not running as Administrator.
 - **No Folder Detected:** Ensure Dota 2 is installed and use "Manual Detect" if "Auto Detect" fails.
 - **Download Errors:** Check your internet connection or antivirus settings (allow `ArdysaModsTools.exe`).
 - **Need Help?** Share the console log (e.g., `[17:03] Download failed: [error]`) with the developer.
-- **Keep Showing Error while Finding Match** Make sure Dota 2 not running as Administrator.
 
 ---
 
