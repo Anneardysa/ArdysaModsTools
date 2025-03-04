@@ -48,8 +48,8 @@ ArdysaModsTools allows you to:
 
 ### 2. Check Mod Status
 - After detecting the Dota 2 folder, the tool checks if mods are installed:
-  - A **green dot** with "Working" means mods are installed and up-to-date.
-  - A **yellow dot** with "Not Installed" means mods need to be installed or updated.
+  - A 🟢**Green Dot** with "Working" means mods are installed and up-to-date.
+  - A 🟡**Yellow Dot** with "Not Installed" means mods need to be installed or updated.
 
 ### 3. Install Mods
 - Click the "Install Mods" button to apply mods to your Dota 2 game.
@@ -63,7 +63,7 @@ ArdysaModsTools allows you to:
 - Progress and logs are shown, and the mod status is updated afterward.
 
 ### 5. Update Patcher
-- Click the "Update Patcher" button to refresh your mods to the latest version.
+- Click the "Update Patcher" button to bypassing your mods to the latest version.
 - The tool downloads the latest mod files and applies them.
 - Progress, logs, and status updates occur as usual.
 
