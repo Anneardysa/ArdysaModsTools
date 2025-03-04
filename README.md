@@ -1,86 +1,114 @@
-## Step 1: Detect Your Dota 2 Folder
+# ArdysaModsTools
 
-Before using any mod features, you need to detect your Dota 2 folder. Use either method below:
+![ArdysaModsTools Logo](https://via.placeholder.com/150) <!-- Replace with actual logo URL if available -->
 
-### Auto Detect Dota 2
+**ArdysaModsTools** is a user-friendly Windows application designed to simplify the process of installing, disabling, and updating mods for Dota 2. Whether you're a casual player or a mod enthusiast, this tool helps you manage your Dota 2 mods effortlessly.
 
-1. Click **"Auto Detect Dota 2"**.
-2. The app searches your Steam installation for the "dota 2 beta" folder.
-3. Wait a moment (progress bar fills)—all buttons will be disabled during this process.
-4. If successful, you’ll see a log message like:
-`[17:03] Dota 2 folder detected: C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta, Method: SteamExe default path`
-6. If it fails (e.g., `[17:03] No Dota 2 folder found across all methods.`), try Manual Detect.
+## 📌 Overview
 
-### Manual Detect Dota 2
+ArdysaModsTools allows you to:
+- **Detect Dota 2 Folder:** Automatically or manually locate your Dota 2 installation folder.
+- **Install Mods:** Apply mods to your Dota 2 game with a single click.
+- **Disable Mods:** Revert to the original game files easily.
+- **Update Patcher:** Keep your mods up-to-date with the latest versions.
+- **Check Mod Status:** See if mods are installed and working with a clear status indicator.
 
-1. Click **"Manual Detect Dota 2"**.
-2. A folder browser opens
-3. Navigate to your Dota 2 folder (e.g., `C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta`) and click **OK**.
-- The folder name must be exactly "dota 2 beta" (case doesn’t matter).
-4. If correct, you’ll see:`[17:03] Dota 2 folder manually selected: C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta`
-5. If wrong (e.g., not "dota 2 beta"), a message pops up: "Please select 'dota 2 beta' Folder."
-- Try again until you pick the right folder or click **Cancel** (`[17:03] Manual detection canceled.`).
+## 🚀 Features
 
-## Install Mods
+- **Auto Detect Dota 2 Folder:** Automatically finds your Dota 2 installation by checking Steam registry keys and library folders.
+- **Manual Detect Option:** Manually select your Dota 2 folder if auto-detection doesn’t work.
+- **One-Click Mod Installation:** Install mods by copying local files and downloading necessary files from online sources.
+- **Disable Mods Easily:** Restore original game files with a single click.
+- **Update Patcher:** Refresh your mods to the latest version.
+- **Status Indicator:** Displays a colored dot and text to show mod status:
+  - 🟢 **Green Dot + "Working"**: Mods are installed and match the latest online versions.
+  - 🟡 **Yellow Dot + "Not Installed"**: Mods are not installed or do not match the latest versions.
+- **Progress Bar:** Visual feedback during operations like detection, installation, and disabling.
+- **Log Console:** Detailed logs of operations for troubleshooting.
 
-1. **Detect Folder:** Use "Auto Detect" or "Manual Detect" first to enable the "Install Mods" button.
-2. Click **"Install Mods"**.
-3. Watch the console log:
-- `[HH:mm] Applying mods...`
-- `[HH:mm] Starting mod installation...`
-- `[HH:mm] Copying local mod files...`
-- `[HH:mm] Downloading mod files from online sources...`
-- `[HH:mm] Mod installation completed.`
-4. Wait for the progress bar to finish
-5. **If It Fails:**
-- Check logs like `[HH:mm] Failed to copy local mod files: [error]` or `[HH:mm] Download failed: [error]`.
-- Ensure internet is active and your Dota 2 folder is writable (run as Administrator if needed).
+## 📥 Download and Installation
 
-## Disable Mods
+1. **Download the Latest Release:**
+   - Visit the [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases) page and download the latest version (`ArdysaModsTools.exe` and the `game` folder).
+   - Ensure the `game` folder is in the same directory as `ArdysaModsTools.exe`.
 
-Reverts mods by downloading original Dota 2 files.
+2. **Extract Files:**
+   - Extract the downloaded files to a folder on your computer.
 
-1. **Detect Folder:** Ensure a folder is detected to enable "Disable Mods."
-2. Click **"Disable Mods"**.
-- All buttons disable during processing.
-3. Watch the console log:
-- `[HH:mm] Disabling mods...`
-- `[HH:mm] Starting mod disable process...`
-- `[HH:mm] Downloading original files to disable mods...`
-- `[HH:mm] Mod disabling completed.`
-4. Wait for the progress bar
-5. **If It Fails:**
-- See logs like `[HH:mm] Download failed: [error]`.
-- Check internet connection or folder permissions.
+3. **Run the Application:**
+   - Double-click `ArdysaModsTools.exe` to launch the tool.
 
-## Update Mods (Update Patcher)
+## 🖥️ How to Use
 
-Updates your Dota 2 patcher files to keep mods compatible—use this if you see "Patch is Outdated."
+### 1. Detect Dota 2 Folder
+- **Auto Detect:** Click the "Auto Detect Dota 2" button to let the tool find your Dota 2 folder automatically. It checks Steam registry keys and library folders.
+- **Manual Detect:** If auto-detection fails, click "Manual Detect Dota 2" and browse to your Dota 2 folder (e.g., `C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta`).
+- Once detected, the tool will check the mod status and enable additional buttons.
 
-1. **Detect Folder:** Ensure a folder is detected to enable "Update Patcher."
-2. Click **"Update Patcher"**.
-3. Watch the console log:
-- `[HH:mm] Updating patcher...`
-- `[HH:mm] Downloading patcher files...`
-- `[HH:mm] Mods Updated.`
-4. Wait for the progress bar
-5. **If You See "Patch is Outdated" Issue:**
-- This means your Dota 2 patch doesn’t match the mod files.
-- Run "Update Patcher" to download the latest compatible files
-- If it still fails (e.g., `[HH:mm] Download failed: [error]`), check your internet or contact support—the patch files online might need updating by the developer.
-6. **If It Fails:**
-- Logs like `[HH:mm] Patcher update failed: [error]` indicate network or permission issues—retry with Administrator rights or stable internet.
+### 2. Check Mod Status
+- After detecting the Dota 2 folder, the tool checks if mods are installed:
+  - A **green dot** with "Working" means mods are installed and up-to-date.
+  - A **yellow dot** with "Not Installed" means mods need to be installed or updated.
 
-## Troubleshooting Tips
+### 3. Install Mods
+- Click the "Install Mods" button to apply mods to your Dota 2 game.
+- The tool copies local mod files from the `game` folder and downloads additional files from online sources.
+- Progress is shown on the progress bar, and logs are displayed in the console.
+- After installation, the mod status is updated automatically.
 
-- **Keep Showing Error while Finding Match:** Make sure Dota 2 not running as Administrator.
-- **No Folder Detected:** Ensure Dota 2 is installed and use "Manual Detect" if "Auto Detect" fails.
-- **Download Errors:** Check your internet connection or antivirus settings (allow `ArdysaModsTools.exe`).
-- **Need Help?** Share the console log (e.g., `[17:03] Download failed: [error]`) with the developer.
+### 4. Disable Mods
+- Click the "Disable Mods" button to revert to the original Dota 2 game files.
+- The tool downloads the original files and replaces the modded ones.
+- Progress and logs are shown, and the mod status is updated afterward.
 
----
+### 5. Update Patcher
+- Click the "Update Patcher" button to refresh your mods to the latest version.
+- The tool downloads the latest mod files and applies them.
+- Progress, logs, and status updates occur as usual.
 
-**Notes:**
-- **Internet Required:** For downloading mod/patcher files during "Install Mods," "Disable Mods," and "Update Mods."
+## ⚙️ Requirements
 
-Enjoy modding Dota 2! If you encounter issues, especially "Patch is Outdated," use "Update Patcher" or reach out for support.
+- **Operating System:** Windows (tested on Windows 10).
+- **Dota 2 Installed:** Ensure Dota 2 is installed via Steam.
+- **Internet Connection:** Required for downloading mod files during Install, Disable, and Update Patcher operations.
+- **Dependencies:**
+  - The `game` folder must be in the same directory as `ArdysaModsTools.exe` (contains local mod files).
+  - .NET Framework (included with most Windows installations).
+
+## 🛠️ Troubleshooting
+
+- **Auto Detect Fails:**
+  - Ensure Steam is installed and Dota 2 is in your Steam library.
+  - Try Manual Detect and select the `dota 2 beta` folder manually.
+- **Installation Fails with "game folder not found":**
+  - Make sure the `game` folder is in the same directory as `ArdysaModsTools.exe`.
+  - The `game` folder should contain the `_ArdysaMods` folder with `pak01_dir.vpk`.
+- **Status Shows "Not Installed":**
+  - Install or update the mods using the "Install Mods" or "Update Patcher" buttons (if you already install ArdysaMods before).
+
+## 📝 Notes
+
+- The `System.Net` namespace is included but currently unused. Future updates may remove it to clean up the code.
+- The tool is designed for Dota 2 mods and may not work with other games.
+- Always ensure you have a backup of your Dota 2 folder before installing mods.
+
+## 🤝 Contributing
+
+Contributions are welcome! If you’d like to contribute:
+1. Fork the repository.
+2. Create a new branch (`git checkout -b feature/your-feature`).
+3. Make your changes and commit them (`git commit -m "Add your feature"`).
+4. Push to your branch (`git push origin feature/your-feature`).
+5. Open a pull request.
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE). See the LICENSE file for details.
+
+## 📬 Contact
+
+For support or suggestions:
+- **GitHub Issues:** [Open an issue](https://github.com/Anneardysa/ArdysaModsTools/issues)
+- **YouTube:** [Ardysa YouTube Channel](https://www.youtube.com/@Ardysa?sub_confirmation=1)
+
+Happy modding! 🎮
