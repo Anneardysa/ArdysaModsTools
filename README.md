@@ -93,15 +93,6 @@ ArdysaModsTools allows you to:
 - The tool is designed for Dota 2 mods and may not work with other games.
 - Always ensure you have a backup of your Dota 2 folder before installing mods.
 
-## 🤝 Contributing
-
-Contributions are welcome! If you’d like to contribute:
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature/your-feature`).
-3. Make your changes and commit them (`git commit -m "Add your feature"`).
-4. Push to your branch (`git push origin feature/your-feature`).
-5. Open a pull request.
-
 ## 📜 License
 
 This project is licensed under the [MIT License](LICENSE). See the LICENSE file for details.
