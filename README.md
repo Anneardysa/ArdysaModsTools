@@ -1,6 +1,6 @@
-# ArdysaModsTools
+# 💿 AMT (ArdysaModsTools)
 
-![ArdysaModsTools Logo]([https://yt3.googleusercontent.com/OQcC2Dt77FQaH0ORtSsNpOR-mv36MtE7T0vL1wTTNvEKKwO1MZSoq83Pzk-XMWyqjFDa2quQlg=w1707-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj]) <!-- Replace with actual logo URL if available -->
+![ArdysaModsTools Logo](https://yt3.googleusercontent.com/OQcC2Dt77FQaH0ORtSsNpOR-mv36MtE7T0vL1wTTNvEKKwO1MZSoq83Pzk-XMWyqjFDa2quQlg=w1707-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj) <!-- Replace with actual logo URL if available -->
 
 **ArdysaModsTools** is a user-friendly Windows application designed to simplify the process of installing, disabling, and updating mods for 
 Dota 2. Whether you're a casual player or a mod enthusiast, this tool helps you manage your Dota 2 mods effortlessly.
