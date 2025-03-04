@@ -2,7 +2,8 @@
 
 ![ArdysaModsTools Logo](https://via.placeholder.com/150) <!-- Replace with actual logo URL if available -->
 
-**ArdysaModsTools** is a user-friendly Windows application designed to simplify the process of installing, disabling, and updating mods for Dota 2. Whether you're a casual player or a mod enthusiast, this tool helps you manage your Dota 2 mods effortlessly.
+**ArdysaModsTools** is a user-friendly Windows application designed to simplify the process of installing, disabling, and updating mods for 
+Dota 2. Whether you're a casual player or a mod enthusiast, this tool helps you manage your Dota 2 mods effortlessly.
 
 ## 📌 Overview
 
