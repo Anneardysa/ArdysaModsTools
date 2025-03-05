@@ -89,9 +89,7 @@ ArdysaModsTools allows you to:
 
 ## 📝 Notes
 
-- The `System.Net` namespace is included but currently unused. Future updates may remove it to clean up the code.
 - The tool is designed for Dota 2 mods and may not work with other games.
-- Always ensure you have a backup of your Dota 2 folder before installing mods.
 
 ## 📜 License
 
