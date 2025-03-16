@@ -1,0 +1,143 @@
+"590"
+{
+	"name"		"Reef's Edge"
+	"prefab"		"terrain"
+	"creation_date"		"2017-05-04"
+	"event_id"		"EVENT_ID_INTERNATIONAL_2017"
+	"image_inventory"		"econ/terrain/reef_terrain"
+	"item_description"		"#DOTA_Item_Desc_Reefs_Edge"
+	"item_name"		"#DOTA_Item_Reefs_Edge"
+	"item_rarity"		"immortal"
+	"static_attributes"
+	{
+		"cannot trade"
+		{
+			"attribute_class"		"cannot_trade"
+			"value"		"1"
+		}
+		"not marketable"
+		{
+			"attribute_class"		"not marketable"
+			"value"		"1"
+		}
+		"giftable"
+		{
+			"attribute_class"		"giftable"
+			"value"		"0"
+		}
+		"additional_tooltip_text"
+		{
+			"attribute_class"		"additional_tooltip_text"
+			"value"		"#DOTA_EconItemSet_Tooltip_Prestige_Exclusive_To_TI7_BattlePass_Owners"
+		}
+		"international tag"
+		{
+			"attribute_class"		"international_tag"
+			"value"		"2017"
+		}
+	}
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"map_override"
+			"asset"		"maps/dota.vmap"
+			"modifier"		"maps/dota_reef.vmap"
+			"style"		"0"
+		}
+		"asset_modifier2"
+		{
+			"type"		"portrait_background_map"
+			"asset"		"maps/terrain_previews/dota_reef_preview.vmap"
+			"style"		"0"
+		}
+		"asset_modifier3"
+		{
+			"type"		"weather_effect"
+			"asset"		"maps/reef_assets/particles/reef_terrain.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier4"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/roshan/roshan_color.vmat"
+			"modifier"		"materials/models/creeps/roshan/roshan_reef_color.vmat"
+			"style"		"0"
+		}
+		"asset_modifier5"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"15"
+			"cp_position"		"255 255 0"
+		}
+		"asset_modifier6"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"16"
+			"cp_position"		"1 0 0"
+		}
+		"asset_modifier"
+		{
+			"type"		"soundscape"
+			"asset"		"default_day"
+			"modifier"		"reef_day"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"soundscape"
+			"asset"		"default_night"
+			"modifier"		"reef_night"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"terrain_particle_effect"
+			"asset"		"hero_footstep"
+			"modifier"		"maps/reef_assets/particles/reef_effects_hero.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"terrain_particle_effect"
+			"asset"		"creep_footstep"
+			"modifier"		"maps/reef_assets/particles/reef_effects_creep.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"sound"
+			"asset"		"General.Morning"
+			"modifier"		"Reef.Morning"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"sound"
+			"asset"		"General.Night"
+			"modifier"		"Reef.Night"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"sound"
+			"asset"		"Hero_Shared.WaterFootsteps"
+			"modifier"		"Hero_Shared.ReefFootsteps"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"color_correction_material_override"
+			"asset"		"materials/dev/game_dead.vmat"
+			"modifier"		"materials/colorwarps/dota_reef_dead.vmat"
+		}
+		"asset_modifier"
+		{
+			"type"		"color_correction_material_override"
+			"asset"		"materials/dev/game_paused.vmat"
+			"modifier"		"materials/colorwarps/dota_reef_pause.vmat"
+		}
+	}
+}

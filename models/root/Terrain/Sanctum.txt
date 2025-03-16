@@ -1,0 +1,84 @@
+"590"
+{
+	"name"		"Sanctums of the Divine"
+	"prefab"		"terrain"
+	"creation_date"		"2020-05-25"
+	"event_id"		"EVENT_ID_INTERNATIONAL_2020"
+	"hide_tradecraftdelete"		"1"
+	"image_inventory"		"econ/terrain/ti10_terrain"
+	"item_description"		"#DOTA_Item_Desc_Sanctums_of_the_Divine"
+	"item_name"		"#DOTA_Item_Sanctums_of_the_Divine"
+	"item_rarity"		"immortal"
+	"static_attributes"
+	{
+		"cannot trade"
+		{
+			"attribute_class"		"cannot_trade"
+			"value"		"1"
+		}
+		"not marketable"
+		{
+			"attribute_class"		"not marketable"
+			"value"		"1"
+		}
+		"giftable"
+		{
+			"attribute_class"		"giftable"
+			"value"		"0"
+		}
+		"cannot delete"
+		{
+			"attribute_class"		"cannot_delete"
+			"value"		"1"
+		}
+		"additional_exclusive_tooltip_text"
+		{
+			"attribute_class"		"additional_exclusive_tooltip_text"
+			"value"		"#DOTA_EconItemSet_Tooltip_TI10_Exclusive_Item"
+		}
+	}
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"map_override"
+			"asset"		"maps/dota.vmap"
+			"modifier"		"maps/dota_ti10.vmap"
+		}
+		"asset_modifier"
+		{
+			"type"		"portrait_background_map"
+			"asset"		"maps/terrain_previews/dota_ti10_preview.vmap"
+		}
+		"asset_modifier"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/roshan/roshan_color.vmat"
+			"modifier"		"materials/models/creeps/roshan/roshan_gardens_color.vmat"
+		}
+		"asset_modifier"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/items/world/towers/ti10_dire_tower/ti10_dire_tower.vmat"
+			"modifier"		"materials/models/items/world/towers/ti10_dire_tower/ti10_dire_tower_cyan.vmat"
+		}
+		"asset_modifier"
+		{
+			"type"		"particle_clientside"
+			"asset"		"particles/econ/world/towers/ti10_dire_tower/ti10_dire_tower_destruction.vpcf"
+			"modifier"		"particles/econ/world/towers/ti10_dire_tower/ti10_dire_tower_cyan_destruction.vpcf"
+		}
+		"asset_modifier"
+		{
+			"type"		"particle_clientside"
+			"asset"		"particles/econ/world/towers/ti10_dire_tower/ti10_dire_tower_ambient.vpcf"
+			"modifier"		"particles/econ/world/towers/ti10_dire_tower/ti10_dire_tower_cyan_ambient.vpcf"
+		}
+		"asset_modifier"
+		{
+			"type"		"particle_clientside"
+			"asset"		"particles/econ/world/towers/ti10_dire_tower/ti10_dire_tower_attack.vpcf"
+			"modifier"		"particles/econ/world/towers/ti10_dire_tower/ti10_dire_tower_cyan_attack.vpcf"
+		}
+	}
+}

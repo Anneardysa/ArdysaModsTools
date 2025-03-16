@@ -1,0 +1,97 @@
+"590"
+{
+	"name"		"Overgrown Empire"
+	"prefab"		"terrain"
+	"creation_date"		"2019-03-12"
+	"event_id"		"EVENT_ID_INTERNATIONAL_2019"
+	"image_inventory"		"econ/terrain/ti9_terrain"
+	"item_description"		"#DOTA_Item_Desc_Overgrown_Empire"
+	"item_name"		"#DOTA_Item_Overgrown_Empire"
+	"item_rarity"		"immortal"
+	"static_attributes"
+	{
+		"cannot trade"
+		{
+			"attribute_class"		"cannot_trade"
+			"value"		"1"
+		}
+	}
+	"visuals"
+	{
+		"styles"
+		{
+			"0"
+			{
+				"name"		"#DOTA_Item_Desc_Overgrown_Empire_Style0"
+				"alternate_icon"		"0"
+			}
+			"1"
+			{
+				"name"		"#DOTA_Item_Desc_Overgrown_Empire_Style1"
+				"alternate_icon"		"0"
+			}
+		}
+		"asset_modifier0"
+		{
+			"type"		"map_override"
+			"asset"		"maps/dota.vmap"
+			"modifier"		"maps/dota_jungle.vmap"
+		}
+		"asset_modifier2"
+		{
+			"type"		"portrait_background_map"
+			"asset"		"maps/terrain_previews/dota_jungle_preview.vmap"
+		}
+		"asset_modifier4"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/roshan/roshan_color.vmat"
+			"modifier"		"materials/models/creeps/roshan/roshan_winter_color.vmat"
+		}
+		"asset_modifier5"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"15"
+			"cp_position"		"255 255 0"
+		}
+		"asset_modifier6"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"16"
+			"cp_position"		"1 0 0"
+		}
+		"asset_modifier"
+		{
+			"type"		"soundscape"
+			"asset"		"default_day"
+			"modifier"		"jungle_day"
+		}
+		"asset_modifier"
+		{
+			"type"		"soundscape"
+			"asset"		"default_night"
+			"modifier"		"jungle_night"
+		}
+		"asset_modifier"
+		{
+			"type"		"sound"
+			"asset"		"General.Morning"
+			"modifier"		"General.Morning"
+		}
+		"asset_modifier"
+		{
+			"type"		"sound"
+			"asset"		"General.Night"
+			"modifier"		"General.Night"
+		}
+		"asset_modifier"
+		{
+			"type"		"weather_effect"
+			"asset"		"particles/rain_fx/econ_dynamic_rain.vpcf"
+			"style"		"0"
+			"dynamic_weather"		"1"
+		}
+	}
+}

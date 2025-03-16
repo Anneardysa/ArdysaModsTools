@@ -1,0 +1,98 @@
+"590"
+{
+	"name"		"The Emerald Abyss"
+	"prefab"		"terrain"
+	"creation_date"		"2018-03-23"
+	"event_id"		"EVENT_ID_INTERNATIONAL_2018"
+	"image_inventory"		"econ/terrain/cavern_terrain"
+	"item_description"		"#DOTA_Item_Desc_Copy_of_Reefs_Edge"
+	"item_name"		"#DOTA_Item_The_Emerald_Abyss"
+	"item_rarity"		"immortal"
+	"static_attributes"
+	{
+		"cannot trade"
+		{
+			"attribute_class"		"cannot_trade"
+			"value"		"1"
+		}
+	}
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"map_override"
+			"asset"		"maps/dota.vmap"
+			"modifier"		"maps/dota_cavern.vmap"
+			"style"		"0"
+		}
+		"asset_modifier2"
+		{
+			"type"		"portrait_background_map"
+			"asset"		"maps/terrain_previews/dota_cavern_preview.vmap"
+			"style"		"0"
+		}
+		"asset_modifier4"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/roshan/roshan_color.vmat"
+			"modifier"		"materials/models/creeps/roshan/roshan_ti8_color.vmat"
+			"style"		"0"
+		}
+		"asset_modifier5"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"15"
+			"cp_position"		"255 255 0"
+		}
+		"asset_modifier6"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"16"
+			"cp_position"		"1 0 0"
+		}
+		"asset_modifier"
+		{
+			"type"		"soundscape"
+			"asset"		"default_day"
+			"modifier"		"cavern_day"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"soundscape"
+			"asset"		"default_night"
+			"modifier"		"cavern_night"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"sound"
+			"asset"		"General.Morning"
+			"modifier"		"Cavern.Morning"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"sound"
+			"asset"		"General.Night"
+			"modifier"		"Cavern.Night"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"terrain_particle_effect"
+			"asset"		"hero_footstep"
+			"modifier"		"maps/cavern_assets/particles/cavern_water_splash_hero.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"terrain_particle_effect"
+			"asset"		"creep_footstep"
+			"modifier"		"maps/cavern_assets/particles/cavern_water_splash_creep.vpcf"
+			"style"		"0"
+		}
+	}
+}
