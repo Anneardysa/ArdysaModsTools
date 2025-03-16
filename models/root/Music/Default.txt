@@ -1,0 +1,18 @@
+"588"
+{
+	"name"		"Default Music"
+	"prefab"		"music"
+	"creation_date"		"2015-08-26"
+	"image_inventory"		"econ/music/music_pack_default"
+	"item_name"		"#DOTA_Item_Default_Music"
+	"baseitem"		"1"
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/music/valve_dota_001/stingers/store_preview.vsnd"
+			"modifier"		"#DOTA_Item_Default_Music"
+		}
+	}
+}
