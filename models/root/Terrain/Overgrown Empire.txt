@@ -2,20 +2,13 @@
 {
 	"name"		"Overgrown Empire"
 	"prefab"		"terrain"
+	"baseitem"		"1"
 	"creation_date"		"2019-03-12"
 	"event_id"		"EVENT_ID_INTERNATIONAL_2019"
 	"image_inventory"		"econ/terrain/ti9_terrain"
 	"item_description"		"#DOTA_Item_Desc_Overgrown_Empire"
 	"item_name"		"#DOTA_Item_Overgrown_Empire"
 	"item_rarity"		"immortal"
-	"static_attributes"
-	{
-		"cannot trade"
-		{
-			"attribute_class"		"cannot_trade"
-			"value"		"1"
-		}
-	}
 	"visuals"
 	{
 		"styles"
