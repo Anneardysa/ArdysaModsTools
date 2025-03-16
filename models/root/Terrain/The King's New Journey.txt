@@ -2,17 +2,12 @@
 {
 	"name"		"The King's New Journey"
 	"prefab"		"terrain"
+	"baseitem"		"1"
 	"creation_date"		"2016-12-12"
 	"image_inventory"		"econ/terrain/journey_terrain"
 	"item_description"		"#DOTA_Item_Desc_The_Kings_New_Journey"
 	"item_name"		"#DOTA_Item_The_Kings_New_Journey"
 	"item_rarity"		"mythical"
-	"price_info"
-	{
-		"category_tags"		"Equipment"
-		"date"		"12/12/2016"
-		"price"		"1999"
-	}
 	"visuals"
 	{
 		"asset_modifier0"
