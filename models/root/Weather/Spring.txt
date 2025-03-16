@@ -1,6 +1,6 @@
 "555"
 {
-	"name"		"Weather Spring"
+	"name"		"Default Weather"
 	"prefab"		"weather"
 	"creation_date"		"2016-05-12"
 	"event_id"		"EVENT_ID_INTERNATIONAL_2016"

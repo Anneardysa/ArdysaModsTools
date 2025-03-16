@@ -1,6 +1,6 @@
 "555"
 {
-	"name"		"Weather Aurora"
+	"name"		"Default Weather"
 	"prefab"		"weather"
 	"creation_date"		"2016-05-16"
 	"event_id"		"EVENT_ID_INTERNATIONAL_2016"

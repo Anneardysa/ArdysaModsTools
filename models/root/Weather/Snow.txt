@@ -1,6 +1,6 @@
 "555"
 {
-	"name"		"Weather Snow"
+	"name"		"Default Weather"
 	"prefab"		"weather"
 	"creation_date"		"2014-06-17"
 	"image_inventory"		"econ/tools/weather_snow"

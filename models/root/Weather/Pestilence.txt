@@ -1,6 +1,6 @@
 "555"
 {
-	"name"		"Weather Pestilence"
+	"name"		"Default Weather"
 	"prefab"		"weather"
 	"creation_date"		"2015-07-13"
 	"image_inventory"		"econ/tools/weather_pestilence"

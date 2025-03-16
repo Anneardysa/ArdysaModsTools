@@ -1,54 +1,36 @@
-"555" {
-	"name"
-	"Default Weather"
-	"prefab"
-	"weather"
-	"creation_date"
-	"2015-08-26"
-	"event_id"
-	"EVENT_ID_INTERNATIONAL_2016"
-	"image_inventory"
-	"econ/tools/weather_burning"
-	"item_class"
-	"tool"
-	"item_name"
-	"#DOTA_Item_Weather_Ash"
-	"item_quality"
-	"genuine"
-	"item_rarity"
-	"mythical"
-	"baseitem"
-	"1"
-	"static_attributes" {
-		"international tag" {
-			"attribute_class"
-			"international_tag"
-			"value"
-			"2016"
+"555"
+{
+	"name"		"Default Weather"
+	"prefab"		"weather"
+	"creation_date"		"2016-05-12"
+	"event_id"		"EVENT_ID_INTERNATIONAL_2016"
+	"image_inventory"		"econ/tools/weather_burning"
+	"item_class"		"tool"
+	"item_name"		"#DOTA_Item_Weather_Ash"
+	"item_quality"		"genuine"
+	"item_rarity"		"mythical"
+	"item_slot"		"weather"
+	"item_type_name"		"#DOTA_WearableType_Weather_Effect"
+	"player_loadout"		"1"
+	"static_attributes"
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"soundscape"
+			"asset"		"weather_day_default"
+			"modifier"		"weather_day_ash"
 		}
-	}
-	"visuals" {
-		"asset_modifier0" {
-			"type"
-			"soundscape"
-			"asset"
-			"weather_day_default"
-			"modifier"
-			"weather_day_ash"
+		"asset_modifier1"
+		{
+			"type"		"soundscape"
+			"asset"		"weather_night_default"
+			"modifier"		"weather_night_ash"
 		}
-		"asset_modifier1" {
-			"type"
-			"soundscape"
-			"asset"
-			"weather_night_default"
-			"modifier"
-			"weather_night_ash"
-		}
-		"asset_modifier2" {
-			"type"
-			"weather"
-			"weather_type"
-			"8"
+		"asset_modifier2"
+		{
+			"type"		"weather"
+			"weather_type"		"8"
 		}
 	}
 }
