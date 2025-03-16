@@ -1,0 +1,9 @@
+"555"
+{
+	"name"		"Default Weather"
+	"prefab"		"weather"
+	"creation_date"		"2015-08-26"
+	"image_inventory"		"econ/tools/weather_default"
+	"item_name"		"#DOTA_Item_Default_Weather"
+	"baseitem"		"1"
+}
