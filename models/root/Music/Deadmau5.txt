@@ -308,5 +308,3 @@
 			"modifier"
 			"#DOTA_Item_deadmau5_dieback_music_pack"
 		}
-	}
-}
