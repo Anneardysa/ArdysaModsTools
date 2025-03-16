@@ -3,23 +3,11 @@
 	"name"		"Desert Terrain"
 	"prefab"		"terrain"
 	"creation_date"		"2015-12-01"
+	"baseitem"		"1"
 	"image_inventory"		"econ/terrain/desert_terrain"
 	"item_name"		"#DOTA_Item_Desert_Terrain"
 	"item_quality"		"genuine"
 	"item_rarity"		"mythical"
-	"static_attributes"
-	{
-		"cannot trade"
-		{
-			"attribute_class"		"cannot_trade"
-			"value"		"1"
-		}
-		"not marketable"
-		{
-			"attribute_class"		"not marketable"
-			"value"		"1"
-		}
-	}
 	"visuals"
 	{
 		"asset_modifier0"
