@@ -10,7 +10,7 @@
 	"item_rarity"		"mythical"
 	"item_slot"		"weather"
 	"item_type_name"		"#DOTA_WearableType_Weather_Effect"
-	"player_loadout"		"1"
+	"baseitem"	"1"
 	"static_attributes"
 	{
 		"not marketable"
