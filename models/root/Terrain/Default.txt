@@ -1,0 +1,25 @@
+"590"
+{
+	"name"		"Default Terrain"
+	"prefab"		"terrain"
+	"creation_date"		"2015-12-01"
+	"baseitem"		"1"
+	"image_inventory"		"econ/terrain/default_terrain"
+	"item_name"		"#DOTA_Item_Default_Terrain"
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"portrait_background_map"
+			"asset"		"maps/terrain_previews/dota_default_preview.vmap"
+			"style"		"0"
+		}
+		"asset_modifier1"
+		{
+			"type"		"map_override"
+			"asset"		"maps/hero_demo_main.vmap"
+			"modifier"		"maps/hero_demo_main.vmap"
+			"style"		"0"
+		}
+	}
+}
