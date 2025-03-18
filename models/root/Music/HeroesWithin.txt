@@ -1,0 +1,238 @@
+"588" {
+	"name"
+	"Default Music"
+	"prefab"
+	"music"
+	"creation_date"		"2015-03-18"
+	"image_inventory"		"econ/music/heroes_within_music_pack"
+	"item_description"		"#DOTA_Item_Desc_Heroes_Within_Music_Pack"
+	"item_name"		"#DOTA_Item_Heroes_Within_Music_Pack"
+	"item_rarity"		"mythical"
+	"item_type_name"		"#DOTA_WearableType_Music_Pack"
+	"baseitem"          "1"	
+    "visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music."
+			"modifier"		"dsadowski_01.music."
+		}
+		"asset_modifier1"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.ui_startup"
+			"modifier"		"dsadowski_01.music.ui_startup"
+		}
+		"asset_modifier2"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.ui_main"
+			"modifier"		"dsadowski_01.music.ui_main"
+		}
+		"asset_modifier3"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.ui_hero_select"
+			"modifier"		"dsadowski_01.music.ui_hero_select"
+		}
+		"asset_modifier4"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.countdown"
+			"modifier"		"dsadowski_01.music.countdown"
+		}
+		"asset_modifier5"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.battle_01"
+			"modifier"		"dsadowski_01.music.battle_01"
+		}
+		"asset_modifier6"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.battle_01_end"
+			"modifier"		"dsadowski_01.music.battle_01_end"
+		}
+		"asset_modifier7"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.battle_02"
+			"modifier"		"dsadowski_01.music.battle_02"
+		}
+		"asset_modifier8"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.battle_02_end"
+			"modifier"		"dsadowski_01.music.battle_02_end"
+		}
+		"asset_modifier9"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.battle_03"
+			"modifier"		"dsadowski_01.music.battle_03"
+		}
+		"asset_modifier10"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.battle_03_end"
+			"modifier"		"dsadowski_01.music.battle_03_end"
+		}
+		"asset_modifier11"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.battle_end_countdown"
+			"modifier"		"dsadowski_01.music.battle_end_countdown"
+		}
+		"asset_modifier12"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.roshan"
+			"modifier"		"dsadowski_01.music.roshan"
+		}
+		"asset_modifier13"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.roshan_end"
+			"modifier"		"dsadowski_01.music.roshan_end"
+		}
+		"asset_modifier14"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.smoke"
+			"modifier"		"dsadowski_01.music.smoke"
+		}
+		"asset_modifier15"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.smoke_end_hero"
+			"modifier"		"dsadowski_01.music.smoke_end_hero"
+		}
+		"asset_modifier16"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.smoke_end_tower"
+			"modifier"		"dsadowski_01.music.smoke_end_tower"
+		}
+		"asset_modifier17"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.smoke_end_creep"
+			"modifier"		"dsadowski_01.music.smoke_end_creep"
+		}
+		"asset_modifier18"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.laning_01_layer_01"
+			"modifier"		"dsadowski_01.music.laning_01_layer_01"
+		}
+		"asset_modifier19"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.laning_01_layer_02"
+			"modifier"		"dsadowski_01.music.laning_01_layer_02"
+		}
+		"asset_modifier20"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.laning_01_layer_03"
+			"modifier"		"dsadowski_01.music.laning_01_layer_03"
+		}
+		"asset_modifier21"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.laning_02_layer_01"
+			"modifier"		"dsadowski_01.music.laning_02_layer_01"
+		}
+		"asset_modifier22"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.laning_02_layer_02"
+			"modifier"		"dsadowski_01.music.laning_02_layer_02"
+		}
+		"asset_modifier23"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.laning_02_layer_03"
+			"modifier"		"dsadowski_01.music.laning_02_layer_03"
+		}
+		"asset_modifier24"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.laning_03_layer_01"
+			"modifier"		"dsadowski_01.music.laning_03_layer_01"
+		}
+		"asset_modifier25"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.laning_03_layer_02"
+			"modifier"		"dsadowski_01.music.laning_03_layer_02"
+		}
+		"asset_modifier26"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.laning_03_layer_03"
+			"modifier"		"dsadowski_01.music.laning_03_layer_03"
+		}
+		"asset_modifier27"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.killed"
+			"modifier"		"dsadowski_01.music.killed"
+		}
+		"asset_modifier28"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.ganked_sml"
+			"modifier"		"dsadowski_01.music.ganked_sml"
+		}
+		"asset_modifier29"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.ganked_med"
+			"modifier"		"dsadowski_01.music.ganked_med"
+		}
+		"asset_modifier30"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.music.ganked_lg"
+			"modifier"		"dsadowski_01.music.ganked_lg"
+		}
+		"asset_modifier31"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.stinger.respawn"
+			"modifier"		"dsadowski_01.stinger.respawn"
+		}
+		"asset_modifier33"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.stinger.radiant_win"
+			"modifier"		"dsadowski_01.stinger.radiant_win"
+		}
+		"asset_modifier34"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.stinger.dire_win"
+			"modifier"		"dsadowski_01.stinger.dire_win"
+		}
+		"asset_modifier35"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.stinger.dire_lose"
+			"modifier"		"dsadowski_01.stinger.dire_lose"
+		}
+		"asset_modifier36"
+		{
+			"type"		"sound"
+			"asset"		"valve_dota_001.stinger.radiant_lose"
+			"modifier"		"dsadowski_01.stinger.radiant_lose"
+		}
+		"asset_modifier37"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/music/dsadowski_01/stingers/store_preview.vsnd"
+			"modifier"		"#DOTA_Item_Heroes_Within_Music_Pack"
+		}
+	}
+}
