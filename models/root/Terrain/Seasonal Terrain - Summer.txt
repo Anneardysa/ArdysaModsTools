@@ -1,0 +1,124 @@
+"590"
+{
+	"name"		"Seasonal Terrain - Summer"
+	"prefab"		"terrain"
+	"baseitem"		"1"
+	"creation_date"		"2018-06-14"
+	"image_inventory"		"econ/terrain/summer_terrain"
+	"item_name"		"#DOTA_Item_Seasonal_Terrain__Summer"
+	"item_rarity"		"seasonal"
+	"static_attributes"
+	{
+		"cannot trade"
+		{
+			"attribute_class"		"cannot_trade"
+			"value"		"1"
+		}
+		"not marketable"
+		{
+			"attribute_class"		"not marketable"
+			"value"		"1"
+		}
+	}
+	"portraits"
+	{
+		"icon"
+		{
+			"cameras"
+			{
+				"Default"
+				{
+					"PortraitPosition"		"480.132111 302.748627 403.187500"
+					"PortraitAngles"		"28.490007 212.830048 0.000000"
+					"PortraitFOV"		"16"
+					"PortraitFar"		"1000"
+				}
+			}
+			"PortraitLightPosition"		"202.699997 -23.150000 308.170013"
+			"PortraitLightAngles"		"54.790001 171.699997 0.000000"
+			"PortraitLightFOV"		"120"
+			"PortraitLightDistance"		"336"
+			"PortraitLightColor"		"254 248 242"
+			"PortraitLightScale"		"2"
+			"PortraitShadowColor"		"74 74 74"
+			"PortraitShadowScale"		"1"
+			"PortraitGroundShadowScale"		"1.500000"
+			"PortraitAmbientDirection"		"-79.070 -84.150 -25.320"
+			"PortraitAmbientColor"		"79 108 108"
+			"PortraitAmbientScale"		"1"
+			"PortraitSpecularColor"		"251 74 84"
+			"PortraitSpecularDirection"		"0.000000 0.000000 -1.000000"
+			"PortraitSpecularPower"		"16"
+			"PortraitBackgroundColor1"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor2"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor3"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor4"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundTexture"		"materials/vgui/econ/item_icon_bg.vmat"
+			"PortraitAnimationActivity"		"ACT_DOTA_IDLE"
+			"PortraitAnimationCycle"		"0"
+			"PortraitAnimationRate"		"1"
+			"PortraitHideHero"		"0"
+			"PortraitHideParticles"		"0"
+			"PortraitHideDropShadow"		"0"
+			"PortraitDesaturateParticles"		"0"
+			"PortraitDesaturateHero"		"1"
+		}
+	}
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"map_override"
+			"asset"		"maps/dota.vmap"
+			"modifier"		"maps/dota_summer.vmap"
+			"style"		"0"
+		}
+		"asset_modifier2"
+		{
+			"type"		"portrait_background_map"
+			"asset"		"maps/terrain_previews/dota_summer_preview.vmap"
+			"style"		"0"
+		}
+		"asset_modifier4"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/roshan/roshan_color.vmat"
+			"modifier"		"materials/models/creeps/roshan/roshan_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier5"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"15"
+			"cp_position"		"255 255 0"
+		}
+		"asset_modifier6"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"16"
+			"cp_position"		"1 0 0"
+		}
+		"asset_modifier"
+		{
+			"type"		"soundscape"
+			"asset"		"default_day"
+			"modifier"		"summer_day"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"soundscape"
+			"asset"		"default_night"
+			"modifier"		"summer_night"
+			"style"		"0"
+		}
+		"asset_modifier"
+		{
+			"type"		"weather_effect"
+			"asset"		"maps/summer_assets/particles/summer_terrain.vpcf"
+			"style"		"0"
+		}
+	}
+}

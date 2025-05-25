@@ -1,0 +1,323 @@
+"590"
+{
+	"name"		"Winter Terrain"
+	"prefab"		"terrain"
+	"baseitem"		"1"
+	"creation_date"		"2016-01-06"
+	"image_inventory"		"econ/terrain/winter_terrain"
+	"item_name"		"#DOTA_Item_Winter_Terrain"
+	"item_rarity"		"seasonal"
+	"static_attributes"
+	{
+		"cannot trade"
+		{
+			"attribute_class"		"cannot_trade"
+			"value"		"1"
+		}
+		"not marketable"
+		{
+			"attribute_class"		"not marketable"
+			"value"		"1"
+		}
+		"cannot delete"
+		{
+			"attribute_class"		"cannot_delete"
+			"value"		"1"
+		}
+	}
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"map_override"
+			"asset"		"maps/dota.vmap"
+			"modifier"		"maps/dota_winter.vmap"
+			"style"		"0"
+		}
+		"asset_modifier2"
+		{
+			"type"		"portrait_background_map"
+			"asset"		"maps/terrain_previews/dota_winter_preview.vmap"
+			"style"		"0"
+		}
+		"asset_modifier3"
+		{
+			"type"		"weather_effect"
+			"asset"		"particles/rain_fx/winter_terrain.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier15"
+		{
+			"type"		"soundscape"
+			"asset"		"default_day"
+			"modifier"		"winter_day"
+			"style"		"0"
+		}
+		"asset_modifier16"
+		{
+			"type"		"soundscape"
+			"asset"		"default_night"
+			"modifier"		"winter_night"
+			"style"		"0"
+		}
+		"asset_modifier29"
+		{
+			"type"		"terrain_particle_effect"
+			"asset"		"hero_footstep"
+			"modifier"		"particles/generic_gameplay/winter_effects_hero.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier30"
+		{
+			"type"		"terrain_particle_effect"
+			"asset"		"creep_footstep"
+			"modifier"		"particles/generic_gameplay/winter_effects_creep.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier31"
+		{
+			"type"		"terrain_particle_effect"
+			"asset"		"tree_destruction_generic"
+			"modifier"		"particles/world_destruction_fx/tree_destroy_winter.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier32"
+		{
+			"type"		"terrain_particle_effect"
+			"asset"		"tree_destruction_overlay"
+			"modifier"		"particles/world_destruction_fx/tree_destruction_snow.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier33"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/lane_creeps/creep_radiant_mele/creep_rad_melee.vmat"
+			"modifier"		"materials/models/creeps/lane_creeps/creep_radiant_mele/creep_rad_melee_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier34"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/lane_creeps/lane_radiant_ranged_color.vmat"
+			"modifier"		"materials/models/creeps/lane_creeps/lane_radiant_ranged_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier35"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/lane_creeps/creep_good_siege/creep_good_siege_color.vmat"
+			"modifier"		"materials/models/creeps/lane_creeps/creep_good_siege/creep_good_siege_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier36"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/lane_creeps/creep_bad_melee/creep_bad_melee_color.vmat"
+			"modifier"		"materials/models/creeps/lane_creeps/creep_bad_melee/creep_bad_melee_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier37"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/lane_creeps/creep_bad_ranged/lane_dire_ranged_color.vmat"
+			"modifier"		"materials/models/creeps/lane_creeps/creep_bad_ranged/lane_dire_ranged_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier38"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/lane_creeps/creep_bad_siege/creep_bad_siege_color.vmat"
+			"modifier"		"materials/models/creeps/lane_creeps/creep_bad_siege/creep_bad_siege_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier39"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/roshan/roshan_color.vmat"
+			"modifier"		"materials/models/creeps/roshan/roshan_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier40"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_beast.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_beast_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier41"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_black_dragon.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_black_dragon_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier42"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_black_drake.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_black_drake_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier43"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_centaur_outrunner.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_centaur_outrunner_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier44"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/n_creep_centaur_conqueror/n_creep_centaur_conqueror.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/n_creep_centaur_conqueror/n_creep_centaur_conqueror_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier45"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_furbolg_color.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_furbolg_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier46"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_golem_a.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_golem_a_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier47"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/satyr_a.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/satyr_a_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier48"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/satyr_c.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/satyr_c_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier49"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_golem_b.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_golem_b_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier50"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_ogre_med.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_ogre_med_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier51"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_thunder_lizard_big_color.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_thunder_lizard_big_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier52"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_thunder_lizard_small_color.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_thunder_lizard_small_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier53"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_troll_dark_a.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_troll_dark_a_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier54"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_troll_dark_b.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_troll_dark_b_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier55"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_vulture_a.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_vulture_a_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier56"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/neutral_vulture_b.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/neutral_vulture_b_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier57"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/neutral_creeps/ogre_lrg_color.vmat"
+			"modifier"		"materials/models/creeps/neutral_creeps/ogre_lrg_color_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier58"
+		{
+			"type"		"particle"
+			"asset"		"particles/siege_fx/siege_good_death_01.vpcf"
+			"modifier"		"particles/siege_fx/siege_good_death_01_winter.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier59"
+		{
+			"type"		"particle"
+			"asset"		"particles/siege_fx/siege_bad_death_01.vpcf"
+			"modifier"		"particles/siege_fx/siege_bad_death_01_winter.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier60"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/lane_creeps/creep_radiant_ranged/radiant_ranged_mega.vmat"
+			"modifier"		"materials/models/creeps/lane_creeps/creep_radiant_ranged/radiant_ranged_mega_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier61"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/lane_creeps/creep_radiant_mele/mega_radiant_melee.vmat"
+			"modifier"		"materials/models/creeps/lane_creeps/creep_radiant_mele/mega_radiant_melee_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier62"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/lane_creeps/creep_bad_ranged/lane_dire_ranged_mega.vmat"
+			"modifier"		"materials/models/creeps/lane_creeps/creep_bad_ranged/lane_dire_ranged_mega_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier63"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/lane_creeps/creep_bad_melee/creep_bad_melee_mega.vmat"
+			"modifier"		"materials/models/creeps/lane_creeps/creep_bad_melee/creep_bad_melee_mega_winter.vmat"
+			"style"		"0"
+		}
+		"asset_modifier64"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"15"
+			"cp_position"		"255 255 0"
+		}
+		"asset_modifier65"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"16"
+			"cp_position"		"1 0 0"
+		}
+	}
+}

@@ -1,0 +1,59 @@
+"590"
+{
+	"name"		"Seasonal Terrain - Autumn"
+	"prefab"		"terrain"
+	"baseitem"		"1"
+	"creation_date"		"2016-07-06"
+	"image_inventory"		"econ/terrain/autumn_terrain"
+	"item_name"		"#DOTA_Item_Seasonal_Terrain__Autumn"
+	"item_rarity"		"seasonal"
+	"static_attributes"
+	{
+		"cannot trade"
+		{
+			"attribute_class"		"cannot_trade"
+			"value"		"1"
+		}
+		"not marketable"
+		{
+			"attribute_class"		"not marketable"
+			"value"		"1"
+		}
+	}
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"map_override"
+			"asset"		"maps/dota.vmap"
+			"modifier"		"maps/dota_autumn.vmap"
+			"style"		"0"
+		}
+		"asset_modifier1"
+		{
+			"type"		"portrait_background_map"
+			"asset"		"maps/terrain_previews/dota_autumn_preview.vmap"
+			"style"		"0"
+		}
+		"asset_modifier4"
+		{
+			"type"		"soundscape"
+			"asset"		"default_day"
+			"modifier"		"autumn_day"
+			"style"		"0"
+		}
+		"asset_modifier5"
+		{
+			"type"		"soundscape"
+			"asset"		"default_night"
+			"modifier"		"autumn_night"
+			"style"		"0"
+		}
+		"asset_modifier2"
+		{
+			"type"		"weather_effect"
+			"asset"		"particles/rain_fx/autumn_terrain.vpcf"
+			"style"		"0"
+		}
+	}
+}

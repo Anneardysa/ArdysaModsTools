@@ -1,0 +1,61 @@
+"590"
+{
+	"name"		"Seasonal Terrain - Spring"
+	"prefab"		"terrain"
+	"baseitem"		"1"
+	"creation_date"		"2017-05-04"
+	"baseitem"		"1"
+	"image_inventory"		"econ/terrain/spring_terrain"
+	"item_name"		"#DOTA_Item_Seasonal_Terrain__Spring"
+	"item_rarity"		"seasonal"
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"map_override"
+			"asset"		"maps/dota.vmap"
+			"modifier"		"maps/dota_spring.vmap"
+			"style"		"0"
+		}
+		"asset_modifier1"
+		{
+			"type"		"map_override"
+			"asset"		"maps/hero_demo_spring.vmap"
+			"modifier"		"maps/hero_demo_spring.vmap"
+			"style"		"0"
+		}
+		"asset_modifier2"
+		{
+			"type"		"portrait_background_map"
+			"asset"		"maps/terrain_previews/dota_spring_preview.vmap"
+			"style"		"0"
+		}
+		"asset_modifier3"
+		{
+			"type"		"weather_effect"
+			"asset"		"particles/rain_fx/spring_terrain.vpcf"
+			"style"		"0"
+		}
+		"asset_modifier4"
+		{
+			"type"		"npc_material_override"
+			"asset"		"materials/models/creeps/roshan/roshan_color.vmat"
+			"modifier"		"materials/models/creeps/roshan/roshan_desert_color.vmat"
+			"style"		"0"
+		}
+		"asset_modifier5"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"15"
+			"cp_position"		"255 255 0"
+		}
+		"asset_modifier6"
+		{
+			"type"		"particle_control_point"
+			"asset"		"particles/ui_mouseactions/bounding_area_view.vpcf"
+			"control_point_number"		"16"
+			"cp_position"		"1 0 0"
+		}
+	}
+}
