@@ -1,0 +1,9 @@
+"660"
+{
+	"name"		"Default Radiant Creeps"
+	"prefab"		"radiantcreeps"
+	"creation_date"		"2018-03-27"
+	"baseitem"		"1"
+	"image_inventory"		"econ/tools/default_radiant_creeps"
+	"item_name"		"#DOTA_Item_Default_Radiant_Creeps"
+}
