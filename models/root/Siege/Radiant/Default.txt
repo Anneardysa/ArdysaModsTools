@@ -1,0 +1,10 @@
+"34463"
+{
+	"name"		"Default Dire Siege Creeps"
+	"prefab"		"diresiegecreeps"
+	"creation_date"		"2021-08-23"
+	"baseitem"		"1"
+	"image_inventory"		"econ/tools/default_dire_siege_creeps"
+	"item_quality"		"base"
+	"item_name"		"#DOTA_Item_Default_Dire_Siege_Creeps"
+}
