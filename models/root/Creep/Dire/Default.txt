@@ -1,1 +1,9 @@
-
+"661"
+{
+	"name"		"Default Dire Creeps"
+	"prefab"		"direcreeps"
+	"creation_date"		"2018-03-27"
+	"baseitem"		"1"
+	"image_inventory"		"econ/tools/default_dire_creeps"
+	"item_name"		"#DOTA_Item_Default_Dire_Creeps"
+}
