@@ -1,7 +1,7 @@
 "34462"
 {
 	"name"		"Default Radiant Siege Creeps"
-	"prefab"		"radiantsiegecreeps"
+	"prefab"		"diresiegecreeps"
 	"creation_date"		"2021-08-23"
 	"baseitem"		"1"
 	"image_inventory"		"econ/tools/default_radiant_siege_creeps"
