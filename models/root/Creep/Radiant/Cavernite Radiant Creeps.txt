@@ -1,6 +1,6 @@
 "660"
 {
-	"name"		"Cavernite Radiant Creeps"
+	"name"		"Default Radiant Creeps"
 	"prefab"		"radiantcreeps"
 	"creation_date"		"2018-03-28"
 	"baseitem"		"1"
