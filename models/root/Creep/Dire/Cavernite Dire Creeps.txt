@@ -1,6 +1,6 @@
 "661"
 {
-	"name"		"Cavernite Dire Creeps"
+	"name"		"Default Dire Creeps"
 	"prefab"		"direcreeps"
 	"creation_date"		"2018-03-28"
 	"baseitem"		"1"
