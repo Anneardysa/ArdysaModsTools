@@ -1,6 +1,6 @@
 "661"
 {
-	"name"		"Crownfall - Dire Creeps"
+	"name"		"Default Dire Creeps"
 	"prefab"		"direcreeps"
 	"creation_date"		"2024-04-18"
 	"baseitem"		"1"
