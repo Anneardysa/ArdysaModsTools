@@ -1,6 +1,6 @@
 "34462"
 {
-	"name"		"Crownfall - Radiant Siege Creeps"
+	"name"		"Default Radiant Siege Creeps"
 	"prefab"		"radiantsiegecreeps"
 	"creation_date"		"2024-04-18"
 	"baseitem"		"1"
