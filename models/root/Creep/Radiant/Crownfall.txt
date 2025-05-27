@@ -1,6 +1,6 @@
 "660"
 {
-	"name"		"Crownfall - Radiant Creeps"
+	"name"		"Default Radiant Creeps"
 	"prefab"		"radiantcreeps"
 	"creation_date"		"2024-04-18"
 	"baseitem"		"1"
