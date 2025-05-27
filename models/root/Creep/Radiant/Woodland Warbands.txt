@@ -1,6 +1,6 @@
 "660"
 {
-	"name"		"Woodland Warbands - Radiant Creeps"
+	"name"		"Default Radiant Creeps"
 	"prefab"		"radiantcreeps"
 	"creation_date"		"2021-05-20"
 	"baseitem"		"1"
@@ -53,14 +53,6 @@
 			"PortraitDesaturateParticles"		"0"
 			"PortraitDesaturateHero"		"1"
 			"PortraitVignetteItem"		"0"
-		}
-	}
-	"static_attributes"
-	{
-		"cannot trade"
-		{
-			"attribute_class"		"cannot_trade"
-			"value"		"1"
 		}
 	}
 	"visuals"
