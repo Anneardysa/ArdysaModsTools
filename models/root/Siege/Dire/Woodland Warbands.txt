@@ -1,20 +1,12 @@
 "34463"
 {
-	"name"		"Woodland Warbands - Dire Siege Creeps"
+	"name"		"Default Dire Siege Creeps"
 	"prefab"		"diresiegecreeps"
 	"creation_date"		"2021-08-23"
 	"baseitem"		"1"
 	"image_inventory"		"econ/creeps/lane_creeps/creep_2021_dire/dire_2021_radiant_siege"
 	"item_description"		"#DOTA_Item_Desc_Woodland_Warbands__Dire_Siege_Creeps"
 	"item_name"		"#DOTA_Item_Woodland_Warbands__Dire_Siege_Creeps"
-	"static_attributes"
-	{
-		"cannot trade"
-		{
-			"attribute_class"		"cannot_trade"
-			"value"		"1"
-		}
-	}
 	"visuals"
 	{
 		"asset_modifier"
