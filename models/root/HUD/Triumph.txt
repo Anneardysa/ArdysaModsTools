@@ -1,0 +1,30 @@
+"587"
+{
+	"name"		"Triumph"
+	"prefab"		"hud_skin"
+	"baseitem"		"1"
+	"static_attributes"
+	{
+		"international tag"
+		{
+			"attribute_class"		"international tag"
+			"value"		"2014"
+		}
+	}
+	"creation_date"		"2014-05-14"
+	"image_inventory"		"econ/huds/hud_ti4"
+	"item_description"		"#DOTA_Item_Desc_Triumph"
+	"item_name"		"#DOTA_Item_Triumph"
+	"item_quality"		"genuine"
+	"item_rarity"		"mythical"
+	"item_type_name"		"#DOTA_WearableType_International_HUD_Skin"
+	"visuals"
+	{
+		"asset_modifier1"
+		{
+			"type"		"hud_skin"
+			"asset"		"ti4"
+			"modifier"		"ti4"
+		}
+	}
+}
