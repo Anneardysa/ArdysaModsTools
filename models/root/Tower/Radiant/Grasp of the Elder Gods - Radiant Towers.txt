@@ -1,0 +1,231 @@
+"677"
+{
+	"name"		"Grasp of the Elder Gods - Radiant Towers"
+	"prefab"		"radianttowers"
+	"baseitem"		"1"
+	"creation_date"		"2021-04-20"
+	"event_id"		"EVENT_ID_NONE"
+	"hide_tradecraftdelete"		"1"
+	"image_inventory"		"econ/tools/radiant_tower_2021"
+	"item_name"		"#DOTA_Item_Grasp_of_the_Elder_Gods__Radiant_Towers"
+	"item_rarity"		"legendary"
+	"portraits"
+	{
+		"preview"
+		{
+			"cameras"
+			{
+				"Default"
+				{
+					"PortraitPosition"		"445.174835 120.810814 272.193298"
+					"PortraitAngles"		"14.089979 195.230164 0.000000"
+					"PortraitFOV"		"55.290001"
+					"PortraitFar"		"1000"
+				}
+				"econ_set_preview"
+				{
+					"PortraitPosition"		"445.174835 120.810814 272.193298"
+					"PortraitAngles"		"14.089979 195.230164 0.000000"
+					"PortraitFOV"		"44.966000"
+					"PortraitFar"		"1000"
+				}
+			}
+			"PortraitLightPosition"		"202.699997 -23.150000 395.892670"
+			"PortraitLightAngles"		"54.790001 171.699997 0.000000"
+			"PortraitLightFOV"		"120"
+			"PortraitLightDistance"		"390.089996"
+			"PortraitLightColor"		"254 248 242"
+			"PortraitLightScale"		"2"
+			"PortraitShadowColor"		"74 74 74"
+			"PortraitShadowScale"		"1"
+			"PortraitGroundShadowScale"		"1.500000"
+			"PortraitAmbientDirection"		"-79.070 -84.150 -25.320"
+			"PortraitAmbientColor"		"79 108 108"
+			"PortraitAmbientScale"		"1"
+			"PortraitSpecularColor"		"251 74 84"
+			"PortraitSpecularDirection"		"0.000000 0.000000 -1.000000"
+			"PortraitSpecularPower"		"16"
+			"PortraitBackgroundColor1"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor2"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor3"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor4"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundModel"		"models/heroes/pedestal/pedestal_1.vmdl"
+			"PortraitBackgroundTexture"		"materials/vgui/hud/heroportraits/portraitbackground_gradient_top.vmat"
+			"PortraitAnimationActivity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+			"PortraitAnimationCycle"		"0"
+			"PortraitAnimationRate"		"1"
+			"PortraitHideHero"		"0"
+			"PortraitHideParticles"		"0"
+			"PortraitHideDropShadow"		"0"
+			"PortraitDesaturateParticles"		"0"
+			"PortraitDesaturateHero"		"1"
+		}
+		"icon"
+		{
+			"cameras"
+			{
+				"Default"
+				{
+					"PortraitPosition"		"480.132111 302.748627 403.187500"
+					"PortraitAngles"		"28.490007 212.830048 0.000000"
+					"PortraitFOV"		"16"
+					"PortraitFar"		"1000"
+				}
+			}
+			"PortraitLightPosition"		"202.699997 -23.150000 308.170013"
+			"PortraitLightAngles"		"54.790001 171.699997 0.000000"
+			"PortraitLightFOV"		"120"
+			"PortraitLightDistance"		"336"
+			"PortraitLightColor"		"254 248 242"
+			"PortraitLightScale"		"2"
+			"PortraitShadowColor"		"74 74 74"
+			"PortraitShadowScale"		"1"
+			"PortraitGroundShadowScale"		"1.500000"
+			"PortraitAmbientDirection"		"-79.070 -84.150 -25.320"
+			"PortraitAmbientColor"		"79 108 108"
+			"PortraitAmbientScale"		"1"
+			"PortraitSpecularColor"		"251 74 84"
+			"PortraitSpecularDirection"		"0.000000 0.000000 -1.000000"
+			"PortraitSpecularPower"		"16"
+			"PortraitBackgroundColor1"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor2"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor3"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor4"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundTexture"		"materials/vgui/econ/item_icon_bg.vmat"
+			"PortraitAnimationActivity"		"ACT_DOTA_IDLE"
+			"PortraitAnimationCycle"		"0"
+			"PortraitAnimationRate"		"1"
+			"PortraitPlayIdleExpression"		"0"
+			"PortraitHideHero"		"0"
+			"PortraitHideParticles"		"0"
+			"PortraitHideDropShadow"		"0"
+			"PortraitDesaturateParticles"		"0"
+			"PortraitDesaturateHero"		"1"
+			"PortraitVignetteItem"		"0"
+		}
+	}
+	"static_attributes"
+	{
+		"cannot trade"
+		{
+			"attribute_class"		"cannot_trade"
+			"value"		"1"
+		}
+	}
+	"visuals"
+	{
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"npc_dota_goodguys_tower1_top"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"npc_dota_goodguys_tower1_mid"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"npc_dota_goodguys_tower1_bot"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021_right.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"npc_dota_goodguys_tower2_top"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"npc_dota_goodguys_tower2_mid"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"npc_dota_goodguys_tower2_bot"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021_right.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"npc_dota_goodguys_tower3_top"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"npc_dota_goodguys_tower3_mid"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"npc_dota_goodguys_tower3_bot"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021_right.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"dota_goodguys_tower4_top"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"entity_clientside_model"
+			"asset"		"dota_goodguys_tower4_bot"
+			"modifier"		"models/items/world/towers/radiant_tower_2021/radiant_tower_2021_right.vmdl"
+			"portrait_activity"		"ACT_DOTA_CUSTOM_TOWER_IDLE"
+		}
+		"asset_modifier"
+		{
+			"type"		"particle_clientside"
+			"asset"		"particles/base_attacks/ranged_tower_good.vpcf"
+			"modifier"		"particles/econ/world/towers/radiant_tower_2021/radiant_tower_2021_attack.vpcf"
+		}
+		"asset_modifier"
+		{
+			"type"		"particle_clientside"
+			"asset"		"particles/radiant_fx/tower_good3_lamp.vpcf"
+			"modifier"		"particles/econ/world/towers/radiant_tower_2021/radiant_tower_2021_ambient.vpcf"
+		}
+		"asset_modifier"
+		{
+			"type"		"particle"
+			"asset"		"particles/units/radiant_towers_ambient_loadout.vpcf"
+			"modifier"		"particles/econ/world/towers/radiant_tower_2021/radiant_tower_2021_ambient.vpcf"
+		}
+		"asset_modifier"
+		{
+			"type"		"particle_clientside"
+			"asset"		"particles/radiant_fx/radiant_tower002_destruction.vpcf"
+			"modifier"		"particles/econ/world/towers/radiant_tower_2021/radiant_tower_2021_destruction.vpcf"
+		}
+		"asset_modifier"
+		{
+			"type"		"particle_clientside"
+			"asset"		"particles/econ/events/plus/high_five/high_five_lvl1_travel.vpcf"
+			"modifier"		"particles/econ/events/ti10/high_five/towers/radiant_tower_2021/high_five_radiant_tower_2021_travel.vpcf"
+		}
+		"asset_modifier"
+		{
+			"type"		"particle"
+			"asset"		"particles/base_attacks/ranged_tower_anticipation_good.vpcf"
+			"modifier"		"particles/error/null.vpcf"
+		}
+	}
+}

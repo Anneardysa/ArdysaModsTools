@@ -1,0 +1,10 @@
+"677"
+{
+	"name"		"Default Radiant Towers"
+	"prefab"		"radianttowers"
+	"creation_date"		"2019-03-27"
+	"baseitem"		"1"
+	"image_inventory"		"econ/tools/default_radiant_towers"
+	"item_quality"		"base"
+	"item_name"		"#DOTA_Item_Default_Radiant_Towers"
+}
