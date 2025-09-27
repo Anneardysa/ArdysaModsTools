@@ -1,0 +1,10 @@
+"587"
+{
+	"name"		"Default Hud Skin"
+	"prefab"		"hud_skin"
+	"creation_date"		"2015-08-26"
+	"image_inventory"		"econ/huds/hud_default"
+	"item_name"		"#DOTA_Item_Default_Hud_Skin"
+	"item_type_name"		"#DOTA_WearableType_Hud_Skun"
+	"baseitem"		"1"
+}
