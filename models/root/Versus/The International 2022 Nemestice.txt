@@ -1,0 +1,79 @@
+"12970"
+{
+	"name"		"Battle Pass 2022 Nemestice Versus Screen"
+	"prefab"		"versus_screen"
+	"baseitem"		"1"
+	"creation_date"		"2022-07-19"
+	"event_id"		"EVENT_ID_INTERNATIONAL_2022"
+	"image_inventory"		"econ/tools/ti11_versus_screen3"
+	"item_description"		"#DOTA_Item_Desc_Copy_of_The_International_2022_Versus_Screen_II"
+	"item_name"		"#DOTA_Item_Battle_Pass_2022_Nemestice_Versus_Screen"
+	"item_rarity"		"mythical"
+	"item_type_name"		"#DOTA_WearableType_Versus_Screen"
+	"portraits"
+	{
+		"icon"
+		{
+			"cameras"
+			{
+				"Default"
+				{
+					"PortraitPosition"		"480.132111 302.748627 403.187500"
+					"PortraitAngles"		"28.490007 212.830048 0.000000"
+					"PortraitFOV"		"16"
+					"PortraitFar"		"1000"
+				}
+			}
+			"PortraitLightPosition"		"202.699997 -23.150000 308.170013"
+			"PortraitLightAngles"		"54.790001 171.699997 0.000000"
+			"PortraitLightFOV"		"120"
+			"PortraitLightDistance"		"336"
+			"PortraitLightColor"		"254 248 242"
+			"PortraitLightScale"		"2"
+			"PortraitShadowColor"		"74 74 74"
+			"PortraitShadowScale"		"1"
+			"PortraitGroundShadowScale"		"1.500000"
+			"PortraitAmbientDirection"		"-79.070 -84.150 -25.320"
+			"PortraitAmbientColor"		"79 108 108"
+			"PortraitAmbientScale"		"1"
+			"PortraitSpecularColor"		"251 74 84"
+			"PortraitSpecularDirection"		"0.000000 0.000000 -1.000000"
+			"PortraitSpecularPower"		"16"
+			"PortraitBackgroundColor1"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor2"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor3"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundColor4"		"1.000000 1.000000 1.000000"
+			"PortraitBackgroundTexture"		"materials/vgui/econ/item_icon_bg.vmat"
+			"PortraitAnimationActivity"		"ACT_DOTA_IDLE"
+			"PortraitAnimationCycle"		"0"
+			"PortraitAnimationRate"		"1"
+			"PortraitPlayIdleExpression"		"0"
+			"PortraitHideHero"		"0"
+			"PortraitHideParticles"		"0"
+			"PortraitHideDropShadow"		"0"
+			"PortraitDesaturateParticles"		"0"
+			"PortraitDesaturateHero"		"1"
+			"PortraitVignetteItem"		"0"
+		}
+	}
+	"static_attributes"
+	{
+		"cannot trade"		"1"
+		"not marketable"		"1"
+	}
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"versus_screen"
+			"asset"		"versus_screen_radiant"
+			"modifier"		"file://{resources}/layout/hud/versus/dota_hud_versus_scene_bp22_meteor.xml"
+		}
+		"asset_modifier1"
+		{
+			"type"		"versus_screen"
+			"asset"		"versus_screen_dire"
+			"modifier"		"file://{resources}/layout/hud/versus/dota_hud_versus_scene_bp22_meteor.xml"
+		}
+	}
+}

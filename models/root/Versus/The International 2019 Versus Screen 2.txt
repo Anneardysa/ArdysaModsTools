@@ -1,0 +1,36 @@
+"12970"
+{
+	"name"		"The International 2019 Versus Screen II"
+	"prefab"		"versus_screen"
+	"baseitem"		"1"
+	"creation_date"		"2019-05-07"
+	"event_id"		"EVENT_ID_INTERNATIONAL_2019"
+	"image_inventory"		"econ/tools/versus_screen_2"
+	"item_description"		"#DOTA_Item_Desc_The_International_2019_Versus_Screen_II"
+	"item_name"		"#DOTA_Item_The_International_2019_Versus_Screen_II"
+	"item_rarity"		"mythical"
+	"item_type_name"		"#DOTA_WearableType_Versus_Screen"
+	"static_attributes"
+	{
+		"cannot trade"
+		{
+			"attribute_class"		"cannot_trade"
+			"value"		"1"
+		}
+	}
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"versus_screen"
+			"asset"		"versus_screen_radiant"
+			"modifier"		"file://{resources}/layout/hud/versus/dota_hud_versus_scene_walking.xml"
+		}
+		"asset_modifier1"
+		{
+			"type"		"versus_screen"
+			"asset"		"versus_screen_dire"
+			"modifier"		"file://{resources}/layout/hud/versus/dota_hud_versus_scene_walking.xml"
+		}
+	}
+}

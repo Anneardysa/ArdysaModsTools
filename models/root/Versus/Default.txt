@@ -1,0 +1,26 @@
+"12970"
+{
+	"name"		"Default Versus Screen"
+	"prefab"		"versus_screen"
+	"baseitem"		"1"
+	"creation_date"		"2019-04-17"
+	"image_inventory"		"econ/tools/default_versus"
+	"item_name"		"#DOTA_Item_Default_Versus_Screen"
+	"item_quality"		"base"
+	"item_type_name"		"#DOTA_WearableType_Versus_Screen"
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"versus_screen"
+			"asset"		"versus_screen_radiant"
+			"modifier"		"file://{resources}/layout/hud/versus/dota_hud_versus_scene_default.xml"
+		}
+		"asset_modifier1"
+		{
+			"type"		"versus_screen"
+			"asset"		"versus_screen_dire"
+			"modifier"		"file://{resources}/layout/hud/versus/dota_hud_versus_scene_default_dire.xml"
+		}
+	}
+}

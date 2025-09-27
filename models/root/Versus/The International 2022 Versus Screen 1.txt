@@ -1,0 +1,47 @@
+"12970"
+{
+	"name"		"The International 10 Versus Screen I"
+	"prefab"		"versus_screen"
+	"baseitem"		"1"
+	"creation_date"		"2020-05-25"
+	"event_id"		"EVENT_ID_INTERNATIONAL_2020"
+	"expiration_date"		"2020-10-10 00:00:00"
+	"image_inventory"		"econ/tools/ti10_versus_screen1"
+	"item_description"		"#DOTA_Item_Desc_The_International_2020_Versus_Screen_I"
+	"item_name"		"#DOTA_Item_The_International_10_Versus_Screen_I"
+	"item_rarity"		"mythical"
+	"item_type_name"		"#DOTA_WearableType_Versus_Screen"
+	"static_attributes"
+	{
+		"giftable"
+		{
+			"attribute_class"		"giftable"
+			"value"		"0"
+		}
+		"not marketable"
+		{
+			"attribute_class"		"not marketable"
+			"value"		"1"
+		}
+		"cannot trade"
+		{
+			"attribute_class"		"cannot_trade"
+			"value"		"1"
+		}
+	}
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"versus_screen"
+			"asset"		"versus_screen_radiant"
+			"modifier"		"file://{resources}/layout/hud/versus/dota_hud_versus_scene_interactive.xml"
+		}
+		"asset_modifier1"
+		{
+			"type"		"versus_screen"
+			"asset"		"versus_screen_dire"
+			"modifier"		"file://{resources}/layout/hud/versus/dota_hud_versus_scene_interactive.xml"
+		}
+	}
+}
