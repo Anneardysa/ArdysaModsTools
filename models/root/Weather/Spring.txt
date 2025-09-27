@@ -1,7 +1,8 @@
 "555"
 {
-	"name"		"Default Weather"
-	"prefab"		"weather"
+	"name"		"Weather Spring"
+	"prefab"		"misc"
+	"baseitem"		"1"
 	"creation_date"		"2016-05-12"
 	"event_id"		"EVENT_ID_INTERNATIONAL_2016"
 	"image_inventory"		"econ/tools/weather_spring"
@@ -11,7 +12,25 @@
 	"item_rarity"		"mythical"
 	"item_slot"		"weather"
 	"item_type_name"		"#DOTA_WearableType_Weather_Effect"
-	"baseitem"	"1"
+	"player_loadout"		"1"
+	"static_attributes"
+	{
+		"not marketable"
+		{
+			"attribute_class"		"not marketable"
+			"value"		"1"
+		}
+		"tradable after date"
+		{
+			"attribute_class"		"tradable_after_date"
+			"value"		"1471158000"
+		}
+		"international tag"
+		{
+			"attribute_class"		"international_tag"
+			"value"		"2016"
+		}
+	}
 	"visuals"
 	{
 		"asset_modifier0"
