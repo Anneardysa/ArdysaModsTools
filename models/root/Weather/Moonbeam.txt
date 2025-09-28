@@ -1,7 +1,8 @@
 "555"
 {
-	"name"		"Default Weather"
-    "prefab"		"weather"
+	"name"		"Weather Moonbeam"
+	"prefab"		"misc"
+	"baseitem"		"1"
 	"creation_date"		"2014-06-17"
 	"image_inventory"		"econ/tools/weather_moonbeam"
 	"item_class"		"tool"
@@ -10,7 +11,15 @@
 	"item_rarity"		"mythical"
 	"item_slot"		"weather"
 	"item_type_name"		"#DOTA_WearableType_Weather_Effect"
-	"baseitem"	"1"
+	"player_loadout"		"1"
+	"static_attributes"
+	{
+		"not marketable"
+		{
+			"attribute_class"		"not marketable"
+			"value"		"1"
+		}
+	}
 	"visuals"
 	{
 		"asset_modifier0"
