@@ -2,6 +2,7 @@
 {
 	"name"		"Sanctums of the Divine"
 	"prefab"		"terrain"
+	"baseitem"		"1"
 	"creation_date"		"2020-05-25"
 	"event_id"		"EVENT_ID_INTERNATIONAL_2020"
 	"hide_tradecraftdelete"		"1"
