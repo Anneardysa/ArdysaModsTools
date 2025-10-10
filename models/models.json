@@ -34,6 +34,96 @@
 	}
 }
 
+"586"
+{
+	"name"		"Default Mega-Kill Announcer"
+	"prefab"		"announcer"
+	"item_name"		"#DOTA_Item_Default_MegaKill_Announcer"
+	"item_slot"		"mega_kills"
+	"image_inventory"		"econ/announcer/announcer_default_megakill"
+	"baseitem"		"1"
+	"player_loadout"		"1"
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/vo/announcer_killing_spree/announcer_1stblood_01.vsnd"
+			"modifier"		"#DOTA_Announcer_Preview_Default_Megakill_01"
+		}
+		"asset_modifier1"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/vo/announcer_killing_spree/announcer_kill_rampage_01.vsnd"
+			"modifier"		"#DOTA_Announcer_Preview_Default_Megakill_02"
+		}
+		"asset_modifier2"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/vo/announcer_killing_spree/announcer_kill_dominate_01.vsnd"
+			"modifier"		"#DOTA_Announcer_Preview_Default_Megakill_03"
+		}
+		"asset_modifier3"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/vo/announcer_killing_spree/announcer_kill_godlike_01.vsnd"
+			"modifier"		"#DOTA_Announcer_Preview_Default_Megakill_04"
+		}
+	}
+}
+
+"11173"
+{
+	"name"		"Default Announcer"
+	"prefab"		"announcer"
+	"baseitem"		"1"
+	"creation_date"		"2015-08-26"
+	"image_inventory"		"econ/announcer/announcer_default"
+	"item_name"		"#DOTA_Item_Default_Announcer"
+	"player_loadout"		"1"
+	"item_slot"		"announcer"
+	"visuals"
+	{
+		"asset_modifier0"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/vo/announcer/announcer_battle_prepare_01.vsnd"
+			"modifier"		"#DOTA_Announcer_Preview_Default_01"
+		}
+		"asset_modifier1"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/vo/announcer/announcer_twr_attack_rad_top.vsnd"
+			"modifier"		"#DOTA_Announcer_Preview_Default_02"
+		}
+		"asset_modifier2"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/vo/announcer/announcer_rax_fall_dire_mid.vsnd"
+			"modifier"		"#DOTA_Announcer_Preview_Default_03"
+		}
+		"asset_modifier3"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/vo/announcer/announcer_roshan_fallen_rad.vsnd"
+			"modifier"		"#DOTA_Announcer_Preview_Default_04"
+		}
+		"asset_modifier4"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/vo/announcer/announcer_mega_now_dire.vsnd"
+			"modifier"		"#DOTA_Announcer_Preview_Default_05"
+		}
+		"asset_modifier5"
+		{
+			"type"		"announcer_preview"
+			"asset"		"sounds/vo/announcer/announcer_anc_attack_yr.vsnd"
+			"modifier"		"#DOTA_Announcer_Preview_Default_06"
+		}
+	}
+}
+
+
 "588"
 {
 	"name"		"Default Music"
