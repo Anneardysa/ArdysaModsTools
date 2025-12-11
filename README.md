@@ -42,7 +42,7 @@ _Coming soon..._
 
 ### Installation
 
-1. Download the latest release from the [Releases](https://github.com/Ardysa/ArdysaModsTools/releases) page
+1. Download the latest release from the [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases) page
 2. Extract the archive to your preferred location
 3. Run `ArdysaModsTools.exe`
 4. The tool will automatically detect your Dota 2 installation
