@@ -1,104 +1,113 @@
-# 💿 AMT (ArdysaModsTools)
+# 🎮 ArdysaModsTools
 
-![ArdysaModsTools Logo](https://yt3.googleusercontent.com/OQcC2Dt77FQaH0ORtSsNpOR-mv36MtE7T0vL1wTTNvEKKwO1MZSoq83Pzk-XMWyqjFDa2quQlg=w1707-fcrop64=1,00005a57ffffa5a8-k-c0xffffffff-no-nd-rj) <!-- Replace with actual logo URL if available -->
+<div align="center">
 
-**ArdysaModsTools** is a user-friendly Windows application designed to simplify the process of installing, disabling, and updating mods for 
-Dota 2. Whether you're a casual player or a mod enthusiast, this tool helps you manage your Dota 2 mods effortlessly.
+![Version](https://img.shields.io/badge/version-2.0.0--beta-blue?style=for-the-badge)
+![Platform](https://img.shields.io/badge/platform-Windows-0078D6?style=for-the-badge&logo=windows)
+![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
+![Dota 2](https://img.shields.io/badge/Dota%202-Mods-red?style=for-the-badge&logo=steam)
 
-## 📌 Overview
+**The Ultimate Dota 2 Mod Manager**
 
-ArdysaModsTools allows you to:
-- **Detect Dota 2 Folder:** Automatically or manually locate your Dota 2 installation folder.
-- **Install Mods:** Apply mods to your Dota 2 game with a single click.
-- **Disable Mods:** Revert to the original game files easily.
-- **Update Patcher:** Keep your mods up-to-date with the latest versions.
-- **Check Mod Status:** See if mods are installed and working with a clear status indicator.
+_Easily install, manage, and organize your Dota 2 cosmetic mods with a sleek modern interface._
 
-## 🚀 Features
+</div>
 
-- **Auto Detect Dota 2 Folder:** Automatically finds your Dota 2 installation by checking Steam registry keys and library folders.
-- **Manual Detect Option:** Manually select your Dota 2 folder if auto-detection doesn’t work.
-- **One-Click Mod Installation:** Install mods by copying local files and downloading necessary files from online sources.
-- **Disable Mods Easily:** Restore original game files with a single click.
-- **Update Patcher:** Refresh your mods to the latest version.
-- **Status Indicator:** Displays a colored dot and text to show mod status:
-  - 🟢 **Green Dot + "Working"**: Mods are installed and match the latest online versions.
-  - 🟡 **Yellow Dot + "Not Installed"**: Mods are not installed or do not match the latest versions.
-- **Progress Bar:** Visual feedback during operations like detection, installation, and disabling.
-- **Log Console:** Detailed logs of operations for troubleshooting.
+---
 
-## 📥 Download and Installation
+## ✨ Features
 
-1. **Download the Latest Release:**
-   - Visit the [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases) page and download the latest version (`ArdysaModsTools.exe` and the `game` folder).
-   - Ensure the `game` folder is in the same directory as `ArdysaModsTools.exe`.
+-  🦸 **Hero Set Management** - Browse and install custom hero sets with beautiful tile-based UI
+-  📦 **VPK Handling** - Seamless integration with Valve's VPK format for mod installation
+-  🎨 **Modern Dark UI** - Eye-catching purple-blue themed interface with smooth animations
+-  🔄 **One-Click Install** - Simple installation and removal of mod packages
+-  📊 **Real-time Progress** - Track download and installation progress in real-time
+-  ⚠️ **Smart Detection** - Automatically detects when Dota 2 is running to prevent conflicts
 
-2. **Extract Files:**
-   - Extract the downloaded files to a folder on your computer.
+---
 
-3. **Run the Application:**
-   - Double-click `ArdysaModsTools.exe` to launch the tool.
+## 🖼️ Screenshots
 
-## 🖥️ How to Use
+_Coming soon..._
 
-### 1. Detect Dota 2 Folder
-- **Auto Detect:** Click the "Auto Detect Dota 2" button to let the tool find your Dota 2 folder automatically. It checks Steam registry keys and library folders.
-- **Manual Detect:** If auto-detection fails, click "Manual Detect Dota 2" and browse to your Dota 2 folder (e.g., `C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta`).
-- Once detected, the tool will check the mod status and enable additional buttons.
+---
 
-### 2. Check Mod Status
-- After detecting the Dota 2 folder, the tool checks if mods are installed:
-  - A 🟢**Green Dot** with "Working" means mods are installed and up-to-date.
-  - A 🟡**Yellow Dot** with "Not Installed" means mods need to be installed or updated.
+## 🚀 Getting Started
 
-### 3. Install Mods
-- Click the "Install Mods" button to apply mods to your Dota 2 game.
-- The tool copies local mod files from the `game` folder and downloads additional files from online sources.
-- Progress is shown on the progress bar, and logs are displayed in the console.
-- After installation, the mod status is updated automatically.
+### Prerequisites
 
-### 4. Disable Mods
-- Click the "Disable Mods" button to revert to the original Dota 2 game files.
-- The tool downloads the original files and replaces the modded ones.
-- Progress and logs are shown, and the mod status is updated afterward.
+-  Windows 10/11 (64-bit)
+-  .NET 8.0 Runtime
+-  Dota 2 installed via Steam
 
-### 5. Update Patcher
-- Click the "Update Patcher" button to bypassing your mods to the latest version.
-- The tool downloads the latest mod files and applies them.
-- Progress, logs, and status updates occur as usual.
+### Installation
 
-## ⚙️ Requirements
+1. Download the latest release from the [Releases](https://github.com/Ardysa/ArdysaModsTools/releases) page
+2. Extract the archive to your preferred location
+3. Run `ArdysaModsTools.exe`
+4. The tool will automatically detect your Dota 2 installation
 
-- **Operating System:** Windows (tested on Windows 10).
-- **Dota 2 Installed:** Ensure Dota 2 is installed via Steam.
-- **Internet Connection:** Required for downloading mod files during Install, Disable, and Update Patcher operations.
-- **Dependencies:**
-  - The `game` folder must be in the same directory as `ArdysaModsTools.exe` (contains local mod files).
-  - .NET Framework (included with most Windows installations).
+---
 
-## 🛠️ Troubleshooting
+## 🛠️ Built With
 
-- **Auto Detect Fails:**
-  - Ensure Steam is installed and Dota 2 is in your Steam library.
-  - Try Manual Detect and select the `dota 2 beta` folder manually.
-- **Installation Fails with "game folder not found":**
-  - Make sure the `game` folder is in the same directory as `ArdysaModsTools.exe`.
-  - The `game` folder should contain the `_ArdysaMods` folder with `pak01_dir.vpk`.
-- **Status Shows "Not Installed":**
-  - Install or update the mods using the "Install Mods" or "Update Patcher" buttons (if you already install ArdysaMods before).
+-  **C# / .NET 8.0** - Core framework
+-  **Windows Forms** - UI framework with custom modern styling
+-  **ValveKeyValue** - For parsing Valve's KeyValue format
+-  **SharpCompress** - Archive handling
+-  **WebView2** - Modern web content rendering
+-  **Google.Apis.YouTube** - YouTube integration
 
-## 📝 Notes
+---
 
-- The tool is designed for Dota 2 mods and may not work with other games.
+## 👨‍💻 Developer
+
+<div align="center">
+
+### **Ardysa**
+
+_Passionate Game Modding Enthusiast & Software Developer_
+
+</div>
+
+Hey there! I'm **Ardysa**, the sole developer behind ArdysaModsTools. As an avid Dota 2 player and modding enthusiast, I created this tool to make the mod installation process smoother and more enjoyable for the community.
+
+What started as a personal project to manage my own mods has evolved into a full-featured mod manager with a sleek, modern interface. I believe that modding should be accessible to everyone, not just those who are technically inclined.
+
+**What drives me:**
+
+-  🎮 Love for gaming and the Dota 2 community
+-  💡 Making complex tasks simple and user-friendly
+-  🎨 Creating beautiful, intuitive user interfaces
+-  🤝 Helping fellow gamers customize their experience
+
+**Connect with me:**
+
+-  💬 Discord: _Join our community for support and updates_
+-  🎬 YouTube: _Tutorials and mod showcases_
+-  ☕ Support: _If you enjoy the tool, consider buying me a coffee!_
+
+---
 
 ## 📜 License
 
-This project is licensed under the [MIT License](LICENSE). See the LICENSE file for details.
+This project is developed and maintained by **Ardysa**. All rights reserved.
 
-## 📬 Contact
+---
 
-For support or suggestions:
-- **GitHub Issues:** [Open an issue](https://github.com/Anneardysa/ArdysaModsTools/issues)
-- **YouTube:** [Ardysa YouTube Channel](https://www.youtube.com/@Ardysa?sub_confirmation=1)
+## 🙏 Acknowledgments
 
-Happy modding! 🎮
+-  The amazing Dota 2 modding community
+-  Valve for creating such a moddable game
+-  All the mod creators Dota2SkinChanger.com](https://dota2changer.com) whose work this tool helps manage
+-  Everyone who has provided feedback and suggestions
+
+---
+
+<div align="center">
+
+**Made with ❤️ for the Dota 2 Community**
+
+_© 2025-2026 Ardysa. All rights reserved._
+
+</div>
