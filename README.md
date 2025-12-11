@@ -1,5 +1,3 @@
-# 🎮 ArdysaModsTools
-
 <div align="center">
 
 ![Version](https://img.shields.io/badge/version-2.0.0--beta-blue?style=for-the-badge)
