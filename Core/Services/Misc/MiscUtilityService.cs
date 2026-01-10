@@ -63,8 +63,12 @@ namespace ArdysaModsTools.Core.Services
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
             _httpClient.Timeout = TimeSpan.FromSeconds(300);
 
-            // ⚠️ Tip: move token to environment variable or config file later
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", "URL_TOKEN"); // This sample token : [ghp]_[UIJpAR5kEUE8EBqPw029f0zieeBB8g3Ez6ZN]
+            // GitHub token for API rate limiting (optional - set via GITHUB_TOKEN env var)
+            var githubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+            if (!string.IsNullOrEmpty(githubToken))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", githubToken);
+            }
         }
 
         public static async Task<HttpResponseMessage?> GetWithRetryAsync(string url, int maxRetries = 3)
