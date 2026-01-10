@@ -171,7 +171,6 @@ namespace ArdysaModsTools.Core.Services
                     // HEAD request failed, proceed with full download
                 }
 
-                // Check if we have a cached version with matching hash
                 if (!string.IsNullOrEmpty(remoteHash) && 
                     hashManifest.TryGetValue(filename, out var cachedHash) &&
                     cachedHash == remoteHash &&

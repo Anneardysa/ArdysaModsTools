@@ -76,7 +76,6 @@ namespace ArdysaModsTools.Core.Services
             {
                 await DownloadFileWithProgressAsync(OriginalZipUrl, zipPath, log, ct, speedProgress, progress).ConfigureAwait(false);
                 
-                // Validate downloaded zip
                 try
                 {
                     var fileInfo = new FileInfo(zipPath);

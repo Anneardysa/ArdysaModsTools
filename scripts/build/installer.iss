@@ -40,7 +40,7 @@ InfoBeforeFile=..\..\docs\INSTALL_INFO.txt
 ; OUTPUT SETTINGS
 ; ============================================================================
 OutputDir=..\..\installer_output
-OutputBaseFilename=ArdysaModsTools-Setup-v{#MyAppVersion}
+OutputBaseFilename=ArdysaModsTools_Setup_x64
 SetupIconFile=..\..\Assets\Icons\AppIcon.ico
 
 ; ============================================================================
@@ -114,10 +114,12 @@ Source: "..\..\Assets\Fonts\JetBrainsMono-Regular.ttf"; DestDir: "{autofonts}"; 
 Source: "..\..\Assets\Fonts\JetBrainsMono-Bold.ttf"; DestDir: "{autofonts}"; FontInstall: "JetBrains Mono Bold"; Flags: onlyifdoesntexist uninsneveruninstall
 
 ; ============================================================================
-; EXTERNAL TOOLS (VPK utilities)
+; EXTERNAL TOOLS (must be in app root for code compatibility)
 ; ============================================================================
-Source: "..\..\tools\hllib\*"; DestDir: "{app}\tools\hllib"; Flags: ignoreversion recursesubdirs
-Source: "..\..\tools\vpk\*"; DestDir: "{app}\tools\vpk"; Flags: ignoreversion recursesubdirs
+Source: "..\..\tools\hllib\HLExtract.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\tools\hllib\HLLib.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\tools\vpk\vpk.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\tools\vpk\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 
 ; ============================================================================
 ; WEBVIEW2 RUNTIME (for prerequisite installation)

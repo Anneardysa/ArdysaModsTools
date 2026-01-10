@@ -67,7 +67,6 @@ namespace ArdysaModsTools.UI
 
             try
             {
-                // Initialize WebView2 before starting operation
                 await overlay.InitializeAsync();
                 
                 await overlay.UpdateStatusAsync(initialStatus);
@@ -81,7 +80,6 @@ namespace ArdysaModsTools.UI
                     }
                 };
 
-                // Reporters
                 var speedProgress = new Progress<SpeedMetrics>(async metrics =>
                 {
                     try

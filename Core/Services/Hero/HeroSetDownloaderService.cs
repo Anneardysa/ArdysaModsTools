@@ -193,7 +193,6 @@ namespace ArdysaModsTools.Core.Services
                 
                 log($"Processing part {i} ({partExt})...");
 
-                // Check if part exists (HEAD request or just try GET)
                 // We'll just try to download. If 404, we assume we're done (valid for standard multi-part hosted on sequential URLs)
                 // BUT for the first part (i=1), it MUST exist.
                 

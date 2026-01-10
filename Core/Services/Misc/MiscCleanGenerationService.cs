@@ -60,7 +60,6 @@ namespace ArdysaModsTools.Core.Services
             {
                 ct.ThrowIfCancellationRequested();
 
-                // Validate inputs
                 if (string.IsNullOrWhiteSpace(targetPath))
                     return Fail("No target path set.", log);
 
@@ -69,7 +68,6 @@ namespace ArdysaModsTools.Core.Services
 
                 targetPath = PathUtility.NormalizeTargetPath(targetPath);
 
-                // Validate tools
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string vpkToolPath = Path.Combine(baseDir, "vpk.exe");
 
@@ -83,7 +81,6 @@ namespace ArdysaModsTools.Core.Services
 
                 try
                 {
-                    // Step 1: Download and extract Original.zip (with silent logging)
                     log("Preparing base files...");
                     string extractDir;
                     try
@@ -102,7 +99,6 @@ namespace ArdysaModsTools.Core.Services
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
 
-                    // Step 2: Apply Misc modifications
                     // Note: We pass empty string for vpkPath since we're using extractDir directly
                     if (!await _modifier.ApplyModificationsAsync(string.Empty, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false))
                         return Fail("Modification failed.", log);
@@ -113,7 +109,6 @@ namespace ArdysaModsTools.Core.Services
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
 
-                    // Step 3: Recompile VPK
                     log("Building VPK...");
                     var newVpkPath = await _recompiler.RecompileAsync(
                         vpkToolPath, extractDir, buildDir, tempRoot, 
@@ -128,7 +123,6 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
-                    // Step 4: Replace _ArdysaMods/pak01_dir.vpk (with silent logging)
                     log("Installing...");
                     var replaceSuccess = await _replacer.ReplaceAsync(
                         targetPath, newVpkPath, _ => { }, ct).ConfigureAwait(false);
@@ -136,7 +130,6 @@ namespace ArdysaModsTools.Core.Services
                     if (!replaceSuccess)
                         return Fail("VPK replacement failed.", log);
 
-                    // Step 5: Save extraction log
                     log("Finalizing...");
                     var extractionLog = new MiscExtractionLog
                     {
@@ -150,7 +143,6 @@ namespace ArdysaModsTools.Core.Services
                     }
                     extractionLog.Save(targetPath);
 
-                    // Step 6: Patch signatures and gameinfo (silent)
                     var patchSuccess = await PatchSignaturesAndGameInfoAsync(targetPath, ct).ConfigureAwait(false);
                     if (!patchSuccess)
                     {
@@ -166,7 +158,6 @@ namespace ArdysaModsTools.Core.Services
                 }
                 finally
                 {
-                    // Step 7: Cleanup
                     await CleanupAsync(tempRoot).ConfigureAwait(false);
 
                     // Force garbage collection with LOH compaction

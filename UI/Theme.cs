@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using System.Reflection;
 
 namespace ArdysaModsTools.UI
@@ -59,7 +59,6 @@ namespace ArdysaModsTools.UI
         public static Color TextMuted = Color.FromArgb(100, 100, 100);           // #646464
         public static Color TitleColor = Color.FromArgb(255, 255, 255);          // #FFFFFF
         
-        // Favorites
         public static Color FavColor = Color.FromArgb(255, 82, 82);              // Red heart
         public static Color FavOffColor = Color.FromArgb(68, 68, 68);            // #444444
 

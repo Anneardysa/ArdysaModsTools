@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -25,7 +25,6 @@ namespace ArdysaModsTools.Core.Services
         {
             _logger.Log("Auto-detecting Dota 2 folder...");
 
-            // Step 1: Try Steam registry key
             string? steamReg = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Valve\Steam", "SteamExe", null) as string;
             if (!string.IsNullOrEmpty(steamReg))
             {
@@ -57,7 +56,6 @@ namespace ArdysaModsTools.Core.Services
                 }
             }
 
-            // Step 2: Check HKEY_CLASSES_ROOT
             string? regOutput = RunRegQuery(@"HKEY_CLASSES_ROOT\dota2\Shell\Open\Command", "/ve");
             if (!string.IsNullOrEmpty(regOutput))
             {
@@ -84,7 +82,6 @@ namespace ArdysaModsTools.Core.Services
                 }
             }
 
-            // Step 3: Check Uninstall Registry
             string? steamUninstallPath = Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 570", "InstallLocation", null) as string;
             if (string.IsNullOrEmpty(steamUninstallPath) || !File.Exists(Path.Combine(steamUninstallPath, "game", "bin", "win64", "dota2.exe")))
             {
@@ -97,7 +94,6 @@ namespace ArdysaModsTools.Core.Services
                 return steamUninstallPath;
             }
 
-            // Step 4: Default Steam path fallback
             if (!string.IsNullOrEmpty(steamReg))
             {
                 string steamBase = Path.GetDirectoryName(steamReg)!;

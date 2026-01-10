@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.IO;
 using System.Threading;
@@ -66,7 +66,6 @@ namespace ArdysaModsTools.Core.Services
             string? targetPath, 
             CancellationToken ct = default)
         {
-            // Step 1: Validate path is set
             if (string.IsNullOrWhiteSpace(targetPath))
             {
                 return CreateStatus(ModStatus.NotChecked, "Path Not Set",
@@ -75,27 +74,22 @@ namespace ArdysaModsTools.Core.Services
 
             try
             {
-                // Step 2: Validate Dota 2 installation
                 var dotaCheck = await ValidateDotaInstallation(targetPath, ct);
                 if (dotaCheck != null) return dotaCheck;
 
-                // Step 3: Check if mods are installed
                 var modsCheck = await CheckModsInstalled(targetPath, ct);
                 if (modsCheck != null) return modsCheck.Value.Result;
                 
                 var (version, lastModified) = modsCheck?.Metadata ?? (null, null);
 
-                // Step 4: Check if gameinfo is patched
                 var gameInfoCheck = await CheckGameInfoPatched(targetPath, ct);
                 if (gameInfoCheck != null) 
                     return gameInfoCheck with { Version = version, LastModified = lastModified };
 
-                // Step 5: Check if signatures are patched
                 var sigCheck = await CheckSignaturesPatched(targetPath, version, lastModified, ct);
                 if (sigCheck.Status != ModStatus.Ready)
                     return sigCheck;
 
-                // Step 6: Check if build version matches patched version
                 var buildCheck = await CheckBuildVersionAsync(targetPath, version, lastModified, ct);
                 if (buildCheck != null)
                     return buildCheck;
@@ -304,7 +298,6 @@ namespace ArdysaModsTools.Core.Services
                     errorMessage: "DIGEST not found in core files");
             }
 
-            // Check if our mod line exists AFTER DIGEST
             string afterDigest = content.Substring(digestIndex);
             bool hasModPatch = afterDigest.Contains(
                 $"gameinfo_branchspecific.gi~SHA1:{ModConstants.ModPatchSHA1}",

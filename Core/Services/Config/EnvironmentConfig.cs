@@ -149,7 +149,6 @@ namespace ArdysaModsTools.Core.Services.Config
             $"{GitHubDownloadBase}/{path.TrimStart('/')}";
         
         // ============================================================
-        // Validation
         // ============================================================
         
         /// <summary>

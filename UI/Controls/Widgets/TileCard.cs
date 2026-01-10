@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Drawing;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -60,7 +60,6 @@ namespace ArdysaModsTools.UI.Controls.Widgets
             TileVisual.MouseEnter += (s, e) => { TrySetHover(true); };
             TileVisual.MouseLeave += (s, e) => { TrySetHover(false); };
 
-            // caption
             Caption = new Label
             {
                 AutoSize = false,

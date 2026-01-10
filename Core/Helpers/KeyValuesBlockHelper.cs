@@ -304,7 +304,6 @@ namespace ArdysaModsTools.Core.Helpers
             // Normalize first
             raw = NormalizeKvText(raw);
 
-            // Check if already multi-line (has reasonable line structure)
             int lineCount = raw.Count(c => c == '\n');
             if (lineCount > 100) return raw; // Already formatted
 

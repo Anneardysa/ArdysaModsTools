@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -64,7 +64,6 @@ namespace ArdysaModsTools.Core.Services
             EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific_disable.gi")
         };
 
-        
         private const string RequiredModFilePath = "game/_ArdysaMods/pak01_dir.vpk";
 
         public ModInstallerService(ILogger logger)
@@ -100,7 +99,6 @@ namespace ArdysaModsTools.Core.Services
                 return (false, $"HLExtract.exe not found at {hlExtractPath}");
             }
 
-
             try
             {
                 // Use HLExtract to list contents of VPK
@@ -131,7 +129,6 @@ namespace ArdysaModsTools.Core.Services
                     await tcs.Task.ConfigureAwait(false);
                 }
 
-                // Check if output contains "version/_ArdysaMods" (file without extension)
                 // The path pattern might be: root/version/_ArdysaMods or version/_ArdysaMods
                 bool hasArdysaModsFile = output.Contains("_ArdysaMods", StringComparison.OrdinalIgnoreCase) &&
                                          output.Contains("version", StringComparison.OrdinalIgnoreCase);
@@ -153,7 +150,6 @@ namespace ArdysaModsTools.Core.Services
                 return (false, $"Validation failed: {ex.Message}");
             }
         }
-
 
         public bool IsRequiredModFilePresent(string targetPath)
         {
@@ -189,7 +185,6 @@ namespace ArdysaModsTools.Core.Services
                 string modsDir = Path.Combine(targetPath, "game", "_ArdysaMods");
                 string localHashFile = Path.Combine(modsDir, "ModsPack.hash");
                 
-                // Check if local install exists
                 bool hasLocalInstall = File.Exists(localHashFile);
                 
                 if (!hasLocalInstall)
@@ -461,7 +456,6 @@ namespace ArdysaModsTools.Core.Services
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // Extract
                 statusCallback?.Invoke("Extracting files...");
                 try
                 {
@@ -603,8 +597,6 @@ namespace ArdysaModsTools.Core.Services
                     }
                 }
 
-
-
                 _logger.Log("Mods disabled successfully.");
                 return true;
             }
@@ -638,7 +630,6 @@ namespace ArdysaModsTools.Core.Services
 
             _logger.Log($"[PATCH] Starting {mode} patch...");
 
-            // Validate path
             if (string.IsNullOrWhiteSpace(targetPath))
             {
                 _logger.Log("[PATCH] Error: targetPath empty.");
@@ -660,7 +651,6 @@ namespace ArdysaModsTools.Core.Services
 
             try
             {
-                // Step 1: Validate files exist
                 statusCallback?.Invoke("Validating files...");
                 
                 if (!File.Exists(signaturesPath))
@@ -671,7 +661,6 @@ namespace ArdysaModsTools.Core.Services
 
                 ct.ThrowIfCancellationRequested();
 
-                // Step 2: Check if already patched
                 statusCallback?.Invoke("Checking patch status...");
                 string sigContent = await File.ReadAllTextAsync(signaturesPath, ct).ConfigureAwait(false);
                 
@@ -695,13 +684,11 @@ namespace ArdysaModsTools.Core.Services
 
                 ct.ThrowIfCancellationRequested();
 
-                // Step 3: Create backup of signatures
                 statusCallback?.Invoke("Creating backup...");
                 File.Copy(signaturesPath, signaturesBackup, overwrite: true);
 
                 try
                 {
-                    // Step 4: Patch signatures
                     statusCallback?.Invoke("Patching core files...");
                     
                     string[] lines = await File.ReadAllLinesAsync(signaturesPath, ct).ConfigureAwait(false);
@@ -726,7 +713,6 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
-                    // Step 5: Update gameinfo (Full mode only)
                     if (mode == PatchMode.Full)
                     {
                         statusCallback?.Invoke("Updating game config...");
@@ -753,10 +739,8 @@ namespace ArdysaModsTools.Core.Services
 
                         _logger.Log("[PATCH] Game config updated successfully.");
 
-
                     }
 
-                    // Step 6: Cleanup backup
                     try { File.Delete(signaturesBackup); } catch { }
 
                     _logger.Log($"[PATCH] {mode} patch completed successfully!");
@@ -979,7 +963,6 @@ namespace ArdysaModsTools.Core.Services
                 return false;
             }
         }
-
 
         private async Task<(bool Success, string Url)> TryGetModsPackAssetUrlAsync(CancellationToken cancellationToken = default)
         {

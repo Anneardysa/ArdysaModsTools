@@ -57,7 +57,6 @@ namespace ArdysaModsTools.UI.Forms
             };
             mainContainer.Controls.Add(badgeLabel);
 
-            // Title
             var titleLabel = new Label
             {
                 Text = title,
@@ -71,7 +70,6 @@ namespace ArdysaModsTools.UI.Forms
             };
             mainContainer.Controls.Add(titleLabel);
 
-            // Description
             var descLabel = new Label
             {
                 Text = description,

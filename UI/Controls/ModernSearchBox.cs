@@ -58,7 +58,6 @@ namespace ArdysaModsTools.UI.Controls
                 BackColor = Color.Transparent
             };
 
-            // TextBox
             textBox = new TextBox
             {
                 BorderStyle = BorderStyle.None,
@@ -150,7 +149,6 @@ namespace ArdysaModsTools.UI.Controls
 
         private Image CreateSearchIcon()
         {
-            // Create a simple search icon (magnifying glass)
             Bitmap icon = new Bitmap(20, 20);
             using (Graphics g = Graphics.FromImage(icon))
             {

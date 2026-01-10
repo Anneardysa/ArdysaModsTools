@@ -171,7 +171,6 @@ namespace ArdysaModsTools.Core.Services.Update
             // Get fresh version info
             var currentVersion = await _versionService.GetVersionInfoAsync(_dotaPath);
             
-            // Check if anything changed
             bool versionChanged = !string.Equals(
                 _lastKnownVersion.DotaVersion, 
                 currentVersion.DotaVersion, 

@@ -55,7 +55,6 @@ namespace ArdysaModsTools.Core.Services.Security
                     MachineEntropy, salt, Iterations, HashAlgorithmName.SHA256);
                 byte[] key = keyDerivation.GetBytes(KeySize / 8);
 
-                // Decrypt
                 using var aes = Aes.Create();
                 aes.KeySize = KeySize;
                 aes.BlockSize = BlockSize;
@@ -98,7 +97,6 @@ namespace ArdysaModsTools.Core.Services.Security
                 MachineEntropy, salt, Iterations, HashAlgorithmName.SHA256);
             byte[] key = keyDerivation.GetBytes(KeySize / 8);
 
-            // Encrypt
             using var aes = Aes.Create();
             aes.KeySize = KeySize;
             aes.BlockSize = BlockSize;

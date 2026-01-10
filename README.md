@@ -1,4 +1,4 @@
-# ArdysaModsTools (AMT 2.0) 🎮
+# ArdysaModsTools (AMT 2.0)
 
 <div align="center">
 
@@ -49,7 +49,7 @@ This tool is **NOT** affiliated with Valve Corporation. Modifying game files may
 ### Download
 
 1. Get the latest installer from [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases)
-2. Run `ArdysaModsTools-Setup-x64.exe`
+2. Run `ArdysaModsTools_Setup_x64.exe`
 3. Follow the installation wizard
 
 > The installer will automatically check for .NET 8.0 and WebView2 Runtime.

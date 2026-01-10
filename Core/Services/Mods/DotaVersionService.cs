@@ -203,7 +203,6 @@ namespace ArdysaModsTools.Core.Services
                 // Read current steam.inf
                 var (currentVersion, currentBuild) = await ReadSteamInfAsync(steamInfPath);
                 
-                // Check if version.json exists
                 if (!File.Exists(jsonPath))
                 {
                     return (false, $"{currentVersion} (Build {currentBuild})", "Not patched yet");
@@ -217,7 +216,6 @@ namespace ArdysaModsTools.Core.Services
                 string patchedVersion = root.TryGetProperty("VersionDate", out var v) ? v.GetString() ?? "" : "";
                 string patchedBuild = root.TryGetProperty("Build", out var b) ? b.GetString() ?? "" : "";
                 
-                // Compare
                 bool matches = currentVersion == patchedVersion && currentBuild == patchedBuild;
                 
                 return (matches, 

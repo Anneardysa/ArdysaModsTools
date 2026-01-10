@@ -41,7 +41,6 @@ namespace ArdysaModsTools.UI.Forms
             };
             Controls.Add(mainContainer);
 
-            // Header
             var headerLabel = new Label
             {
                 Text = "⚠ RESTART REQUIRED ⚠",
@@ -55,7 +54,6 @@ namespace ArdysaModsTools.UI.Forms
             };
             mainContainer.Controls.Add(headerLabel);
 
-            // Message
             var messageLabel = new Label
             {
                 Text = message,

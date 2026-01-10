@@ -49,7 +49,6 @@ namespace ArdysaModsTools.UI.Controls.Widgets
                 AutoSize = false
             };
 
-            // Header
             _headerPanel = new Panel
             {
                 Height = HeaderHeight,

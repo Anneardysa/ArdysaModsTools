@@ -38,7 +38,6 @@ namespace ArdysaModsTools.Core.Services
             Action<string> log, CancellationToken ct = default,
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
         {
-            // Validate inputs
             if (string.IsNullOrWhiteSpace(hlExtractPath))
             {
                 log("HLExtract path not specified.");
@@ -107,7 +106,6 @@ namespace ArdysaModsTools.Core.Services
                 return false;
             }
 
-            // Validate extraction
             string itemsGamePath = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
             if (!File.Exists(itemsGamePath))
             {

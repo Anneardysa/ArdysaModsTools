@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,7 +20,6 @@ namespace ArdysaModsTools.Helpers
                 return null;
             }
         }
-
 
         public static IEnumerable<string> GetSteamLibraryPaths(string steamExe)
         {

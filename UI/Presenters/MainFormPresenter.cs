@@ -50,7 +50,6 @@ namespace ArdysaModsTools.UI.Presenters
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            // Initialize services
             _updater = new UpdaterService(_logger);
             _updater.OnVersionChanged += version =>
             {
@@ -62,7 +61,6 @@ namespace ArdysaModsTools.UI.Presenters
             _status = new StatusService(_logger);
             _config = new MainConfigService();
 
-            // Initialize Dota 2 monitor
             _dotaMonitor = new Dota2Monitor();
             _dotaMonitor.OnDota2StateChanged += OnDotaStateChanged;
             _dotaMonitor.Start();
@@ -361,7 +359,6 @@ namespace ArdysaModsTools.UI.Presenters
             if (string.IsNullOrEmpty(vpkPath))
                 return false;
 
-            // Validate filename
             var fileName = Path.GetFileName(vpkPath);
             if (!fileName.Equals("pak01_dir.vpk", StringComparison.OrdinalIgnoreCase))
             {
@@ -370,7 +367,6 @@ namespace ArdysaModsTools.UI.Presenters
                 return false;
             }
 
-            // Validate VPK
             var (isValid, errorMessage) = await _modInstaller.ValidateVpkAsync(vpkPath);
             if (!isValid)
             {
@@ -379,7 +375,6 @@ namespace ArdysaModsTools.UI.Presenters
                 return false;
             }
 
-            // Confirm
             var confirmResult = _view.ShowMessageBox(
                 $"Install VPK:\n{fileName}\n\nContinue?",
                 "Confirm Install",

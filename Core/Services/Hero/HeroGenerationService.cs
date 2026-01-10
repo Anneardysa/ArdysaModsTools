@@ -83,7 +83,6 @@ namespace ArdysaModsTools.Core.Services
             {
                 ct.ThrowIfCancellationRequested();
 
-                // Validate inputs
                 if (string.IsNullOrWhiteSpace(targetPath))
                     return Fail("No target path set.", log);
 
@@ -92,7 +91,6 @@ namespace ArdysaModsTools.Core.Services
 
                 targetPath = PathUtility.NormalizeTargetPath(targetPath);
 
-                // Validate tools
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string vpkToolPath = Path.Combine(baseDir, "vpk.exe");
 
@@ -132,7 +130,6 @@ namespace ArdysaModsTools.Core.Services
 
                 try
                 {
-                    // Step 1: Download and extract Original.zip (0-20%)
                     stageProgress?.Report((0, "Preparing"));
                     log("Preparing...");
                     string extractDir;
@@ -165,7 +162,6 @@ namespace ArdysaModsTools.Core.Services
                     // Collect all index blocks from all heroes for merged patching
                     var mergedBlocks = new Dictionary<string, (string block, string heroId)>();
 
-                    // Step 2: Process ONLY filtered heroes (20-60%)
                     stageProgress?.Report((20, "Processing"));
                     for (int i = 0; i < heroesToProcess.Count; i++)
                     {
@@ -183,7 +179,6 @@ namespace ArdysaModsTools.Core.Services
 
                         try
                         {
-                            // Validate hero (already pre-filtered, but defensive check)
                             if (hero == null)
                             {
                                 failedHeroes.Add(("Unknown", "Hero is null"));
@@ -284,7 +279,6 @@ namespace ArdysaModsTools.Core.Services
                         }
                     }
 
-                    // Check if any heroes were successful
                     if (successfulHeroes.Count == 0)
                     {
                         var errors = string.Join(", ", failedHeroes.Select(f => $"{f.heroName}: {f.reason}"));
@@ -293,7 +287,6 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
-                    // Step 3: Apply all merged index blocks to items_game.txt (ONCE)
                     if (mergedBlocks.Count > 0)
                     {
                         log("Patching...");
@@ -315,7 +308,6 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
-                    // Step 3.5: Download and apply localization patches (60-65%)
                     stageProgress?.Report((60, "Downloading assets"));
                     log("Downloading assets...");
                     var locSuccess = await _localizationPatcher.PatchLocalizationAsync(
@@ -327,7 +319,6 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
-                    // Step 4: Build VPK (65-80%)
                     stageProgress?.Report((65, "Building"));
                     log("Building VPK...");
                     
@@ -345,7 +336,6 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
-                    // Step 4.5: Install VPK (80-90%)
                     stageProgress?.Report((80, "Installing"));
                     log("Installing...");
                     var replaceSuccess = await _replacer.ReplaceAsync(
@@ -353,8 +343,6 @@ namespace ArdysaModsTools.Core.Services
 
                     if (!replaceSuccess)
                         return Fail("VPK replacement failed.", log);
-
-
 
                     // Save extraction log
                     extractionLog.Save(targetPath);
@@ -486,7 +474,6 @@ namespace ArdysaModsTools.Core.Services
             // Known asset folders to look for
             var assetTypes = new[] { "models", "particles", "materials", "sounds", "scripts", "panorama", "resource" };
 
-            // Check if assets exist directly in folder
             foreach (var assetType in assetTypes)
             {
                 if (Directory.Exists(Path.Combine(folder, assetType)))
@@ -572,7 +559,6 @@ namespace ArdysaModsTools.Core.Services
 
             return result;
         }
-
 
     }
 }

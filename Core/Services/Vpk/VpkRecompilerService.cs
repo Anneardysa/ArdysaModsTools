@@ -102,7 +102,6 @@ namespace ArdysaModsTools.Core.Services
                 }
             }
 
-            // Validate extractDir exists and has content
             if (!Directory.Exists(extractDir))
             {
                 log("[Recompile] Source folder not found.");

@@ -27,7 +27,6 @@ namespace ArdysaModsTools.UI.Controls
         public int GlowRadius { get; set; } = 1;
         public int MaxLines { get; set; } = 500;
         
-        // Colors
         private static readonly Color BgColor = Color.Black;
         private static readonly Color ScanlineColor = Color.FromArgb(30, 0, 0, 0);
         
@@ -164,7 +163,6 @@ namespace ArdysaModsTools.UI.Controls
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
             
-            // Background
             using (var bgBrush = new SolidBrush(BgColor))
             {
                 g.FillRectangle(bgBrush, ClientRectangle);

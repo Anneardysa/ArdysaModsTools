@@ -50,7 +50,6 @@ namespace ArdysaModsTools.Core.Services.Security
                 var assembly = Assembly.GetExecutingAssembly();
                 var name = assembly.GetName();
 
-                // Check if assembly is signed
                 byte[]? publicKey = name.GetPublicKey();
                 if (publicKey != null && publicKey.Length > 0)
                 {

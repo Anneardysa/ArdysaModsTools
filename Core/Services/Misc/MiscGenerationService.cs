@@ -55,7 +55,6 @@ namespace ArdysaModsTools.Core.Services
             {
                 ct.ThrowIfCancellationRequested();
 
-                // Validate inputs
                 if (string.IsNullOrEmpty(targetPath))
                     return Fail("No target path set.", log);
 
@@ -64,7 +63,6 @@ namespace ArdysaModsTools.Core.Services
                 if (!File.Exists(vpkPath))
                     return Fail($"VPK file not found at: {vpkPath}", log);
 
-                // Validate tools
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string hlExtractPath = Path.Combine(baseDir, "HLExtract.exe");
                 string vpkToolPath = Path.Combine(baseDir, "vpk.exe");
@@ -80,7 +78,6 @@ namespace ArdysaModsTools.Core.Services
 
                 try
                 {
-                    // Step 1: Extract
                     log("Extracting game files...");
                     if (!await _extractor.ExtractAsync(hlExtractPath, vpkPath, extractDir, _ => { }, ct, speedProgress).ConfigureAwait(false))
                         return Fail("Extraction failed.", log);
@@ -91,13 +88,11 @@ namespace ArdysaModsTools.Core.Services
                     var previousLog = MiscExtractionLog.Load(targetPath);
                     _modifier.SetPreviousLog(previousLog);
 
-                    // Step 2: Modify
                     if (!await _modifier.ApplyModificationsAsync(vpkPath, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false))
                         return Fail("Modification failed.", log);
 
                     ct.ThrowIfCancellationRequested();
 
-                    // Step 3: Recompile
                     log("Building...");
                     string? newVpk = await _recompiler.RecompileAsync(vpkToolPath, extractDir, buildDir, tempRoot, _ => { }, ct, speedProgress).ConfigureAwait(false);
                     if (newVpk == null)
@@ -106,12 +101,10 @@ namespace ArdysaModsTools.Core.Services
                     await Task.Delay(2000, ct).ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
 
-                    // Step 4: Replace
                     log("Installing...");
                     if (!await _replacer.ReplaceAsync(targetPath, newVpk, _ => { }, ct).ConfigureAwait(false))
                         return Fail("Replacement failed.", log);
 
-                    // Step 5: Save extraction log
                     log("Finalizing...");
                     var extractionLog = new MiscExtractionLog
                     {
@@ -125,7 +118,6 @@ namespace ArdysaModsTools.Core.Services
                     }
                     extractionLog.Save(targetPath);
 
-                    // Step 6: Cleanup
                     await CleanupAsync(tempRoot, log).ConfigureAwait(false);
 
                     log("Done!");

@@ -1,4 +1,4 @@
-﻿using ArdysaModsTools.Core.Interfaces;
+using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Update;
@@ -130,7 +130,6 @@ namespace ArdysaModsTools
                 _logger.Log($"Error loading banner: {ex.Message}");
             }
 
-
             string[] args = Environment.GetCommandLineArgs();
             if (args.Length >= 6 && args[1] == "--update")
             {
@@ -241,7 +240,6 @@ namespace ArdysaModsTools
             else
                 EnableAllButtons();
         }
-
 
         private void CancelButton_Click(object? sender, EventArgs e)
         {
@@ -397,7 +395,6 @@ namespace ArdysaModsTools
             disableButton.Size = new Size(buttonWidth, buttonHeight);
             disableButton.Visible = true;
         }
-
 
         private void DisableAllButtons()
         {
@@ -668,9 +665,7 @@ namespace ArdysaModsTools
             }
         }
 
-        // ----------------------------------------------------------
         // Install button flow — updated to use tuple result
-        // ----------------------------------------------------------
         private async void InstallButton_Click(object? sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(targetPath))
@@ -692,7 +687,6 @@ namespace ArdysaModsTools
                 // else: Auto-Install continues below
             }
 
-            // Check if there's a newer ModsPack available
             try
             {
                 var (hasNewer, hasLocalInstall) = await _modInstaller.CheckForNewerModsPackAsync(targetPath);
@@ -844,7 +838,6 @@ namespace ArdysaModsTools
                 return;
             }
 
-            // Validate VPK before proceeding
             var (isValid, errorMessage) = await _modInstaller.ValidateVpkAsync(vpkPath);
 
             if (!isValid)
@@ -907,9 +900,6 @@ namespace ArdysaModsTools
             }
         }
 
-
-
-
         private async Task HandleInstallResultOnUiThread(bool success, bool isUpToDate, string targetPath, string appPath, IProgress<int> progress)
         {
             if (isUpToDate)
@@ -934,7 +924,6 @@ namespace ArdysaModsTools
                 // Check and update mods status after successful install
                 await CheckModsStatus();
                 
-                // Check if patching is required
                 await ShowPatchRequiredIfNeededAsync();
             }
             else
@@ -1012,7 +1001,6 @@ namespace ArdysaModsTools
                 _logger.Log("Reinstall done.");
                 await CheckModsStatus();
                 
-                // Check if patching is required
                 await ShowPatchRequiredIfNeededAsync();
             }
         }
@@ -1213,7 +1201,6 @@ namespace ArdysaModsTools
             };
             fullPatch.Click += async (s, e) => await ExecutePatchAsync(PatchMode.Full);
 
-            // Separator
             var sep1 = new ToolStripSeparator { BackColor = Color.FromArgb(51, 51, 51) };
 
             // Verify Files
@@ -1243,8 +1230,6 @@ namespace ArdysaModsTools
                 viewStatus 
             });
         }
-
-
 
         private async void UpdatePatcherButton_Click(object? sender, EventArgs e)
         {
@@ -1598,7 +1583,6 @@ namespace ArdysaModsTools
             public override Color ImageMarginGradientEnd => Color.Black;
         }
 
-
         private async Task UpdateVersionLabelAsync()
         {
             try
@@ -1867,7 +1851,6 @@ namespace ArdysaModsTools
                 {
                     await CheckModsStatus();
                     
-                    // Check if patching is required after generation (with custom message)
                     await ShowPatchRequiredIfNeededAsync("Custom ModsPack installed successfully!");
                 }
             }
@@ -1892,7 +1875,6 @@ namespace ArdysaModsTools
                 return false;
             }
         }
-
 
         private void MainForm_KeyDown(object? sender, KeyEventArgs e)
         {

@@ -17,7 +17,6 @@ namespace ArdysaModsTools.UI.Forms
         private readonly DotaVersionInfo _versionInfo;
         private readonly Action? _onPatchRequested;
         
-        // Controls
         private Panel headerPanel = null!;
         private Label titleLabel = null!;
         private Label closeButton = null!;
@@ -26,7 +25,6 @@ namespace ArdysaModsTools.UI.Forms
         private Button patchButton = null!;
         private Button closeBtn = null!;
 
-        // Dragging
         private bool _dragging;
         private Point _dragStart;
 

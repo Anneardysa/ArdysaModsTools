@@ -287,7 +287,6 @@ namespace ArdysaModsTools.UI.Forms
                 return File.ReadAllText(htmlPath);
             }
 
-            // Fallback
             return GetFallbackHtml();
         }
 

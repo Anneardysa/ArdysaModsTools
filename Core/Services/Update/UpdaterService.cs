@@ -248,7 +248,6 @@ namespace ArdysaModsTools.Core.Services.Update
 
             try
             {
-                // Validate strategy can update
                 string? validationError = _updateStrategy.ValidateCanUpdate();
                 if (validationError != null)
                 {
@@ -257,7 +256,6 @@ namespace ArdysaModsTools.Core.Services.Update
                     return;
                 }
 
-                // Get the appropriate download URL
                 string? downloadUrl = _installationType == InstallationType.Installer
                     ? updateInfo.InstallerDownloadUrl
                     : updateInfo.PortableDownloadUrl;
@@ -478,7 +476,6 @@ namespace ArdysaModsTools.Core.Services.Update
                 // Wait for download to finish
                 try { await downloadTask; } catch { }
                 
-                // Cleanup
                 overlay.Dispose();
                 parentForm.Controls.Remove(dimPanel!);
                 dimPanel?.Dispose();

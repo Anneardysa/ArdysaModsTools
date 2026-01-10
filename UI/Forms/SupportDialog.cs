@@ -29,7 +29,7 @@ namespace ArdysaModsTools.UI.Forms
             Text = "Support";
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(800, 340);
+            Size = new Size(680, 380);
             BackColor = Color.Black;
             ShowInTaskbar = false;
             KeyPreview = true;
@@ -94,9 +94,9 @@ namespace ArdysaModsTools.UI.Forms
             mainContainer.Controls.Add(subtitleLabel);
 
             // Options container - centered horizontally
-            int optionWidth = 230;
-            int optionHeight = 65;
-            int spacing = 16;
+            int optionWidth = 200;
+            int optionHeight = 95;
+            int spacing = 20;
             int totalOptionsWidth = (optionWidth * 3) + (spacing * 2);
             int startX = (Width - totalOptionsWidth) / 2;
             int optionY = 130;
@@ -129,7 +129,7 @@ namespace ArdysaModsTools.UI.Forms
                 ForeColor = Color.FromArgb(100, 100, 100),
                 AutoSize = false,
                 Size = new Size(Width - 80, 22),
-                Location = new Point(40, 210),
+                Location = new Point(40, 240),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
@@ -140,7 +140,7 @@ namespace ArdysaModsTools.UI.Forms
             {
                 Text = "[ CLOSE ]",
                 Size = new Size(120, 38),
-                Location = new Point((Width - 120) / 2, 250),
+                Location = new Point((Width - 120) / 2, 290),
                 BackColor = Color.Black,
                 ForeColor = Color.FromArgb(136, 136, 136),
                 FlatStyle = FlatStyle.Flat,
@@ -183,17 +183,16 @@ namespace ArdysaModsTools.UI.Forms
                 Cursor = Cursors.Hand
             };
 
-            // Icon - PictureBox with image
+            // Icon - centered at top
             var iconPictureBox = new PictureBox
             {
                 Size = new Size(32, 32),
-                Location = new Point(15, (h - 32) / 2),
+                Location = new Point((w - 32) / 2, 10),
                 BackColor = Color.Transparent,
                 SizeMode = PictureBoxSizeMode.Zoom,
                 Cursor = Cursors.Hand
             };
             
-            // Load image if exists
             try
             {
                 if (File.Exists(imagePath))
@@ -205,56 +204,39 @@ namespace ArdysaModsTools.UI.Forms
             
             panel.Controls.Add(iconPictureBox);
 
-            // Title - vertically centered
+            // Title - centered
             var titleLabel = new Label
             {
                 Text = title,
                 Font = new Font("JetBrains Mono", 10f, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = false,
-                Size = new Size(w - 85, 20),
-                Location = new Point(65, (h / 2) - 18),
-                TextAlign = ContentAlignment.MiddleLeft,
+                Size = new Size(w, 20),
+                Location = new Point(0, 46),
+                TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand
             };
             panel.Controls.Add(titleLabel);
 
-            // Subtitle
             var subtitleLabel = new Label
             {
                 Text = subtitle,
                 Font = new Font("JetBrains Mono", 8f),
                 ForeColor = Color.FromArgb(100, 100, 100),
                 AutoSize = false,
-                Size = new Size(w - 85, 18),
-                Location = new Point(65, (h / 2) + 2),
-                TextAlign = ContentAlignment.MiddleLeft,
+                Size = new Size(w, 18),
+                Location = new Point(0, 66),
+                TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand
             };
             panel.Controls.Add(subtitleLabel);
 
-            // Arrow - vertically centered on right
-            var arrowLabel = new Label
-            {
-                Text = "→",
-                Font = new Font("JetBrains Mono", 12f),
-                ForeColor = Color.FromArgb(60, 60, 60),
-                AutoSize = false,
-                Size = new Size(25, h),
-                Location = new Point(w - 35, 0),
-                TextAlign = ContentAlignment.MiddleCenter,
-                BackColor = Color.Transparent,
-                Cursor = Cursors.Hand
-            };
-            panel.Controls.Add(arrowLabel);
-
             // Hover effects
-            panel.MouseEnter += (s, e) => { panel.BackColor = Color.FromArgb(35, 35, 35); arrowLabel.ForeColor = Color.White; };
-            panel.MouseLeave += (s, e) => { panel.BackColor = Color.FromArgb(20, 20, 20); arrowLabel.ForeColor = Color.FromArgb(60, 60, 60); };
+            panel.MouseEnter += (s, e) => { panel.BackColor = Color.FromArgb(35, 35, 35); };
+            panel.MouseLeave += (s, e) => { panel.BackColor = Color.FromArgb(20, 20, 20); };
 
-            // Border
             panel.Paint += (s, e) =>
             {
                 using var pen = new Pen(Color.FromArgb(51, 51, 51), 1);

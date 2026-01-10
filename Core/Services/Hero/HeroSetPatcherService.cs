@@ -155,7 +155,6 @@ namespace ArdysaModsTools.Core.Services
                     continue;
                 }
 
-                // Validate match
                 var validation = ValidateBlockMatch(existingBlock, replacementBlock, heroId, idStr);
                 if (!validation.isValid)
                 {
@@ -167,7 +166,6 @@ namespace ArdysaModsTools.Core.Services
                     continue;
                 }
 
-                // Replace
                 var previousLength = original.Length;
                 original = ReplaceIdBlock(original, idStr, replacementBlock, out bool didReplace);
                 
@@ -287,7 +285,6 @@ namespace ArdysaModsTools.Core.Services
                     continue;
                 }
 
-                // Validate blocks match on critical fields
                 var validation = ValidateBlockMatch(existingBlock, replacementBlock, heroId, idStr);
                 if (!validation.isValid)
                 {

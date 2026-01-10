@@ -26,7 +26,6 @@ namespace ArdysaModsTools.Core.Services.Update
         {
             string installPath = InstallationDetector.GetInstallPath();
 
-            // Check if we have write access to the install directory
             try
             {
                 string testFile = Path.Combine(installPath, $".write_test_{Guid.NewGuid()}");

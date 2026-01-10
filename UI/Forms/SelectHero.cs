@@ -1,4 +1,4 @@
-﻿using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Models;
 using ArdysaModsTools.UI.Controls.Widgets;
@@ -55,7 +55,6 @@ namespace ArdysaModsTools.UI.Forms
             var loadedFav = FavoritesStore.Load();
             favorites = loadedFav ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            // Initialize HeroService pointing to application base folder
             var baseFolder = AppDomain.CurrentDomain.BaseDirectory;
             _heroService = new HeroService(baseFolder);
 
@@ -87,7 +86,6 @@ namespace ArdysaModsTools.UI.Forms
 
         #region Initialization helpers (clean, single-responsibility)
 
-
         private void InitializeUiBehavior()
         {
             WireButtonsAndLabels();
@@ -106,8 +104,6 @@ namespace ArdysaModsTools.UI.Forms
             this.Resize += (s, e) => UpdateRowWidths();
             this.ScrollContainer.Resize += (s, e) => UpdateRowWidths();
         }
-
-
 
         #endregion
 
@@ -133,9 +129,7 @@ namespace ArdysaModsTools.UI.Forms
                     {
                         // Map HeroSummary -> your UI's HeroModel (preserve original shape)
                         heroList.Clear();
-                        // ---------------------------
                         // Robust mapping (fixed) starts here
-                        // ---------------------------
                         foreach (var hs in list)
                         {
                             // prefer used_by_heroes (npc string) as the internal id; fallback to Name
@@ -407,10 +401,7 @@ namespace ArdysaModsTools.UI.Forms
                             // Add to final list
                             heroList.Add(hm);
                         }
-                        // ---------------------------
                         // Robust mapping ends here
-                        // ---------------------------
-
 
                         AppendDebug($"Loaded {heroList.Count} heroes from heroes.json.");
                     }
@@ -691,7 +682,6 @@ namespace ArdysaModsTools.UI.Forms
             }
         }
 
-
         private void Btn_SelectLoad_Click(object? sender, EventArgs e) => LoadPresetInteractive();
         private void Btn_SelectSave_Click(object? sender, EventArgs e) => SavePresetInteractive();
 
@@ -797,7 +787,6 @@ namespace ArdysaModsTools.UI.Forms
             ApplyFilters();
         }
 
-
         private void PopulateHeroes()
         {
             if (RowsFlow == null) return;
@@ -850,7 +839,6 @@ namespace ArdysaModsTools.UI.Forms
 #endif
         }
 
-
         /// <summary>
         /// Called when a HeroRow expands or collapses - implements accordion + auto-scroll.
         /// </summary>
@@ -880,7 +868,6 @@ namespace ArdysaModsTools.UI.Forms
 
         private void ScrollToRow(HeroRow row)
         {
-            // Get the row's position relative to RowsFlow
             var rowTop = row.Top;
             var rowBottom = row.Top + row.Height;
             var containerHeight = ScrollContainer.ClientSize.Height;
@@ -982,8 +969,6 @@ namespace ArdysaModsTools.UI.Forms
             }
         }
 
-
-
         #endregion
 
         // Debug helper - paste inside SelectHero class
@@ -1027,7 +1012,6 @@ namespace ArdysaModsTools.UI.Forms
                 MessageBox.Show(this, "Status check failed: " + ex.Message);
             }
         }
-
 
         private IEnumerable<(string heroId, string skinId)> GetSelections() => selectedByHero.Select(kv => (kv.Key, kv.Value));
 
@@ -1172,14 +1156,12 @@ namespace ArdysaModsTools.UI.Forms
             {
                 var tempPath = Path.GetTempPath();
 
-                // 1. Remove ArdysaSelectHero folder (hero set downloads)
                 var selectHeroTemp = Path.Combine(tempPath, "ArdysaSelectHero");
                 if (Directory.Exists(selectHeroTemp))
                 {
                     Directory.Delete(selectHeroTemp, true);
                 }
 
-                // 2. Remove any leftover ArdysaHero_* folders (temp work folders)
                 foreach (var dir in Directory.GetDirectories(tempPath, "ArdysaHero_*"))
                 {
                     try
@@ -1189,7 +1171,6 @@ namespace ArdysaModsTools.UI.Forms
                     catch { /* Ignore individual failures */ }
                 }
 
-                // 3. Remove cache/sets folder in app directory
                 var setsCache = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cache", "sets");
                 if (Directory.Exists(setsCache))
                 {

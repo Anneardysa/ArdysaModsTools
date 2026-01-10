@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,7 +20,6 @@ namespace ArdysaModsTools
         private readonly Action _disableButtons;
         private readonly Action _enableButtons;
 
-        // Services
         private readonly MiscUtilityService _utils;
         private readonly Logger _miscLogger;
 
@@ -36,7 +35,6 @@ namespace ArdysaModsTools
 
             InitializeComponent();
 
-            // Initialize services
             _utils = new MiscUtilityService();
             _miscLogger = new Logger(ConsoleLogBox);
 
@@ -49,9 +47,7 @@ namespace ArdysaModsTools
             UI.FontHelper.ApplyToForm(this);
         }
 
-        // -----------------------------------------------------------
         // FORM EVENTS
-        // -----------------------------------------------------------
 
         private async void MiscForm_Load(object sender, EventArgs e)
         {
@@ -71,9 +67,7 @@ namespace ArdysaModsTools
             }
         }
 
-        // -----------------------------------------------------------
         // POPULATE UI
-        // -----------------------------------------------------------
 
         private void PopulateOptions()
         {
@@ -173,7 +167,6 @@ namespace ArdysaModsTools
 
         private void ScrollToRow(MiscRow row)
         {
-            // Get the row's position relative to RowsFlow
             var rowTop = row.Top;
             var rowBottom = row.Top + row.Height;
             var containerHeight = ScrollContainer.ClientSize.Height;
@@ -200,9 +193,7 @@ namespace ArdysaModsTools
             ScrollContainer.AutoScrollPosition = new Point(0, targetScroll);
         }
 
-        // -----------------------------------------------------------
         // SELECTION HELPERS
-        // -----------------------------------------------------------
 
         public Dictionary<string, string> GetSelections()
         {
@@ -242,9 +233,7 @@ namespace ArdysaModsTools
             }
         }
 
-        // -----------------------------------------------------------
         // PRESET LOAD/SAVE
-        // -----------------------------------------------------------
 
         private void LoadPreset_Click()
         {
@@ -299,9 +288,6 @@ namespace ArdysaModsTools
             }
         }
 
-        // -----------------------------------------------------------
-        // GENERATE
-        // -----------------------------------------------------------
 
         private async Task GenerateButton_Click()
         {
@@ -351,7 +337,6 @@ namespace ArdysaModsTools
                 // Save selections for next time
                 await SaveSelectionsAsync();
 
-                // Create a clean logger that formats messages nicely
                 Action<string> cleanLog = (msg) =>
                 {
                     // Skip empty messages
@@ -375,7 +360,6 @@ namespace ArdysaModsTools
                         _miscLogger.Log(msg);
                     }
                 };
-
 
                 // Run operation directly without overlay
                 var controller = new MiscController();
@@ -433,10 +417,7 @@ namespace ArdysaModsTools
             }
         }
 
-
-        // -----------------------------------------------------------
         // UI HELPERS
-        // -----------------------------------------------------------
 
         private void DisableFormControls()
         {
@@ -460,9 +441,7 @@ namespace ArdysaModsTools
             }
         }
 
-        // -----------------------------------------------------------
         // SETTINGS PERSISTENCE
-        // -----------------------------------------------------------
 
         private async Task SaveSelectionsAsync()
         {
