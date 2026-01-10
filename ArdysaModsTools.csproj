@@ -11,7 +11,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWindowsForms>true</UseWindowsForms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\Icons\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- ============================================== -->
@@ -45,7 +45,7 @@
   <!-- APPLICATION RESOURCES                          -->
   <!-- ============================================== -->
   <PropertyGroup>
-    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\Icons\AppIcon.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
@@ -155,8 +155,8 @@
   <!-- ============================================== -->
   <ItemGroup>
     <!-- App Icon -->
-    <Content Include="AppIcon.ico" />
-    <EmbeddedResource Include="AppIcon.ico" />
+    <Content Include="Assets\Icons\AppIcon.ico" />
+    <EmbeddedResource Include="Assets\Icons\AppIcon.ico" />
     
     <!-- Icons -->
     <EmbeddedResource Include="Assets\Icons\fav_off.png">
@@ -245,7 +245,7 @@
     <!-- Common Inno Setup installation paths -->
     <InnoSetupPath Condition="Exists('$(ProgramFiles)\Inno Setup 6\ISCC.exe')">$(ProgramFiles)\Inno Setup 6\ISCC.exe</InnoSetupPath>
     <InnoSetupPath Condition="'$(InnoSetupPath)' == '' And Exists('$(ProgramFilesX86)\Inno Setup 6\ISCC.exe')">$(ProgramFilesX86)\Inno Setup 6\ISCC.exe</InnoSetupPath>
-    <InstallerScript>$(MSBuildProjectDirectory)\installer\installer.iss</InstallerScript>
+    <InstallerScript>$(MSBuildProjectDirectory)\scripts\build\installer.iss</InstallerScript>
     <InstallerOutputDir>$(MSBuildProjectDirectory)\installer_output\</InstallerOutputDir>
   </PropertyGroup>
 

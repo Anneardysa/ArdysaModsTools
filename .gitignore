@@ -1,29 +1,21 @@
-# Build Outputs
-bin/
-obj/
-Build/
-publish/
-protected/
-installer_output/
-Tests/bin/
-Tests/obj/
-scripts/
-tools/confuserex/
+# ============================================================================
+# AMT 2.0 - .gitignore
+# ============================================================================
 
-# Visual Studio
+# IDE & EDITOR FILES
 .vs/
 *.user
 *.suo
 *.cache
-
-# Rider
 .idea/
-
-# User-specific files
 *.rsuser
 *.userprefs
 
-# Build results
+# .NET BUILD ARTIFACTS
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
 [Dd]ebug/
 [Rr]elease/
 x64/
@@ -32,49 +24,37 @@ x86/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
 bld/
-[Bb]in/
-[Oo]bj/
 [Ll]og/
 [Ll]ogs/
+*.log
 
-# NuGet
+# PROJECT-SPECIFIC BUILD OUTPUTS
+Build/
+publish/
+protected/
+installer_output/
+Tests/bin/
+Tests/obj/
+
+# DEPENDENCIES & PACKAGES
 *.nupkg
 *.snupkg
 .nuget/
 packages/
 
-# Installer outputs
+# COMPILED BINARIES
 *.exe
 !tools/**/*.exe
 !AppIcon.ico
-
-# Crash logs
 *.dmp
 
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
+# SCRIPTS & TOOLS
+scripts/*
+scripts/*/*
+!scripts/**/*.iss
+tools/confuserex/
 
-# macOS
-.DS_Store
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.Python
-*.egg-info/
-.eggs/
-
-# Logs
-*.log
-npm-debug.log*
-
-# Auto Claude data directory
-.auto-claude/
-
-# Secrets and local configuration (NEVER COMMIT)
+# CONFIGURATION & SECRETS
 .env
 .env.local
 *.secrets.json
@@ -82,9 +62,31 @@ appsettings.json
 appsettings.*.json
 !appsettings.template.json
 
-# Personal/internal documents
-docs/resume.md
+# OS-GENERATED FILES
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
 
-# Internal workflows
+# DEVELOPMENT TOOLS
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+npm-debug.log*
+
+# AI ASSISTANT TOOLS
+.auto-claude/
 .agent/
 .trains/
+.github/
+
+# LOCAL DEVELOPER TOOLS
+build.txt
+commit-and-push.ps1
+COMMIT_GUIDE.md
+
+# PERSONAL/INTERNAL DOCUMENTATION
+docs/resume.md

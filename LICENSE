@@ -20,23 +20,150 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
----
+================================================================================
 
-## Third-Party Tools
+ADDITIONAL TERMS AND NOTICES
 
-This software includes the following third-party tools:
+================================================================================
 
-### HLExtract
-- Part of HLLib by Ryan Gregg
-- Used for VPK extraction
-- License: LGPL
+## Third-Party Components
 
-### vpk.exe
-- Valve Corporation
-- Used for VPK creation
-- Part of Source SDK
+This software includes or depends on the following third-party components,
+each governed by their respective licenses:
 
-### WebView2 Runtime
-- Microsoft Corporation
-- Used for web content display
-- License: Microsoft Software License
+1. HLExtract (HLLib)
+
+   -  Author: Ryan Gregg
+   -  Purpose: VPK file extraction
+   -  License: GNU Lesser General Public License (LGPL) v2.1
+   -  Source: https://github.com/NeilJed/HLLib
+   -  Note: Used as a separate executable, not linked into this software
+
+2. vpk.exe (Valve Corporation)
+
+   -  Author: Valve Corporation
+   -  Purpose: VPK file creation and management
+   -  License: Valve Source SDK License
+   -  Part of: Source SDK
+   -  Note: Redistributed as-is without modification
+
+3. Microsoft WebView2 Runtime
+
+   -  Author: Microsoft Corporation
+   -  Purpose: Web content rendering
+   -  License: Microsoft Software License Terms
+   -  Source: https://developer.microsoft.com/microsoft-edge/webview2/
+   -  Note: Required runtime, not redistributed with this software
+
+4. .NET 8.0 Runtime
+   -  Author: Microsoft Corporation and .NET Foundation
+   -  License: MIT License
+   -  Source: https://github.com/dotnet/runtime
+
+## NuGet Package Dependencies
+
+This software uses the following NuGet packages, licensed as follows:
+
+• Microsoft.Web.WebView2 - © Microsoft Corporation (MIT-like)
+• Microsoft.Toolkit.Uwp.Notifications - © .NET Foundation (MIT)
+• SharpCompress - © Adam Hathcock (MIT)
+• ValveKeyValue - © SteamDatabase (BSD-2-Clause)
+• SixLabors.ImageSharp - © Six Labors (Apache-2.0)
+• QRCoder - © Raffael Herrmann (MIT)
+• Google.Apis.YouTube.v3 - © Google Inc. (Apache-2.0)
+• Microsoft.Extensions.DependencyInjection - © .NET Foundation (MIT)
+
+For complete license texts of third-party components, please refer to their
+respective repositories or documentation.
+
+================================================================================
+
+## Disclaimer Regarding Dota 2 Content
+
+This software is a third-party tool for managing cosmetic modifications to
+Dota 2, a game developed and published by Valve Corporation.
+
+IMPORTANT NOTICES:
+
+• This software is NOT affiliated with, endorsed by, or sponsored by
+Valve Corporation.
+
+• Dota 2 is a trademark and copyright of Valve Corporation.
+
+• This tool modifies local game files for cosmetic purposes only and does
+not provide any competitive advantage.
+
+• Users are responsible for ensuring their use of this software complies
+with Valve's Terms of Service and the Dota 2 End User License Agreement.
+
+• The authors and contributors of this software are not responsible for any
+consequences arising from the use of this tool, including but not limited
+to account restrictions or bans.
+
+• Use of this software is entirely at your own risk.
+
+• This software does not bypass any game security measures, does not modify
+game files while the game is running, and does not interact with Dota 2's
+online services.
+
+• All game content, assets, and intellectual property belong to their
+respective owners.
+
+================================================================================
+
+## Warranty Disclaimer
+
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING, WITHOUT
+LIMITATION, ANY WARRANTIES OR CONDITIONS OF TITLE, NON-INFRINGEMENT,
+MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+
+The entire risk as to the quality and performance of the software is with
+you. Should the software prove defective, you assume the cost of all
+necessary servicing, repair, or correction.
+
+================================================================================
+
+## Limitation of Liability
+
+IN NO EVENT SHALL THE AUTHORS, COPYRIGHT HOLDERS, OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR FAILURE OF THIS SOFTWARE TO WORK AS EXPECTED)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+================================================================================
+
+## Contributing
+
+Contributions to this project are welcome and appreciated. By contributing
+to this project, you agree that your contributions will be licensed under
+the same MIT License that covers this project.
+
+For contribution guidelines, please see CONTRIBUTING.md
+
+================================================================================
+
+## Contact
+
+For questions, issues, or security concerns, please refer to:
+
+-  GitHub Issues: https://github.com/Anneardysa/ArdysaModsTools/issues
+-  Security Policy: See SECURITY.md in this repository
+
+================================================================================
+
+## Acknowledgments
+
+Special thanks to:
+
+-  The Dota 2 modding community
+-  All contributors to this project
+-  The open-source community for the excellent tools and libraries
+
+================================================================================
+
+Last Updated: January 2026

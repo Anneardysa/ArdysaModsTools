@@ -1,45 +1,64 @@
-# Documentation
+# 📚 ArdysaModsTools Documentation
 
-Welcome to the ArdysaModsTools documentation!
+Welcome to the AMT 2.0 documentation hub. Find everything you need to use or contribute to the project.
 
-## 📖 For Users
+---
 
-If you just want to use the application, start here:
+## 🎯 Quick Navigation
 
-| Guide                              | Description                     |
-| ---------------------------------- | ------------------------------- |
-| [Quick Start](user/QUICK_START.md) | Get up and running in 5 minutes |
-| [User Guide](user/USER_GUIDE.md)   | Complete feature walkthrough    |
-| [Overview](user/README.md)         | Features and FAQ                |
+### 👥 For Users
 
-## 🔧 For Developers
+Start here if you want to use AMT 2.0:
 
-If you want to contribute or understand the codebase:
+| Guide                                  | Description                                       |
+| -------------------------------------- | ------------------------------------------------- |
+| **[Main README](../README.md)**        | Complete project overview, features, installation |
+| **[Quick Start](GETTING_STARTED.txt)** | Get up and running in 5 minutes                   |
+| **[User Guide](USER_GUIDE.md)**        | Detailed usage walkthrough                        |
 
-| Guide                                         | Description                        |
-| --------------------------------------------- | ---------------------------------- |
-| [Development Setup](developer/development.md) | How to build and run locally       |
-| [Architecture](developer/architecture.md)     | Code structure and design patterns |
-| [API Reference](developer/api/)               | Service and model documentation    |
+### 👨‍💻 For Developers
 
-## 🚀 Quick Links
+Contributing or understanding the codebase:
 
--  **[README](../README.md)** - Project overview
--  **[Contributing](../CONTRIBUTING.md)** - How to contribute
--  **[Security](../SECURITY.md)** - Security policy
--  **[License](../LICENSE)** - MIT License
+| Guide                                   | Description                    |
+| --------------------------------------- | ------------------------------ |
+| **[Contributing](dev/CONTRIBUTING.md)** | How to contribute code         |
+| **[Security Policy](dev/SECURITY.md)**  | Report vulnerabilities         |
+| **[Developer Docs](developer/)**        | Architecture and API reference |
 
-## 📁 Documentation Structure
+---
+
+## 📖 Documentation Structure
 
 ```
 docs/
-├── README.md           ← You are here
-├── user/               ← End-user documentation
-│   ├── QUICK_START.md
-│   ├── USER_GUIDE.md
-│   └── README.md
-└── developer/          ← Developer documentation
-    ├── development.md
+├── README.md              ← You are here
+├── GETTING_STARTED.txt    ← Quick start for users
+├── USER_GUIDE.md          ← Complete user guide
+│
+├── dev/                   ← Contributor guidelines
+│   ├── CONTRIBUTING.md
+│   └── SECURITY.md
+│
+└── developer/             ← Technical documentation
+    ├── README.md
     ├── architecture.md
+    ├── development.md
     └── api/
 ```
+
+---
+
+## 🔗 External Links
+
+-  📦 [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases)
+-  🐛 [Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
+-  💬 [Discussions](https://github.com/Anneardysa/ArdysaModsTools/discussions)
+
+---
+
+<div align="center">
+
+**[⬆ Back to Main README](../README.md)**
+
+</div>
