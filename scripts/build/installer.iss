@@ -1,122 +1,210 @@
-; ArdysaModsTools Inno Setup Script
-; Creates a professional installer from the protected build
+; ============================================================================
+; ArdysaModsTools (AMT 2.0) - Professional Installer
+; ============================================================================
+; Modern Inno Setup installer with enhanced UI/UX, prerequisite checking,
+; automated updates, and intelligent installation logic.
+; ============================================================================
 
 #define MyAppName "ArdysaModsTools"
 #define MyAppVersion "2.0"
 #define MyAppPublisher "Ardysa"
-#define MyAppURL "https://github.com/ardysa"
+#define MyAppURL "https://github.com/Anneardysa/ArdysaModsTools"
 #define MyAppExeName "ArdysaModsTools.exe"
 #define DotNetDownloadUrl "https://dotnet.microsoft.com/download/dotnet/8.0"
 #define WebView2DownloadUrl "https://developer.microsoft.com/en-us/microsoft-edge/webview2/"
 
 [Setup]
-; Basic info
-AppId={{8A7B3E5C-4D2F-4A1B-9C8E-5F6D7E8A9B0C}
+; ============================================================================
+; APPLICATION IDENTITY
+; ============================================================================
+AppId={{B8F9E7A2-4C3D-4F1E-9B2A-7E8D5C1F4A6B}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
-AppSupportURL={#MyAppURL}
-AppUpdatesURL={#MyAppURL}
+AppSupportURL={#MyAppURL}/issues
+AppUpdatesURL={#MyAppURL}/releases
 
-; Installation directories
+; ============================================================================
+; INSTALLATION SETTINGS
+; ============================================================================
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
+PrivilegesRequired=admin
+LicenseFile=..\..\LICENSE
+InfoBeforeFile=..\..\docs\INSTALL_INFO.txt
 
-; Output settings
-OutputDir=..\installer_output
-OutputBaseFilename=ArdysaModsTools_Setup_x64
+; ============================================================================
+; OUTPUT SETTINGS
+; ============================================================================
+OutputDir=..\..\installer_output
+OutputBaseFilename=ArdysaModsTools-Setup-v{#MyAppVersion}
+SetupIconFile=..\..\Assets\Icons\AppIcon.ico
 
-; 64-bit only
+; ============================================================================
+; ARCHITECTURE (64-bit only)
+; ============================================================================
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-SetupIconFile=..\AppIcon.ico
-
-; Compression
+; ============================================================================
+; COMPRESSION (Maximum)
+; ============================================================================
 Compression=lzma2/ultra64
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
 
-; UI
+; ============================================================================
+; MODERN UI CONFIGURATION
+; ============================================================================
 WizardStyle=modern
 WizardResizable=no
+WizardSizePercent=110
+DisableWelcomePage=no
+DisableReadyPage=no
+AlwaysShowDirOnReadyPage=yes
+ShowLanguageDialog=auto
 
-; Privileges - require admin for Dota 2 game file modifications
-PrivilegesRequired=admin
+; ============================================================================
+; VERSION INFO
+; ============================================================================
+VersionInfoVersion={#MyAppVersion}
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription=The Ultimate Dota 2 Mod Manager
+VersionInfoCopyright=© 2024-2026 Ardysa
+MinVersion=10.0.17763
 
-; Uninstall
+; ============================================================================
+; UNINSTALL SETTINGS
+; ============================================================================
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
+[CustomMessages]
+english.AppDescription=The Ultimate Dota 2 Mod Manager
+english.LaunchProgram=Launch {#MyAppName}
+english.CreateDesktopIcon=Create a &desktop shortcut
+
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "Additional options:"; Flags: unchecked
 
 [Files]
-; Main application files from Build folder
-Source: "..\Build\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; ============================================================================
+; MAIN APPLICATION FILES
+; ============================================================================
+Source: "..\..\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\publish\*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "..\..\publish\*.json"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "..\..\publish\*.xml"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
-; JetBrains Mono fonts - install to Windows Fonts folder
-Source: "..\Assets\Fonts\JetBrainsMono-Regular.ttf"; DestDir: "{autofonts}"; FontInstall: "JetBrains Mono"; Flags: onlyifdoesntexist uninsneveruninstall
-Source: "..\Assets\Fonts\JetBrainsMono-Bold.ttf"; DestDir: "{autofonts}"; FontInstall: "JetBrains Mono Bold"; Flags: onlyifdoesntexist uninsneveruninstall
-Source: "..\Assets\Fonts\JetBrainsMono-Italic.ttf"; DestDir: "{autofonts}"; FontInstall: "JetBrains Mono Italic"; Flags: onlyifdoesntexist uninsneveruninstall
-Source: "..\Assets\Fonts\JetBrainsMono-BoldItalic.ttf"; DestDir: "{autofonts}"; FontInstall: "JetBrains Mono Bold Italic"; Flags: onlyifdoesntexist uninsneveruninstall
+; ============================================================================
+; ASSETS
+; ============================================================================
+Source: "..\..\publish\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs
 
-; WebView2 Runtime bootstrapper - for installing WebView2 if not present
-Source: "..\tools\webview2\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+; ============================================================================
+; FONTS (JetBrains Mono)
+; ============================================================================
+Source: "..\..\Assets\Fonts\JetBrainsMono-Regular.ttf"; DestDir: "{autofonts}"; FontInstall: "JetBrains Mono"; Flags: onlyifdoesntexist uninsneveruninstall
+Source: "..\..\Assets\Fonts\JetBrainsMono-Bold.ttf"; DestDir: "{autofonts}"; FontInstall: "JetBrains Mono Bold"; Flags: onlyifdoesntexist uninsneveruninstall
+
+; ============================================================================
+; EXTERNAL TOOLS (VPK utilities)
+; ============================================================================
+Source: "..\..\tools\hllib\*"; DestDir: "{app}\tools\hllib"; Flags: ignoreversion recursesubdirs
+Source: "..\..\tools\vpk\*"; DestDir: "{app}\tools\vpk"; Flags: ignoreversion recursesubdirs
+
+; ============================================================================
+; WEBVIEW2 RUNTIME (for prerequisite installation)
+; ============================================================================
+Source: "..\..\tools\webview2\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: not IsWebView2Installed
+
+; ============================================================================
+; DOCUMENTATION
+; ============================================================================
+Source: "..\..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+; ============================================================================
+; SHORTCUTS
+; ============================================================================
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "{cm:AppDescription}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; Comment: "{cm:AppDescription}"
+
+[Registry]
+; ============================================================================
+; APP PATHS (Windows integration)
+; ============================================================================
+Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\App Paths\{#MyAppExeName}"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Microsoft\Windows\CurrentVersion\App Paths\{#MyAppExeName}"; ValueType: string; ValueName: "Path"; ValueData: "{app}"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec
+; ============================================================================
+; POST-INSTALLATION
+; ============================================================================
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent shellexec unchecked
+
+[UninstallDelete]
+Type: files; Name: "{app}\*.log"
+Type: files; Name: "{app}\*.tmp"
 
 [Code]
-// Get uninstall string from registry
+// ============================================================================
+// PASCAL SCRIPT - PREREQUISITE CHECKS & INSTALLATION LOGIC
+// ============================================================================
+
+var
+  DotNetMissing: Boolean;
+  WebView2Missing: Boolean;
+
+// ============================================================================
+// REGISTRY HELPERS
+// ============================================================================
+
 function GetUninstallString(): String;
 var
   UninstallKey: String;
   UninstallString: String;
 begin
   Result := '';
-  UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8A7B3E5C-4D2F-4A1B-9C8E-5F6D7E8A9B0C}_is1';
+  UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{B8F9E7A2-4C3D-4F1E-9B2A-7E8D5C1F4A6B}_is1';
   
-  // Try 64-bit registry first
   if RegQueryStringValue(HKLM, UninstallKey, 'UninstallString', UninstallString) then
     Result := UninstallString
   else if RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', UninstallString) then
     Result := UninstallString;
 end;
 
-// Check if previous version is installed
 function IsOldVersionInstalled(): Boolean;
 begin
   Result := GetUninstallString() <> '';
 end;
 
-// Get installation location from registry
 function GetInstallLocation(): String;
 var
   UninstallKey: String;
   InstallLocation: String;
 begin
   Result := '';
-  UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8A7B3E5C-4D2F-4A1B-9C8E-5F6D7E8A9B0C}_is1';
+  UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{B8F9E7A2-4C3D-4F1E-9B2A-7E8D5C1F4A6B}_is1';
   
-  // Try to get InstallLocation from registry
   if RegQueryStringValue(HKLM, UninstallKey, 'InstallLocation', InstallLocation) then
     Result := InstallLocation
   else if RegQueryStringValue(HKCU, UninstallKey, 'InstallLocation', InstallLocation) then
     Result := InstallLocation;
 end;
 
-// Delete directory recursively
+// ============================================================================
+// DIRECTORY CLEANUP
+// ============================================================================
+
 procedure DeleteDirectory(const DirPath: String);
 var
   FindRec: TFindRec;
@@ -142,7 +230,10 @@ begin
   RemoveDir(DirPath);
 end;
 
-// Uninstall the old version silently and delete installation folder
+// ============================================================================
+// UNINSTALL PREVIOUS VERSION
+// ============================================================================
+
 function UninstallOldVersion(): Boolean;
 var
   UninstallString: String;
@@ -155,33 +246,28 @@ begin
   
   if UninstallString <> '' then
   begin
-    // Remove quotes if present
     if (Length(UninstallString) > 0) and (UninstallString[1] = '"') then
       UninstallString := RemoveQuotes(UninstallString);
     
-    // Run uninstaller silently
     if not Exec(UninstallString, '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
     begin
       Result := False;
     end;
     
-    // Delete remaining installation folder (in case uninstaller left files)
     if Result and (InstallLocation <> '') then
     begin
-      // Wait a moment for uninstaller to finish file operations
       Sleep(1000);
-      
-      // Delete the installation directory
       if DirExists(InstallLocation) then
-      begin
         DeleteDirectory(InstallLocation);
-      end;
     end;
   end;
 end;
 
-// Check if .NET 8 Desktop Runtime is installed
-function IsDotNet8DesktopInstalled: Boolean;
+// ============================================================================
+// .NET 8 DESKTOP RUNTIME CHECK
+// ============================================================================
+
+function IsDotNet8DesktopInstalled(): Boolean;
 var
   Output: AnsiString;
   ExitCode: Integer;
@@ -190,38 +276,38 @@ begin
   Result := False;
   TempFile := ExpandConstant('{tmp}\dotnet_check.txt');
   
-  // Run dotnet --list-runtimes and save output to temp file
   if Exec('cmd.exe', '/c dotnet --list-runtimes > "' + TempFile + '" 2>&1', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then
   begin
     if ExitCode = 0 then
     begin
       if LoadStringFromFile(TempFile, Output) then
       begin
-        // Check for Microsoft.WindowsDesktop.App 8.x
         if Pos('Microsoft.WindowsDesktop.App 8.', String(Output)) > 0 then
           Result := True;
       end;
     end;
   end;
   
-  // Cleanup temp file
   DeleteFile(TempFile);
 end;
 
-// Check if WebView2 Runtime is installed (via registry)
-function IsWebView2Installed: Boolean;
+// ============================================================================
+// WEBVIEW2 RUNTIME CHECK
+// ============================================================================
+
+function IsWebView2Installed(): Boolean;
 var
   Version: String;
 begin
   Result := False;
   
-  // Check per-machine installation (64-bit)
+  // Check 64-bit registry
   if RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
   begin
     if Version <> '' then
       Result := True;
   end
-  // Check per-machine installation (32-bit registry view)
+  // Check 32-bit registry
   else if RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
   begin
     if Version <> '' then
@@ -235,24 +321,23 @@ begin
   end;
 end;
 
-// Install WebView2 Runtime if not present
-function InstallWebView2: Boolean;
+// ============================================================================
+// WEBVIEW2 INSTALLATION
+// ============================================================================
+
+function InstallWebView2(): Boolean;
 var
   ResultCode: Integer;
   ErrorCode: Integer;
 begin
   Result := False;
   
-  // Try to run the bundled bootstrapper silently
   if Exec(ExpandConstant('{tmp}\MicrosoftEdgeWebview2Setup.exe'), '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
   begin
     if ResultCode = 0 then
-    begin
-      Result := True;
-    end
+      Result := True
     else
     begin
-      // Bootstrapper failed, offer manual download
       if MsgBox('WebView2 Runtime installation failed (Error: ' + IntToStr(ResultCode) + ').' + #13#10 + #13#10 +
                 'Would you like to download it manually?', mbConfirmation, MB_YESNO) = IDYES then
       begin
@@ -262,7 +347,6 @@ begin
   end
   else
   begin
-    // Exec failed, offer manual download
     if MsgBox('Could not run WebView2 installer.' + #13#10 + #13#10 +
               'Would you like to download it manually?', mbConfirmation, MB_YESNO) = IDYES then
     begin
@@ -271,19 +355,24 @@ begin
   end;
 end;
 
-// Called before installation begins
+// ============================================================================
+// MAIN INITIALIZATION
+// ============================================================================
+
 function InitializeSetup(): Boolean;
 var
   ErrorCode: Integer;
 begin
   Result := True;
   
-  // Check for .NET 8 Desktop Runtime
+  // ----------------------------------------------------------------
+  // Check .NET 8 Desktop Runtime
+  // ----------------------------------------------------------------
   if not IsDotNet8DesktopInstalled() then
   begin
     if MsgBox('{#MyAppName} requires .NET 8 Desktop Runtime to run.' + #13#10 + #13#10 +
               'Would you like to download it now?' + #13#10 + #13#10 +
-              'Click Yes to open the download page, then run this installer again after installing .NET 8.',
+              'Click Yes to open the download page, then run this installer again.',
               mbConfirmation, MB_YESNO) = IDYES then
     begin
       ShellExec('open', '{#DotNetDownloadUrl}', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
@@ -294,7 +383,9 @@ begin
     Exit;
   end;
   
-  // Check for WebView2 Runtime
+  // ----------------------------------------------------------------
+  // Check WebView2 Runtime
+  // ----------------------------------------------------------------
   if not IsWebView2Installed() then
   begin
     if MsgBox('{#MyAppName} requires Microsoft Edge WebView2 Runtime.' + #13#10 + #13#10 +
@@ -303,7 +394,7 @@ begin
     begin
       if not InstallWebView2() then
       begin
-        if MsgBox('WebView2 installation may have failed. Continue with setup anyway?' + #13#10 + #13#10 +
+        if MsgBox('WebView2 installation may have failed. Continue anyway?' + #13#10 + #13#10 +
                   '(The application may not work correctly without WebView2)',
                   mbConfirmation, MB_YESNO) = IDNO then
         begin
@@ -319,7 +410,9 @@ begin
     end;
   end;
   
-  // Check for and uninstall previous version
+  // ----------------------------------------------------------------
+  // Uninstall Previous Version
+  // ----------------------------------------------------------------
   if IsOldVersionInstalled() then
   begin
     if MsgBox('A previous version of {#MyAppName} is installed.' + #13#10 + #13#10 +
@@ -339,6 +432,49 @@ begin
     begin
       Result := False;
       Exit;
+    end;
+  end;
+end;
+
+// ============================================================================
+// WIZARD PAGE CUSTOMIZATION
+// ============================================================================
+
+procedure InitializeWizard();
+begin
+  // Customize welcome text
+  WizardForm.WelcomeLabel2.Caption := 
+    'This will install {#MyAppName} {#MyAppVersion} on your computer.' + #13#10 + #13#10 +
+    '{#MyAppName} is the ultimate Dota 2 mod manager, designed to make ' +
+    'installing and managing cosmetic mods effortless.' + #13#10 + #13#10 +
+    'Features:' + #13#10 +
+    '• One-click mod installation' + #13#10 +
+    '• Custom hero sets' + #13#10 +
+    '• Weather, terrain, and HUD mods' + #13#10 +
+    '• Automatic patching after Dota 2 updates' + #13#10 + #13#10 +
+    'Click Next to continue, or Cancel to exit.';
+end;
+
+// ============================================================================
+// UNINSTALL CONFIRMATION
+// ============================================================================
+
+function InitializeUninstall(): Boolean;
+begin
+  Result := MsgBox('Are you sure you want to completely remove {#MyAppName}?',
+                   mbConfirmation, MB_YESNO) = IDYES;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    // Ask about removing user data
+    if MsgBox('Do you want to remove all saved settings and mod data?', 
+              mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      DelTree(ExpandConstant('{userappdata}\{#MyAppName}'), True, True, True);
+      DelTree(ExpandConstant('{localappdata}\{#MyAppName}'), True, True, True);
     end;
   end;
 end;

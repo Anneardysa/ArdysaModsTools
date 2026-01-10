@@ -1,0 +1,38 @@
+ArdysaModsTools (AMT 2.0)
+The Ultimate Dota 2 Mod Manager
+
+Thank you for choosing ArdysaModsTools! This application makes it easy to install and manage cosmetic mods for Dota 2.
+
+
+WHAT YOU CAN DO
+
+   - Install mod packs with one click
+   - Create custom hero cosmetic sets
+   - Apply weather, terrain, and HUD mods
+   - Automatically re-patch mods after Dota 2 updates
+   - Safely disable all mods when needed
+
+
+REQUIREMENTS
+
+   - Windows 10 or 11 (64-bit)
+   - .NET 8.0 Desktop Runtime (checked automatically)
+   - Microsoft WebView2 Runtime (installed automatically)
+   - Dota 2 installed via Steam
+
+
+HOW TO USE
+
+   1. Launch ArdysaModsTools after installation
+   2. Click "Install ModsPack" to apply mods
+   3. After Dota 2 updates, run the app again to re-patch
+   4. Use "Disable Mods" to remove all changes
+
+
+GETTING HELP
+
+   For support and updates, visit:
+   https://github.com/Anneardysa/ArdysaModsTools
+
+
+Click Next to continue with the installation.
