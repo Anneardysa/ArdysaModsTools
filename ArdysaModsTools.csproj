@@ -239,83 +239,6 @@
   </ItemGroup>
 
   <!-- ============================================== -->
-  <!-- CONFUSEREX PROTECTION (Auto-run on Publish)    -->
-  <!-- ============================================== -->
-  <PropertyGroup>
-    <ConfuserExPath>$(MSBuildProjectDirectory)\tools\confuserex\Confuser.CLI.exe</ConfuserExPath>
-    <ProtectedDir>$(MSBuildProjectDirectory)\protected\</ProtectedDir>
-  </PropertyGroup>
-
-  <!-- Run ConfuserEx after publish (when using FolderProfile) -->
-  <Target Name="RunConfuserExAfterPublish" 
-          AfterTargets="Publish" 
-          Condition="Exists('$(ConfuserExPath)') And '$(SkipInternalProtection)' != 'true'">
-    <!-- Resolve absolute publish path -->
-    <PropertyGroup>
-      <_AbsolutePublishDir>$([System.IO.Path]::GetFullPath('$(PublishDir)'))</_AbsolutePublishDir>
-      <_ConfuserConfigPath>$(_AbsolutePublishDir)_confuser.crproj</_ConfuserConfigPath>
-    </PropertyGroup>
-    
-    <Message Importance="high" Text="" />
-    <Message Importance="high" Text="========================================" />
-    <Message Importance="high" Text="  Running ConfuserEx protection..." />
-    <Message Importance="high" Text="  Source: $(_AbsolutePublishDir)" />
-    <Message Importance="high" Text="========================================" />
-    
-    <!-- Create protected directory -->
-    <MakeDir Directories="$(ProtectedDir)" />
-    
-    <!-- Write ConfuserEx config with absolute paths and runtime probes -->
-    <PropertyGroup>
-      <!-- Auto-detect .NET runtime path - fallback to ProgramFiles if DOTNET_ROOT is not set -->
-      <_DotNetRoot Condition="'$(DOTNET_ROOT)' == ''">$(ProgramFiles)\dotnet</_DotNetRoot>
-      <_DotNetRoot Condition="'$(DOTNET_ROOT)' != ''">$(DOTNET_ROOT)</_DotNetRoot>
-      
-      <_DotNetShared>$([System.IO.Directory]::GetDirectories('$(_DotNetRoot)\shared\Microsoft.NETCore.App', '8.*')[0])</_DotNetShared>
-      <_DotNetDesktop>$([System.IO.Directory]::GetDirectories('$(_DotNetRoot)\shared\Microsoft.WindowsDesktop.App', '8.*')[0])</_DotNetDesktop>
-      <_ConfuserConfig>
-&lt;project outputDir="$(ProtectedDir)" baseDir="$(_AbsolutePublishDir)" xmlns="http://confuserex.codeplex.com"&gt;
-  &lt;probePath&gt;$(_AbsolutePublishDir)&lt;/probePath&gt;
-  &lt;probePath&gt;$(_DotNetShared)&lt;/probePath&gt;
-  &lt;probePath&gt;$(_DotNetDesktop)&lt;/probePath&gt;
-  &lt;module path="ArdysaModsTools.dll"&gt;
-    &lt;rule pattern="true" preset="none" inherit="false"&gt;
-      &lt;protection id="anti debug" /&gt;
-      &lt;protection id="anti dump" /&gt;
-      &lt;protection id="anti tamper" /&gt;
-      &lt;protection id="anti ildasm" /&gt;
-    &lt;/rule&gt;
-  &lt;/module&gt;
-&lt;/project&gt;
-      </_ConfuserConfig>
-    </PropertyGroup>
-    
-    <WriteLinesToFile File="$(_ConfuserConfigPath)" Lines="$(_ConfuserConfig)" Overwrite="true" />
-    
-    <!-- Run ConfuserEx with absolute path -->
-    <Exec Command="&quot;$(ConfuserExPath)&quot; -n &quot;$(_ConfuserConfigPath)&quot;" 
-          WorkingDirectory="$(MSBuildProjectDirectory)" />
-    
-    <!-- Copy remaining files from publish to protected -->
-    <ItemGroup>
-      <_PublishFilesToCopy Include="$(_AbsolutePublishDir)**\*.*" 
-                           Exclude="$(_AbsolutePublishDir)ArdysaModsTools.dll;$(_ConfuserConfigPath)" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_PublishFilesToCopy)" 
-          DestinationFolder="$(ProtectedDir)%(RecursiveDir)" 
-          SkipUnchangedFiles="false" />
-    
-    <!-- Cleanup -->
-    <Delete Files="$(_ConfuserConfigPath)" />
-    
-    <Message Importance="high" Text="" />
-    <Message Importance="high" Text="========================================" />
-    <Message Importance="high" Text="  PROTECTED BUILD COMPLETE!" />
-    <Message Importance="high" Text="  Portable output: $(ProtectedDir)" />
-    <Message Importance="high" Text="========================================" />
-  </Target>
-
-  <!-- ============================================== -->
   <!-- INNO SETUP INSTALLER (Auto-run on Publish)    -->
   <!-- ============================================== -->
   <PropertyGroup>
@@ -326,10 +249,10 @@
     <InstallerOutputDir>$(MSBuildProjectDirectory)\installer_output\</InstallerOutputDir>
   </PropertyGroup>
 
-  <!-- Run Inno Setup after ConfuserEx (only when CreateInstaller=true) -->
-  <Target Name="RunInnoSetupAfterProtection" 
-          AfterTargets="RunConfuserExAfterPublish" 
-          Condition="'$(CreateInstaller)' == 'true' And '$(SkipInternalProtection)' != 'true' And Exists('$(InnoSetupPath)') And Exists('$(InstallerScript)')">
+  <!-- Run Inno Setup after Publish (only when CreateInstaller=true) -->
+  <Target Name="RunInnoSetupAfterPublish" 
+          AfterTargets="Publish" 
+          Condition="'$(CreateInstaller)' == 'true' And Exists('$(InnoSetupPath)') And Exists('$(InstallerScript)')">
     
     <Message Importance="high" Text="" />
     <Message Importance="high" Text="========================================" />
@@ -345,15 +268,15 @@
     
     <Message Importance="high" Text="" />
     <Message Importance="high" Text="========================================" />
-    <Message Importance="high" Text="  INSTALLER BUILD COMPLETE!" />
-    <Message Importance="high" Text="  Portable: $(ProtectedDir)" />
+    <Message Importance="high" Text="  BUILD COMPLETE!" />
+    <Message Importance="high" Text="  Published: $(PublishDir)" />
     <Message Importance="high" Text="  Installer: $(InstallerOutputDir)" />
     <Message Importance="high" Text="========================================" />
   </Target>
 
   <!-- Warning if Inno Setup not found when CreateInstaller=true -->
   <Target Name="WarnInnoSetupNotFound" 
-          AfterTargets="RunConfuserExAfterPublish" 
+          AfterTargets="Publish" 
           Condition="'$(CreateInstaller)' == 'true' And !Exists('$(InnoSetupPath)')">
     <Warning Text="Inno Setup not found! Install from https://jrsoftware.org/isdl.php" />
     <Message Importance="high" Text="[WARNING] Installer not created - Inno Setup not installed" />
