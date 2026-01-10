@@ -245,7 +245,7 @@
     <!-- Common Inno Setup installation paths -->
     <InnoSetupPath Condition="Exists('$(ProgramFiles)\Inno Setup 6\ISCC.exe')">$(ProgramFiles)\Inno Setup 6\ISCC.exe</InnoSetupPath>
     <InnoSetupPath Condition="'$(InnoSetupPath)' == '' And Exists('$(ProgramFilesX86)\Inno Setup 6\ISCC.exe')">$(ProgramFilesX86)\Inno Setup 6\ISCC.exe</InnoSetupPath>
-    <InstallerScript>$(MSBuildProjectDirectory)\scripts\installer.iss</InstallerScript>
+    <InstallerScript>$(MSBuildProjectDirectory)\installer\installer.iss</InstallerScript>
     <InstallerOutputDir>$(MSBuildProjectDirectory)\installer_output\</InstallerOutputDir>
   </PropertyGroup>
 
