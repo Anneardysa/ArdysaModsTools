@@ -2,7 +2,7 @@
 
 **ArdysaModsTools** — The Ultimate Dota 2 Mod Manager
 
-[![Version](https://img.shields.io/badge/version-2.0.10-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-2.0-blue.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)]()
 [![Framework](https://img.shields.io/badge/.NET-8.0-purple.svg)]()
 
@@ -48,17 +48,6 @@ Technical documentation for contributors and developers.
 | [Developer Guide](developer/README.md)    | Development overview        |
 | [Architecture](developer/architecture.md) | System design and data flow |
 | [Development](developer/development.md)   | Setup and contributing      |
-| [Tools & Scripts](developer/tools.md)     | Build automation            |
-
-#### API Reference
-
-| Document                                        | Description          |
-| ----------------------------------------------- | -------------------- |
-| [Services](developer/api/services.md)           | Core service layer   |
-| [Models](developer/api/models.md)               | Data models and DTOs |
-| [UI Components](developer/api/ui-components.md) | Forms and controls   |
-| [Helpers](developer/api/helpers.md)             | Utility classes      |
-| [Exceptions](developer/api/exceptions.md)       | Error handling       |
 
 ---
 
@@ -69,19 +58,24 @@ Technical documentation for contributors and developers.
 1. Download and install `ArdysaModsTools_Setup_x64.exe`
 2. Launch the application (close Dota 2 first!)
 3. Click **Auto Detect** to find Dota 2
-4. Click **Install** to download and install mods
-5. Launch Dota 2 and enjoy!
+4. Use **Skin Selector** or **Miscellaneous** to choose mods
+5. Click **Patch Update** to apply
+6. Launch Dota 2 and enjoy!
 
 ### For Developers
 
 ```bash
 # Clone and build
-git clone https://github.com/ardysa/AMT2.0.git
-cd AMT2.0
-dotnet build -c Release
+git clone https://github.com/Anneardysa/ArdysaModsTools.git
+cd ArdysaModsTools
 
-# Run
-./bin/Release/net8.0-windows/win-x64/ArdysaModsTools.exe
+# Configure environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# Build and run
+dotnet build -c Release
+dotnet run
 ```
 
 ---
@@ -89,19 +83,25 @@ dotnet build -c Release
 ## 📁 Project Structure
 
 ```
-AMT2.0/
+ArdysaModsTools/
 ├── Core/                    # Business logic layer
 │   ├── Controllers/         # MVC-style controllers
 │   ├── Interfaces/          # Service contracts
 │   ├── Models/              # Domain models & DTOs
 │   └── Services/            # Service implementations
+│       ├── Config/          # Environment configuration
+│       ├── Hero/            # Hero set generation
+│       ├── Misc/            # Miscellaneous mods
+│       ├── Mods/            # Mod installation
+│       ├── Security/        # Security utilities
+│       ├── Update/          # Auto-updater
+│       └── Vpk/             # VPK file handling
 ├── Helpers/                 # Global utility classes
 ├── UI/                      # Presentation layer
 │   ├── Controls/            # Custom WinForms controls
 │   ├── Forms/               # Application forms
 │   └── Presenters/          # MVP presenters
 ├── Assets/                  # Static resources
-├── scripts/                 # Build & automation
 ├── tools/                   # External binaries
 ├── Tests/                   # Unit tests
 └── docs/                    # Documentation (you are here)
@@ -119,19 +119,35 @@ AMT2.0/
 | **UI Framework** | Windows Forms              |
 | **Architecture** | MVP (Model-View-Presenter) |
 | **VPK Tools**    | HLExtract.exe, vpk.exe     |
-| **Build**        | MSBuild + ConfuserEx       |
-| **Installer**    | Inno Setup                 |
+| **Compression**  | SharpCompress              |
+
+---
+
+## ⚙️ Configuration
+
+The application uses environment variables for sensitive configuration:
+
+```env
+# GitHub Configuration
+GITHUB_OWNER=YourUsername
+GITHUB_MODS_REPO=ModsPack
+GITHUB_TOOLS_REPO=ArdysaModsTools
+GITHUB_BRANCH=main
+```
+
+See [.env.example](../.env.example) for the full template.
 
 ---
 
 ## 🔗 Links
 
--  📺 [YouTube Channel](https://youtube.com/@ardysa)
--  💬 [Discord Server](https://discord.gg/ardysa)
--  ☕ [Support on Ko-fi](https://ko-fi.com/ardysa)
+-  📦 [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases)
+-  🐛 [Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
+-  🔒 [Security Policy](../SECURITY.md)
+-  🤝 [Contributing](../CONTRIBUTING.md)
 
 ---
 
 ## 📜 License
 
-See [LICENSE.txt](../LICENSE.txt) for licensing information.
+This project is open source under the MIT License.
