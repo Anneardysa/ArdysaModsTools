@@ -1,0 +1,362 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ============================================== -->
+  <!-- CORE PROJECT SETTINGS                          -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>ArdysaModsTools</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- ============================================== -->
+  <!-- BUILD & PUBLISH SETTINGS                       -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
+  </PropertyGroup>
+
+  <!-- ============================================== -->
+  <!-- APPLICATION METADATA                           -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <Version>2.0.14-beta</Version>
+    <AssemblyVersion>2.0.14.0</AssemblyVersion>
+    <FileVersion>2.0.14.0</FileVersion>
+    <InformationalVersion>2.0.14-beta</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Company>Ardysa</Company>
+    <Authors>Ardysa</Authors>
+    <Product>ArdysaModsTools</Product>
+    <Description>The Ultimate Dota 2 Mod Manager - Easily install, manage, and organize your Dota 2 cosmetic mods with a sleek modern interface.</Description>
+    <Copyright>© 2025-2026 Ardysa. All rights reserved.</Copyright>
+    <PackageTags>dota2;mods;gaming;valve;vpk</PackageTags>
+  </PropertyGroup>
+
+  <!-- ============================================== -->
+  <!-- APPLICATION RESOURCES                          -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <!-- ============================================== -->
+  <!-- COMPILER SETTINGS                              -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <!-- 
+      Suppressed Warnings:
+      - MSB3277: WebView2 WindowsBase version conflict (unavoidable)
+      - CS0649: Unused Resource fields (auto-generated)
+    -->
+    <NoWarn>$(NoWarn);MSB3277;CS0649</NoWarn>
+  </PropertyGroup>
+
+  <!-- ============================================== -->
+  <!-- EXCLUDE TEST PROJECT FILES                     -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <Compile Remove="Tests\**" />
+    <Content Remove="Tests\**" />
+    <EmbeddedResource Remove="Tests\**" />
+    <None Remove="Tests\**" />
+    <!-- Exclude scripts folder from compilation (contains standalone tools) -->
+    <Compile Remove="scripts\**\*.cs" />
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- NUGET PACKAGES                                 -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <!-- UI & Web -->
+    <PackageReference Include="Microsoft.Toolkit.Uwp.Notifications" Version="7.1.3" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+    <PackageReference Include="QRCoder" Version="1.7.0" />
+    
+    <!-- APIs -->
+    <PackageReference Include="Google.Apis.YouTube.v3" Version="1.69.0.3764" />
+    
+    <!-- Compression & Parsing -->
+    <PackageReference Include="SharpCompress" Version="0.40.0" />
+    <PackageReference Include="ValveKeyValue" Version="0.13.1.398" />
+    
+    <!-- Image Processing (WebP support) -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    
+    <!-- Framework -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- NATIVE LIBRARIES (VPK Tools)                   -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <!-- VPK Extraction Tool -->
+    <Content Include="tools\hllib\HLExtract.exe">
+      <Link>HLExtract.exe</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- VPK Recompilation Tool -->
+    <Content Include="tools\vpk\vpk.exe">
+      <Link>vpk.exe</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- Valve Runtime Libraries -->
+    <Content Include="tools\vpk\tier0.dll">
+      <Link>tier0.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\vpk\tier0_s.dll">
+      <Link>tier0_s.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\vpk\vstdlib.dll">
+      <Link>vstdlib.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\vpk\vstdlib_s.dll">
+      <Link>vstdlib_s.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\vpk\filesystem_stdio.dll">
+      <Link>filesystem_stdio.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- EMBEDDED RESOURCES (DLLs)                      -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <!-- native libraries as Content (not embedded) for HLExtract/vpk -->
+    <Content Include="tools\hllib\HLLib.dll">
+      <Link>HLLib.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\vpk\zlib1.dll">
+      <Link>zlib1.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- UI ASSETS                                      -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <!-- App Icon -->
+    <Content Include="AppIcon.ico" />
+    <EmbeddedResource Include="AppIcon.ico" />
+    
+    <!-- Icons -->
+    <EmbeddedResource Include="Assets\Icons\fav_off.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\Icons\fav_on.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    
+    <!-- Social Icons -->
+    <Content Include="Assets\Images\discord.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Images\paypal.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Images\youtube.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Images\ko-fi.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Images\sociabuzz.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- Images -->
+    <Content Include="Assets\Images\banner.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- HTML Templates -->
+    <Content Include="Assets\Html\progress.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- Fonts -->
+    <Content Include="Assets\Fonts\*.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Fonts\*.otf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- GENERATED FILES (Settings)                     -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <Compile Update="Properties\Settings.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+    <None Update="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- EXCLUDED FILES                                 -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <!-- Files removed from default includes -->
+    <None Remove="Assets\Icons\fav_off.png" />
+    <None Remove="Assets\Icons\fav_on.png" />
+    <None Remove="tier0_s.dll" />
+    <None Remove="vstdlib_s.dll" />
+    
+    <!-- Files that should not be copied -->
+    <None Update="backup_heroes.json">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    
+    <!-- Optional: Pre-built VPK (if exists) -->
+    <None Update="game\_ArdysaMods\pak01_dir.vpk">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- CONFUSEREX PROTECTION (Auto-run on Publish)    -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <ConfuserExPath>$(MSBuildProjectDirectory)\tools\confuserex\Confuser.CLI.exe</ConfuserExPath>
+    <ProtectedDir>$(MSBuildProjectDirectory)\protected\</ProtectedDir>
+  </PropertyGroup>
+
+  <!-- Run ConfuserEx after publish (when using FolderProfile) -->
+  <Target Name="RunConfuserExAfterPublish" 
+          AfterTargets="Publish" 
+          Condition="Exists('$(ConfuserExPath)') And '$(SkipInternalProtection)' != 'true'">
+    <!-- Resolve absolute publish path -->
+    <PropertyGroup>
+      <_AbsolutePublishDir>$([System.IO.Path]::GetFullPath('$(PublishDir)'))</_AbsolutePublishDir>
+      <_ConfuserConfigPath>$(_AbsolutePublishDir)_confuser.crproj</_ConfuserConfigPath>
+    </PropertyGroup>
+    
+    <Message Importance="high" Text="" />
+    <Message Importance="high" Text="========================================" />
+    <Message Importance="high" Text="  Running ConfuserEx protection..." />
+    <Message Importance="high" Text="  Source: $(_AbsolutePublishDir)" />
+    <Message Importance="high" Text="========================================" />
+    
+    <!-- Create protected directory -->
+    <MakeDir Directories="$(ProtectedDir)" />
+    
+    <!-- Write ConfuserEx config with absolute paths and runtime probes -->
+    <PropertyGroup>
+      <!-- Auto-detect .NET runtime path - fallback to ProgramFiles if DOTNET_ROOT is not set -->
+      <_DotNetRoot Condition="'$(DOTNET_ROOT)' == ''">$(ProgramFiles)\dotnet</_DotNetRoot>
+      <_DotNetRoot Condition="'$(DOTNET_ROOT)' != ''">$(DOTNET_ROOT)</_DotNetRoot>
+      
+      <_DotNetShared>$([System.IO.Directory]::GetDirectories('$(_DotNetRoot)\shared\Microsoft.NETCore.App', '8.*')[0])</_DotNetShared>
+      <_DotNetDesktop>$([System.IO.Directory]::GetDirectories('$(_DotNetRoot)\shared\Microsoft.WindowsDesktop.App', '8.*')[0])</_DotNetDesktop>
+      <_ConfuserConfig>
+&lt;project outputDir="$(ProtectedDir)" baseDir="$(_AbsolutePublishDir)" xmlns="http://confuserex.codeplex.com"&gt;
+  &lt;probePath&gt;$(_AbsolutePublishDir)&lt;/probePath&gt;
+  &lt;probePath&gt;$(_DotNetShared)&lt;/probePath&gt;
+  &lt;probePath&gt;$(_DotNetDesktop)&lt;/probePath&gt;
+  &lt;module path="ArdysaModsTools.dll"&gt;
+    &lt;rule pattern="true" preset="none" inherit="false"&gt;
+      &lt;protection id="anti debug" /&gt;
+      &lt;protection id="anti dump" /&gt;
+      &lt;protection id="anti tamper" /&gt;
+      &lt;protection id="anti ildasm" /&gt;
+    &lt;/rule&gt;
+  &lt;/module&gt;
+&lt;/project&gt;
+      </_ConfuserConfig>
+    </PropertyGroup>
+    
+    <WriteLinesToFile File="$(_ConfuserConfigPath)" Lines="$(_ConfuserConfig)" Overwrite="true" />
+    
+    <!-- Run ConfuserEx with absolute path -->
+    <Exec Command="&quot;$(ConfuserExPath)&quot; -n &quot;$(_ConfuserConfigPath)&quot;" 
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+    
+    <!-- Copy remaining files from publish to protected -->
+    <ItemGroup>
+      <_PublishFilesToCopy Include="$(_AbsolutePublishDir)**\*.*" 
+                           Exclude="$(_AbsolutePublishDir)ArdysaModsTools.dll;$(_ConfuserConfigPath)" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_PublishFilesToCopy)" 
+          DestinationFolder="$(ProtectedDir)%(RecursiveDir)" 
+          SkipUnchangedFiles="false" />
+    
+    <!-- Cleanup -->
+    <Delete Files="$(_ConfuserConfigPath)" />
+    
+    <Message Importance="high" Text="" />
+    <Message Importance="high" Text="========================================" />
+    <Message Importance="high" Text="  PROTECTED BUILD COMPLETE!" />
+    <Message Importance="high" Text="  Portable output: $(ProtectedDir)" />
+    <Message Importance="high" Text="========================================" />
+  </Target>
+
+  <!-- ============================================== -->
+  <!-- INNO SETUP INSTALLER (Auto-run on Publish)    -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <!-- Common Inno Setup installation paths -->
+    <InnoSetupPath Condition="Exists('$(ProgramFiles)\Inno Setup 6\ISCC.exe')">$(ProgramFiles)\Inno Setup 6\ISCC.exe</InnoSetupPath>
+    <InnoSetupPath Condition="'$(InnoSetupPath)' == '' And Exists('$(ProgramFilesX86)\Inno Setup 6\ISCC.exe')">$(ProgramFilesX86)\Inno Setup 6\ISCC.exe</InnoSetupPath>
+    <InstallerScript>$(MSBuildProjectDirectory)\scripts\installer.iss</InstallerScript>
+    <InstallerOutputDir>$(MSBuildProjectDirectory)\installer_output\</InstallerOutputDir>
+  </PropertyGroup>
+
+  <!-- Run Inno Setup after ConfuserEx (only when CreateInstaller=true) -->
+  <Target Name="RunInnoSetupAfterProtection" 
+          AfterTargets="RunConfuserExAfterPublish" 
+          Condition="'$(CreateInstaller)' == 'true' And '$(SkipInternalProtection)' != 'true' And Exists('$(InnoSetupPath)') And Exists('$(InstallerScript)')">
+    
+    <Message Importance="high" Text="" />
+    <Message Importance="high" Text="========================================" />
+    <Message Importance="high" Text="  Creating Inno Setup installer..." />
+    <Message Importance="high" Text="========================================" />
+    
+    <!-- Create installer output directory -->
+    <MakeDir Directories="$(InstallerOutputDir)" />
+    
+    <!-- Run Inno Setup compiler -->
+    <Exec Command="&quot;$(InnoSetupPath)&quot; &quot;$(InstallerScript)&quot;" 
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+    
+    <Message Importance="high" Text="" />
+    <Message Importance="high" Text="========================================" />
+    <Message Importance="high" Text="  INSTALLER BUILD COMPLETE!" />
+    <Message Importance="high" Text="  Portable: $(ProtectedDir)" />
+    <Message Importance="high" Text="  Installer: $(InstallerOutputDir)" />
+    <Message Importance="high" Text="========================================" />
+  </Target>
+
+  <!-- Warning if Inno Setup not found when CreateInstaller=true -->
+  <Target Name="WarnInnoSetupNotFound" 
+          AfterTargets="RunConfuserExAfterPublish" 
+          Condition="'$(CreateInstaller)' == 'true' And !Exists('$(InnoSetupPath)')">
+    <Warning Text="Inno Setup not found! Install from https://jrsoftware.org/isdl.php" />
+    <Message Importance="high" Text="[WARNING] Installer not created - Inno Setup not installed" />
+  </Target>
+
+</Project>

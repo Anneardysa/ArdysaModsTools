@@ -1,0 +1,90 @@
+# Build Outputs
+bin/
+obj/
+Build/
+publish/
+protected/
+installer_output/
+Tests/bin/
+Tests/obj/
+scripts/
+tools/confuserex/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.cache
+
+# Rider
+.idea/
+
+# User-specific files
+*.rsuser
+*.userprefs
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# Installer outputs
+*.exe
+!tools/**/*.exe
+!AppIcon.ico
+
+# Crash logs
+*.dmp
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Auto Claude data directory
+.auto-claude/
+
+# Secrets and local configuration (NEVER COMMIT)
+.env
+.env.local
+*.secrets.json
+appsettings.json
+appsettings.*.json
+!appsettings.template.json
+
+# Personal/internal documents
+docs/resume.md
+
+# Internal workflows
+.agent/
+.trains/
