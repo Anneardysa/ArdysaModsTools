@@ -1,3 +1,5 @@
+using ArdysaModsTools.Core.DependencyInjection;
+using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Models;
@@ -474,12 +476,12 @@ namespace ArdysaModsTools.UI.Forms
                 return;
             }
 
-            // Get target path from ConfigService
-            var configService = new ConfigService();
+            // Get target path from DI container
+            var configService = ServiceLocator.GetRequired<IConfigService>();
             var targetPath = configService.GetLastTargetPath();
             if (string.IsNullOrWhiteSpace(targetPath))
             {
-                MessageBox.Show("No Dota 2 path set. Please set it in the main window first.  ");
+                MessageBox.Show("No Dota 2 path set. Please set it in the main window first.");
                 _isGenerating = false;
                 return;
             }

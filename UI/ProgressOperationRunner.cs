@@ -86,7 +86,25 @@ namespace ArdysaModsTools.UI
                     {
                         if (metrics.DownloadSpeed != null) await overlay.UpdateDownloadSpeedAsync(metrics.DownloadSpeed);
                         if (metrics.WriteSpeed != null) await overlay.UpdateWriteSpeedAsync(metrics.WriteSpeed);
-                        // Note: ProgressDetails is intentionally NOT shown in substatus to avoid overwriting log messages
+                        
+                        // Priority: File count > Byte count > Hide
+                        // File count (for Building, Installing phases)
+                        if (metrics.TotalFiles > 0)
+                        {
+                            await overlay.UpdateFileProgressAsync(metrics.CurrentFile, metrics.TotalFiles);
+                        }
+                        // Byte count (for Download phase)
+                        else if (metrics.TotalBytes > 0)
+                        {
+                            double downloadedMB = metrics.DownloadedBytes / (1024.0 * 1024.0);
+                            double totalMB = metrics.TotalBytes / (1024.0 * 1024.0);
+                            await overlay.UpdateDownloadProgressAsync(downloadedMB, totalMB);
+                        }
+                        // TotalBytes = 0 and TotalFiles = 0 signals to hide
+                        else
+                        {
+                            await overlay.HideDownloadProgressAsync();
+                        }
                     }
                     catch { }
                 });

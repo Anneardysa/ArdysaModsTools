@@ -55,7 +55,7 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public class DotaVersionService
     {
-        private readonly ILogger _logger;
+        private readonly ILogger? _logger;
         
         // File paths (relative to Dota 2 folder)
         private const string SteamInfPath = "game/dota/steam.inf";
@@ -66,9 +66,9 @@ namespace ArdysaModsTools.Core.Services
         
         private const string ModMarker = "_ArdysaMods";
 
-        public DotaVersionService(ILogger logger)
+        public DotaVersionService(ILogger? logger = null)
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _logger = logger; // Logger is optional for DI compatibility
         }
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger.Log($"[VERSION] Error reading version info: {ex.Message}");
+                _logger?.Log($"[VERSION] Error reading version info: {ex.Message}");
                 return new DotaVersionInfo();
             }
         }
@@ -156,7 +156,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger.Log($"[VERSION] Failed to save cache: {ex.Message}");
+                _logger?.Log($"[VERSION] Failed to save cache: {ex.Message}");
             }
         }
 
@@ -185,7 +185,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger.Log($"[VERSION] Failed to save version.json: {ex.Message}");
+                _logger?.Log($"[VERSION] Failed to save version.json: {ex.Message}");
             }
         }
 
@@ -224,7 +224,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger.Log($"[VERSION] Compare failed: {ex.Message}");
+                _logger?.Log($"[VERSION] Compare failed: {ex.Message}");
                 return (false, "Unknown", "Error");
             }
         }

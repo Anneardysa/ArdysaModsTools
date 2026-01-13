@@ -105,12 +105,22 @@ namespace ArdysaModsTools.Core.Services.Config
                 { 
                     WriteIndented = true 
                 });
-                File.WriteAllText(_configFile, json);
+                
+                // Atomic write: write to temp file first, then move
+                string tempFile = _configFile + ".tmp";
+                File.WriteAllText(tempFile, json);
+                
+                // Replace original with temp file atomically
+                if (File.Exists(_configFile))
+                    File.Delete(_configFile);
+                File.Move(tempFile, _configFile);
+                
                 _isDirty = false;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MainConfigService] Failed to save: {ex.Message}");
+                // Use FallbackLogger instead of Console.WriteLine
+                FallbackLogger.Log($"[MainConfigService] Failed to save config: {ex.Message}");
             }
         }
 

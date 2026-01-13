@@ -172,10 +172,11 @@ namespace ArdysaModsTools.Core.Services
                         
                         // Calculate progress: 20% + (40% spread across heroes)
                         int heroProgress = 20 + (int)((current * 40.0) / totalHeroes);
-                        stageProgress?.Report((heroProgress, $"Processing {hero.DisplayName}"));
                         
+                        // Log first, then update progress for sync
+                        log($"[{current}/{totalHeroes}] Processing {hero.DisplayName}...");
+                        stageProgress?.Report((heroProgress, $"Processing {hero.DisplayName}"));
                         progress?.Report((current, totalHeroes, hero.DisplayName));
-                        log($"Processing {hero.DisplayName}...");
 
                         try
                         {
@@ -215,7 +216,7 @@ namespace ArdysaModsTools.Core.Services
                                 continue;
                             }
 
-                            // Download & Extract set zip
+                            // Download & Extract set zip (speedProgress will show bytes during download)
                             string setFolder;
                             try
                             {
@@ -224,6 +225,12 @@ namespace ArdysaModsTools.Core.Services
 #if DEBUG
                                 System.Diagnostics.Debug.WriteLine($"[DEBUG] setFolder = {setFolder}");
 #endif
+                                // After download complete, restore file count progress
+                                speedProgress?.Report(new ArdysaModsTools.Core.Models.SpeedMetrics 
+                                { 
+                                    CurrentFile = current,
+                                    TotalFiles = totalHeroes
+                                });
                             }
                             catch (Exception ex)
                             {
@@ -318,6 +325,14 @@ namespace ArdysaModsTools.Core.Services
                     }
 
                     ct.ThrowIfCancellationRequested();
+
+                    // Hide download progress before building - signal UI to clear download display
+                    speedProgress?.Report(new ArdysaModsTools.Core.Models.SpeedMetrics 
+                    { 
+                        DownloadSpeed = "-- MB/S",
+                        DownloadedBytes = 0,
+                        TotalBytes = 0 
+                    });
 
                     stageProgress?.Report((65, "Building"));
                     log("Building VPK...");

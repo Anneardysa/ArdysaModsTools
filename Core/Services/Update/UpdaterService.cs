@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ArdysaModsTools.Helpers;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Services.Update.Models;
 using ArdysaModsTools.Core.Services.Config;
 
@@ -137,7 +138,20 @@ namespace ArdysaModsTools.Core.Services.Update
         {
             try
             {
-                var response = await _httpClient.GetAsync(GitHubApiUrl);
+                // Use retry logic for transient network failures
+                var response = await RetryHelper.ExecuteAsync(async () =>
+                {
+                    var res = await _httpClient.GetAsync(GitHubApiUrl).ConfigureAwait(false);
+                    
+                    // Check for transient status codes that should trigger retry
+                    if (RetryHelper.IsTransientStatusCode(res.StatusCode))
+                        throw new HttpRequestException($"Server returned {res.StatusCode}");
+                    
+                    return res;
+                },
+                maxAttempts: 3,
+                onRetry: (attempt, ex) => _logger.Log($"Retry {attempt}/3: {ex.Message}"))
+                .ConfigureAwait(false);
                 
                 // Handle rate limiting gracefully
                 if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
@@ -148,7 +162,7 @@ namespace ArdysaModsTools.Core.Services.Update
                 
                 response.EnsureSuccessStatusCode();
 
-                using var stream = await response.Content.ReadAsStreamAsync();
+                using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
                 using var doc = await JsonDocument.ParseAsync(stream);
 
                 var root = doc.RootElement;

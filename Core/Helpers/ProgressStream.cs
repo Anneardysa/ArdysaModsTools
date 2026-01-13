@@ -71,8 +71,8 @@ namespace ArdysaModsTools.Core.Helpers
             var now = DateTime.UtcNow;
             var elapsedSinceLastReport = (now - _lastReportTime).TotalSeconds;
 
-            // Report every 500ms or so to avoid UI spam
-            if (elapsedSinceLastReport >= 0.5)
+            // Report every 100ms for maximum smoothness (10 updates/sec)
+            if (elapsedSinceLastReport >= 0.1)
             {
                 long bytesDelta = _bytesRead - _lastReportedBytes;
                 string speedStr = SpeedCalculator.FormatSpeed(bytesDelta, elapsedSinceLastReport);
@@ -84,7 +84,9 @@ namespace ArdysaModsTools.Core.Helpers
                 _speedProgress?.Report(new SpeedMetrics 
                 { 
                     DownloadSpeed = speedStr,
-                    ProgressDetails = details
+                    ProgressDetails = details,
+                    DownloadedBytes = _bytesRead,
+                    TotalBytes = _totalLength ?? 0
                 });
                 
                 _lastReportedBytes = _bytesRead;
@@ -102,8 +104,14 @@ namespace ArdysaModsTools.Core.Helpers
             {
                 _inner.Dispose();
                 _stopwatch.Stop();
-                // Reset speed to default when download stream closes
-                _speedProgress?.Report(new SpeedMetrics { DownloadSpeed = "-- MB/S" });
+                // Reset speed and bytes to default when download stream closes
+                // Setting TotalBytes to 0 triggers the UI to hide the progress display
+                _speedProgress?.Report(new SpeedMetrics 
+                { 
+                    DownloadSpeed = "-- MB/S",
+                    DownloadedBytes = 0,
+                    TotalBytes = 0
+                });
             }
             base.Dispose(disposing);
         }

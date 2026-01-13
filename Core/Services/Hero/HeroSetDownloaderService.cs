@@ -265,29 +265,59 @@ namespace ArdysaModsTools.Core.Services
             CancellationToken ct,
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
         {
+            bool downloadComplete = false;
             try
             {
-                using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct)
-                    .ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-
-                var totalBytes = response.Content.Headers.ContentLength ?? -1;
-                await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                await using var progressStream = new ArdysaModsTools.Core.Helpers.ProgressStream(contentStream, speedProgress, totalBytes > 0 ? totalBytes : null);
-                await using var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
-                
-                // Use larger buffer for better download performance
-                var buffer = new byte[81920];
-                long totalRead = 0;
-                int bytesRead;
-                
-                while ((bytesRead = await progressStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
+                // Use retry logic for transient network failures
+                await RetryHelper.ExecuteAsync(async () =>
                 {
-                    await fileStream.WriteAsync(buffer, 0, bytesRead, ct).ConfigureAwait(false);
-                    totalRead += bytesRead;
-                }
+                    using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct)
+                        .ConfigureAwait(false);
+                    
+                    // Check for transient status codes that should trigger retry
+                    if (RetryHelper.IsTransientStatusCode(response.StatusCode))
+                        throw new HttpRequestException($"Server returned {response.StatusCode}");
+                    
+                    response.EnsureSuccessStatusCode();
 
+                    var totalBytes = response.Content.Headers.ContentLength ?? -1;
+                    await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                    await using var progressStream = new ArdysaModsTools.Core.Helpers.ProgressStream(contentStream, speedProgress, totalBytes > 0 ? totalBytes : null);
+                    await using var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
+                    
+                    // Use larger buffer for better download performance
+                    var buffer = new byte[81920];
+                    long totalRead = 0;
+                    int bytesRead;
+                    
+                    while ((bytesRead = await progressStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
+                    {
+                        await fileStream.WriteAsync(buffer, 0, bytesRead, ct).ConfigureAwait(false);
+                        totalRead += bytesRead;
+                    }
+                },
+                maxAttempts: 3,
+                initialDelayMs: 500,
+                onRetry: (attempt, ex) => log($"Retry {attempt}/3: {ex.Message}"),
+                ct: ct).ConfigureAwait(false);
+
+                downloadComplete = true;
                 log("Download completed.");
+            }
+            catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                // Timeout (not user cancellation)
+                var dlEx = new DownloadException(ErrorCodes.DL_TIMEOUT,
+                    "Download timed out", ex, url);
+                log("Download timed out.");
+                _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
+                throw dlEx;
+            }
+            catch (OperationCanceledException)
+            {
+                // User cancellation
+                log("Download cancelled. Cleaning up partial file...");
+                throw; // Re-throw to propagate cancellation
             }
             catch (HttpRequestException ex)
             {
@@ -297,21 +327,26 @@ namespace ArdysaModsTools.Core.Services
                 _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
                 throw dlEx;
             }
-            catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
-            {
-                var dlEx = new DownloadException(ErrorCodes.DL_TIMEOUT,
-                    "Download timed out", ex, url);
-                log("Download timed out.");
-                _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
-                throw dlEx;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex)
             {
                 var dlEx = new DownloadException(ErrorCodes.DL_NETWORK_ERROR,
                     $"Download failed: {ex.Message}", ex, url);
                 log($"Download failed: {ex.Message}");
                 _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
                 throw dlEx;
+            }
+            finally
+            {
+                // Clean up partial download if not complete
+                if (!downloadComplete && File.Exists(destPath))
+                {
+                    try 
+                    { 
+                        File.Delete(destPath);
+                        _logger?.Log($"Deleted partial download: {Path.GetFileName(destPath)}");
+                    }
+                    catch { /* Ignore cleanup errors */ }
+                }
             }
         }
 

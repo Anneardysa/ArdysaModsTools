@@ -1,6 +1,8 @@
 using System;
 using System.Windows.Forms;
+using Microsoft.Extensions.DependencyInjection;
 using ArdysaModsTools.Helpers;
+using ArdysaModsTools.Core.DependencyInjection;
 using ArdysaModsTools.Core.Services.Security;
 using ArdysaModsTools.Core.Services.Config;
 
@@ -36,13 +38,20 @@ namespace ArdysaModsTools
             }
 
             // ═══════════════════════════════════════════════════════════════
+            // DEPENDENCY INJECTION SETUP
+            // Build service container for clean architecture
+            // ═══════════════════════════════════════════════════════════════
+            var services = new ServiceCollection();
+            services.AddArdysaServices();
+            var serviceProvider = services.BuildServiceProvider();
+            ServiceLocator.Initialize(serviceProvider);
+
+            // ═══════════════════════════════════════════════════════════════
             // GLOBAL EXCEPTION HANDLING
             // Centralized error handling with user-friendly messages
             // ═══════════════════════════════════════════════════════════════
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             
-            // Wire up global handlers - GlobalExceptionHandler will be fully initialized 
-            // when MainForm creates its logger
             Application.ThreadException += (s, e) =>
             {
                 Core.Helpers.GlobalExceptionHandler.Handle(e.Exception, showDialog: true);
@@ -55,10 +64,11 @@ namespace ArdysaModsTools
                 }
             };
 
-            // Cleanup security on exit
+            // Cleanup on exit
             Application.ApplicationExit += (s, e) =>
             {
                 SecurityManager.Shutdown();
+                ServiceLocator.Dispose();
             };
 
             Application.EnableVisualStyles();

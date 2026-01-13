@@ -25,7 +25,8 @@ namespace ArdysaModsTools.Core.Services.Update
         private bool _disposed;
         
         // Debounce settings - Steam updates files in bursts
-        private const int DebounceDelayMs = 2000;
+        private const int DebounceDelayMs = 3000; // 3 seconds to let patches settle
+        private int _pendingChangeCount;
         
         // File paths relative to Dota 2 folder
         private const string SteamInfRelative = @"game\dota\steam.inf";
@@ -138,7 +139,8 @@ namespace ArdysaModsTools.Core.Services.Update
         
         private void OnFileChanged(string filePath, string displayName)
         {
-            _logger?.Log($"[PatchWatcher] File changed: {displayName}");
+            // Track changes silently, don't log each one
+            Interlocked.Increment(ref _pendingChangeCount);
             
             // Cancel any pending debounce
             _debounceCts?.Cancel();
@@ -151,7 +153,12 @@ namespace ArdysaModsTools.Core.Services.Update
                 try
                 {
                     await Task.Delay(DebounceDelayMs, _debounceCts.Token);
-                    await CheckForPatchAsync();
+                    int changes = Interlocked.Exchange(ref _pendingChangeCount, 0);
+                    if (changes > 0)
+                    {
+                        _logger?.Log($"[PatchWatcher] Detected {changes} file change(s), checking for patch...");
+                        await CheckForPatchAsync();
+                    }
                 }
                 catch (TaskCanceledException)
                 {
@@ -183,7 +190,8 @@ namespace ArdysaModsTools.Core.Services.Update
             
             if (versionChanged || digestChanged)
             {
-                _logger?.Log($"[PatchWatcher] Patch detected! Version: {_lastKnownVersion.DotaVersion} → {currentVersion.DotaVersion}");
+                _logger?.Log($"[PatchWatcher] Dota 2 update detected! Version: {_lastKnownVersion.DotaVersion} → {currentVersion.DotaVersion}");
+                _logger?.Log($"[PatchWatcher] Re-patching required - your mods need to be updated.");
                 
                 var args = new PatchDetectedEventArgs
                 {
@@ -203,7 +211,8 @@ namespace ArdysaModsTools.Core.Services.Update
             }
             else
             {
-                _logger?.Log("[PatchWatcher] File changed but no version difference detected");
+                // File changed but no Dota 2 version difference - likely our own patch or game file access
+                _logger?.Log($"[PatchWatcher] File activity detected - no Dota 2 update found. Mods still working.");
             }
         }
         

@@ -73,34 +73,30 @@ namespace ArdysaModsTools.Core.Services
 
         public static async Task<HttpResponseMessage?> GetWithRetryAsync(string url, int maxRetries = 3)
         {
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            try
             {
-                try
+                return await Core.Helpers.RetryHelper.ExecuteAsync(async () =>
                 {
-                    var response = await _httpClient.GetAsync(url);
-                    if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                    {
-                        await Task.Delay(5000);
-                        continue;
-                    }
+                    var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
+                    
+                    // Check for transient status codes
+                    if (Core.Helpers.RetryHelper.IsTransientStatusCode(response.StatusCode))
+                        throw new HttpRequestException($"Server returned {response.StatusCode}");
+                    
+                    // 404 is not retryable - return null
                     if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                         return null;
-
+                    
                     response.EnsureSuccessStatusCode();
                     return response;
-                }
-                catch (TaskCanceledException)
-                {
-                    if (attempt == maxRetries) throw;
-                    await Task.Delay(3000);
-                }
-                catch
-                {
-                    if (attempt == maxRetries) throw;
-                    await Task.Delay(2000);
-                }
+                },
+                maxAttempts: maxRetries,
+                initialDelayMs: 1000).ConfigureAwait(false);
             }
-            return null;
+            catch (HttpRequestException)
+            {
+                return null;
+            }
         }
 
         public static async Task<string?> GetStringWithRetryAsync(string url)

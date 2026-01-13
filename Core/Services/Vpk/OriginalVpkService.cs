@@ -210,48 +210,61 @@ namespace ArdysaModsTools.Core.Services
         {
             try
             {
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeoutCts.CancelAfter(TimeSpan.FromMinutes(10));
-                
-                using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token)
-                    .ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-
-                var totalBytes = response.Content.Headers.ContentLength ?? -1;
-                var totalMb = totalBytes / 1024.0 / 1024.0;
-                
-                log($"Downloading base files ({totalMb:F1} MB)...");
-
-                await using var contentStream = await response.Content.ReadAsStreamAsync(timeoutCts.Token).ConfigureAwait(false);
-                await using var progressStream = new ArdysaModsTools.Core.Helpers.ProgressStream(contentStream, speedProgress, totalBytes > 0 ? totalBytes : null);
-                await using var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920);
-                
-                var buffer = new byte[81920];
-                long totalRead = 0;
-                int bytesRead;
-                int lastPercentReported = 0;
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                
-                while ((bytesRead = await progressStream.ReadAsync(buffer, timeoutCts.Token).ConfigureAwait(false)) > 0)
+                // Use retry logic for transient network failures
+                await RetryHelper.ExecuteAsync(async () =>
                 {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), timeoutCts.Token).ConfigureAwait(false);
-                    totalRead += bytesRead;
+                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    timeoutCts.CancelAfter(TimeSpan.FromMinutes(10));
                     
-                    if (totalBytes > 0)
+                    using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token)
+                        .ConfigureAwait(false);
+                    
+                    // Check for transient status codes that should trigger retry
+                    if (RetryHelper.IsTransientStatusCode(response.StatusCode))
+                        throw new HttpRequestException($"Server returned {response.StatusCode}");
+                    
+                    response.EnsureSuccessStatusCode();
+
+                    var totalBytes = response.Content.Headers.ContentLength ?? -1;
+                    var totalMb = totalBytes / 1024.0 / 1024.0;
+                    
+                    log($"Downloading base files ({totalMb:F1} MB)...");
+
+                    await using var contentStream = await response.Content.ReadAsStreamAsync(timeoutCts.Token).ConfigureAwait(false);
+                    await using var progressStream = new ArdysaModsTools.Core.Helpers.ProgressStream(contentStream, speedProgress, totalBytes > 0 ? totalBytes : null);
+                    await using var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920);
+                    
+                    var buffer = new byte[81920];
+                    long totalRead = 0;
+                    int bytesRead;
+                    int lastPercentReported = 0;
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    
+                    while ((bytesRead = await progressStream.ReadAsync(buffer, timeoutCts.Token).ConfigureAwait(false)) > 0)
                     {
-                        int percent = (int)(totalRead * 100 / totalBytes);
-                        if (percent >= lastPercentReported + 1) // Report every 1% for smoothness
+                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), timeoutCts.Token).ConfigureAwait(false);
+                        totalRead += bytesRead;
+                        
+                        if (totalBytes > 0)
                         {
-                            lastPercentReported = percent;
-                            progress?.Report(percent);
+                            int percent = (int)(totalRead * 100 / totalBytes);
+                            if (percent >= lastPercentReported + 1) // Report every 1% for smoothness
+                            {
+                                lastPercentReported = percent;
+                                progress?.Report(percent);
+                            }
                         }
                     }
-                }
-                
-                sw.Stop();
-                var avgSpeed = SpeedCalculator.FormatSpeed(totalRead, sw.Elapsed.TotalSeconds);
-                log($"Download complete ({totalRead / 1024.0 / 1024.0:F1} MB at {avgSpeed})");
-                speedProgress?.Report(new SpeedMetrics { DownloadSpeed = "-- MB/S" }); // Reset to default on complete
+                    
+                    sw.Stop();
+                    var avgSpeed = SpeedCalculator.FormatSpeed(totalRead, sw.Elapsed.TotalSeconds);
+                    log($"Download complete ({totalRead / 1024.0 / 1024.0:F1} MB at {avgSpeed})");
+                    speedProgress?.Report(new SpeedMetrics { DownloadSpeed = "-- MB/S" }); // Reset to default on complete
+                },
+                maxAttempts: 3,
+                initialDelayMs: 1000, // Longer initial delay for large files
+                onRetry: (attempt, ex) => log($"Retry {attempt}/3: {ex.Message}"),
+                ct: ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

@@ -14,11 +14,11 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public class DetectionService : IDetectionService
     {
-        private readonly ILogger _logger;
+        private readonly ILogger? _logger;
 
-        public DetectionService(ILogger logger)
+        public DetectionService(ILogger? logger = null)
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _logger = logger; // Logger is optional for DI compatibility
         }
 
         /// <summary>
@@ -26,7 +26,7 @@ namespace ArdysaModsTools.Core.Services
         /// </summary>
         public async Task<string?> AutoDetectAsync()
         {
-            _logger.Log("Auto-detecting Dota 2 folder...");
+            _logger?.Log("Auto-detecting Dota 2 folder...");
 
             string? steamReg = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Valve\Steam", "SteamExe", null) as string;
             if (!string.IsNullOrEmpty(steamReg))
@@ -46,16 +46,16 @@ namespace ArdysaModsTools.Core.Services
                         if (File.Exists(dotaPath))
                         {
                             string target = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(dotaPath))))!;
-                            _logger.Log($"Dota 2 folder detected via Steam libraries: {target}");
+                            _logger?.Log($"Dota 2 folder detected via Steam libraries: {target}");
                             return target;
                         }
                     }
 
-                    _logger.Log("Dota 2 not found in Steam library folders.");
+                    _logger?.Log("Dota 2 not found in Steam library folders.");
                 }
                 else
                 {
-                    _logger.Log($"LibraryFolders.vdf not found at: {vdfPath}");
+                    _logger?.Log($"LibraryFolders.vdf not found at: {vdfPath}");
                 }
             }
 
@@ -78,7 +78,7 @@ namespace ArdysaModsTools.Core.Services
                             else if (targetPath.EndsWith("bin", StringComparison.OrdinalIgnoreCase))
                                 targetPath = Path.GetDirectoryName(Path.GetDirectoryName(targetPath))!;
 
-                            _logger.Log($"Dota 2 folder detected via HKEY_CLASSES_ROOT: {targetPath}");
+                            _logger?.Log($"Dota 2 folder detected via HKEY_CLASSES_ROOT: {targetPath}");
                             return targetPath;
                         }
                     }
@@ -93,7 +93,7 @@ namespace ArdysaModsTools.Core.Services
 
             if (!string.IsNullOrEmpty(steamUninstallPath) && File.Exists(Path.Combine(steamUninstallPath, "game", "bin", "win64", "dota2.exe")))
             {
-                _logger.Log($"Dota 2 folder detected via HKLM Uninstall: {steamUninstallPath}");
+                _logger?.Log($"Dota 2 folder detected via HKLM Uninstall: {steamUninstallPath}");
                 return steamUninstallPath;
             }
 
@@ -104,12 +104,12 @@ namespace ArdysaModsTools.Core.Services
 
                 if (File.Exists(Path.Combine(defaultDotaPath, "game", "bin", "win64", "dota2.exe")))
                 {
-                    _logger.Log($"Dota 2 folder detected via default Steam path: {defaultDotaPath}");
+                    _logger?.Log($"Dota 2 folder detected via default Steam path: {defaultDotaPath}");
                     return defaultDotaPath;
                 }
             }
 
-            _logger.Log("No Dota 2 folder found via any auto-detection method.");
+            _logger?.Log("No Dota 2 folder found via any auto-detection method.");
             return null;
         }
 
@@ -130,16 +130,16 @@ namespace ArdysaModsTools.Core.Services
 
                 if (string.Equals(folderName, "dota 2 beta", StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.Log($"Dota 2 folder manually selected: {selectedPath}");
+                    _logger?.Log($"Dota 2 folder manually selected: {selectedPath}");
                     return selectedPath;
                 }
 
-                _logger.Log("Invalid folder selected: Not 'dota 2 beta'.");
+                _logger?.Log("Invalid folder selected: Not 'dota 2 beta'.");
                 MessageBox.Show("Please select the folder named 'dota 2 beta'.", "Invalid Selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
-                _logger.Log("Manual detection canceled.");
+                _logger?.Log("Manual detection canceled.");
             }
 
             return null;

@@ -50,7 +50,7 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public sealed class ModInstallerService : IModInstallerService
     {
-        private readonly ILogger _logger;
+        private readonly ILogger? _logger;
         private readonly HttpClient _httpClient;
 
         // GameInfo URLs - loaded from environment configuration
@@ -67,9 +67,9 @@ namespace ArdysaModsTools.Core.Services
 
         private const string RequiredModFilePath = "game/_ArdysaMods/pak01_dir.vpk";
 
-        public ModInstallerService(ILogger logger)
+        public ModInstallerService(ILogger? logger = null)
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _logger = logger; // Logger is optional for DI compatibility
             _httpClient = HttpClientProvider.Client;
             try
             {
@@ -85,10 +85,12 @@ namespace ArdysaModsTools.Core.Services
         /// </summary>
         public async Task<(bool IsValid, string ErrorMessage)> ValidateVpkAsync(string vpkFilePath, CancellationToken ct = default)
         {
-            if (string.IsNullOrWhiteSpace(vpkFilePath) || !File.Exists(vpkFilePath))
-            {
+            // Fail-fast validation
+            if (string.IsNullOrWhiteSpace(vpkFilePath))
+                return (false, "VPK file path is empty.");
+            
+            if (!File.Exists(vpkFilePath))
                 return (false, "VPK file not found.");
-            }
 
             // Use AppDomain.CurrentDomain.BaseDirectory for reliable path resolution
             string appPath = AppDomain.CurrentDomain.BaseDirectory;
@@ -158,12 +160,8 @@ namespace ArdysaModsTools.Core.Services
                 return false;
 
             string requiredFilePath = Path.Combine(targetPath, RequiredModFilePath);
-            bool exists = File.Exists(requiredFilePath);
-
-            if (!exists)
-                _logger.Log("Required mod file missing — please install mods first.");
-
-            return exists;
+            return File.Exists(requiredFilePath);
+            // Note: Logging removed - caller should handle messaging to avoid duplicates
         }
 
         /// <summary>
@@ -214,18 +212,29 @@ namespace ArdysaModsTools.Core.Services
             string url = EnvironmentConfig.BuildRawUrl("remote/ModsPack.hash");
             try
             {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(TimeSpan.FromSeconds(10));
-                var res = await _httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
-                if (!res.IsSuccessStatusCode)
-                {
-                    _logger.Log($"DownloadRemoteHashAsync failed: {res.StatusCode}");
-                    FallbackLogger.Log($"DownloadRemoteHashAsync status {res.StatusCode} for {url}");
-                    return null;
-                }
+                // Use retry logic for transient network failures
+                return await RetryHelper.ExecuteAsync(
+                    async () =>
+                    {
+                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        cts.CancelAfter(TimeSpan.FromSeconds(10));
+                        var res = await _httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
+                        
+                        if (!res.IsSuccessStatusCode)
+                        {
+                            if (RetryHelper.IsTransientStatusCode(res.StatusCode))
+                                throw new HttpRequestException($"Server returned {res.StatusCode}");
+                            
+                            _logger.Log($"DownloadRemoteHashAsync failed: {res.StatusCode}");
+                            return null;
+                        }
 
-                string text = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+                        string text = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+                    },
+                    maxAttempts: 3,
+                    onRetry: (attempt, ex) => _logger.Log($"Retry {attempt}/3: {ex.Message}"),
+                    ct: ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -513,7 +522,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (OperationCanceledException)
             {
-                _logger.Log("Installation canceled.");
+                _logger.Log("Installation canceled. Cleaning up partial downloads...");
                 return (false, false);
             }
             catch (Exception ex)

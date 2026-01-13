@@ -1,310 +1,379 @@
 <!DOCTYPE html>
 <html lang="en">
-   <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Installing</title>
-      <style>
-         :root {
-            --bg-primary: #000000;
-            --bg-secondary: #050505;
-            --bg-card: rgba(10, 10, 10, 0.9);
-            --text-primary: #ffffff;
-            --text-secondary: #888888;
-            --text-muted: #444444;
-            --border: #333333;
-            --border-light: #222222;
-            --accent: #ffffff;
-            --accent-dim: rgba(255, 255, 255, 0.1);
+
+<head>
+   <meta charset="UTF-8" />
+   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+   <title>Installing</title>
+   <style>
+      :root {
+         --bg-primary: #000000;
+         --bg-secondary: #050505;
+         --bg-card: rgba(10, 10, 10, 0.9);
+         --text-primary: #ffffff;
+         --text-secondary: #888888;
+         --text-muted: #444444;
+         --border: #333333;
+         --border-light: #222222;
+         --accent: #ffffff;
+         --accent-dim: rgba(255, 255, 255, 0.1);
+      }
+
+      * {
+         margin: 0;
+         padding: 0;
+         box-sizing: border-box;
+      }
+
+      body {
+         background: var(--bg-primary);
+         min-height: 100vh;
+         display: flex;
+         flex-direction: column;
+         align-items: center;
+         justify-content: center;
+         font-family: "JetBrains Mono", monospace;
+         color: var(--text-primary);
+         overflow: hidden;
+         position: relative;
+      }
+
+      /* Animated Wave Background */
+      .animated-bg {
+         position: fixed;
+         inset: 0;
+         z-index: -1;
+         overflow: hidden;
+         background: var(--bg-primary);
+      }
+
+      .animated-bg::before {
+         content: "";
+         position: absolute;
+         width: 200%;
+         height: 100%;
+         left: 0;
+         top: 0;
+         opacity: 0.08;
+         background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E") repeat-x;
+         background-size: 50% 100%;
+         animation: infiniteWave 20s linear infinite;
+      }
+
+      @keyframes infiniteWave {
+         0% {
+            transform: translateX(0);
          }
 
-         * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+         100% {
+            transform: translateX(-50%);
+         }
+      }
+
+      .container {
+         text-align: center;
+         padding: 32px;
+         position: relative;
+         z-index: 1;
+      }
+
+      /* Progress Ring Container - larger for 840x600 form */
+      .progress-ring-container {
+         position: relative;
+         width: 220px;
+         height: 220px;
+         margin: 0 auto 40px;
+      }
+
+      .progress-ring {
+         transform: rotate(-90deg);
+      }
+
+      .progress-ring-bg {
+         fill: none;
+         stroke: var(--border);
+         stroke-width: 2;
+      }
+
+      .progress-ring-fill {
+         fill: none;
+         stroke: var(--text-primary);
+         stroke-width: 2;
+         stroke-linecap: square;
+         stroke-dasharray: 628.32;
+         stroke-dashoffset: 628.32;
+         transition: stroke-dashoffset 0.15s ease-out;
+      }
+
+      .percent-text {
+         position: absolute;
+         top: 50%;
+         left: 50%;
+         transform: translate(-50%, -50%);
+         font-size: 42px;
+         font-weight: 700;
+         color: var(--text-primary);
+         letter-spacing: 3px;
+      }
+
+      /* Status Text - larger */
+      .status {
+         font-size: 14px;
+         color: var(--text-secondary);
+         margin-bottom: 12px;
+         min-height: 26px;
+         text-transform: uppercase;
+         letter-spacing: 3px;
+      }
+
+      .status::before {
+         content: "[ ";
+         color: var(--text-muted);
+      }
+
+      .status::after {
+         content: " ]";
+         color: var(--text-muted);
+      }
+
+      /* Speed Indicators */
+      .metrics-container {
+         display: flex;
+         justify-content: center;
+         gap: 24px;
+         margin-top: 10px;
+         font-size: 11px;
+         text-transform: uppercase;
+         letter-spacing: 1px;
+         color: var(--text-muted);
+      }
+
+      .metric-item {
+         display: flex;
+         align-items: center;
+         gap: 8px;
+      }
+
+      .metric-label {
+         color: var(--text-muted);
+         opacity: 0.6;
+      }
+
+      .metric-value {
+         color: var(--text-secondary);
+         font-weight: bold;
+         min-width: 80px;
+         text-align: left;
+      }
+
+      .metric-value.active {
+         color: var(--text-primary);
+      }
+
+      .credits {
+         font-size: 12px;
+         color: var(--text-muted);
+         margin-top: 48px;
+         font-family: "JetBrains Mono", monospace;
+         text-transform: uppercase;
+         letter-spacing: 3px;
+      }
+
+      .credits::before {
+         content: "// ";
+      }
+
+      /* Download Progress Display */
+      .download-progress {
+         font-size: 12px;
+         color: var(--text-secondary);
+         margin-top: 16px;
+         font-weight: bold;
+         letter-spacing: 1px;
+      }
+
+      .download-progress #downloadedSize {
+         color: var(--text-primary);
+      }
+
+      .download-progress #totalSize {
+         color: var(--text-muted);
+      }
+
+      /* Pulse Animation */
+      @keyframes pulse {
+
+         0%,
+         100% {
+            opacity: 1;
          }
 
-         body {
-            background: var(--bg-primary);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            font-family: "JetBrains Mono", monospace;
-            color: var(--text-primary);
-            overflow: hidden;
-            position: relative;
+         50% {
+            opacity: 0.5;
          }
+      }
 
-         /* Animated Wave Background */
-         .animated-bg {
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            overflow: hidden;
-            background: var(--bg-primary);
-         }
+      .status.working {
+         animation: pulse 2s ease-in-out infinite;
+      }
 
-         .animated-bg::before {
-            content: "";
-            position: absolute;
-            width: 200%;
-            height: 100%;
-            left: 0;
-            top: 0;
-            opacity: 0.08;
-            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E")
-               repeat-x;
-            background-size: 50% 100%;
-            animation: infiniteWave 20s linear infinite;
-         }
+      /* Corner decoration */
+      .corner-decoration {
+         position: fixed;
+         width: 20px;
+         height: 20px;
+         border-color: var(--border);
+      }
 
-         @keyframes infiniteWave {
-            0% {
-               transform: translateX(0);
-            }
-            100% {
-               transform: translateX(-50%);
-            }
-         }
+      .corner-decoration.top-left {
+         top: 16px;
+         left: 16px;
+         border-top: 1px solid;
+         border-left: 1px solid;
+      }
 
-         .container {
-            text-align: center;
-            padding: 32px;
-            position: relative;
-            z-index: 1;
-         }
+      .corner-decoration.top-right {
+         top: 16px;
+         right: 16px;
+         border-top: 1px solid;
+         border-right: 1px solid;
+      }
 
-         /* Progress Ring Container - larger for 840x600 form */
-         .progress-ring-container {
-            position: relative;
-            width: 220px;
-            height: 220px;
-            margin: 0 auto 40px;
-         }
+      .corner-decoration.bottom-left {
+         bottom: 16px;
+         left: 16px;
+         border-bottom: 1px solid;
+         border-left: 1px solid;
+      }
 
-         .progress-ring {
-            transform: rotate(-90deg);
-         }
+      .corner-decoration.bottom-right {
+         bottom: 16px;
+         right: 16px;
+         border-bottom: 1px solid;
+         border-right: 1px solid;
+      }
+   </style>
+</head>
 
-         .progress-ring-bg {
-            fill: none;
-            stroke: var(--border);
-            stroke-width: 2;
-         }
+<body>
+   <div class="animated-bg"></div>
 
-         .progress-ring-fill {
-            fill: none;
-            stroke: var(--text-primary);
-            stroke-width: 2;
-            stroke-linecap: square;
-            stroke-dasharray: 628.32;
-            stroke-dashoffset: 628.32;
-            transition: stroke-dashoffset 0.15s ease-out;
-         }
+   <!-- Corner decorations -->
+   <div class="corner-decoration top-left"></div>
+   <div class="corner-decoration top-right"></div>
+   <div class="corner-decoration bottom-left"></div>
+   <div class="corner-decoration bottom-right"></div>
 
-         .percent-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 42px;
-            font-weight: 700;
-            color: var(--text-primary);
-            letter-spacing: 3px;
-         }
-
-         /* Status Text - larger */
-         .status {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 12px;
-            min-height: 26px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-         }
-
-         .status::before {
-            content: "[ ";
-            color: var(--text-muted);
-         }
-
-         .status::after {
-            content: " ]";
-            color: var(--text-muted);
-         }
-
-         /* Speed Indicators */
-         .metrics-container {
-            display: flex;
-            justify-content: center;
-            gap: 24px;
-            margin-top: 10px;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-         }
-
-         .metric-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-         }
-
-         .metric-label {
-            color: var(--text-muted);
-            opacity: 0.6;
-         }
-
-         .metric-value {
-            color: var(--text-secondary);
-            font-weight: bold;
-            min-width: 80px;
-            text-align: left;
-         }
-
-         .metric-value.active {
-            color: var(--text-primary);
-         }
-
-         .credits {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 48px;
-            font-family: "JetBrains Mono", monospace;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-         }
-
-         .credits::before {
-            content: "// ";
-         }
-
-         /* Pulse Animation */
-         @keyframes pulse {
-            0%,
-            100% {
-               opacity: 1;
-            }
-            50% {
-               opacity: 0.5;
-            }
-         }
-
-         .status.working {
-            animation: pulse 2s ease-in-out infinite;
-         }
-
-         /* Corner decoration */
-         .corner-decoration {
-            position: fixed;
-            width: 20px;
-            height: 20px;
-            border-color: var(--border);
-         }
-
-         .corner-decoration.top-left {
-            top: 16px;
-            left: 16px;
-            border-top: 1px solid;
-            border-left: 1px solid;
-         }
-
-         .corner-decoration.top-right {
-            top: 16px;
-            right: 16px;
-            border-top: 1px solid;
-            border-right: 1px solid;
-         }
-
-         .corner-decoration.bottom-left {
-            bottom: 16px;
-            left: 16px;
-            border-bottom: 1px solid;
-            border-left: 1px solid;
-         }
-
-         .corner-decoration.bottom-right {
-            bottom: 16px;
-            right: 16px;
-            border-bottom: 1px solid;
-            border-right: 1px solid;
-         }
-      </style>
-   </head>
-
-   <body>
-      <div class="animated-bg"></div>
-
-      <!-- Corner decorations -->
-      <div class="corner-decoration top-left"></div>
-      <div class="corner-decoration top-right"></div>
-      <div class="corner-decoration bottom-left"></div>
-      <div class="corner-decoration bottom-right"></div>
-
-      <div class="container">
-         <div class="progress-ring-container">
-            <svg class="progress-ring" width="220" height="220">
-               <circle class="progress-ring-bg" cx="110" cy="110" r="100" />
-               <circle class="progress-ring-fill" id="progressRing" cx="110" cy="110" r="100" />
-            </svg>
-            <div class="percent-text" id="percent">0%</div>
-         </div>
-
-         <div class="status working" id="status">Preparing</div>
-
-         <div class="metrics-container">
-            <div class="metric-item">
-               <span class="metric-label">DL Speed:</span>
-               <span class="metric-value" id="dlSpeed">-- MB/S</span>
-            </div>
-         </div>
-
-         <div class="credits">made with ❤️</div>
+   <div class="container">
+      <div class="progress-ring-container">
+         <svg class="progress-ring" width="220" height="220">
+            <circle class="progress-ring-bg" cx="110" cy="110" r="100" />
+            <circle class="progress-ring-fill" id="progressRing" cx="110" cy="110" r="100" />
+         </svg>
+         <div class="percent-text" id="percent">0%</div>
       </div>
 
-      <script>
-         // Progress ring circumference (2 * PI * 100)
-         const circumference = 628.32;
+      <div class="status working" id="status">Preparing</div>
 
-         // Update progress (called from C#)
-         function updateProgress(percent) {
-            const ring = document.getElementById("progressRing");
-            const percentText = document.getElementById("percent");
+      <!-- Download progress: 0/120MB or file count -->
+      <div class="download-progress" id="downloadProgress" style="display: none;">
+         <span id="downloadedSize">0</span> / <span id="totalSize">0</span><span id="progressUnit"> MB</span>
+      </div>
 
-            const offset = circumference - (percent / 100) * circumference;
-            ring.style.strokeDashoffset = offset;
-            percentText.textContent = Math.round(percent) + "%";
+      <div class="metrics-container">
+         <div class="metric-item">
+            <span class="metric-label">DL Speed:</span>
+            <span class="metric-value" id="dlSpeed">-- MB/S</span>
+         </div>
+      </div>
 
-            // Reset DL speed to default when complete
-            if (percent >= 100) {
-               updateDownloadSpeed("-- MB/S");
-            }
+      <div class="credits">made with ❤️</div>
+   </div>
+
+   <script>
+      // Progress ring circumference (2 * PI * 100)
+      const circumference = 628.32;
+
+      // Update progress (called from C#)
+      function updateProgress(percent) {
+         const ring = document.getElementById("progressRing");
+         const percentText = document.getElementById("percent");
+
+         const offset = circumference - (percent / 100) * circumference;
+         ring.style.strokeDashoffset = offset;
+         percentText.textContent = Math.round(percent) + "%";
+
+         // Reset DL speed and hide progress display when complete
+         if (percent >= 100) {
+            updateDownloadSpeed("-- MB/S");
+            hideDownloadProgress();
          }
+      }
 
-         // Update status text (called from C#)
-         function updateStatus(text) {
-            document.getElementById("status").textContent = text;
+      // Update status text (called from C#)
+      function updateStatus(text) {
+         document.getElementById("status").textContent = text;
+      }
+
+      // Substatus removed from UI - no-op to prevent errors
+      function updateSubstatus(text) { }
+
+      // Update download speed (called from C#)
+      function updateDownloadSpeed(speed) {
+         const el = document.getElementById("dlSpeed");
+         el.textContent = speed;
+         if (speed !== "-- MB/S" && speed !== "0.0 MB/S") {
+            el.classList.add("active");
+         } else {
+            el.classList.remove("active");
          }
+      }
 
-         // Substatus removed from UI - no-op to prevent errors
-         function updateSubstatus(text) {}
+      // Write speed removed from UI - no-op to prevent errors
+      function updateWriteSpeed(speed) { }
 
-         // Update download speed (called from C#)
-         function updateDownloadSpeed(speed) {
-            const el = document.getElementById("dlSpeed");
-            el.textContent = speed;
-            if (speed !== "-- MB/S" && speed !== "0.0 MB/S") {
-               el.classList.add("active");
-            } else {
-               el.classList.remove("active");
-            }
+      // Update download progress: downloaded/total MB (called from C#)
+      function updateDownloadProgress(downloadedMB, totalMB) {
+         const container = document.getElementById("downloadProgress");
+         const downloadedEl = document.getElementById("downloadedSize");
+         const totalEl = document.getElementById("totalSize");
+
+         if (totalMB > 0) {
+            container.style.display = "block";
+            downloadedEl.textContent = downloadedMB.toFixed(1);
+            totalEl.textContent = totalMB.toFixed(1);
+            document.getElementById("progressUnit").textContent = " MB";
+         } else {
+            container.style.display = "none";
          }
+      }
 
-         // Write speed removed from UI - no-op to prevent errors
-         function updateWriteSpeed(speed) {}
-      </script>
-   </body>
+      // Hide download progress (called from C# or when complete)
+      function hideDownloadProgress() {
+         const container = document.getElementById("downloadProgress");
+         const metricsContainer = document.querySelector(".metrics-container");
+         if (container) container.style.display = "none";
+         if (metricsContainer) metricsContainer.style.display = "none";
+      }
+
+      // Update file progress: current/total files (called from C#)
+      // Reuses the download progress element to show file count
+      function updateFileProgress(current, total) {
+         const container = document.getElementById("downloadProgress");
+         const downloadedEl = document.getElementById("downloadedSize");
+         const totalEl = document.getElementById("totalSize");
+         const unitEl = document.getElementById("progressUnit");
+
+         if (total > 0) {
+            container.style.display = "block";
+            downloadedEl.textContent = current;
+            totalEl.textContent = total;
+            unitEl.textContent = " files";
+         } else {
+            container.style.display = "none";
+         }
+      }
+   </script>
+</body>
+
 </html>

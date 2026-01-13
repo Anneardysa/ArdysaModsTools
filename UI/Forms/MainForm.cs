@@ -2,6 +2,8 @@ using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Update;
+using ArdysaModsTools.Core.DependencyInjection;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.UI;
 using ArdysaModsTools.Core.Services.Config;
@@ -39,15 +41,17 @@ namespace ArdysaModsTools
         });
         private const string RequiredModFilePath = "game/_ArdysaMods/pak01_dir.vpk";
 
+        // Services - obtained via DI
         private readonly Logger _logger;
         private readonly UpdaterService _updater = null!;
         private readonly ModInstallerService _modInstaller;
-        private readonly DetectionService _detection;
+        private readonly IDetectionService _detection;
         private readonly StatusService _status;
         private readonly DotaVersionService _versionService;
-        private readonly MainConfigService _configService;
+        private readonly IConfigService _configService;
         private Dota2Monitor _dotaMonitor;
         private DotaPatchWatcherService? _patchWatcher;
+        private bool _modFileWarningLogged; // Prevent duplicate logging
 
         public MainForm()
         {
@@ -65,7 +69,19 @@ namespace ArdysaModsTools
             this.KeyPreview = true;
             this.KeyDown += MainForm_KeyDown;
 
+            // ═══════════════════════════════════════════════════════════════
+            // DEPENDENCY INJECTION - Get services from container
+            // ═══════════════════════════════════════════════════════════════
             _logger = new Logger(mainConsoleBox);
+            
+            // Initialize global exception handler with logger
+            GlobalExceptionHandler.Initialize(_logger);
+
+            // Get services from DI container where available
+            _configService = ServiceLocator.GetRequired<IConfigService>();
+            _detection = ServiceLocator.GetRequired<IDetectionService>();
+
+            // Services that need logger passed directly (not registered in DI)
             _updater = new UpdaterService(_logger);
             _updater.OnVersionChanged += version =>
             {
@@ -75,17 +91,9 @@ namespace ArdysaModsTools
                     versionLabel.Text = $"Version: {version}";
             };
 
-            // Progress now handled by ProgressOverlay, not MainForm progressBar
-
             _modInstaller = new ModInstallerService(_logger);
-
-            _detection = new DetectionService(_logger);
-
             _status = new StatusService(_logger);
-            
             _versionService = new DotaVersionService(_logger);
-
-            _configService = new MainConfigService();
 
             _dotaMonitor = new Dota2Monitor();
             _dotaMonitor.OnDota2StateChanged += DotaStateChanged;
@@ -458,12 +466,37 @@ namespace ArdysaModsTools
             string requiredFilePath = Path.Combine(targetPath, RequiredModFilePath);
             bool fileExists = File.Exists(requiredFilePath);
 
-            if (!fileExists)
+            if (!fileExists && !_modFileWarningLogged)
             {
                 _logger.Log($"Required mod file '{RequiredModFilePath}' not found. Please install mods first.");
+                _modFileWarningLogged = true; // Only log once until mods are installed
+            }
+            else if (fileExists)
+            {
+                _modFileWarningLogged = false; // Reset when mods are present
             }
 
             return fileExists;
+        }
+
+        /// <summary>
+        /// Shows install dialog if mods are not installed.
+        /// Called after successful path detection for better UX.
+        /// </summary>
+        private async Task ShowInstallDialogIfNeeded()
+        {
+            // Only show dialog if mods are not installed
+            if (IsRequiredModFilePresent())
+                return;
+            
+            using var dialog = new UI.Forms.InstallRequiredDialog();
+            dialog.StartPosition = FormStartPosition.CenterParent;
+            
+            if (dialog.ShowDialog(this) == DialogResult.OK && dialog.ShouldInstall)
+            {
+                // User clicked Install Now - trigger install
+                InstallButton_Click(this, EventArgs.Empty);
+            }
         }
 
         private async Task CheckModsStatus()
@@ -652,6 +685,9 @@ namespace ArdysaModsTools
                 await CheckModsStatus();
                 await StartPatchWatcherAsync(targetPath);
                 EnableAllButtons();
+                
+                // Show install dialog if mods are not installed
+                await ShowInstallDialogIfNeeded();
                 return;
             }
         }
@@ -669,10 +705,23 @@ namespace ArdysaModsTools
                 await CheckModsStatus();
                 await StartPatchWatcherAsync(targetPath);
                 EnableAllButtons();
+                
+                // Show install dialog if mods are not installed
+                await ShowInstallDialogIfNeeded();
             }
             else
             {
-                EnableDetectionButtonsOnly();
+                // User cancelled - restore buttons based on current state
+                if (!string.IsNullOrEmpty(targetPath))
+                {
+                    // Already have a valid path, restore all buttons
+                    EnableAllButtons();
+                }
+                else
+                {
+                    // No path yet, only enable detection buttons
+                    EnableDetectionButtonsOnly();
+                }
             }
         }
 

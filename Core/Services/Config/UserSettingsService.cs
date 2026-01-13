@@ -65,11 +65,11 @@ namespace ArdysaModsTools.Core.Services
                 var json = JsonSerializer.Serialize(selections, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(JsonPath, json);
 
-                Console.WriteLine($"[INFO] Saved vuex.json to {JsonPath}");
+                FallbackLogger.Log($"[UserSettings] Saved vuex.json to {JsonPath}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WARN] Failed to save vuex.json: {ex.Message}");
+                FallbackLogger.Log($"[UserSettings] Failed to save vuex.json: {ex.Message}");
             }
         }
 

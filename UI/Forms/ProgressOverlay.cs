@@ -21,7 +21,9 @@ namespace ArdysaModsTools.UI.Forms
         private string _lastStatus = "";
         private string _lastSubstatus = "";
         
-        // Cancel support
+        // Cancel support - robust state management
+        private bool _cancelInProgress;
+        private Controls.RoundedButton? _cancelButton;
         public bool WasCancelled { get; private set; }
         public event EventHandler? CancelRequested;
 
@@ -72,7 +74,7 @@ namespace ArdysaModsTools.UI.Forms
             this.Controls.Add(webPanel);
 
             // Cancel button - black bg, white text, inverts on hover
-            var cancelBtn = new Controls.RoundedButton
+            _cancelButton = new Controls.RoundedButton
             {
                 Text = "[ CANCEL ]",
                 Size = new Size(160, 44),
@@ -86,13 +88,8 @@ namespace ArdysaModsTools.UI.Forms
                 HoverBackColor = Color.White,
                 HoverForeColor = Color.Black
             };
-            cancelBtn.Click += (s, e) =>
-            {
-                WasCancelled = true;
-                CancelRequested?.Invoke(this, EventArgs.Empty);
-                Complete(); // Close the overlay
-            };
-            this.Controls.Add(cancelBtn);
+            _cancelButton.Click += (s, e) => RequestCancel();
+            this.Controls.Add(_cancelButton);
 
             // ESC to cancel
             this.KeyPreview = true;
@@ -100,9 +97,8 @@ namespace ArdysaModsTools.UI.Forms
             {
                 if (e.KeyCode == Keys.Escape)
                 {
-                    WasCancelled = true;
-                    CancelRequested?.Invoke(this, EventArgs.Empty);
-                    Complete(); // Close the overlay
+                    RequestCancel();
+                    e.Handled = true;
                 }
             };
 
@@ -112,6 +108,57 @@ namespace ArdysaModsTools.UI.Forms
                 using var pen = new Pen(Color.White, 1);
                 e.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
             };
+        }
+        
+        /// <summary>
+        /// Request cancellation with robust state management.
+        /// Prevents double-clicks and provides visual feedback.
+        /// </summary>
+        private void RequestCancel()
+        {
+            // Guard: prevent double-click or multiple cancellations
+            if (_cancelInProgress || WasCancelled)
+                return;
+            
+            _cancelInProgress = true;
+            
+            // Visual feedback: update button to show cancelling
+            if (_cancelButton != null)
+            {
+                _cancelButton.Text = "CANCELLING...";
+                _cancelButton.Enabled = false;
+                _cancelButton.BackColor = Color.FromArgb(80, 80, 80);
+                _cancelButton.ForeColor = Color.Gray;
+            }
+            
+            // Update status to show cancellation in progress
+            try { _ = UpdateStatusAsync("Cancelling..."); } catch { }
+            
+            // Set cancelled flag and fire event
+            WasCancelled = true;
+            CancelRequested?.Invoke(this, EventArgs.Empty);
+            
+            // Close overlay after a brief delay for visual feedback
+            Task.Delay(500).ContinueWith(_ =>
+            {
+                if (this.InvokeRequired)
+                    this.BeginInvoke(new Action(() => SafeClose()));
+                else
+                    SafeClose();
+            });
+        }
+        
+        /// <summary>
+        /// Safely close the overlay, handling disposed state.
+        /// </summary>
+        private void SafeClose()
+        {
+            try
+            {
+                if (!this.IsDisposed)
+                    Complete();
+            }
+            catch { }
         }
 
         /// <summary>
@@ -247,6 +294,48 @@ namespace ArdysaModsTools.UI.Forms
             {
                 string escaped = (speed ?? "-- MB/S").Replace("'", "\\' ");
                 await _webView.CoreWebView2.ExecuteScriptAsync($"updateWriteSpeed('{escaped}')");
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Update download progress (downloaded/total MB).
+        /// </summary>
+        public async Task UpdateDownloadProgressAsync(double downloadedMB, double totalMB)
+        {
+            if (!_initialized || _webView?.CoreWebView2 == null) return;
+            try
+            {
+                await _webView.CoreWebView2.ExecuteScriptAsync(
+                    $"updateDownloadProgress({downloadedMB:F1}, {totalMB:F1})");
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Hide download progress and speed display.
+        /// Call this when transitioning from download to build phase.
+        /// </summary>
+        public async Task HideDownloadProgressAsync()
+        {
+            if (!_initialized || _webView?.CoreWebView2 == null) return;
+            try
+            {
+                await _webView.CoreWebView2.ExecuteScriptAsync("hideDownloadProgress()");
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Update file progress (current/total files).
+        /// Used during Building, Installing, and Download Assets phases.
+        /// </summary>
+        public async Task UpdateFileProgressAsync(int current, int total)
+        {
+            if (!_initialized || _webView?.CoreWebView2 == null) return;
+            try
+            {
+                await _webView.CoreWebView2.ExecuteScriptAsync($"updateFileProgress({current}, {total})");
             }
             catch { }
         }

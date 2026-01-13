@@ -17,7 +17,7 @@ namespace ArdysaModsTools.Core.Services
     {
         #region Private Fields
 
-        private readonly ILogger _logger;
+        private readonly ILogger? _logger;
         private System.Threading.Timer? _autoRefreshTimer;
         private string? _currentTargetPath;
         private ModStatusInfo? _lastStatus;
@@ -50,9 +50,9 @@ namespace ArdysaModsTools.Core.Services
 
         #region Constructor
 
-        public StatusService(ILogger logger)
+        public StatusService(ILogger? logger = null)
         {
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _logger = logger; // Logger is optional for DI compatibility
         }
 
         #endregion
@@ -104,7 +104,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger.Log($"[STATUS] Error: {ex.Message}");
+                _logger?.Log($"[STATUS] Error: {ex.Message}");
                 return CreateStatus(ModStatus.Error, "Error",
                     $"Failed to check status: {ex.Message}",
                     errorMessage: ex.Message);
@@ -169,7 +169,7 @@ namespace ArdysaModsTools.Core.Services
                 TimeSpan.Zero,
                 AutoRefreshInterval);
             
-            _logger.Log("[STATUS] Auto-refresh started (30s interval)");
+            _logger?.Log("[STATUS] Auto-refresh started (30s interval)");
         }
 
         /// <summary>
@@ -334,7 +334,7 @@ namespace ArdysaModsTools.Core.Services
 
             try
             {
-                var versionService = new DotaVersionService(_logger);
+                var versionService = new DotaVersionService(_logger ?? new NullLogger());
                 var (matches, currentBuild, patchedBuild) = 
                     await versionService.ComparePatchedVersionAsync(targetPath);
 
@@ -347,7 +347,7 @@ namespace ArdysaModsTools.Core.Services
                 // If versions don't match, Dota was updated
                 if (!matches)
                 {
-                    _logger.Log($"[STATUS] Build changed: {patchedBuild} → {currentBuild}");
+                    _logger?.Log($"[STATUS] Build changed: {patchedBuild} → {currentBuild}");
                     return CreateStatus(ModStatus.NeedUpdate, "Update Required",
                         $"Dota 2 was updated ({currentBuild}). Run 'Patch Update' to fix.",
                         action: RecommendedAction.Update,
@@ -360,7 +360,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger.Log($"[STATUS] Build version check failed: {ex.Message}");
+                _logger?.Log($"[STATUS] Build version check failed: {ex.Message}");
                 return null; // If check fails, don't block - proceed to Ready
             }
         }
@@ -480,6 +480,19 @@ namespace ArdysaModsTools.Core.Services
             StopAutoRefresh();
             _refreshLock.Dispose();
             _disposed = true;
+        }
+
+        #endregion
+
+        #region NullLogger
+
+        /// <summary>
+        /// Null logger implementation for when no logger is provided.
+        /// </summary>
+        private sealed class NullLogger : ILogger
+        {
+            public void Log(string message) { }
+            public void FlushBufferedLogs() { }
         }
 
         #endregion
