@@ -35,18 +35,24 @@ namespace ArdysaModsTools
                 return; // Security check failed
             }
 
-            // Global exception handlers for unhandled exceptions
+            // ═══════════════════════════════════════════════════════════════
+            // GLOBAL EXCEPTION HANDLING
+            // Centralized error handling with user-friendly messages
+            // ═══════════════════════════════════════════════════════════════
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            
+            // Wire up global handlers - GlobalExceptionHandler will be fully initialized 
+            // when MainForm creates its logger
             Application.ThreadException += (s, e) =>
             {
-                MessageBox.Show($"An unexpected error occurred: {e.Exception.Message}", 
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                ArdysaModsTools.Core.Services.FallbackLogger.Log($"ThreadException: {e.Exception}");
+                Core.Helpers.GlobalExceptionHandler.Handle(e.Exception, showDialog: true);
             };
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
-                var ex = e.ExceptionObject as Exception;
-                ArdysaModsTools.Core.Services.FallbackLogger.Log($"UnhandledException: {ex}");
+                if (e.ExceptionObject is Exception ex)
+                {
+                    Core.Helpers.GlobalExceptionHandler.Handle(ex, showDialog: true);
+                }
             };
 
             // Cleanup security on exit

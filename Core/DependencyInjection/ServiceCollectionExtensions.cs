@@ -1,5 +1,6 @@
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Services.Config;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArdysaModsTools.Core.DependencyInjection
@@ -16,15 +17,30 @@ namespace ArdysaModsTools.Core.DependencyInjection
         /// <returns>The service collection for chaining.</returns>
         public static IServiceCollection AddArdysaServices(this IServiceCollection services)
         {
-            // Note: Logger requires UI control (RetroTerminal/RichTextBox), 
-            // so ILogger is registered per-form and not here.
-
-            // Core Mod Services (with interfaces)
+            // ═══════════════════════════════════════════════════════════════
+            // CORE SERVICES
+            // ═══════════════════════════════════════════════════════════════
+            
+            // Mod Installation
             services.AddTransient<IModInstallerService, ModInstallerService>();
             services.AddTransient<IStatusService, StatusService>();
             
-            // Hero Services (with interface)
+            // Detection
+            services.AddTransient<IDetectionService, DetectionService>();
+            
+            // Configuration (singleton - shared state)
+            services.AddSingleton<IConfigService, MainConfigService>();
+            
+            // ═══════════════════════════════════════════════════════════════
+            // HERO SERVICES
+            // ═══════════════════════════════════════════════════════════════
             services.AddTransient<IHeroGenerationService, HeroGenerationService>();
+            
+            // ═══════════════════════════════════════════════════════════════
+            // NOTE: ILogger is NOT registered here because it requires a UI control
+            // (RetroTerminal/RichTextBox). Forms should create their own Logger
+            // and register it in a scoped container if needed.
+            // ═══════════════════════════════════════════════════════════════
             
             return services;
         }

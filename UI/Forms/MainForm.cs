@@ -333,28 +333,13 @@ namespace ArdysaModsTools
 
                 EnableDetectionButtonsOnly();
 
-                // Show Support Developer notification and dialog on startup
-                ShowSupportDeveloperNotification();
+                // Show Support Dialog on startup
                 ShowSupportDialogOnStartup();
             }
             catch (Exception ex)
             {
                 _logger.Log($"Error loading social media icons: {ex.Message}");
             }
-        }
-
-        /// <summary>
-        /// Shows a Windows notification encouraging users to support the developer.
-        /// Note: Tray functionality removed - this method is now a stub.
-        /// </summary>
-        private void ShowSupportDeveloperNotification()
-        {
-            // Tray functionality removed
-        }
-
-        private void TrayIcon_BalloonTipClicked(object? sender, EventArgs e)
-        {
-            // Tray functionality removed
         }
 
         /// <summary>
@@ -377,36 +362,12 @@ namespace ArdysaModsTools
 
         private void DiscordPictureBox_Click(object? sender, EventArgs e)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "https://discord.gg/ffXw265Z7e",
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.Log($"Failed to open Discord link: {ex.Message}");
-                MessageBox.Show($"Failed to open Discord link: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            UIHelpers.OpenUrlWithErrorDialog("https://discord.gg/ffXw265Z7e", "Discord", _logger.Log);
         }
 
         private void YoutubePictureBox_Click(object? sender, EventArgs e)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = "https://youtube.com/@Ardysa",
-                    UseShellExecute = true
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.Log($"Failed to open YouTube link: {ex.Message}");
-                MessageBox.Show($"Failed to open YouTube link: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            UIHelpers.OpenUrlWithErrorDialog("https://youtube.com/@Ardysa", "YouTube", _logger.Log);
         }
 
         private void PaypalPictureBox_Click(object? sender, EventArgs e)

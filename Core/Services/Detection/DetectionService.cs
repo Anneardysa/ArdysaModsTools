@@ -5,17 +5,20 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Win32;
 using System.Diagnostics;
-using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
-    public class DetectionService
+    /// <summary>
+    /// Service for detecting Dota 2 installation folder.
+    /// </summary>
+    public class DetectionService : IDetectionService
     {
-        private readonly Logger _logger;
+        private readonly ILogger _logger;
 
-        public DetectionService(Logger logger)
+        public DetectionService(ILogger logger)
         {
-            _logger = logger;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>

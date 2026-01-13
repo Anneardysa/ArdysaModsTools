@@ -68,7 +68,6 @@ namespace ArdysaModsTools
             // 
             trayIcon.Text = "ArdysaModsTools";
             trayIcon.Visible = false;
-            trayIcon.BalloonTipClicked += TrayIcon_BalloonTipClicked;
             // 
             // sidebarPanel
             // 

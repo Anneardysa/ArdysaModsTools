@@ -1,25 +1,36 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace ArdysaModsTools.Helpers
 {
+    /// <summary>
+    /// Common UI utility methods for consistent behavior across forms.
+    /// </summary>
     public static class UIHelpers
     {
-        // PInvoke: rounded window region
+        #region Window Styling
+
         [DllImport("gdi32.dll")]
         private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
 
-        public static void ApplyRoundedCorner(Form f, int radius = 16)
+        /// <summary>
+        /// Applies rounded corners to a form.
+        /// </summary>
+        /// <param name="form">The form to apply rounded corners to.</param>
+        /// <param name="radius">Corner radius in pixels.</param>
+        public static void ApplyRoundedCorner(Form form, int radius = 16)
         {
-            if (f == null) return;
-            var r = CreateRoundRectRgn(0, 0, f.Width + 1, f.Height + 1, radius, radius);
-            f.Region = Region.FromHrgn(r);
+            if (form == null) return;
+            var region = CreateRoundRectRgn(0, 0, form.Width + 1, form.Height + 1, radius, radius);
+            form.Region = Region.FromHrgn(region);
         }
 
-        // Quick drop-shadow: simulate by painting a shadow panel behind floating panel (we build it in designer)
-        // Slide-in animation from right: animates Left from startX to targetX over duration ms
+        /// <summary>
+        /// Animates a form sliding in from the right edge of the screen.
+        /// </summary>
         public static void SlideInFromRight(Form form, Rectangle targetBounds, int durationMs = 300)
         {
             var fps = 60;
@@ -46,5 +57,177 @@ namespace ArdysaModsTools.Helpers
             };
             timer.Start();
         }
+
+        #endregion
+
+        #region URL Handling
+
+        /// <summary>
+        /// Opens a URL in the default browser with error handling.
+        /// </summary>
+        /// <param name="url">The URL to open.</param>
+        /// <param name="errorCallback">Optional callback for logging errors.</param>
+        /// <returns>True if successful, false otherwise.</returns>
+        public static bool OpenUrl(string url, Action<string>? errorCallback = null)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                errorCallback?.Invoke("URL is empty or null.");
+                return false;
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                errorCallback?.Invoke($"Failed to open URL: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Opens a URL and shows an error dialog if it fails.
+        /// </summary>
+        /// <param name="url">The URL to open.</param>
+        /// <param name="urlName">Display name for the URL (e.g., "Discord", "YouTube").</param>
+        /// <param name="errorCallback">Optional callback for logging errors.</param>
+        public static void OpenUrlWithErrorDialog(string url, string urlName, Action<string>? errorCallback = null)
+        {
+            if (!OpenUrl(url, errorCallback))
+            {
+                ShowError($"Failed to open {urlName} link.", "Error");
+            }
+        }
+
+        #endregion
+
+        #region Thread-Safe UI Updates
+
+        /// <summary>
+        /// Executes an action on the UI thread, invoking if necessary.
+        /// </summary>
+        /// <param name="control">The control to invoke on.</param>
+        /// <param name="action">The action to execute.</param>
+        public static void SafeInvoke(this Control control, Action action)
+        {
+            if (control == null || control.IsDisposed)
+                return;
+
+            if (control.InvokeRequired)
+            {
+                try
+                {
+                    control.Invoke(action);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Control was disposed before invoke completed
+                }
+                catch (InvalidOperationException)
+                {
+                    // Handle was not created or control is disposing
+                }
+            }
+            else
+            {
+                action();
+            }
+        }
+
+        /// <summary>
+        /// Executes an action on the UI thread asynchronously, invoking if necessary.
+        /// </summary>
+        /// <param name="control">The control to invoke on.</param>
+        /// <param name="action">The action to execute.</param>
+        public static void SafeBeginInvoke(this Control control, Action action)
+        {
+            if (control == null || control.IsDisposed)
+                return;
+
+            if (control.InvokeRequired)
+            {
+                try
+                {
+                    control.BeginInvoke(action);
+                }
+                catch (ObjectDisposedException)
+                {
+                    // Control was disposed before invoke completed
+                }
+                catch (InvalidOperationException)
+                {
+                    // Handle was not created or control is disposing
+                }
+            }
+            else
+            {
+                action();
+            }
+        }
+
+        #endregion
+
+        #region Standard Dialogs
+
+        /// <summary>
+        /// Shows a standard error dialog.
+        /// </summary>
+        /// <param name="message">Error message to display.</param>
+        /// <param name="title">Dialog title.</param>
+        public static void ShowError(string message, string title = "Error")
+        {
+            MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        /// <summary>
+        /// Shows a standard warning dialog.
+        /// </summary>
+        /// <param name="message">Warning message to display.</param>
+        /// <param name="title">Dialog title.</param>
+        public static void ShowWarning(string message, string title = "Warning")
+        {
+            MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
+        /// <summary>
+        /// Shows a standard information dialog.
+        /// </summary>
+        /// <param name="message">Information message to display.</param>
+        /// <param name="title">Dialog title.</param>
+        public static void ShowInfo(string message, string title = "Information")
+        {
+            MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        /// <summary>
+        /// Shows a confirmation dialog and returns the user's choice.
+        /// </summary>
+        /// <param name="message">Question to ask.</param>
+        /// <param name="title">Dialog title.</param>
+        /// <returns>True if user clicked Yes, false otherwise.</returns>
+        public static bool ShowConfirm(string message, string title = "Confirm")
+        {
+            return MessageBox.Show(message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
+        }
+
+        /// <summary>
+        /// Shows a confirmation dialog with a warning icon.
+        /// </summary>
+        /// <param name="message">Warning question to ask.</param>
+        /// <param name="title">Dialog title.</param>
+        /// <returns>True if user clicked Yes, false otherwise.</returns>
+        public static bool ShowConfirmWarning(string message, string title = "Warning")
+        {
+            return MessageBox.Show(message, title, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes;
+        }
+
+        #endregion
     }
 }

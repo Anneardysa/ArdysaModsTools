@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Models;
