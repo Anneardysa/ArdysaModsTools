@@ -96,24 +96,38 @@ namespace ArdysaModsTools
             httpClient.Timeout = TimeSpan.FromMinutes(10);
             ServicePointManager.DefaultConnectionLimit = 10;
 
+            // ═══════════════════════════════════════════════════════════════
+            // ICON LOADING - Direct file loading (most reliable)
+            // ═══════════════════════════════════════════════════════════════
+            Icon? appIcon = null;
             try
             {
-                using Stream? iconStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ArdysaModsTools.AppIcon.ico");
-                if (iconStream == null)
+                // Primary: Absolute path (for development)
+                string devPath = @"D:\Projects\AMT2.0\Assets\Icons\AppIcon.ico";
+                if (File.Exists(devPath))
                 {
-#if DEBUG
-                    _logger.Log("Embedded icon 'AppIcon.ico' not found.");
-#endif
+                    appIcon = new Icon(devPath);
                 }
                 else
                 {
-                    this.Icon = new Icon(iconStream);
+                    // Fallback: Relative path (for deployment)
+                    string relPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Icons", "AppIcon.ico");
+                    if (File.Exists(relPath))
+                    {
+                        appIcon = new Icon(relPath);
+                    }
+                }
+                
+                if (appIcon != null)
+                {
+                    this.Icon = appIcon;
                 }
             }
             catch (Exception ex)
             {
                 _logger.Log($"Error loading application icon: {ex.Message}");
             }
+
 
             // Load banner image with cover mode (fill and crop, maintains aspect ratio)
             try
@@ -176,7 +190,7 @@ namespace ArdysaModsTools
 
         private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
         {
-            // Dispose patch watcher
+            // Dispose resources
             _patchWatcher?.Dispose();
             _patchWatcher = null;
 
@@ -318,12 +332,48 @@ namespace ArdysaModsTools
                 }
 
                 EnableDetectionButtonsOnly();
+
+                // Show Support Developer notification and dialog on startup
+                ShowSupportDeveloperNotification();
+                ShowSupportDialogOnStartup();
             }
             catch (Exception ex)
             {
                 _logger.Log($"Error loading social media icons: {ex.Message}");
             }
         }
+
+        /// <summary>
+        /// Shows a Windows notification encouraging users to support the developer.
+        /// Note: Tray functionality removed - this method is now a stub.
+        /// </summary>
+        private void ShowSupportDeveloperNotification()
+        {
+            // Tray functionality removed
+        }
+
+        private void TrayIcon_BalloonTipClicked(object? sender, EventArgs e)
+        {
+            // Tray functionality removed
+        }
+
+        /// <summary>
+        /// Opens the Support Dialog when the app starts.
+        /// </summary>
+        private void ShowSupportDialogOnStartup()
+        {
+            try
+            {
+                using var supportDialog = new UI.Forms.SupportDialog();
+                supportDialog.StartPosition = FormStartPosition.CenterParent;
+                supportDialog.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Failed to show support dialog: {ex.Message}");
+            }
+        }
+
 
         private void DiscordPictureBox_Click(object? sender, EventArgs e)
         {
@@ -1229,7 +1279,11 @@ namespace ArdysaModsTools
                 verifyFiles, 
                 viewStatus 
             });
+
         }
+
+        // Ensuring tray icon uses the correct icon even if loaded later
+
 
         private async void UpdatePatcherButton_Click(object? sender, EventArgs e)
         {
@@ -1616,6 +1670,8 @@ namespace ArdysaModsTools
             }
 
             lblDotaWarning.Visible = isRunning;
+
+            // Tray functionality removed - no longer minimize to tray when Dota runs
 
             // Disable/enable all action buttons when Dota 2 is running
             installButton.Enabled = !isRunning;

@@ -51,6 +51,8 @@ namespace ArdysaModsTools
             headerPanel = new Panel();
             btnMinimize = new Label();
             btnClose = new Label();
+            components = new System.ComponentModel.Container();
+            trayIcon = new NotifyIcon(components);
             sidebarPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             ((System.ComponentModel.ISupportInitialize)paypalPictureBox).BeginInit();
@@ -61,6 +63,12 @@ namespace ArdysaModsTools
             ((System.ComponentModel.ISupportInitialize)imagePictureBox).BeginInit();
             headerPanel.SuspendLayout();
             SuspendLayout();
+            // 
+            // trayIcon
+            // 
+            trayIcon.Text = "ArdysaModsTools";
+            trayIcon.Visible = false;
+            trayIcon.BalloonTipClicked += TrayIcon_BalloonTipClicked;
             // 
             // sidebarPanel
             // 
@@ -593,5 +601,6 @@ namespace ArdysaModsTools
         private Label btnMinimize;
         private Label btnClose;
         private PictureBox pictureBox1;
+        private NotifyIcon trayIcon;
     }
 }

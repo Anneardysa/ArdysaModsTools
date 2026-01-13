@@ -8,6 +8,15 @@ namespace ArdysaModsTools
 {
     static class Program
     {
+        // P/Invoke for window management
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_RESTORE = 9;
+
         [STAThread]
         static void Main()
         {
@@ -62,7 +71,35 @@ namespace ArdysaModsTools
                 return; // exit application
             }
 
-            Application.Run(new MainForm());
+            // ═══════════════════════════════════════════════════════════════
+            // SINGLE INSTANCE ENFORCEMENT
+            // ═══════════════════════════════════════════════════════════════
+            const string appMutexName = "Global\\ArdysaModsTools_SingleInstance_Mutex";
+            bool createdNew;
+
+            using (var mutex = new System.Threading.Mutex(true, appMutexName, out createdNew))
+            {
+                if (!createdNew)
+                {
+                    // App is already running - find it and bring to front
+                    var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                    var existingProcess = System.Diagnostics.Process.GetProcessesByName(currentProcess.ProcessName);
+                    
+                    foreach (var process in existingProcess)
+                    {
+                        if (process.Id != currentProcess.Id && process.MainWindowHandle != IntPtr.Zero)
+                        {
+                            ShowWindow(process.MainWindowHandle, SW_RESTORE);
+                            SetForegroundWindow(process.MainWindowHandle);
+                            break;
+                        }
+                    }
+
+                    return; // Exit immediately
+                }
+
+                Application.Run(new MainForm());
+            }
         }
     }
 }

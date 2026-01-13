@@ -12,6 +12,7 @@ namespace ArdysaModsTools.UI.Forms
         private System.Windows.Forms.Label TitleLabel;
         private System.Windows.Forms.FlowLayoutPanel ActionButtonsFlow;
         private RoundedButton btn_SelectGenerate;
+        private RoundedButton btn_ClearSelections;
         private RoundedButton btn_SelectLoad;
         private RoundedButton btn_SelectSave;
         private System.Windows.Forms.Label lbl_Status;
@@ -55,6 +56,7 @@ namespace ArdysaModsTools.UI.Forms
             TitleLabel = new Label();
             ActionButtonsFlow = new FlowLayoutPanel();
             btn_SelectGenerate = new RoundedButton();
+            btn_ClearSelections = new RoundedButton();
             btn_SelectLoad = new RoundedButton();
             btn_SelectSave = new RoundedButton();
             CategoryBar = new Panel();
@@ -128,6 +130,7 @@ namespace ArdysaModsTools.UI.Forms
             // 
             ActionButtonsFlow.AutoSize = true;
             ActionButtonsFlow.Controls.Add(btn_SelectGenerate);
+            ActionButtonsFlow.Controls.Add(btn_ClearSelections);
             ActionButtonsFlow.Controls.Add(btn_SelectLoad);
             ActionButtonsFlow.Controls.Add(btn_SelectSave);
             ActionButtonsFlow.Dock = DockStyle.Right;
@@ -160,6 +163,28 @@ namespace ArdysaModsTools.UI.Forms
             btn_SelectGenerate.Text = "Generate";
             btn_SelectGenerate.UseVisualStyleBackColor = false;
             btn_SelectGenerate.Click += Btn_SelectGenerate_Click;
+            // 
+            // btn_ClearSelections
+            // 
+            btn_ClearSelections.BackColor = Color.FromArgb(60, 30, 30);
+            btn_ClearSelections.BorderColor = Color.FromArgb(100, 50, 50);
+            btn_ClearSelections.BorderRadius = 0;
+            btn_ClearSelections.FlatAppearance.BorderSize = 0;
+            btn_ClearSelections.FlatStyle = FlatStyle.Flat;
+            btn_ClearSelections.Font = new Font("JetBrains Mono", 10F);
+            btn_ClearSelections.ForeColor = Color.FromArgb(200, 150, 150);
+            btn_ClearSelections.HighlightColor = Color.FromArgb(255, 255, 255);
+            btn_ClearSelections.Highlighted = false;
+            btn_ClearSelections.HoverBackColor = Color.FromArgb(100, 50, 50);
+            btn_ClearSelections.HoverForeColor = Color.White;
+            btn_ClearSelections.Location = new Point(180, 7);
+            btn_ClearSelections.Margin = new Padding(6, 3, 6, 3);
+            btn_ClearSelections.Name = "btn_ClearSelections";
+            btn_ClearSelections.Size = new Size(80, 36);
+            btn_ClearSelections.TabIndex = 3;
+            btn_ClearSelections.Text = "Clear";
+            btn_ClearSelections.UseVisualStyleBackColor = false;
+            btn_ClearSelections.Click += Btn_ClearSelections_Click;
             // 
             // btn_SelectLoad
             // 

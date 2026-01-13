@@ -96,6 +96,7 @@ namespace ArdysaModsTools.UI.Forms
             // actions - NOTE: btn_SelectGenerate.Click is already wired in Designer.cs
             btn_SelectLoad.Click += Btn_SelectLoad_Click;
             btn_SelectSave.Click += Btn_SelectSave_Click;
+            // NOTE: btn_ClearSelections.Click already wired in Designer.cs
         }
 
         private void InitializeLayoutHandlers()
@@ -684,6 +685,25 @@ namespace ArdysaModsTools.UI.Forms
 
         private void Btn_SelectLoad_Click(object? sender, EventArgs e) => LoadPresetInteractive();
         private void Btn_SelectSave_Click(object? sender, EventArgs e) => SavePresetInteractive();
+
+        private void Btn_ClearSelections_Click(object? sender, EventArgs e)
+        {
+            var result = MessageBox.Show(
+                "Reset all hero selections to Default Set?",
+                "Clear Selections",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (result == DialogResult.Yes)
+            {
+                selectedByHero.Clear();
+                foreach (var row in RowsFlow.Controls.OfType<HeroRow>())
+                {
+                    row.ApplySelection("Default Set");
+                }
+                SetStatus("All selections cleared.");
+            }
+        }
 
         /// <summary>
         /// </summary>
