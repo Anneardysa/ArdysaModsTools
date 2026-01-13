@@ -167,6 +167,31 @@ var
   WebView2Missing: Boolean;
 
 // ============================================================================
+// RUNNING APPLICATION CHECK
+// ============================================================================
+
+function IsAppRunning(const AppName: String): Boolean;
+var
+  ResultCode: Integer;
+begin
+  // Use tasklist to check if the process is running
+  Result := Exec('cmd.exe', '/c tasklist /FI "IMAGENAME eq ' + AppName + '" | find /I "' + AppName + '"',
+                 '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0);
+end;
+
+function CloseRunningApp(const AppName: String): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := True;
+  // Use taskkill to terminate the process
+  if not Exec('cmd.exe', '/c taskkill /F /IM "' + AppName + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Result := False;
+  // Wait a moment for the process to fully terminate
+  Sleep(1000);
+end;
+
+// ============================================================================
 // REGISTRY HELPERS
 // ============================================================================
 
@@ -366,6 +391,33 @@ var
   ErrorCode: Integer;
 begin
   Result := True;
+  
+  // ----------------------------------------------------------------
+  // Close running application if detected
+  // ----------------------------------------------------------------
+  if IsAppRunning('{#MyAppExeName}') then
+  begin
+    if MsgBox('{#MyAppName} is currently running.' + #13#10 + #13#10 +
+              'The application must be closed before installation can continue.' + #13#10 +
+              'Do you want to close it now?',
+              mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      if not CloseRunningApp('{#MyAppExeName}') then
+      begin
+        MsgBox('Failed to close {#MyAppName}. Please close it manually and try again.',
+               mbError, MB_OK);
+        Result := False;
+        Exit;
+      end;
+    end
+    else
+    begin
+      MsgBox('Installation cancelled. Please close {#MyAppName} and try again.',
+             mbInformation, MB_OK);
+      Result := False;
+      Exit;
+    end;
+  end;
   
   // ----------------------------------------------------------------
   // Check .NET 8 Desktop Runtime
