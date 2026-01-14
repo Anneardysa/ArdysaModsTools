@@ -5,7 +5,7 @@
 ![Version](https://img.shields.io/badge/Version-2.0-00d4ff?style=for-the-badge&logo=v)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
-![License](https://img.shields.io/badge/License-MIT-00C853?style=for-the-badge)
+![License](https://img.shields.io/badge/License-GPL%20v3-blue?style=for-the-badge)
 
 ![Downloads](https://img.shields.io/badge/Downloads-1K+-FF6B6B?style=flat-square&logo=github)
 ![Stars](https://img.shields.io/github/stars/Anneardysa/ArdysaModsTools?style=flat-square&color=yellow)
@@ -118,7 +118,7 @@ Click **"Disable Mods"** to remove all modifications and restore vanilla Dota 2.
 
 ## 📝 License
 
-MIT License - see [LICENSE](LICENSE) for details.
+GPL-3.0 License - see [LICENSE](LICENSE) for details.
 
 ---
 

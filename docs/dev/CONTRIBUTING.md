@@ -111,4 +111,4 @@ Open an issue for questions or discussions.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the same license as the project.
+By contributing, you agree that your contributions will be licensed under the **GNU General Public License v3.0** (GPL-3.0), the same license as this project.

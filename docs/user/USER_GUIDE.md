@@ -613,8 +613,8 @@ Have an idea? Request features in:
 
 ### License
 
-This software is licensed under the **MIT License**.  
-See LICENSE.txt for full details.
+This software is licensed under the **GNU General Public License v3.0**.  
+See LICENSE for full details.
 
 ### Third-Party Tools
 

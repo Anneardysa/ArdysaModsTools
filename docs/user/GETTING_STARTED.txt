@@ -249,10 +249,15 @@ ArdysaModsTools is free to use. If you find it helpful:
   LICENSE & DISCLAIMER
 ═══════════════════════════════════════════════════════════════════════════════
 
-This software is licensed under the MIT License.
-Copyright (c) 2024-2025 Ardysa
+This software is licensed under the GNU General Public License v3.0.
+Copyright (c) 2024-2026 Ardysa
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+THE SOFTWARE IS PROVIDED WITHOUT WARRANTY OF ANY KIND.
 USE AT YOUR OWN RISK.
 
 The developers are not responsible for:
@@ -260,7 +265,7 @@ The developers are not responsible for:
   - Corrupted game files  
   - Data loss
 
-See LICENSE.txt for full license terms and third-party notices.
+See LICENSE for full license terms and third-party notices.
 
 ═══════════════════════════════════════════════════════════════════════════════
 
