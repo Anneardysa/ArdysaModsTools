@@ -291,11 +291,9 @@ namespace ArdysaModsTools.UI.Controls.Widgets
 #endif
                     }
                 }
-                catch (Exception ex)
+                catch
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"TileCard: SetImage failed: {ex.Message}");
-#endif
+                    // Silently ignore - thumbnail display is non-critical
                 }
             }
 
@@ -323,11 +321,9 @@ namespace ArdysaModsTools.UI.Controls.Widgets
                     SetImage();
                 }
             }
-            catch (Exception ex)
+            catch
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"TileCard: ApplyThumbnailImage failed: {ex.Message}");
-#endif
+                // Silently ignore - thumbnail display is non-critical
             }
         }
 

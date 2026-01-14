@@ -10,9 +10,9 @@ namespace ArdysaModsTools.UI.Controls
     /// </summary>
     public class ModernSearchBox : UserControl
     {
-        private TextBox textBox;
-        private PictureBox searchIcon;
-        private System.Windows.Forms.Timer debounceTimer;
+        private TextBox textBox = null!;
+        private PictureBox searchIcon = null!;
+        private System.Windows.Forms.Timer debounceTimer = null!;
         private string lastSearchText = "";
 
         public event EventHandler<string>? SearchTextChanged;

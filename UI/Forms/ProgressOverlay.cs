@@ -174,7 +174,7 @@ namespace ArdysaModsTools.UI.Forms
                 string tempPath = Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2");
                 var env = await CoreWebView2Environment.CreateAsync(null, tempPath);
                 
-                await _webView.EnsureCoreWebView2Async(env);
+                await _webView!.EnsureCoreWebView2Async(env);
                 _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                 _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
 

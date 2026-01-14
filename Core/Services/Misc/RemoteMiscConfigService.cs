@@ -18,7 +18,7 @@ namespace ArdysaModsTools.Core.Services.Misc
 
         private static RemoteMiscConfig? _cachedConfig;
         private static readonly object _lock = new();
-        private static bool _isLoaded = false;
+
 
         /// <summary>
         /// Gets the current loaded config. Returns null if not yet loaded.
@@ -72,7 +72,6 @@ namespace ArdysaModsTools.Core.Services.Misc
             lock (_lock)
             {
                 _cachedConfig = config;
-                _isLoaded = true;
             }
 
             return config;
@@ -96,7 +95,6 @@ namespace ArdysaModsTools.Core.Services.Misc
                     if (config != null)
                     {
                         _cachedConfig = config;
-                        _isLoaded = true;
                         return config;
                     }
                 }
@@ -218,7 +216,6 @@ namespace ArdysaModsTools.Core.Services.Misc
             lock (_lock)
             {
                 _cachedConfig = null;
-                _isLoaded = false;
             }
         }
     }

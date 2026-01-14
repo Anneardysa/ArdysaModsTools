@@ -206,12 +206,11 @@ namespace ArdysaModsTools.UI.Forms
         {
             foreach (var (hero, setName, thumbUrl) in _selections)
             {
-                bool isDefaultSet = setName.Equals("Default Set", StringComparison.OrdinalIgnoreCase);
-                var item = CreateItemPanel(hero, setName, thumbUrl, isDefaultSet);
+                var item = CreateItemPanel(hero, setName, thumbUrl, false);
                 _itemsPanel.Controls.Add(item);
                 
-                // Load thumbnail async only for non-default sets
-                if (!isDefaultSet && !string.IsNullOrEmpty(thumbUrl))
+                // Load thumbnail async
+                if (!string.IsNullOrEmpty(thumbUrl))
                 {
                     _ = LoadThumbnailAsync(item, thumbUrl);
                 }
@@ -222,7 +221,8 @@ namespace ArdysaModsTools.UI.Forms
 
         private Panel CreateItemPanel(HeroModel hero, string setName, string? thumbUrl, bool isDefaultSet)
         {
-            int panelHeight = isDefaultSet ? 50 : 75;
+            // All items now have thumbnails (default sets are filtered out before showing preview)
+            int panelHeight = 75;
             
             var panel = new Panel
             {
@@ -240,78 +240,46 @@ namespace ArdysaModsTools.UI.Forms
                 e.Graphics.DrawRectangle(pen, 0, 0, panel.Width - 1, panel.Height - 1);
             };
 
-            if (isDefaultSet)
+            // Thumbnail
+            var thumb = new PictureBox
             {
-                // Default set: text only, no thumbnail
-                var heroLabel = new Label
-                {
-                    Text = hero.DisplayName,
-                    Location = new Point(15, 8),
-                    Size = new Size(panel.Width - 30, 20),
-                    ForeColor = Color.FromArgb(150, 150, 150),
-                    Font = new Font("JetBrains Mono", 10F, FontStyle.Bold)
-                };
-                panel.Controls.Add(heroLabel);
+                Size = new Size(65, 65),
+                Location = new Point(5, 5),
+                BackColor = Color.FromArgb(30, 30, 30),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Tag = "thumb"
+            };
+            panel.Controls.Add(thumb);
 
-                var setLabel = new Label
-                {
-                    Text = "Default (No Mod)",
-                    Location = new Point(15, 28),
-                    Size = new Size(panel.Width - 30, 18),
-                    ForeColor = Color.FromArgb(80, 80, 80),
-                    Font = new Font("JetBrains Mono", 8F, FontStyle.Italic)
-                };
-                panel.Controls.Add(setLabel);
-
-                // Resize handler
-                _itemsPanel.Resize += (s, e) =>
-                {
-                    panel.Width = _itemsPanel.ClientSize.Width - 35;
-                    heroLabel.Width = panel.Width - 30;
-                    setLabel.Width = panel.Width - 30;
-                };
-            }
-            else
+            // Hero name
+            var heroLabel = new Label
             {
-                // Custom set: show thumbnail
-                var thumb = new PictureBox
-                {
-                    Size = new Size(65, 65),
-                    Location = new Point(5, 5),
-                    BackColor = Color.FromArgb(30, 30, 30),
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    Tag = "thumb"
-                };
-                panel.Controls.Add(thumb);
+                Text = hero.DisplayName,
+                Location = new Point(80, 12),
+                Size = new Size(panel.Width - 95, 24),
+                ForeColor = Color.White,
+                Font = new Font("JetBrains Mono", 11F, FontStyle.Bold)
+            };
+            panel.Controls.Add(heroLabel);
 
-                var heroLabel = new Label
-                {
-                    Text = hero.DisplayName,
-                    Location = new Point(80, 12),
-                    Size = new Size(panel.Width - 95, 24),
-                    ForeColor = Color.White,
-                    Font = new Font("JetBrains Mono", 11F, FontStyle.Bold)
-                };
-                panel.Controls.Add(heroLabel);
+            // Set name
+            var setLabel = new Label
+            {
+                Text = setName,
+                Location = new Point(80, 38),
+                Size = new Size(panel.Width - 95, 22),
+                ForeColor = Color.FromArgb(0, 255, 255), // Cyan for set name
+                Font = new Font("JetBrains Mono", 9F)
+            };
+            panel.Controls.Add(setLabel);
 
-                var setLabel = new Label
-                {
-                    Text = setName,
-                    Location = new Point(80, 38),
-                    Size = new Size(panel.Width - 95, 22),
-                    ForeColor = Color.FromArgb(0, 255, 255), // Cyan for set name
-                    Font = new Font("JetBrains Mono", 9F)
-                };
-                panel.Controls.Add(setLabel);
-
-                // Resize handler
-                _itemsPanel.Resize += (s, e) =>
-                {
-                    panel.Width = _itemsPanel.ClientSize.Width - 35;
-                    heroLabel.Width = panel.Width - 95;
-                    setLabel.Width = panel.Width - 95;
-                };
-            }
+            // Resize handler
+            _itemsPanel.Resize += (s, e) =>
+            {
+                panel.Width = _itemsPanel.ClientSize.Width - 35;
+                heroLabel.Width = panel.Width - 95;
+                setLabel.Width = panel.Width - 95;
+            };
 
             return panel;
         }

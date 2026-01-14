@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using ArdysaModsTools.Core.DependencyInjection;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -9,8 +11,38 @@ namespace ArdysaModsTools.Core.Services
     public static class FavoritesStore
     {
         private static readonly object _lock = new object();
-        private static readonly string AppFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ArdysaModsTools");
-        private static readonly string FilePath = Path.Combine(AppFolder, "favorites.json");
+        private const string FileName = "favorites.json";
+
+        /// <summary>
+        /// Gets the storage folder path inside the Dota 2 game directory.
+        /// Falls back to AppData if no target path is configured.
+        /// </summary>
+        private static string GetStorageFolder()
+        {
+            try
+            {
+                var configService = ServiceLocator.Get<IConfigService>();
+                var targetPath = configService?.GetLastTargetPath();
+                
+                if (!string.IsNullOrWhiteSpace(targetPath))
+                {
+                    var folder = Path.Combine(targetPath, "game", "_ArdysaMods", "_temp");
+                    Directory.CreateDirectory(folder);
+                    return folder;
+                }
+            }
+            catch
+            {
+                // Fall through to default
+            }
+            
+            // Fallback to AppData
+            var appDataFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 
+                "ArdysaModsTools");
+            Directory.CreateDirectory(appDataFolder);
+            return appDataFolder;
+        }
 
         public static HashSet<string> Load()
         {
@@ -18,9 +50,11 @@ namespace ArdysaModsTools.Core.Services
             {
                 try
                 {
-                    if (!Directory.Exists(AppFolder)) Directory.CreateDirectory(AppFolder);
-                    if (!File.Exists(FilePath)) return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    var json = File.ReadAllText(FilePath);
+                    var folder = GetStorageFolder();
+                    var filePath = Path.Combine(folder, FileName);
+                    
+                    if (!File.Exists(filePath)) return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var json = File.ReadAllText(filePath);
                     var arr = JsonSerializer.Deserialize<string[]>(json);
                     return arr == null ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : new HashSet<string>(arr, StringComparer.OrdinalIgnoreCase);
                 }
@@ -39,10 +73,12 @@ namespace ArdysaModsTools.Core.Services
             {
                 try
                 {
-                    if (!Directory.Exists(AppFolder)) Directory.CreateDirectory(AppFolder);
+                    var folder = GetStorageFolder();
+                    var filePath = Path.Combine(folder, FileName);
+                    
                     var arr = new List<string>(favorites);
                     var json = JsonSerializer.Serialize(arr, new JsonSerializerOptions { WriteIndented = true });
-                    File.WriteAllText(FilePath, json);
+                    File.WriteAllText(filePath, json);
                 }
                 catch
                 {

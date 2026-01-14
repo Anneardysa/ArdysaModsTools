@@ -17,9 +17,12 @@ namespace ArdysaModsTools.Core.Services.Security
         /// <summary>
         /// Gets the archive password for encrypted mod files.
         /// </summary>
+        [Obsolete("Archives no longer require passwords")]
         public static string GetArchivePassword()
         {
+#pragma warning disable CS0618 // Intentional: accessing obsolete property for backward compatibility
             return EnvironmentConfig.ArchivePassword;
+#pragma warning restore CS0618
         }
 
         /// <summary>

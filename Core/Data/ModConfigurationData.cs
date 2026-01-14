@@ -67,7 +67,9 @@ namespace ArdysaModsTools.Core.Data
             if (option == null)
                 return new Dictionary<string, string>();
 
-            return option.Choices.ToDictionary(c => c.Name, c => c.Url);
+            return option.Choices
+                .Where(c => c.Url != null)
+                .ToDictionary(c => c.Name, c => c.Url!);
         }
     }
 }

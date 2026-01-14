@@ -293,12 +293,10 @@ namespace ArdysaModsTools.UI.Forms
                                     }
                                 }
                             }
-                            catch (Exception ex)
-                            {
-#if DEBUG
-                                System.Diagnostics.Debug.WriteLine("[SelectHero] sets copy error: " + ex.Message);
-#endif
-                            }
+                catch
+                {
+                    // Debug logging only in DEBUG builds
+                }
 
                             // fallback if sets empty: attempt to coerce into "Default Set"
                             if (hm.Sets == null || hm.Sets.Count == 0)
@@ -427,11 +425,9 @@ namespace ArdysaModsTools.UI.Forms
                 // Restore previous selections from AppData
                 await RestoreSelectionsAsync();
             }
-            catch (Exception ex)
+            catch
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("SelectHero_Shown error: " + ex);
-#endif
+                // Silently ignore to prevent form crash
             }
         }
 
@@ -523,10 +519,14 @@ namespace ArdysaModsTools.UI.Forms
                 return;
             }
 
-            // Show preview dialog with thumbnails
+            // Show preview dialog with thumbnails (exclude Default Set items)
             var previewItems = new List<(HeroModel hero, string setName, string? thumbnailUrl)>();
             foreach (var (hero, setName) in heroesWithSets)
             {
+                // Skip default sets - they don't need to be shown in preview
+                if (setName.Equals("Default Set", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                
                 // Find thumbnail URL (first image URL in set)
                 string? thumbUrl = null;
                 if (hero.Sets != null && hero.Sets.TryGetValue(setName, out var urls) && urls != null)
@@ -537,6 +537,15 @@ namespace ArdysaModsTools.UI.Forms
                                       u.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)));
                 }
                 previewItems.Add((hero, setName, thumbUrl));
+            }
+
+            // If no custom sets selected, show message and return
+            if (previewItems.Count == 0)
+            {
+                MessageBox.Show("No custom sets selected. Only 'Default Set' entries found.\nSelect at least one custom skin to generate.",
+                    "No Selections", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _isGenerating = false;
+                return;
             }
 
             using (var previewForm = new GenerationPreviewForm(previewItems))
@@ -1106,11 +1115,9 @@ namespace ArdysaModsTools.UI.Forms
                 System.Diagnostics.Debug.WriteLine($"[SelectHero] Selections saved to {settingsPath}");
 #endif
             }
-            catch (Exception ex)
+            catch
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[SelectHero] Failed to save selections: {ex.Message}");
-#endif
+                // Silently ignore save failures
             }
         }
 
@@ -1150,23 +1157,34 @@ namespace ArdysaModsTools.UI.Forms
                 System.Diagnostics.Debug.WriteLine($"[SelectHero] Restored {dict.Count} selections from {settingsPath}");
 #endif
             }
-            catch (Exception ex)
+            catch
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[SelectHero] Failed to restore selections: {ex.Message}");
-#endif
+                // Silently ignore restore failures
             }
         }
 
         /// <summary>
         /// Gets the path to the hero selections settings file.
+        /// Stores in Dota 2 game folder if available, otherwise AppData.
         /// </summary>
-        private static string GetSettingsPath()
+        private string GetSettingsPath()
         {
+            // Try to use Dota 2 game folder
+            var configService = ServiceLocator.GetRequired<IConfigService>();
+            var targetPath = configService.GetLastTargetPath();
+            
+            if (!string.IsNullOrWhiteSpace(targetPath))
+            {
+                var folder = Path.Combine(targetPath, "game", "_ArdysaMods", "_temp");
+                Directory.CreateDirectory(folder);
+                return Path.Combine(folder, "hero_selections.json");
+            }
+            
+            // Fallback to AppData
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var folder = Path.Combine(appData, "ArdysaModsTools");
-            Directory.CreateDirectory(folder);
-            return Path.Combine(folder, "hero_selections.json");
+            var appFolder = Path.Combine(appData, "ArdysaModsTools");
+            Directory.CreateDirectory(appFolder);
+            return Path.Combine(appFolder, "hero_selections.json");
         }
 
         /// <summary>
@@ -1203,11 +1221,9 @@ namespace ArdysaModsTools.UI.Forms
                 System.Diagnostics.Debug.WriteLine("[SelectHero] Hero cache cleanup completed");
 #endif
             }
-            catch (Exception ex)
+            catch
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine($"[SelectHero] Cache cleanup failed: {ex.Message}");
-#endif
+                // Silently ignore cleanup failures
             }
         }
 

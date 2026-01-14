@@ -375,7 +375,7 @@ namespace ArdysaModsTools.UI.Presenters
                 var progress = new Progress<(int current, int total, string heroName)>(async p =>
                 {
                     string substatus = $"Hero {p.current} of {p.total}";
-                    await _view.UpdateProgressAsync(-1, null, substatus); // -1 means don't update percent
+                    await _view.UpdateProgressAsync(-1, string.Empty, substatus); // -1 means don't update percent
                 });
 
                 // Create stage progress reporter (for overall progress: 0-100%)

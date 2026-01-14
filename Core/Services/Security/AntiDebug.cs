@@ -52,7 +52,9 @@ namespace ArdysaModsTools.Core.Services.Security
         #endregion
 
         private static System.Threading.Timer? _periodicCheckTimer;
+#pragma warning disable CS0169 // Field is used in Release builds only
         private static Action? _onDebuggerDetected;
+#pragma warning restore CS0169
 
         /// <summary>
         /// Performs comprehensive debugger detection.

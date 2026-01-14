@@ -960,7 +960,7 @@ namespace ArdysaModsTools
             }
         }
 
-        private async Task HandleInstallResultOnUiThread(bool success, bool isUpToDate, string targetPath, string appPath, IProgress<int> progress)
+        private async Task HandleInstallResultOnUiThread(bool success, bool isUpToDate, string targetPath, string appPath, IProgress<int>? progress)
         {
             if (isUpToDate)
             {
