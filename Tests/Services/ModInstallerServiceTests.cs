@@ -59,13 +59,11 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public void Constructor_WithNullLogger_ThrowsArgumentNullException()
+        public void Constructor_WithNullLogger_CreatesInstanceWithNullLogger()
         {
-            // Arrange & Act & Assert
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                new ModInstallerService(null!);
-            });
+            // Logger is optional (nullable parameter)
+            var service = new ModInstallerService(null);
+            Assert.That(service, Is.Not.Null);
         }
 
         #endregion

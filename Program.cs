@@ -130,6 +130,8 @@ namespace ArdysaModsTools
                     return; // Exit immediately
                 }
 
+                // Use classic WinForms MainForm
+                // Note: WebView2 dashboard (MainFormWebView) requires more integration work
                 Application.Run(new MainForm());
             }
         }

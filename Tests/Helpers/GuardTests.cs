@@ -82,13 +82,14 @@ namespace ArdysaModsTools.Tests.Helpers
         }
 
         [Test]
-        public void NotNullOrEmpty_WithWhitespace_ThrowsArgumentException()
+        public void NotNullOrEmpty_WithWhitespace_DoesNotThrow()
         {
-            // Arrange
+            // Arrange - NotNullOrEmpty only checks null/empty, not whitespace
+            // Use NotNullOrWhiteSpace for whitespace validation
             string whitespace = "   ";
 
             // Act & Assert
-            Assert.Throws<ArgumentException>(() => Guard.NotNullOrEmpty(whitespace));
+            Assert.DoesNotThrow(() => Guard.NotNullOrEmpty(whitespace));
         }
 
         [Test]
@@ -113,17 +114,17 @@ namespace ArdysaModsTools.Tests.Helpers
         }
 
         [Test]
-        public void GreaterThan_WithValueEqual_ThrowsArgumentException()
+        public void GreaterThan_WithValueEqual_ThrowsArgumentOutOfRangeException()
         {
             // Act & Assert
-            Assert.Throws<ArgumentException>(() => Guard.GreaterThan(5, 5));
+            Assert.Throws<ArgumentOutOfRangeException>(() => Guard.GreaterThan(5, 5));
         }
 
         [Test]
-        public void GreaterThan_WithValueLess_ThrowsArgumentException()
+        public void GreaterThan_WithValueLess_ThrowsArgumentOutOfRangeException()
         {
             // Act & Assert
-            Assert.Throws<ArgumentException>(() => Guard.GreaterThan(3, 5));
+            Assert.Throws<ArgumentOutOfRangeException>(() => Guard.GreaterThan(3, 5));
         }
 
         #endregion

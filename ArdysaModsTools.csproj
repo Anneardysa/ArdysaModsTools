@@ -187,6 +187,9 @@
     <Content Include="Assets\Html\progress.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="Assets\Html\hero_gallery.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     
     <!-- Fonts -->
     <Content Include="Assets\Fonts\*.ttf">

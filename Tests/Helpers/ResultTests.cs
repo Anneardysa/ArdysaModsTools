@@ -15,7 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using NUnit.Framework;
-using ArdysaModsTools.Core.Helpers;
+using ArdysaModsTools.Core.Models;
 using System;
 
 namespace ArdysaModsTools.Tests.Helpers
@@ -35,7 +35,6 @@ namespace ArdysaModsTools.Tests.Helpers
             Assert.That(result.IsSuccess, Is.True);
             Assert.That(result.IsFailure, Is.False);
             Assert.That(result.Value, Is.EqualTo(42));
-            Assert.That(result.Error, Is.Null);
         }
 
         [Test]
@@ -69,18 +68,19 @@ namespace ArdysaModsTools.Tests.Helpers
         }
 
         [Test]
-        public void Failure_WithException_CreatesFailedResult()
+        public void Failure_WithErrorCode_CreatesFailedResultWithCode()
         {
             // Arrange
-            var ex = new InvalidOperationException("Test exception");
+            string errorMessage = "Something went wrong";
+            string errorCode = "ERR_001";
 
             // Act
-            var result = Result<int>.Failure(ex);
+            var result = Result<int>.Failure(errorMessage, errorCode);
 
             // Assert
             Assert.That(result.IsFailure, Is.True);
-            Assert.That(result.Error, Does.Contain("Test exception"));
-            Assert.That(result.Exception, Is.SameAs(ex));
+            Assert.That(result.Error, Is.EqualTo(errorMessage));
+            Assert.That(result.ErrorCode, Is.EqualTo(errorCode));
         }
 
         [Test]
@@ -93,36 +93,50 @@ namespace ArdysaModsTools.Tests.Helpers
             Assert.Throws<InvalidOperationException>(() => _ = result.Value);
         }
 
+        [Test]
+        public void Success_AccessingError_ThrowsInvalidOperationException()
+        {
+            // Arrange
+            var result = Result<int>.Success(42);
+
+            // Act & Assert
+            Assert.Throws<InvalidOperationException>(() => _ = result.Error);
+        }
+
         #endregion
 
-        #region Map Tests
+        #region Match Tests
 
         [Test]
-        public void Map_OnSuccess_TransformsValue()
+        public void Match_OnSuccess_CallsOnSuccessFunction()
         {
             // Arrange
             var result = Result<int>.Success(10);
 
             // Act
-            var mapped = result.Map(x => x * 2);
+            var matched = result.Match(
+                onSuccess: x => $"Value is {x}",
+                onFailure: e => $"Error: {e}"
+            );
 
             // Assert
-            Assert.That(mapped.IsSuccess, Is.True);
-            Assert.That(mapped.Value, Is.EqualTo(20));
+            Assert.That(matched, Is.EqualTo("Value is 10"));
         }
 
         [Test]
-        public void Map_OnFailure_PreservesError()
+        public void Match_OnFailure_CallsOnFailureFunction()
         {
             // Arrange
             var result = Result<int>.Failure("original error");
 
             // Act
-            var mapped = result.Map(x => x * 2);
+            var matched = result.Match(
+                onSuccess: x => $"Value is {x}",
+                onFailure: e => $"Error: {e}"
+            );
 
             // Assert
-            Assert.That(mapped.IsFailure, Is.True);
-            Assert.That(mapped.Error, Is.EqualTo("original error"));
+            Assert.That(matched, Is.EqualTo("Error: original error"));
         }
 
         #endregion
@@ -231,6 +245,35 @@ namespace ArdysaModsTools.Tests.Helpers
         }
 
         #endregion
+
+        #region ToString Tests
+
+        [Test]
+        public void ToString_OnSuccess_ReturnsSuccessString()
+        {
+            // Arrange
+            var result = Result<int>.Success(42);
+
+            // Act
+            var str = result.ToString();
+
+            // Assert
+            Assert.That(str, Is.EqualTo("Success(42)"));
+        }
+
+        [Test]
+        public void ToString_OnFailure_ReturnsFailureString()
+        {
+            // Arrange
+            var result = Result<int>.Failure("test error");
+
+            // Act
+            var str = result.ToString();
+
+            // Assert
+            Assert.That(str, Is.EqualTo("Failure(test error)"));
+        }
+
+        #endregion
     }
 }
-

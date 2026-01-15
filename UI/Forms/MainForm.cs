@@ -1922,19 +1922,31 @@ namespace ArdysaModsTools
                 return;
             }
 
-            // Show modal, similar to MiscForm pattern
-            using (var f = new ArdysaModsTools.UI.Forms.SelectHero())
+            // Try modern WebView2 gallery first, fallback to classic if it fails
+            DialogResult dialogResult;
+            using (var f = new ArdysaModsTools.UI.Forms.HeroGalleryForm())
             {
                 f.StartPosition = FormStartPosition.CenterParent;
-                var dialogResult = f.ShowDialog(this);
+                dialogResult = f.ShowDialog(this);
                 
-                // If generation was successful, refresh mod status and check if patching needed
-                if (dialogResult == DialogResult.OK)
+                // If WebView2 failed, fallback to classic SelectHero
+                if (dialogResult == DialogResult.Abort)
                 {
-                    await CheckModsStatus();
-                    
-                    await ShowPatchRequiredIfNeededAsync("Custom ModsPack installed successfully!");
+                    _logger?.Log("WebView2 failed, falling back to classic SelectHero...");
+                    using (var classic = new ArdysaModsTools.UI.Forms.SelectHero())
+                    {
+                        classic.StartPosition = FormStartPosition.CenterParent;
+                        dialogResult = classic.ShowDialog(this);
+                    }
                 }
+            }
+            
+            // If generation was successful, refresh mod status and check if patching needed
+            if (dialogResult == DialogResult.OK)
+            {
+                await CheckModsStatus();
+                
+                await ShowPatchRequiredIfNeededAsync("Custom ModsPack installed successfully!");
             }
         }
 
@@ -2038,29 +2050,34 @@ namespace ArdysaModsTools
             // Border removed - no custom drawing
         }
 
-        // Window dragging
+        // P/Invoke for reliable window dragging
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+
+        private const int WM_NCLBUTTONDOWN = 0xA1;
+        private const int HTCAPTION = 0x2;
+
+        // Window dragging - using Windows API for reliable behavior
         private void HeaderPanel_MouseDown(object? sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
-                _dragging = true;
-                _dragStart = e.Location;
+                ReleaseCapture();
+                SendMessage(this.Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
             }
         }
 
         private void HeaderPanel_MouseMove(object? sender, MouseEventArgs e)
         {
-            if (_dragging)
-            {
-                Point newLocation = PointToScreen(e.Location);
-                Location = new Point(newLocation.X - _dragStart.X - headerPanel.Left,
-                                     newLocation.Y - _dragStart.Y - headerPanel.Top);
-            }
+            // No longer needed - handled by Windows API
         }
 
         private void HeaderPanel_MouseUp(object? sender, MouseEventArgs e)
         {
-            _dragging = false;
+            // No longer needed - handled by Windows API
         }
 
         // Close button

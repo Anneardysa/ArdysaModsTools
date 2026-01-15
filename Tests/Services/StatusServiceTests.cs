@@ -59,12 +59,12 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public void Constructor_WithNullLogger_ThrowsArgumentNullException()
+        public void Constructor_WithNullLogger_CreatesInstanceWithNullLogger()
         {
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                new StatusService(null!);
-            });
+            // Logger is optional (nullable parameter)
+            var service = new StatusService(null);
+            Assert.That(service, Is.Not.Null);
+            service.Dispose();
         }
 
         #endregion

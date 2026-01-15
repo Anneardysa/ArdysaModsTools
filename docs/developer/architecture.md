@@ -8,11 +8,17 @@ AMT 2.0 follows a **layered architecture** with the **MVP (Model-View-Presenter)
 
 ```mermaid
 graph TB
-    subgraph UI["UI Layer (WinForms)"]
-        MF[MainForm]
-        SH[SelectHero]
-        MiscF[MiscForm]
-        PO[ProgressOverlay]
+    subgraph UI["UI Layer"]
+        subgraph WinForms["WinForms"]
+            MF[MainForm]
+            SH[SelectHero]
+            MiscF[MiscForm]
+            PO[ProgressOverlay]
+        end
+        subgraph WebView2["WebView2 (Tailwind CSS)"]
+            HGF[HeroGalleryForm]
+            POW[ProgressOverlay HTML]
+        end
     end
 
     subgraph Presenters["Presenter Layer"]
@@ -63,11 +69,83 @@ graph TB
 
 | Layer         | Purpose                      | Key Components                              |
 | ------------- | ---------------------------- | ------------------------------------------- |
-| **UI**        | User interaction, display    | Forms, Controls, Dialogs                    |
+| **UI**        | User interaction, display    | Forms, Controls, Dialogs, WebView2 HTML     |
 | **Presenter** | Business logic, coordination | MainFormPresenter, SelectHeroPresenter      |
 | **Service**   | Domain operations            | ModInstaller, HeroGeneration, StatusService |
 | **VPK**       | File operations              | Extractor, Recompiler, Replacer             |
 | **External**  | Native tools                 | HLExtract.exe, vpk.exe                      |
+
+---
+
+## WebView2 UI Pattern
+
+The project uses **WebView2** with **Tailwind CSS** for modern UI components:
+
+### Components Using WebView2
+
+| Component           | HTML File           | Purpose                         |
+| ------------------- | ------------------- | ------------------------------- |
+| **HeroGalleryForm** | `hero_gallery.html` | Hero selection with sets grid   |
+| **ProgressOverlay** | `progress.html`     | Progress bar and status updates |
+
+### C# ↔ JavaScript Interop
+
+**JavaScript → C# (Messages):**
+
+```javascript
+// From JavaScript
+window.chrome.webview.postMessage({ type: "generate", data: { ... } });
+window.chrome.webview.postMessage({ type: "close" });
+window.chrome.webview.postMessage({ type: "startDrag" });
+```
+
+**C# → JavaScript (Script Execution):**
+
+```csharp
+// From C#
+await _webView.CoreWebView2.ExecuteScriptAsync("loadHeroes(jsonData)");
+await _webView.CoreWebView2.ExecuteScriptAsync("showAlert('Title', 'Message', 'success')");
+await _webView.CoreWebView2.ExecuteScriptAsync("setVersion('2.0.16')");
+```
+
+### Message Handling Pattern
+
+```csharp
+private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+{
+    var message = JsonSerializer.Deserialize<JsonElement>(e.WebMessageAsJson);
+    var type = message.GetProperty("type").GetString();
+
+    switch (type)
+    {
+        case "generate":
+            await HandleGenerateAsync();
+            break;
+        case "close":
+            this.Close();
+            break;
+        case "startDrag":
+            ReleaseCapture();
+            SendMessage(this.Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
+            break;
+    }
+}
+```
+
+### Borderless Window Dragging
+
+For borderless WebView2 forms, window dragging is implemented via Windows API:
+
+```csharp
+[DllImport("user32.dll")]
+private static extern bool ReleaseCapture();
+
+[DllImport("user32.dll")]
+private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+
+private const int WM_NCLBUTTONDOWN = 0xA1;
+private const int HTCAPTION = 0x2;
+```
 
 ---
 

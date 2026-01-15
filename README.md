@@ -3,6 +3,7 @@
 <div align="center">
 
 ![Version](https://img.shields.io/badge/Version-2.0-00d4ff?style=for-the-badge&logo=v)
+![Build](https://img.shields.io/github/actions/workflow/status/Anneardysa/ArdysaModsTools/ci.yml?branch=main&style=for-the-badge&logo=github)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
 ![License](https://img.shields.io/badge/License-GPL%20v3-blue?style=for-the-badge)

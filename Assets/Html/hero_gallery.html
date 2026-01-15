@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Hero Selection</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script>
+         tailwind.config = {
+            theme: {
+               extend: {
+                  colors: {
+                     amt: {
+                        bg: "#000000",
+                        "bg-secondary": "#050505",
+                        card: "rgba(10, 10, 10, 0.9)",
+                        "card-hover": "rgba(20, 20, 20, 0.95)",
+                        border: "#333333",
+                        "border-light": "#222222",
+                        accent: "#00d4ff",
+                        "accent-dim": "rgba(0, 212, 255, 0.15)",
+                        focus: "#f59e0b",
+                     },
+                  },
+                  fontFamily: {
+                     mono: ["JetBrains Mono", "Consolas", "monospace"],
+                  },
+                  animation: {
+                     "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+                     "slide-up": "slide-up 0.3s ease-out",
+                     "fade-in": "fade-in 0.2s ease-out",
+                     "scale-in": "scale-in 0.2s ease-out",
+                     "slide-left": "slide-left 0.25s ease-out",
+                     "slide-right": "slide-right 0.25s ease-out",
+                     wave: "wave 20s linear infinite",
+                  },
+                  keyframes: {
+                     "glow-pulse": {
+                        "0%, 100%": { boxShadow: "0 0 5px rgba(0, 212, 255, 0.3)" },
+                        "50%": { boxShadow: "0 0 20px rgba(0, 212, 255, 0.6)" },
+                     },
+                     "slide-up": {
+                        "0%": { opacity: "0", transform: "translateY(10px)" },
+                        "100%": { opacity: "1", transform: "translateY(0)" },
+                     },
+                     "fade-in": {
+                        "0%": { opacity: "0" },
+                        "100%": { opacity: "1" },
+                     },
+                     "scale-in": {
+                        "0%": { opacity: "0", transform: "scale(0.95)" },
+                        "100%": { opacity: "1", transform: "scale(1)" },
+                     },
+                     "slide-left": {
+                        "0%": { opacity: "0", transform: "translateX(30px)" },
+                        "100%": { opacity: "1", transform: "translateX(0)" },
+                     },
+                     "slide-right": {
+                        "0%": { opacity: "0", transform: "translateX(-30px)" },
+                        "100%": { opacity: "1", transform: "translateX(0)" },
+                     },
+                     wave: {
+                        "0%": { transform: "translateX(0)" },
+                        "100%": { transform: "translateX(-50%)" },
+                     },
+                  },
+               },
+            },
+         };
+      </script>
+      <style>
+         /* Custom scrollbar */
+         ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+         }
+         ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+         }
+         ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+         }
+         ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+         }
+
+         /* Glass effect */
+         .glass {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+         }
+
+         /* Card glow on selection */
+         .hero-card.selected > div {
+            box-shadow: 0 0 0 2px #00d4ff, 0 0 20px rgba(0, 212, 255, 0.3);
+         }
+
+         /* Hover lift effect */
+         .hero-card {
+            transition: all 0.2s ease-out;
+         }
+         .hero-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+         }
+
+         /* Category filter pill active state - white theme */
+         .filter-pill.active {
+            background: #ffffff;
+            color: black;
+            font-weight: 600;
+            border-color: #ffffff;
+         }
+
+         /* Search input glow on focus - white */
+         .search-input:focus {
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+            border-color: #ffffff;
+         }
+
+         /* Selection checkmark */
+         .check-indicator {
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.15s ease-out;
+         }
+         .hero-card.selected .check-indicator {
+            opacity: 1;
+            transform: scale(1);
+         }
+
+         /* Set tile in modal */
+         .set-tile {
+            transition: all 0.2s ease-out;
+         }
+         .set-tile:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.2);
+         }
+         .set-tile.selected {
+            box-shadow: 0 0 0 2px #00d4ff, 0 0 15px rgba(0, 212, 255, 0.4);
+         }
+         .set-tile.focused {
+            box-shadow: 0 0 0 2px #f59e0b;
+         }
+
+         /* Modal backdrop */
+         .modal-backdrop {
+            background: rgba(0, 0, 0, 0.85);
+         }
+
+         /* Navigation arrows */
+         .nav-arrow {
+            transition: all 0.2s;
+         }
+         .nav-arrow:hover {
+            background: rgba(255, 255, 255, 0.1);
+         }
+         .nav-arrow:active {
+            transform: scale(0.95);
+         }
+      </style>
+   </head>
+
+   <body class="bg-amt-bg text-white font-mono min-h-screen">
+      <!-- Custom Title Bar (for borderless window) -->
+      <div
+         id="titleBar"
+         class="fixed top-0 left-0 right-0 z-50 h-10 bg-amt-bg border-b border-amt-border flex items-center justify-between px-4 select-none cursor-move"
+         onmousedown="startDrag(event)"
+      >
+         <div class="flex items-center gap-3">
+            <span class="text-sm font-semibold text-gray-300">Skin Selector</span>
+            <span class="text-xs text-gray-600">Beta</span>
+         </div>
+         <button
+            onclick="requestClose()"
+            class="w-8 h-8 flex items-center justify-center rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all"
+            onmousedown="event.stopPropagation()"
+         >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+               />
+            </svg>
+         </button>
+      </div>
+
+      <!-- Header with search and filters -->
+      <header class="sticky top-10 z-40 glass bg-amt-bg/90 border-b border-amt-border px-6 py-4">
+         <div class="flex flex-col gap-4">
+            <!-- Top row: Search and action buttons -->
+            <div class="flex items-center gap-4">
+               <!-- Search -->
+               <div class="relative flex-1 max-w-md">
+                  <svg
+                     class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                     />
+                  </svg>
+                  <input
+                     type="text"
+                     id="searchInput"
+                     placeholder="Search heroes..."
+                     class="search-input w-full bg-amt-bg-secondary border border-amt-border rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-amt-accent transition-all"
+                  />
+               </div>
+
+               <!-- Selection counter -->
+               <div class="flex items-center gap-2 text-sm text-gray-400">
+                  <span id="selectionCount" class="text-white font-bold">0</span>
+                  <span>selected</span>
+               </div>
+
+               <!-- Action buttons -->
+               <div class="flex items-center gap-2 ml-auto">
+                  <button
+                     id="clearAllBtn"
+                     class="px-4 py-2 text-sm text-gray-400 hover:text-white border border-amt-border hover:border-gray-500 rounded-lg transition-all"
+                  >
+                     Clear All
+                  </button>
+                  <button
+                     id="generateBtn"
+                     class="px-6 py-2.5 text-sm font-semibold bg-white text-black rounded-lg hover:bg-gray-200 transition-all"
+                  >
+                     Generate ModsPack
+                  </button>
+               </div>
+            </div>
+
+            <!-- Category filter pills -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-1">
+               <button
+                  class="filter-pill active px-4 py-1.5 text-xs uppercase tracking-wider rounded-full border border-amt-border hover:border-amt-accent transition-all whitespace-nowrap"
+                  data-category="all"
+               >
+                  All Heroes
+               </button>
+               <button
+                  class="filter-pill px-4 py-1.5 text-xs uppercase tracking-wider text-gray-400 rounded-full border border-amt-border hover:border-amt-accent hover:text-white transition-all whitespace-nowrap flex items-center gap-1.5"
+                  data-category="str"
+               >
+                  <img
+                     src="https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/icons/hero_strength.png"
+                     class="w-4 h-4"
+                     alt="Strength"
+                  />
+                  Strength
+               </button>
+               <button
+                  class="filter-pill px-4 py-1.5 text-xs uppercase tracking-wider text-gray-400 rounded-full border border-amt-border hover:border-amt-accent hover:text-white transition-all whitespace-nowrap flex items-center gap-1.5"
+                  data-category="agi"
+               >
+                  <img
+                     src="https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/icons/hero_agility.png"
+                     class="w-4 h-4"
+                     alt="Agility"
+                  />
+                  Agility
+               </button>
+               <button
+                  class="filter-pill px-4 py-1.5 text-xs uppercase tracking-wider text-gray-400 rounded-full border border-amt-border hover:border-amt-accent hover:text-white transition-all whitespace-nowrap flex items-center gap-1.5"
+                  data-category="int"
+               >
+                  <img
+                     src="https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/icons/hero_intelligence.png"
+                     class="w-4 h-4"
+                     alt="Intelligence"
+                  />
+                  Intelligence
+               </button>
+               <button
+                  class="filter-pill px-4 py-1.5 text-xs uppercase tracking-wider text-gray-400 rounded-full border border-amt-border hover:border-amt-accent hover:text-white transition-all whitespace-nowrap flex items-center gap-1.5"
+                  data-category="universal"
+               >
+                  <img
+                     src="https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/icons/hero_universal.png"
+                     class="w-4 h-4"
+                     alt="Universal"
+                  />
+                  Universal
+               </button>
+               <div class="flex-1"></div>
+               <button
+                  class="filter-pill px-4 py-1.5 text-xs uppercase tracking-wider text-yellow-500 rounded-full border border-amt-border hover:border-yellow-500 transition-all whitespace-nowrap"
+                  data-category="favorites"
+               >
+                  ⭐ Favorites
+               </button>
+            </div>
+         </div>
+      </header>
+
+      <!-- Hero Grid -->
+      <main class="p-6 pb-20 pt-16">
+         <div
+            id="heroGrid"
+            class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3"
+         ></div>
+
+         <!-- Empty state -->
+         <div
+            id="emptyState"
+            class="hidden flex-col items-center justify-center py-20 text-gray-500"
+         >
+            <svg
+               class="w-16 h-16 mb-4 opacity-50"
+               fill="none"
+               stroke="currentColor"
+               viewBox="0 0 24 24"
+            >
+               <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1"
+                  d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+               />
+            </svg>
+            <p class="text-lg">No heroes found</p>
+            <p class="text-sm mt-1">Try adjusting your search or filters</p>
+         </div>
+      </main>
+
+      <!-- Set Selection Modal -->
+      <div
+         id="setModal"
+         class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4"
+      >
+         <!-- Modal wrapper with arrows -->
+         <div class="flex items-center justify-center gap-4 max-w-5xl w-full">
+            <!-- Left Arrow -->
+            <button
+               id="prevHeroBtn"
+               class="nav-arrow flex-shrink-0 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white transition-all"
+            >
+               <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                     stroke-width="2"
+                     d="M15 19l-7-7 7-7"
+                  />
+               </svg>
+            </button>
+
+            <!-- Modal container -->
+            <div
+               class="bg-amt-bg border border-amt-border rounded-xl flex-1 max-w-4xl max-h-[90vh] overflow-hidden animate-scale-in"
+            >
+               <!-- Modal header -->
+               <div class="flex items-center justify-between px-6 py-4 border-b border-amt-border">
+                  <div class="flex items-center gap-4">
+                     <img
+                        id="modalHeroImg"
+                        src=""
+                        alt=""
+                        class="w-14 h-14 aspect-square rounded-lg object-cover"
+                     />
+                     <div>
+                        <h2 id="modalHeroName" class="text-lg font-bold"></h2>
+                        <p class="text-xs text-gray-500">
+                           Use ↑↓ to browse sets, Enter to select, ←→ to change hero
+                        </p>
+                     </div>
+                  </div>
+                  <button
+                     onclick="closeModal()"
+                     class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all"
+                  >
+                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                           stroke-width="2"
+                           d="M6 18L18 6M6 6l12 12"
+                        />
+                     </svg>
+                  </button>
+               </div>
+
+               <!-- Sets grid -->
+               <div
+                  id="modalSetsGrid"
+                  class="p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto"
+               ></div>
+
+               <!-- Modal footer -->
+               <div class="flex items-center justify-between px-6 py-4 border-t border-amt-border">
+                  <button
+                     onclick="deselectHero()"
+                     class="px-4 py-2 text-sm text-gray-400 hover:text-white border border-amt-border hover:border-gray-500 rounded-lg transition-all"
+                  >
+                     Remove Selection
+                  </button>
+                  <button
+                     onclick="confirmAndClose()"
+                     class="px-6 py-2.5 text-sm font-semibold bg-white text-black rounded-lg hover:bg-gray-200 transition-all"
+                  >
+                     Done
+                  </button>
+               </div>
+            </div>
+
+            <!-- Right Arrow -->
+            <button
+               id="nextHeroBtn"
+               class="nav-arrow flex-shrink-0 w-10 h-10 flex items-center justify-center text-gray-400 hover:text-white transition-all"
+            >
+               <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                     stroke-width="2"
+                     d="M9 5l7 7-7 7"
+                  />
+               </svg>
+            </button>
+         </div>
+      </div>
+      <!-- Footer status bar -->
+      <footer
+         class="fixed bottom-0 left-0 right-0 glass bg-amt-bg/95 border-t border-amt-border px-6 py-3 z-30"
+      >
+         <div
+            class="flex items-center justify-between text-xs text-gray-500 uppercase tracking-wider"
+         >
+            <span id="statusText">Ready</span>
+            <span id="versionText">version ...</span>
+         </div>
+      </footer>
+
+      <!-- Custom Alert Modal -->
+      <div id="alertModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeAlert()"></div>
+         <div
+            class="relative bg-amt-bg border border-amt-border rounded-xl p-6 max-w-md mx-4 shadow-2xl animate-fade-in"
+         >
+            <div class="flex items-start gap-4">
+               <!-- Icon container - changes based on type -->
+               <div
+                  id="alertIconContainer"
+                  class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+               >
+                  <!-- Success icon (checkmark) -->
+                  <svg
+                     id="alertIconSuccess"
+                     class="hidden w-5 h-5 text-green-400"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 13l4 4L19 7"
+                     />
+                  </svg>
+                  <!-- Warning icon (triangle) -->
+                  <svg
+                     id="alertIconWarning"
+                     class="hidden w-5 h-5 text-orange-400"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                     />
+                  </svg>
+                  <!-- Info icon (default) -->
+                  <svg
+                     id="alertIconInfo"
+                     class="hidden w-5 h-5 text-amt-accent"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                     />
+                  </svg>
+               </div>
+               <div class="flex-1">
+                  <h3 id="alertTitle" class="text-lg font-semibold text-white mb-2">Alert</h3>
+                  <p
+                     id="alertMessage"
+                     class="text-sm text-gray-400 leading-relaxed whitespace-pre-line"
+                  ></p>
+               </div>
+            </div>
+            <div class="flex justify-end mt-6">
+               <button
+                  id="alertOkButton"
+                  onclick="closeAlert()"
+                  class="px-6 py-2 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition-colors"
+               >
+                  OK
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <script>
+         // ============================================
+         // Data & State
+         // ============================================
+         let heroes = [];
+         let filteredHeroes = []; // Currently visible heroes after filtering
+         let selections = {};
+         let favorites = new Set();
+         let currentFilter = "all";
+         let searchQuery = "";
+         let currentModalHeroId = null;
+         let focusedSetIndex = 0;
+
+         // ============================================
+         // C# Interop Functions
+         // ============================================
+         function loadHeroes(heroesJson) {
+            heroes = typeof heroesJson === "string" ? JSON.parse(heroesJson) : heroesJson;
+            renderHeroes();
+            updateStatus(`Loaded ${heroes.length} heroes`);
+         }
+
+         function loadSelections(selectionsJson) {
+            selections =
+               typeof selectionsJson === "string" ? JSON.parse(selectionsJson) : selectionsJson;
+            updateSelectionCount();
+            renderHeroes();
+         }
+
+         function loadFavorites(favoritesArray) {
+            favorites = new Set(
+               typeof favoritesArray === "string" ? JSON.parse(favoritesArray) : favoritesArray
+            );
+            renderHeroes();
+         }
+
+         let shouldCloseFormOnAlert = false;
+
+         function showAlert(title, message, type = "info", closeFormAfter = false) {
+            document.getElementById("alertTitle").textContent = title;
+            document.getElementById("alertMessage").textContent = message;
+
+            // Hide all icons first
+            document.getElementById("alertIconSuccess").classList.add("hidden");
+            document.getElementById("alertIconWarning").classList.add("hidden");
+            document.getElementById("alertIconInfo").classList.add("hidden");
+
+            // Show the appropriate icon and set container color
+            const container = document.getElementById("alertIconContainer");
+            container.className =
+               "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0";
+
+            if (type === "success") {
+               document.getElementById("alertIconSuccess").classList.remove("hidden");
+               container.classList.add("bg-green-500/20");
+            } else if (type === "warning") {
+               document.getElementById("alertIconWarning").classList.remove("hidden");
+               container.classList.add("bg-orange-500/20");
+            } else {
+               document.getElementById("alertIconInfo").classList.remove("hidden");
+               container.classList.add("bg-amt-accent/20");
+            }
+
+            shouldCloseFormOnAlert = closeFormAfter;
+            document.getElementById("alertModal").classList.remove("hidden");
+         }
+
+         function closeAlert() {
+            document.getElementById("alertModal").classList.add("hidden");
+            // Notify C# that alert was dismissed
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "alertDismissed" });
+            }
+         }
+
+         function updateStatus(text) {
+            document.getElementById("statusText").textContent = text;
+         }
+
+         function setVersion(version) {
+            document.getElementById("versionText").textContent = `version ${version}`;
+         }
+
+         // ============================================
+         // Attribute Helpers
+         // ============================================
+         function matchesCategory(heroAttr, category) {
+            if (category === "all") return true;
+            if (category === "favorites") return false;
+            const a = (heroAttr || "").toLowerCase();
+            if (category === "str") return a === "str" || a === "strength";
+            if (category === "agi") return a === "agi" || a === "agility";
+            if (category === "int") return a === "int" || a === "intelligence";
+            if (category === "universal") return a === "universal" || a === "all" || a === "";
+            return true;
+         }
+
+         // ============================================
+         // Rendering
+         // ============================================
+         function renderHeroes() {
+            const grid = document.getElementById("heroGrid");
+            const emptyState = document.getElementById("emptyState");
+
+            filteredHeroes = heroes.filter((hero) => {
+               if (currentFilter === "favorites") {
+                  if (!favorites.has(hero.id)) return false;
+               } else if (currentFilter !== "all") {
+                  if (!matchesCategory(hero.attribute, currentFilter)) return false;
+               }
+
+               if (searchQuery) {
+                  const q = searchQuery.toLowerCase();
+                  if (
+                     !hero.name?.toLowerCase().includes(q) &&
+                     !hero.displayName?.toLowerCase().includes(q)
+                  ) {
+                     return false;
+                  }
+               }
+               return true;
+            });
+
+            if (filteredHeroes.length === 0) {
+               grid.classList.add("hidden");
+               emptyState.classList.remove("hidden");
+               emptyState.classList.add("flex");
+               return;
+            } else {
+               grid.classList.remove("hidden");
+               emptyState.classList.add("hidden");
+               emptyState.classList.remove("flex");
+            }
+
+            grid.innerHTML = filteredHeroes
+               .map((hero, index) => {
+                  const isSelected = selections[hero.id] !== undefined && selections[hero.id] >= 0;
+                  const isFavorite = favorites.has(hero.id);
+                  const selectedSetIndex = isSelected ? selections[hero.id] : -1;
+                  const selectedSet = isSelected && hero.sets ? hero.sets[selectedSetIndex] : null;
+                  const hasSets = hero.sets && hero.sets.length > 0;
+
+                  let displayThumb = hero.thumbnail;
+                  if (isSelected && selectedSet && selectedSet.thumbnailUrl) {
+                     displayThumb = selectedSet.thumbnailUrl;
+                  }
+
+                  return `
+               <div class="hero-card animate-fade-in ${isSelected ? "selected" : ""}" 
+                  data-hero-id="${hero.id}"
+                  style="animation-delay: ${Math.min(index * 15, 200)}ms">
+                  
+                  <div class="relative bg-amt-card rounded-xl overflow-hidden border border-amt-border hover:border-amt-accent/50 transition-all cursor-pointer group"
+                       onclick="openHeroModal('${hero.id}')">
+                     
+                     <div class="relative aspect-square overflow-hidden">
+                        <img src="${displayThumb || ""}" 
+                             alt="${hero.displayName || hero.name}"
+                             class="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-110"
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23111%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23333%22 font-size=%2212%22>?</text></svg>'" />
+                        
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                        
+                        <div class="check-indicator absolute top-1.5 right-1.5 w-5 h-5 bg-amt-accent rounded-full flex items-center justify-center">
+                           <svg class="w-3 h-3 text-black" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                           </svg>
+                        </div>
+
+                        <button class="absolute top-1.5 left-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 transition-all opacity-0 group-hover:opacity-100"
+                                onclick="event.stopPropagation(); toggleFavorite('${hero.id}')">
+                           <span class="text-xs ${
+                              isFavorite ? "text-yellow-400" : "text-gray-400"
+                           }">${isFavorite ? "★" : "☆"}</span>
+                        </button>
+
+                        <div class="absolute bottom-0 left-0 right-0 p-2">
+                           <h3 class="text-xs font-medium truncate leading-tight">${
+                              hero.displayName || hero.name
+                           }</h3>
+                           ${
+                              isSelected && selectedSet
+                                 ? `<p class="text-[10px] text-amt-accent truncate">${selectedSet.name}</p>`
+                                 : hasSets
+                                 ? `<p class="text-[10px] text-gray-500">${hero.sets.length} set${
+                                      hero.sets.length > 1 ? "s" : ""
+                                   }</p>`
+                                 : ""
+                           }
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            `;
+               })
+               .join("");
+         }
+
+         // ============================================
+         // Modal Functions
+         // ============================================
+         function openHeroModal(heroId) {
+            const hero = heroes.find((h) => h.id === heroId);
+            if (!hero || !hero.sets || hero.sets.length === 0) {
+               updateStatus(`${hero?.displayName || heroId} has no sets available`);
+               return;
+            }
+
+            currentModalHeroId = heroId;
+            focusedSetIndex = selections[heroId] !== undefined ? selections[heroId] : 0;
+
+            const modal = document.getElementById("setModal");
+            document.getElementById("modalHeroImg").src = hero.thumbnail;
+            document.getElementById("modalHeroName").textContent = hero.displayName || hero.name;
+
+            renderModalSets();
+            modal.classList.remove("hidden");
+         }
+
+         function renderModalSets() {
+            const hero = heroes.find((h) => h.id === currentModalHeroId);
+            if (!hero) return;
+
+            const currentSelection = selections[currentModalHeroId];
+            const setsGrid = document.getElementById("modalSetsGrid");
+
+            setsGrid.innerHTML = hero.sets
+               .map((set, idx) => {
+                  const isSelected = currentSelection === idx;
+                  const isFocused = focusedSetIndex === idx;
+                  const thumbUrl = set.thumbnailUrl || hero.thumbnail;
+
+                  return `
+               <div class="set-tile ${isSelected ? "selected" : ""} ${
+                     isFocused ? "focused" : ""
+                  } bg-amt-card rounded-xl overflow-hidden border border-amt-border cursor-pointer"
+                    data-set-index="${idx}"
+                    onclick="selectSetFromModal('${currentModalHeroId}', ${idx})">
+                  <div class="aspect-square overflow-hidden">
+                     <img src="${thumbUrl}" alt="${set.name}" 
+                          class="w-full h-full object-cover"
+                          onerror="this.src='${hero.thumbnail}'" />
+                  </div>
+                  <div class="p-3">
+                     <p class="text-sm font-medium truncate">${set.name || `Set ${idx + 1}`}</p>
+                     ${isSelected ? '<p class="text-xs text-amt-accent mt-1">✓ Selected</p>' : ""}
+                  </div>
+               </div>
+               `;
+               })
+               .join("");
+         }
+
+         function navigateHero(direction) {
+            if (!currentModalHeroId) return;
+
+            const currentIndex = filteredHeroes.findIndex((h) => h.id === currentModalHeroId);
+            if (currentIndex === -1) return;
+
+            let newIndex = currentIndex + direction;
+
+            // Find next hero with sets
+            while (newIndex >= 0 && newIndex < filteredHeroes.length) {
+               const nextHero = filteredHeroes[newIndex];
+               if (nextHero.sets && nextHero.sets.length > 0) {
+                  // Apply slide animation
+                  const setsGrid = document.getElementById("modalSetsGrid");
+                  const animClass = direction > 0 ? "animate-slide-left" : "animate-slide-right";
+
+                  setsGrid.classList.remove("animate-slide-left", "animate-slide-right");
+                  void setsGrid.offsetWidth; // Force reflow to restart animation
+                  setsGrid.classList.add(animClass);
+
+                  openHeroModal(nextHero.id);
+                  return;
+               }
+               newIndex += direction;
+            }
+         }
+
+         function navigateSet(direction) {
+            const hero = heroes.find((h) => h.id === currentModalHeroId);
+            if (!hero || !hero.sets) return;
+
+            focusedSetIndex += direction;
+            if (focusedSetIndex < 0) focusedSetIndex = hero.sets.length - 1;
+            if (focusedSetIndex >= hero.sets.length) focusedSetIndex = 0;
+
+            renderModalSets();
+
+            // Scroll focused tile into view
+            setTimeout(() => {
+               const focusedTile = document.querySelector(
+                  `.set-tile[data-set-index="${focusedSetIndex}"]`
+               );
+               if (focusedTile) {
+                  focusedTile.scrollIntoView({ behavior: "smooth", block: "nearest" });
+               }
+            }, 10);
+         }
+
+         function selectFocusedSet() {
+            if (currentModalHeroId && focusedSetIndex >= 0) {
+               selectSetFromModal(currentModalHeroId, focusedSetIndex);
+            }
+         }
+
+         function closeModal() {
+            document.getElementById("setModal").classList.add("hidden");
+            currentModalHeroId = null;
+         }
+
+         function confirmAndClose() {
+            closeModal();
+         }
+
+         function selectSetFromModal(heroId, setIndex) {
+            selections[heroId] = setIndex;
+            focusedSetIndex = setIndex;
+            updateSelectionCount();
+            notifySelectionChanged();
+            renderModalSets();
+            renderHeroes();
+         }
+
+         function deselectHero() {
+            if (currentModalHeroId && selections[currentModalHeroId] !== undefined) {
+               delete selections[currentModalHeroId];
+               updateSelectionCount();
+               notifySelectionChanged();
+               renderHeroes();
+            }
+            closeModal();
+         }
+
+         // ============================================
+         // User Interactions
+         // ============================================
+         function toggleFavorite(heroId) {
+            if (favorites.has(heroId)) {
+               favorites.delete(heroId);
+            } else {
+               favorites.add(heroId);
+            }
+            renderHeroes();
+            notifyFavoritesChanged();
+         }
+
+         function clearAllSelections() {
+            selections = {};
+            updateSelectionCount();
+            renderHeroes();
+            notifySelectionChanged();
+         }
+
+         function updateSelectionCount() {
+            document.getElementById("selectionCount").textContent = Object.keys(selections).length;
+         }
+
+         // ============================================
+         // Notify C#
+         // ============================================
+         function notifySelectionChanged() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({
+                  type: "selectionChanged",
+                  selections: selections,
+               });
+            }
+         }
+
+         function notifyFavoritesChanged() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({
+                  type: "favoritesChanged",
+                  favorites: Array.from(favorites),
+               });
+            }
+         }
+
+         function requestGenerate() {
+            if (Object.keys(selections).length === 0) {
+               updateStatus("Please select at least one hero");
+               return;
+            }
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "generate", selections: selections });
+            }
+         }
+
+         function requestClose() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "close" });
+            }
+         }
+
+         function startDrag(event) {
+            // Only start drag on left mouse button
+            if (event.button !== 0) return;
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "startDrag" });
+            }
+         }
+
+         // ============================================
+         // Event Listeners
+         // ============================================
+         document.getElementById("searchInput").addEventListener("input", (e) => {
+            searchQuery = e.target.value;
+            renderHeroes();
+         });
+
+         document.querySelectorAll(".filter-pill").forEach((pill) => {
+            pill.addEventListener("click", () => {
+               document
+                  .querySelectorAll(".filter-pill")
+                  .forEach((p) => p.classList.remove("active"));
+               pill.classList.add("active");
+               currentFilter = pill.dataset.category;
+               renderHeroes();
+            });
+         });
+
+         document.getElementById("clearAllBtn").addEventListener("click", clearAllSelections);
+         document.getElementById("generateBtn").addEventListener("click", requestGenerate);
+         document.getElementById("prevHeroBtn").addEventListener("click", () => navigateHero(-1));
+         document.getElementById("nextHeroBtn").addEventListener("click", () => navigateHero(1));
+
+         document.getElementById("setModal").addEventListener("click", (e) => {
+            if (e.target.id === "setModal") closeModal();
+         });
+
+         // Global keyboard handler
+         document.addEventListener("keydown", (e) => {
+            const modal = document.getElementById("setModal");
+            const isModalOpen = !modal.classList.contains("hidden");
+            const searchInput = document.getElementById("searchInput");
+            const isSearchFocused = document.activeElement === searchInput;
+
+            if (isModalOpen) {
+               // Modal navigation
+               switch (e.key) {
+                  case "ArrowLeft":
+                     e.preventDefault();
+                     navigateHero(-1);
+                     break;
+                  case "ArrowRight":
+                     e.preventDefault();
+                     navigateHero(1);
+                     break;
+                  case "ArrowUp":
+                     e.preventDefault();
+                     navigateSet(-1);
+                     break;
+                  case "ArrowDown":
+                     e.preventDefault();
+                     navigateSet(1);
+                     break;
+                  case "Enter":
+                     e.preventDefault();
+                     selectFocusedSet();
+                     confirmAndClose();
+                     break;
+                  case "Escape":
+                     e.preventDefault();
+                     closeModal();
+                     break;
+               }
+            } else {
+               // Gallery mode - instant search
+               if (
+                  !isSearchFocused &&
+                  e.key.length === 1 &&
+                  !e.ctrlKey &&
+                  !e.altKey &&
+                  !e.metaKey
+               ) {
+                  // Single character key - focus search and type
+                  searchInput.focus();
+                  // Don't prevent default - let the character be typed
+               } else if (e.key === "Escape" && isSearchFocused) {
+                  searchInput.blur();
+                  searchInput.value = "";
+                  searchQuery = "";
+                  renderHeroes();
+               }
+            }
+         });
+
+         // ============================================
+         // Demo Data
+         // ============================================
+         if (!window.chrome || !window.chrome.webview) {
+            const demoHeroes = [
+               {
+                  id: "antimage",
+                  name: "antimage",
+                  displayName: "Anti-Mage",
+                  attribute: "agi",
+                  thumbnail:
+                     "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/antimage.png",
+                  sets: [{ name: "Default Set" }, { name: "Mage Slayer" }],
+               },
+               {
+                  id: "axe",
+                  name: "axe",
+                  displayName: "Axe",
+                  attribute: "str",
+                  thumbnail:
+                     "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/axe.png",
+                  sets: [{ name: "Default Set" }, { name: "Red Mist Reaper" }],
+               },
+               {
+                  id: "crystal_maiden",
+                  name: "crystal_maiden",
+                  displayName: "Crystal Maiden",
+                  attribute: "int",
+                  thumbnail:
+                     "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/crystal_maiden.png",
+                  sets: [
+                     { name: "Default Set" },
+                     { name: "Frost Avalanche" },
+                     { name: "Yulsaria's Glacier" },
+                  ],
+               },
+               {
+                  id: "invoker",
+                  name: "invoker",
+                  displayName: "Invoker",
+                  attribute: "universal",
+                  thumbnail:
+                     "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/invoker.png",
+                  sets: [{ name: "Default Set" }, { name: "Dark Artistry" }],
+               },
+            ];
+            loadHeroes(demoHeroes);
+            loadFavorites(["invoker"]);
+            console.log("Demo mode (no WebView2)");
+         }
+      </script>
+   </body>
+</html>

@@ -163,12 +163,89 @@ public class MyService : IMyService
 services.AddTransient<IMyService, MyService>();
 ```
 
-### Adding a New Form
+### Adding a New Form (WinForms)
 
 1. Create form in `UI/Forms/`
 2. Create presenter if needed in `UI/Presenters/`
 3. Create view interface if needed in `UI/Interfaces/`
 4. Follow MVP pattern
+
+### Adding a New Form (WebView2)
+
+For modern UI with Tailwind CSS styling:
+
+1. Create HTML template in `Assets/Html/myform.html`:
+
+```html
+<!DOCTYPE html>
+<html>
+   <head>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script>
+         // Configure Tailwind theme
+         tailwind.config = {
+            theme: {
+               extend: {
+                  colors: {
+                     "amt-bg": "#0A0A0A",
+                     "amt-accent": "#00D4FF",
+                  },
+               },
+            },
+         };
+      </script>
+   </head>
+   <body class="bg-amt-bg text-white">
+      <!-- Your UI here -->
+      <script>
+         function sendMessage(type, data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type, ...data });
+            }
+         }
+      </script>
+   </body>
+</html>
+```
+
+2. Add HTML to project in `.csproj`:
+
+```xml
+<Content Include="Assets\Html\myform.html">
+   <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+</Content>
+```
+
+3. Create C# Form with WebView2:
+
+```csharp
+public class MyWebForm : Form
+{
+    private WebView2 _webView;
+
+    public MyWebForm()
+    {
+        FormBorderStyle = FormBorderStyle.None;
+        _webView = new WebView2 { Dock = DockStyle.Fill };
+        Controls.Add(_webView);
+        Shown += async (s, e) => await InitializeAsync();
+    }
+
+    private async Task InitializeAsync()
+    {
+        await _webView.EnsureCoreWebView2Async();
+        _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
+        var html = File.ReadAllText("Assets/Html/myform.html");
+        _webView.CoreWebView2.NavigateToString(html);
+    }
+
+    private void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        var message = JsonSerializer.Deserialize<JsonElement>(e.WebMessageAsJson);
+        // Handle messages from JavaScript
+    }
+}
+```
 
 ### Adding a Hero Set
 
