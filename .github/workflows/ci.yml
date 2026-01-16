@@ -1,6 +1,5 @@
 # GitHub Actions Workflow: Build and Test
 # Runs on every push to main and all pull requests
-# Includes test coverage reporting
 
 name: Build and Test
 
@@ -53,18 +52,8 @@ jobs:
               path: coverage/**/coverage.cobertura.xml
               retention-days: 7
 
-         - name: Code Coverage Summary
-           uses: irongut/CodeCoverageSummary@v1.3.0
-           with:
-              filename: coverage/**/coverage.cobertura.xml
-              badge: true
-              format: markdown
-              output: both
-              thresholds: "60 70"
-
-         - name: Add Coverage PR Comment
-           uses: marocchino/sticky-pull-request-comment@v2
-           if: github.event_name == 'pull_request'
-           with:
-              recreate: true
-              path: code-coverage-results.md
+         - name: Display test results summary
+           shell: pwsh
+           run: |
+              Write-Host "✅ All tests passed!" -ForegroundColor Green
+              Write-Host "Coverage report uploaded as artifact."

@@ -459,8 +459,7 @@ namespace ArdysaModsTools.UI.Forms
 
                 if (previewItems.Count == 0)
                 {
-                    await _webView.CoreWebView2.ExecuteScriptAsync(
-                        "showAlert('No Selections', 'No custom sets selected. Only Default Set entries found.\\nSelect at least one custom skin to generate.')");
+                    await _webView!.CoreWebView2.ExecuteScriptAsync("showAlert('No Selections', 'No custom sets selected. Only Default Set entries found.\\nSelect at least one custom skin to generate.')");
                     return;
                 }
 

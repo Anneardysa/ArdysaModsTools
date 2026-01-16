@@ -43,10 +43,6 @@ namespace ArdysaModsTools
         private CancellationTokenSource? _operationCts;
         private Task<(bool Success, bool IsUpToDate)>? _ongoingOperationTask;
 
-        // Window dragging
-        private bool _dragging = false;
-        private Point _dragStart;
-
         // For rounded form
         [DllImport("gdi32.dll")]
         private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int cx, int cy);
