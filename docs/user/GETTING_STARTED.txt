@@ -196,7 +196,7 @@ Need assistance? Here's how to get help:
    - Check console logs in the application
 
 2. COMMUNITY SUPPORT
-   - Discord: discord.gg/ardysa
+   - Discord: discord.gg/ffXw265Z7e
    - YouTube Tutorials: youtube.com/@ardysa
 
 3. REPORTING BUGS
@@ -272,6 +272,6 @@ See LICENSE for full license terms and third-party notices.
 Thank you for using ArdysaModsTools!
 Enjoy your customized Dota 2 experience! 🎮
 
-Version 2.0 | January 2026
+Version 2.1.0 | January 2026
 
 ═══════════════════════════════════════════════════════════════════════════════

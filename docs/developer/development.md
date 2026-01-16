@@ -19,8 +19,8 @@ Guide for setting up, building, and contributing to AMT 2.0.
 
 ```bash
 # Clone repository
-git clone https://github.com/ardysa/AMT2.0.git
-cd AMT2.0
+git clone https://github.com/Anneardysa/ArdysaModsTools.git
+cd ArdysaModsTools
 
 # Restore dependencies
 dotnet restore
@@ -108,6 +108,34 @@ python scripts/build_installer.py
 ```
 
 Output: `installer_output/` (installer EXE)
+
+---
+
+## CI/CD Pipeline
+
+The project uses GitHub Actions for continuous integration:
+
+### Workflows
+
+| Workflow                              | Trigger           | Description                                  |
+| ------------------------------------- | ----------------- | -------------------------------------------- |
+| **Build and Test** (`ci.yml`)         | Push to main, PRs | Builds project, runs tests, uploads coverage |
+| **Build and Release** (`release.yml`) | Tag `v*.*.*`      | Creates installer and portable builds        |
+
+### Creating a Release
+
+```bash
+# Tag and push
+git tag v2.1.0
+git push origin v2.1.0
+```
+
+This automatically:
+
+1. Builds installer package (multi-file)
+2. Builds portable package (single-file)
+3. Compiles Inno Setup installer
+4. Creates draft GitHub release with artifacts
 
 ---
 

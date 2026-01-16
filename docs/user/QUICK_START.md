@@ -14,8 +14,7 @@
 4. Complete the installation wizard
 5. Launch ArdysaModsTools
 
-> [!WARNING]
-> **Important**: Close Dota 2 before launching AMT!
+> [!WARNING] > **Important**: Close Dota 2 before launching AMT!
 
 ---
 
@@ -150,7 +149,7 @@ Patch Update → Quick Patch → Done
 
 ## 🆘 Need Help?
 
--  💬 Join our Discord: [discord.gg/ardysa](https://discord.gg/ardysa)
+-  💬 Join our Discord: [discord.gg/ffXw265Z7e](https://discord.gg/ffXw265Z7e)
 -  📺 Watch tutorials: [youtube.com/@ardysa](https://youtube.com/@ardysa)
 -  📖 Read full guide: See [USER_GUIDE.md](USER_GUIDE.md)
 

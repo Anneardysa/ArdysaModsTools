@@ -580,7 +580,7 @@ If you encounter issues or have questions:
 
 ### Links
 
--  💬 **Discord Server**: [discord.gg/ardysa](https://discord.gg/ardysa)
+-  💬 **Discord Server**: [discord.gg/ffXw265Z7e](https://discord.gg/ffXw265Z7e)
 -  📺 **YouTube Channel**: [youtube.com/@ardysa](https://youtube.com/@ardysa)
 -  ☕ **Support Development**: [ko-fi.com/ardysa](https://ko-fi.com/ardysa)
 
