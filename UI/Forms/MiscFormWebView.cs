@@ -137,7 +137,10 @@ namespace ArdysaModsTools.UI.Forms
         {
             try
             {
-                await _webView!.EnsureCoreWebView2Async();
+                // Use temp folder for WebView2 user data (avoids permission issues in Program Files)
+                string tempPath = Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2");
+                var env = await CoreWebView2Environment.CreateAsync(null, tempPath);
+                await _webView!.EnsureCoreWebView2Async(env);
                 _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
                 // Load HTML
