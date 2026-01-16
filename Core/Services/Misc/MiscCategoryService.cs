@@ -44,13 +44,21 @@ namespace ArdysaModsTools.Core.Services
 
             foreach (var remoteOption in config.Options)
             {
+                // Only set thumbnail pattern if the option has a valid thumbnail folder
+                // Use .webp as that's what most thumbnails are saved as
+                string? thumbPattern = null;
+                if (!string.IsNullOrEmpty(remoteOption.ThumbnailFolder))
+                {
+                    thumbPattern = $"{config.ThumbnailBaseUrl}/{remoteOption.ThumbnailFolder}/{{choice}}.webp";
+                }
+
                 options.Add(new MiscOption
                 {
                     Id = remoteOption.Id,
                     DisplayName = remoteOption.DisplayName,
                     Category = remoteOption.Category,
                     Choices = remoteOption.GetChoiceNames(),
-                    ThumbnailUrlPattern = $"{config.ThumbnailBaseUrl}/{remoteOption.ThumbnailFolder}/{{choice}}.png"
+                    ThumbnailUrlPattern = thumbPattern
                 });
             }
 

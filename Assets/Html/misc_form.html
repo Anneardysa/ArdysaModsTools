@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Miscellaneous</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script>
+         tailwind.config = {
+            theme: {
+               extend: {
+                  colors: {
+                     "amt-bg": "#000000",
+                     "amt-card": "#0a0a0a",
+                     "amt-tile": "#111111",
+                     "amt-border": "#333333",
+                     "amt-accent": "#00D4FF",
+                  },
+                  fontFamily: {
+                     mono: ["JetBrains Mono", "Consolas", "monospace"],
+                  },
+               },
+            },
+         };
+      </script>
+      <style>
+         * {
+            box-sizing: border-box;
+         }
+         body {
+            font-family: "JetBrains Mono", monospace;
+         }
+
+         ::-webkit-scrollbar {
+            width: 5px;
+         }
+         ::-webkit-scrollbar-track {
+            background: transparent;
+         }
+         ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 3px;
+         }
+
+         @keyframes fadeIn {
+            from {
+               opacity: 0;
+            }
+            to {
+               opacity: 1;
+            }
+         }
+         @keyframes fadeInUp {
+            from {
+               opacity: 0;
+               transform: translateY(10px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+         @keyframes scalePop {
+            0% {
+               transform: scale(1);
+            }
+            50% {
+               transform: scale(1.03);
+            }
+            100% {
+               transform: scale(1);
+            }
+         }
+         @keyframes bounceIn {
+            0% {
+               transform: scale(0.95);
+               opacity: 0;
+            }
+            50% {
+               transform: scale(1.02);
+            }
+            100% {
+               transform: scale(1);
+               opacity: 1;
+            }
+         }
+         @keyframes slideLeft {
+            from {
+               opacity: 0;
+               transform: translateX(20px);
+            }
+            to {
+               opacity: 1;
+               transform: translateX(0);
+            }
+         }
+         @keyframes slideRight {
+            from {
+               opacity: 0;
+               transform: translateX(-20px);
+            }
+            to {
+               opacity: 1;
+               transform: translateX(0);
+            }
+         }
+         @keyframes spin {
+            to {
+               transform: rotate(360deg);
+            }
+         }
+
+         .animate-fade-in {
+            animation: fadeIn 0.2s ease-out forwards;
+         }
+         .animate-fade-in-up {
+            animation: fadeInUp 0.25s ease-out forwards;
+            opacity: 0;
+         }
+         .animate-scale-pop {
+            animation: scalePop 0.2s ease-out;
+         }
+         .animate-bounce-in {
+            animation: bounceIn 0.3s ease-out forwards;
+         }
+         .animate-slide-left {
+            animation: slideLeft 0.25s ease-out;
+         }
+         .animate-slide-right {
+            animation: slideRight 0.25s ease-out;
+         }
+         .animate-spin {
+            animation: spin 1s linear infinite;
+         }
+
+         .glass {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+         }
+
+         .tile-card {
+            transition: all 0.2s ease;
+            cursor: pointer;
+         }
+         .tile-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+         }
+         .tile-card.selected {
+            border-color: #00d4ff;
+         }
+
+         .tile-thumb {
+            width: 100%;
+            aspect-ratio: 1;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            object-fit: cover;
+            background: #111;
+            transition: border-color 0.2s ease;
+         }
+         .tile-thumb.selected {
+            border-color: #00d4ff;
+         }
+
+         .nav-arrow {
+            transition: all 0.2s;
+            border-radius: 50%;
+         }
+         .nav-arrow:hover {
+            background: rgba(255, 255, 255, 0.1);
+         }
+         .nav-arrow:active {
+            transform: scale(0.95);
+         }
+
+         .choice-card {
+            transition: all 0.2s ease;
+         }
+         .choice-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.02);
+         }
+         .choice-card.selected {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+         }
+
+         .progress-overlay {
+            backdrop-filter: blur(8px);
+         }
+         .log-line {
+            animation: fadeIn 0.15s ease-out;
+         }
+         .retro-terminal {
+            position: relative;
+         }
+         .retro-terminal::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+               0deg,
+               rgba(0, 0, 0, 0.06) 0px,
+               rgba(0, 0, 0, 0.06) 1px,
+               transparent 1px,
+               transparent 3px
+            );
+            pointer-events: none;
+            border-radius: inherit;
+         }
+      </style>
+   </head>
+
+   <body class="bg-amt-bg text-white font-mono h-screen flex flex-col overflow-hidden">
+      <!-- Title Bar -->
+      <div
+         id="titleBar"
+         class="flex-shrink-0 h-10 bg-amt-bg border-b border-amt-border flex items-center justify-between px-4 select-none cursor-move"
+         onmousedown="startDrag(event)"
+      >
+         <div class="flex items-center gap-3">
+            <span class="text-sm font-semibold text-gray-300">Miscellaneous</span>
+            <span class="text-xs text-gray-600">Custom Options</span>
+         </div>
+         <button
+            onclick="requestClose()"
+            class="w-8 h-8 flex items-center justify-center rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-all"
+            onmousedown="event.stopPropagation()"
+         >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+               />
+            </svg>
+         </button>
+      </div>
+
+      <!-- Main Content -->
+      <main class="flex-1 flex flex-col overflow-hidden">
+         <!-- Header -->
+         <header
+            class="flex-shrink-0 px-6 py-4 border-b border-amt-border flex items-center justify-between"
+         >
+            <div>
+               <h1 class="text-lg font-semibold text-white">Miscellaneous Options</h1>
+               <p id="optionsCount" class="text-xs text-gray-500 mt-0.5">Loading...</p>
+            </div>
+            <div class="flex items-center gap-3">
+               <button
+                  onclick="loadPreset()"
+                  class="px-4 py-2 text-xs bg-amt-card border border-amt-border rounded-lg text-gray-400 hover:text-white hover:border-gray-600 transition-all"
+               >
+                  Load
+               </button>
+               <button
+                  onclick="savePreset()"
+                  class="px-4 py-2 text-xs bg-amt-card border border-amt-border rounded-lg text-gray-400 hover:text-white hover:border-gray-600 transition-all"
+               >
+                  Save
+               </button>
+               <button
+                  id="generateBtn"
+                  onclick="generate()"
+                  class="px-6 py-2.5 bg-amt-accent text-black font-bold rounded-lg hover:bg-white transition-all text-sm"
+               >
+                  <span id="generateBtnText">Generate</span>
+               </button>
+            </div>
+         </header>
+
+         <!-- Options Grid -->
+         <div class="flex-1 overflow-y-auto p-6">
+            <div
+               id="optionsGrid"
+               class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"
+            ></div>
+         </div>
+      </main>
+
+      <!-- Caching Overlay -->
+      <div
+         id="cachingOverlay"
+         class="fixed inset-0 z-[80] bg-amt-bg flex flex-col items-center justify-center"
+      >
+         <div class="max-w-md w-full mx-4 text-center">
+            <!-- Logo/Icon -->
+            <div
+               class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-amt-accent/10 flex items-center justify-center"
+            >
+               <svg
+                  class="w-10 h-10 text-amt-accent"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+               >
+                  <path
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                     stroke-width="2"
+                     d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+               </svg>
+            </div>
+
+            <!-- Title -->
+            <h2 class="text-xl font-semibold text-white mb-2">Loading Assets</h2>
+            <p id="cachingStatus" class="text-sm text-gray-400 mb-6">Preparing thumbnails...</p>
+
+            <!-- Progress Bar -->
+            <div class="h-2 bg-amt-card rounded-full overflow-hidden mb-3">
+               <div
+                  id="cachingBar"
+                  class="h-full bg-amt-accent rounded-full transition-all duration-200"
+                  style="width: 0%"
+               ></div>
+            </div>
+
+            <!-- Progress Text -->
+            <div class="flex justify-between text-xs text-gray-500">
+               <span id="cachingCount">0 / 0</span>
+               <span id="cachingPercent">0%</span>
+            </div>
+
+            <!-- Skip Button (appears after delay) -->
+            <button
+               id="skipCachingBtn"
+               onclick="skipCaching()"
+               class="hidden mt-6 px-4 py-2 text-sm text-gray-500 hover:text-white transition-colors"
+            >
+               Skip &amp; Continue
+            </button>
+         </div>
+      </div>
+
+      <!-- Footer -->
+      <footer
+         class="flex-shrink-0 h-8 bg-amt-bg border-t border-amt-border px-4 flex items-center justify-between text-xs text-gray-600"
+      >
+         <span id="statusText">Ready</span>
+         <span id="versionText">version ...</span>
+      </footer>
+
+      <!-- Option Selection Modal (Carousel Style) -->
+      <div id="optionModal" class="hidden fixed inset-0 z-[90] flex items-center justify-center">
+         <div
+            class="absolute inset-0 bg-black/85 backdrop-blur-sm"
+            onclick="closeOptionModal()"
+         ></div>
+         <div class="flex items-center justify-center gap-4 max-w-5xl w-full px-4">
+            <!-- Left Arrow -->
+            <button
+               id="prevOptionBtn"
+               onclick="navigateOption(-1)"
+               class="nav-arrow flex-shrink-0 w-12 h-12 flex items-center justify-center text-gray-400 hover:text-white"
+            >
+               <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                     stroke-width="2"
+                     d="M15 19l-7-7 7-7"
+                  />
+               </svg>
+            </button>
+
+            <!-- Modal Content -->
+            <div
+               id="modalContent"
+               class="relative bg-amt-bg border border-amt-border rounded-xl flex-1 max-w-3xl max-h-[85vh] overflow-hidden animate-bounce-in"
+            >
+               <!-- Header -->
+               <div class="flex items-center justify-between px-6 py-4 border-b border-amt-border">
+                  <div class="flex items-center gap-4">
+                     <div
+                        id="modalThumb"
+                        class="w-14 h-14 rounded-lg bg-amt-tile flex items-center justify-center overflow-hidden"
+                     >
+                        <img id="modalThumbImg" src="" alt="" class="w-full h-full object-cover" />
+                     </div>
+                     <div>
+                        <h2 id="modalTitle" class="text-lg font-bold"></h2>
+                        <p class="text-xs text-gray-500">
+                           Use ← → to browse options, click to select
+                        </p>
+                     </div>
+                  </div>
+                  <button
+                     onclick="closeOptionModal()"
+                     class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-all"
+                  >
+                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                           stroke-width="2"
+                           d="M6 18L18 6M6 6l12 12"
+                        />
+                     </svg>
+                  </button>
+               </div>
+
+               <!-- Choices Grid -->
+               <div
+                  id="modalChoices"
+                  class="p-6 grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[55vh] overflow-y-auto"
+               ></div>
+
+               <!-- Footer -->
+               <div class="flex items-center justify-end px-6 py-4 border-t border-amt-border">
+                  <button
+                     onclick="closeOptionModal()"
+                     class="px-6 py-2 text-sm font-semibold bg-white text-black rounded-lg hover:bg-gray-200 transition-all"
+                  >
+                     Done
+                  </button>
+               </div>
+            </div>
+
+            <!-- Right Arrow -->
+            <button
+               id="nextOptionBtn"
+               onclick="navigateOption(1)"
+               class="nav-arrow flex-shrink-0 w-12 h-12 flex items-center justify-center text-gray-400 hover:text-white"
+            >
+               <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                     stroke-width="2"
+                     d="M9 5l7 7-7 7"
+                  />
+               </svg>
+            </button>
+         </div>
+      </div>
+
+      <!-- Progress Overlay -->
+      <div
+         id="progressOverlay"
+         class="hidden fixed inset-0 z-[100] progress-overlay bg-black/90 flex items-center justify-center"
+      >
+         <div
+            class="bg-amt-bg border border-amt-border rounded-xl w-full max-w-lg mx-4 shadow-2xl animate-bounce-in"
+         >
+            <div class="px-6 py-4 border-b border-amt-border flex items-center justify-between">
+               <div class="flex items-center gap-3">
+                  <div
+                     id="progressSpinner"
+                     class="w-5 h-5 border-2 border-amt-accent border-t-transparent rounded-full animate-spin"
+                  ></div>
+                  <span id="progressTitle" class="font-semibold text-white">Generating...</span>
+               </div>
+               <span id="progressPercent" class="text-sm text-amt-accent">0%</span>
+            </div>
+            <div class="px-6 py-3">
+               <div class="h-1.5 bg-amt-card rounded-full overflow-hidden">
+                  <div
+                     id="progressBar"
+                     class="h-full bg-amt-accent rounded-full transition-all duration-300"
+                     style="width: 0%"
+                  ></div>
+               </div>
+               <p id="progressStatus" class="text-xs text-gray-500 mt-2">Preparing...</p>
+            </div>
+            <div class="px-6 pb-4">
+               <div
+                  id="progressConsole"
+                  class="retro-terminal bg-black border border-amt-border rounded-lg p-3 h-40 overflow-y-auto text-xs text-green-400 font-mono"
+               >
+                  <div id="progressConsoleContent"></div>
+               </div>
+            </div>
+            <div class="px-6 py-4 border-t border-amt-border flex justify-end">
+               <button
+                  onclick="cancelGeneration()"
+                  class="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+               >
+                  Cancel
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <!-- Mode Modal -->
+      <div id="modeModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+         <div
+            class="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onclick="closeModeModal()"
+         ></div>
+         <div
+            class="relative bg-amt-bg border border-amt-border rounded-xl p-6 max-w-md mx-4 shadow-2xl animate-bounce-in"
+         >
+            <h3 class="text-lg font-semibold text-white mb-4">Generation Mode</h3>
+            <div class="space-y-3">
+               <button
+                  onclick="selectMode('clean')"
+                  class="w-full p-4 bg-amt-card border border-amt-border rounded-lg text-left hover:border-amt-accent transition-all group"
+               >
+                  <div class="flex items-center gap-3">
+                     <div
+                        class="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center"
+                     >
+                        <svg
+                           class="w-5 h-5 text-orange-400"
+                           fill="none"
+                           stroke="currentColor"
+                           viewBox="0 0 24 24"
+                        >
+                           <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                           />
+                        </svg>
+                     </div>
+                     <div>
+                        <div
+                           class="font-semibold text-white group-hover:text-amt-accent transition-colors"
+                        >
+                           Generate Only Misc Mods
+                        </div>
+                        <div class="text-xs text-gray-500">
+                           Create a clean VPK with only Misc mods
+                        </div>
+                     </div>
+                  </div>
+               </button>
+               <button
+                  onclick="selectMode('add')"
+                  class="w-full p-4 bg-amt-card border border-amt-border rounded-lg text-left hover:border-amt-accent transition-all group"
+               >
+                  <div class="flex items-center gap-3">
+                     <div
+                        class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center"
+                     >
+                        <svg
+                           class="w-5 h-5 text-green-400"
+                           fill="none"
+                           stroke="currentColor"
+                           viewBox="0 0 24 24"
+                        >
+                           <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                           />
+                        </svg>
+                     </div>
+                     <div>
+                        <div
+                           class="font-semibold text-white group-hover:text-amt-accent transition-colors"
+                        >
+                           Add to Current Mods
+                        </div>
+                        <div class="text-xs text-gray-500">
+                           Apply modifications on top of existing game mods
+                        </div>
+                     </div>
+                  </div>
+               </button>
+            </div>
+            <button
+               onclick="closeModeModal()"
+               class="mt-4 w-full py-2 text-gray-500 hover:text-white transition-colors text-sm"
+            >
+               Cancel
+            </button>
+         </div>
+      </div>
+
+      <!-- Alert Modal -->
+      <div id="alertModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+         <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeAlert()"></div>
+         <div
+            class="relative bg-amt-bg border border-amt-border rounded-xl p-6 max-w-md mx-4 shadow-2xl animate-bounce-in"
+         >
+            <div class="flex items-start gap-4">
+               <div
+                  id="alertIconContainer"
+                  class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-amt-accent/20"
+               >
+                  <svg
+                     id="alertIconSuccess"
+                     class="hidden w-5 h-5 text-green-400"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 13l4 4L19 7"
+                     />
+                  </svg>
+                  <svg
+                     id="alertIconWarning"
+                     class="hidden w-5 h-5 text-orange-400"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                     />
+                  </svg>
+                  <svg
+                     id="alertIconInfo"
+                     class="hidden w-5 h-5 text-amt-accent"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                     />
+                  </svg>
+                  <svg
+                     id="alertIconError"
+                     class="hidden w-5 h-5 text-red-400"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                     />
+                  </svg>
+               </div>
+               <div class="flex-1">
+                  <h3 id="alertTitle" class="text-lg font-semibold text-white mb-2">Alert</h3>
+                  <p
+                     id="alertMessage"
+                     class="text-sm text-gray-400 leading-relaxed whitespace-pre-line"
+                  ></p>
+               </div>
+            </div>
+            <div class="flex justify-end mt-6">
+               <button
+                  onclick="closeAlert()"
+                  class="px-6 py-2 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition-colors"
+               >
+                  OK
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <script>
+         // Default thumbnail for options without images (AMT logo)
+         let DEFAULT_THUMB = "";
+
+         // State
+         let options = [];
+         let selections = {};
+         let currentOptionIndex = -1;
+         let isGenerating = false;
+         const thumbCache = new Map();
+
+         // C# calls
+         function setDefaultThumb(url) {
+            DEFAULT_THUMB = url;
+         }
+
+         function loadOptions(optionsJson) {
+            options = typeof optionsJson === "string" ? JSON.parse(optionsJson) : optionsJson;
+
+            document.getElementById(
+               "optionsCount"
+            ).textContent = `${options.length} options available`;
+
+            // Hide loading overlay immediately and render
+            hideCachingOverlay();
+            renderOptions();
+            setStatus("Ready");
+
+            // Preload thumbnails in background (for faster modal loading)
+            setTimeout(() => preloadThumbnailsBackground(), 100);
+         }
+
+         function loadSelections(selectionsJson) {
+            selections =
+               typeof selectionsJson === "string" ? JSON.parse(selectionsJson) : selectionsJson;
+            renderOptions();
+         }
+
+         function setStatus(text) {
+            document.getElementById("statusText").textContent = text;
+         }
+         function setVersion(version) {
+            document.getElementById("versionText").textContent = `version ${version}`;
+         }
+
+         // Background thumbnail preloader (silent, no overlay)
+         function preloadThumbnailsBackground() {
+            options.forEach((opt) => {
+               if (!opt.thumbnailPattern) return;
+               (opt.choices || []).forEach((c) => {
+                  const url = getThumbUrl(opt, c.id);
+                  if (url && !thumbCache.has(url)) {
+                     const img = new Image();
+                     img.onload = () => thumbCache.set(url, img.src);
+                     img.onerror = () => tryAltFormats(url);
+                     img.src = url;
+                  }
+               });
+            });
+         }
+
+         function tryAltFormats(url) {
+            const formats = [".webp", ".jpg", ".jpeg"];
+            const base = url.replace(/\.(png|webp|jpg|jpeg)$/i, "");
+            for (const fmt of formats) {
+               if (url.endsWith(fmt)) continue;
+               const img = new Image();
+               img.onload = () => thumbCache.set(url, img.src);
+               img.src = base + fmt;
+               break;
+            }
+         }
+
+         // C# calls these to control caching overlay
+         function showCachingOverlay() {
+            const overlay = document.getElementById("cachingOverlay");
+            if (overlay) {
+               overlay.classList.remove("hidden");
+               overlay.style.opacity = "1";
+               document.getElementById("cachingStatus").textContent = "Downloading thumbnails...";
+               document.getElementById("cachingBar").style.width = "0%";
+               document.getElementById("cachingCount").textContent = "0 / 0";
+               document.getElementById("cachingPercent").textContent = "0%";
+            }
+         }
+
+         function updateCachingProgress(current, total) {
+            const pct = total > 0 ? Math.round((current / total) * 100) : 100;
+            document.getElementById("cachingBar").style.width = `${pct}%`;
+            document.getElementById("cachingCount").textContent = `${current} / ${total}`;
+            document.getElementById("cachingPercent").textContent = `${pct}%`;
+            setStatus(`Downloading ${current}/${total}`);
+
+            if (current >= total && total > 0) {
+               document.getElementById("cachingStatus").textContent = "Complete!";
+            }
+         }
+
+         function hideCachingOverlay() {
+            const overlay = document.getElementById("cachingOverlay");
+            if (overlay) {
+               overlay.style.opacity = "0";
+               overlay.style.transition = "opacity 0.2s ease";
+               setTimeout(() => overlay.classList.add("hidden"), 200);
+            }
+         }
+
+         function tryAltFormatsWithCallback(url, callback) {
+            const formats = [".webp", ".jpg", ".jpeg"];
+            const base = url.replace(/\.(png|webp|jpg|jpeg)$/i, "");
+            let tried = 0;
+            let found = false;
+
+            for (const fmt of formats) {
+               if (url.endsWith(fmt)) continue;
+               const altUrl = base + fmt;
+               const img = new Image();
+               img.onload = () => {
+                  if (!found) {
+                     found = true;
+                     thumbCache.set(url, img.src);
+                     callback();
+                  }
+               };
+               img.onerror = () => {
+                  tried++;
+                  if (tried >= formats.length - 1 && !found) {
+                     callback();
+                  }
+               };
+               img.src = altUrl;
+            }
+         }
+
+         function tryAltFormats(url) {
+            const formats = [".webp", ".jpg", ".jpeg"];
+            const base = url.replace(/\.(png|webp|jpg|jpeg)$/i, "");
+
+            for (const fmt of formats) {
+               if (url.endsWith(fmt)) continue;
+               const altUrl = base + fmt;
+               const img = new Image();
+               img.onload = () => thumbCache.set(url, img.src);
+               img.src = altUrl;
+               break;
+            }
+         }
+
+         function getThumbUrl(opt, choiceId) {
+            if (!opt.thumbnailPattern) return null;
+            const safe = choiceId.toLowerCase().replace(/ /g, "_").replace(/-/g, "_");
+            return opt.thumbnailPattern.replace("{choice}", safe);
+         }
+
+         function getCachedThumb(opt, choiceId) {
+            const url = getThumbUrl(opt, choiceId);
+            if (!url) return DEFAULT_THUMB;
+            return thumbCache.get(url) || url;
+         }
+
+         // Progress overlay
+         function showProgress(title = "Generating...") {
+            document.getElementById("progressOverlay").classList.remove("hidden");
+            document.getElementById("progressTitle").textContent = title;
+            document.getElementById("progressPercent").textContent = "0%";
+            document.getElementById("progressBar").style.width = "0%";
+            document.getElementById("progressStatus").textContent = "Preparing...";
+            document.getElementById("progressConsoleContent").innerHTML = "";
+         }
+
+         function hideProgress() {
+            document.getElementById("progressOverlay").classList.add("hidden");
+         }
+
+         function updateProgress(percent, status) {
+            document.getElementById("progressPercent").textContent = `${percent}%`;
+            document.getElementById("progressBar").style.width = `${percent}%`;
+            if (status) document.getElementById("progressStatus").textContent = status;
+         }
+
+         function appendConsole(msg) {
+            if (!msg) return;
+            const content = document.getElementById("progressConsoleContent");
+            if (!content) return;
+
+            const line = document.createElement("div");
+            line.className = "log-line py-0.5";
+            line.textContent = msg;
+            content.appendChild(line);
+
+            const console = document.getElementById("progressConsole");
+            if (console) console.scrollTop = console.scrollHeight;
+         }
+
+         function clearConsole() {
+            const content = document.getElementById("progressConsoleContent");
+            if (content) content.innerHTML = "";
+         }
+
+         function setGenerating(gen) {
+            isGenerating = gen;
+            document.getElementById("generateBtnText").textContent = gen
+               ? "Generating..."
+               : "Generate";
+            document.getElementById("generateBtn").classList.toggle("opacity-50", gen);
+            document.getElementById("generateBtn").classList.toggle("pointer-events-none", gen);
+         }
+
+         function showAlert(title, message, type = "info") {
+            hideProgress();
+            document.getElementById("alertTitle").textContent = title;
+            document.getElementById("alertMessage").textContent = message;
+            ["Success", "Warning", "Info", "Error"].forEach((t) =>
+               document.getElementById(`alertIcon${t}`).classList.add("hidden")
+            );
+            const iconMap = {
+               success: "Success",
+               warning: "Warning",
+               error: "Error",
+               info: "Info",
+            };
+            document
+               .getElementById(`alertIcon${iconMap[type] || "Info"}`)
+               .classList.remove("hidden");
+            const container = document.getElementById("alertIconContainer");
+            container.className =
+               "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0";
+            container.classList.add(
+               {
+                  success: "bg-green-500/20",
+                  warning: "bg-orange-500/20",
+                  error: "bg-red-500/20",
+                  info: "bg-amt-accent/20",
+               }[type] || "bg-amt-accent/20"
+            );
+            document.getElementById("alertModal").classList.remove("hidden");
+         }
+
+         function closeAlert() {
+            document.getElementById("alertModal").classList.add("hidden");
+            sendMessage("alertDismissed");
+         }
+
+         // Rendering
+         let firstRender = true;
+
+         function renderOptions() {
+            const grid = document.getElementById("optionsGrid");
+            grid.innerHTML = "";
+
+            const animate = firstRender;
+            firstRender = false;
+
+            options.forEach((opt, i) => {
+               const selected = selections[opt.id] || opt.choices?.[0]?.id || "default";
+               const selectedChoice = opt.choices?.find((c) => c.id === selected);
+               const thumbUrl = getThumbUrl(opt, selected);
+               const letter = (selectedChoice?.name || opt.name).charAt(0).toUpperCase();
+
+               const card = document.createElement("div");
+               card.className =
+                  "tile-card bg-amt-tile border border-amt-border rounded-xl p-3" +
+                  (animate ? " animate-fade-in-up" : "");
+               if (animate) card.style.animationDelay = `${i * 15}ms`;
+               card.dataset.optionId = opt.id;
+               card.onclick = () => openOptionModal(i);
+
+               // Always try to load image if URL exists, let onerror handle failures
+               const hasUrl = thumbUrl && thumbUrl.length > 0;
+
+               card.innerHTML = `
+               <div class="relative">
+                  ${
+                     hasUrl
+                        ? `<img src="${thumbUrl}" alt="" class="tile-thumb" onerror="handleImgError(this, '${letter}')">`
+                        : `<div class="tile-thumb bg-amt-card flex items-center justify-center text-2xl font-bold text-gray-500">${letter}</div>`
+                  }
+                  ${
+                     selected !== (opt.choices?.[0]?.id || "default")
+                        ? '<div class="absolute top-1 right-1 w-2 h-2 bg-amt-accent rounded-full"></div>'
+                        : ""
+                  }
+               </div>
+               <div class="mt-2">
+                  <div class="text-sm font-medium text-white truncate">${opt.name}</div>
+                  <div class="text-xs text-amt-accent truncate">${
+                     selectedChoice?.name || "Default"
+                  }</div>
+               </div>
+            `;
+               grid.appendChild(card);
+            });
+
+            if (options.length === 0) {
+               grid.innerHTML =
+                  '<div class="col-span-full text-center py-12 text-gray-500">No options available</div>';
+            }
+         }
+
+         // Handle image error - try alternate formats, then fall back to letter placeholder
+         function handleImgError(img, letter) {
+            const src = img.src;
+            const formats = [".webp", ".png", ".jpg", ".jpeg"];
+            const base = src.replace(/\.(png|webp|jpg|jpeg)$/i, "");
+            const currentExt = src.match(/\.(png|webp|jpg|jpeg)$/i)?.[0]?.toLowerCase() || "";
+
+            // Track tried formats in data attribute
+            let tried = (img.dataset.triedFormats || currentExt).split(",");
+
+            // Find next format to try
+            for (const fmt of formats) {
+               if (tried.includes(fmt)) continue;
+               tried.push(fmt);
+               img.dataset.triedFormats = tried.join(",");
+               img.onerror = () => handleImgError(img, letter);
+               img.src = base + fmt;
+               return;
+            }
+
+            // All formats failed, show solid color placeholder
+            const placeholder = document.createElement("div");
+            placeholder.className = "tile-thumb";
+            placeholder.style.backgroundColor = "rgb(17, 17, 17)";
+            img.replaceWith(placeholder);
+         }
+
+         // Option Modal (Carousel)
+         function openOptionModal(index) {
+            currentOptionIndex = index;
+            showOptionInModal(options[index]);
+            document.getElementById("optionModal").classList.remove("hidden");
+            document.addEventListener("keydown", handleModalKeydown);
+         }
+
+         function closeOptionModal() {
+            document.getElementById("optionModal").classList.add("hidden");
+            document.removeEventListener("keydown", handleModalKeydown);
+            currentOptionIndex = -1;
+         }
+
+         function handleModalKeydown(e) {
+            if (e.key === "ArrowLeft") {
+               navigateOption(-1);
+               e.preventDefault();
+            } else if (e.key === "ArrowRight") {
+               navigateOption(1);
+               e.preventDefault();
+            } else if (e.key === "Escape") {
+               closeOptionModal();
+               e.preventDefault();
+            }
+         }
+
+         function navigateOption(dir) {
+            if (options.length === 0) return;
+            currentOptionIndex = (currentOptionIndex + dir + options.length) % options.length;
+
+            const content = document.getElementById("modalContent");
+            content.classList.remove("animate-slide-left", "animate-slide-right");
+            void content.offsetWidth;
+            content.classList.add(dir > 0 ? "animate-slide-left" : "animate-slide-right");
+
+            showOptionInModal(options[currentOptionIndex]);
+         }
+
+         function showOptionInModal(opt) {
+            const selected = selections[opt.id] || opt.choices?.[0]?.id || "default";
+            const thumbUrl = getThumbUrl(opt, selected);
+            const hasUrl = thumbUrl && thumbUrl.length > 0;
+            const headerLetter = opt.name.charAt(0).toUpperCase();
+
+            document.getElementById("modalTitle").textContent = opt.name;
+
+            // Update header thumbnail
+            const modalThumb = document.getElementById("modalThumb");
+            if (hasUrl) {
+               modalThumb.innerHTML = `<img id="modalThumbImg" src="${thumbUrl}" alt="" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full flex items-center justify-center text-2xl font-bold text-gray-500\\'>${headerLetter}</div>'">`;
+            } else {
+               modalThumb.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-gray-500">${headerLetter}</div>`;
+            }
+
+            // Render choices
+            const choicesGrid = document.getElementById("modalChoices");
+            choicesGrid.innerHTML = "";
+
+            (opt.choices || []).forEach((c) => {
+               const isSelected = c.id === selected;
+               const cThumb = getThumbUrl(opt, c.id);
+               const cHasUrl = cThumb && cThumb.length > 0;
+               const cLetter = c.name.charAt(0).toUpperCase();
+
+               const card = document.createElement("div");
+               card.className = `choice-card bg-amt-tile border ${
+                  isSelected ? "border-amt-accent selected" : "border-amt-border"
+               } rounded-xl p-2 cursor-pointer`;
+               card.onclick = () => selectChoice(opt.id, c.id);
+
+               card.innerHTML = `
+               ${
+                  cHasUrl
+                     ? `<img src="${cThumb}" alt="" class="w-full aspect-square rounded-lg object-cover ${
+                          isSelected ? "border-2 border-amt-accent" : ""
+                       }" onerror="handleImgError(this, '${cLetter}')">`
+                     : `<div class="w-full aspect-square rounded-lg bg-amt-card flex items-center justify-center text-xl font-bold text-gray-500 ${
+                          isSelected ? "border-2 border-amt-accent" : ""
+                       }">${cLetter}</div>`
+               }
+               <div class="text-xs text-center mt-1.5 ${
+                  isSelected ? "text-amt-accent" : "text-gray-400"
+               } truncate">${c.name}</div>
+            `;
+               choicesGrid.appendChild(card);
+            });
+
+            // Update arrows visibility
+            const showArrows = options.length > 1;
+            document.getElementById("prevOptionBtn").style.visibility = showArrows
+               ? "visible"
+               : "hidden";
+            document.getElementById("nextOptionBtn").style.visibility = showArrows
+               ? "visible"
+               : "hidden";
+         }
+
+         function selectChoice(optId, choiceId) {
+            selections[optId] = choiceId;
+
+            // Refresh modal
+            const opt = options.find((o) => o.id === optId);
+            if (opt) showOptionInModal(opt);
+
+            // Update grid
+            renderOptions();
+
+            sendMessage("selectionChanged", { optionId: optId, choiceId: choiceId });
+         }
+
+         // Actions
+         function generate() {
+            if (isGenerating) return;
+            sendMessage("generate", { selections });
+         }
+
+         function showModeModal() {
+            document.getElementById("modeModal").classList.remove("hidden");
+         }
+         function closeModeModal() {
+            document.getElementById("modeModal").classList.add("hidden");
+         }
+         function selectMode(mode) {
+            closeModeModal();
+            sendMessage("modeSelected", { mode });
+         }
+
+         function cancelGeneration() {
+            sendMessage("cancelGeneration");
+         }
+         function loadPreset() {
+            sendMessage("loadPreset");
+         }
+         function savePreset() {
+            sendMessage("savePreset", { selections });
+         }
+
+         // Messaging
+         function sendMessage(type, data = {}) {
+            if (window.chrome?.webview) window.chrome.webview.postMessage({ type, ...data });
+            else console.log("Message:", type, data);
+         }
+         function requestClose() {
+            sendMessage("close");
+         }
+         function startDrag(event) {
+            if (event.button === 0) sendMessage("startDrag");
+         }
+
+         // Demo
+         if (!window.chrome?.webview) {
+            setTimeout(() => {
+               loadOptions([
+                  {
+                     id: "weather",
+                     name: "Weather Effects",
+                     thumbnailPattern: "",
+                     choices: [
+                        { id: "default", name: "Default" },
+                        { id: "rain", name: "Rain" },
+                        { id: "snow", name: "Snow" },
+                     ],
+                  },
+                  {
+                     id: "terrain",
+                     name: "Terrain Style",
+                     thumbnailPattern: "",
+                     choices: [
+                        { id: "default", name: "Default" },
+                        { id: "desert", name: "Desert" },
+                        { id: "immortal", name: "Immortal Gardens" },
+                     ],
+                  },
+                  {
+                     id: "announcer",
+                     name: "Announcer Pack",
+                     thumbnailPattern: "",
+                     choices: [
+                        { id: "default", name: "Default" },
+                        { id: "bastion", name: "Bastion" },
+                        { id: "glados", name: "GLaDOS" },
+                     ],
+                  },
+               ]);
+               setVersion("2.0.16-beta");
+
+               // Test console
+               setTimeout(() => {
+                  showProgress("Testing...");
+                  appendConsole("Console test line 1");
+                  appendConsole("Console test line 2");
+               }, 1000);
+            }, 300);
+         }
+      </script>
+   </body>
+</html>

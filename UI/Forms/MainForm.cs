@@ -403,8 +403,16 @@ namespace ArdysaModsTools
 
         private void MiscellaneousButton_Click(object? sender, EventArgs e)
         {
-            using (var miscForm = new MiscForm(targetPath, _logger.Log, DisableAllButtons, EnableAllButtons))
+            try
             {
+                using var miscForm = new UI.Forms.MiscFormWebView(targetPath, _logger.Log, DisableAllButtons, EnableAllButtons);
+                miscForm.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"WebView2 MiscForm failed: {ex.Message}");
+                // Fallback to classic form
+                using var miscForm = new MiscForm(targetPath, _logger.Log, DisableAllButtons, EnableAllButtons);
                 miscForm.ShowDialog(this);
             }
         }
