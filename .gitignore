@@ -29,7 +29,9 @@ bld/
 *.log
 
 # PROJECT-SPECIFIC BUILD OUTPUTS
-Build/
+# Build folder is ignored but Installer subfolder is allowed for Inno Setup script
+[Bb]uild/*
+![Bb]uild/[Ii]nstaller/
 publish/
 protected/
 installer_output/
@@ -81,7 +83,6 @@ npm-debug.log*
 .auto-claude/
 .agent/
 .trains/
-.github/
 
 # LOCAL DEVELOPER TOOLS
 build.txt
