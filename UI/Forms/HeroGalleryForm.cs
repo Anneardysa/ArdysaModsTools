@@ -347,6 +347,14 @@ namespace ArdysaModsTools.UI.Forms
                         SendMessage(this.Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
                         break;
 
+                    case "savePreset":
+                        await HandleSavePresetAsync(message);
+                        break;
+
+                    case "loadPreset":
+                        await HandleLoadPresetAsync();
+                        break;
+
                     case "alertDismissed":
                         // Signal that the alert was dismissed
                         _alertDismissed?.TrySetResult(true);
@@ -395,6 +403,95 @@ namespace ArdysaModsTools.UI.Forms
                         _favorites.Add(heroId);
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Handle save preset request from JavaScript.
+        /// </summary>
+        private async Task HandleSavePresetAsync(JsonElement message)
+        {
+            try
+            {
+                // Get current selections from message
+                Dictionary<string, int> selectionsToSave = new();
+                if (message.TryGetProperty("selections", out var selectionsEl))
+                {
+                    foreach (var prop in selectionsEl.EnumerateObject())
+                    {
+                        if (prop.Value.TryGetInt32(out var setIndex))
+                        {
+                            selectionsToSave[prop.Name] = setIndex;
+                        }
+                    }
+                }
+
+                if (selectionsToSave.Count == 0)
+                {
+                    await UpdateStatusAsync("No selections to save");
+                    return;
+                }
+
+                using var sfd = new SaveFileDialog
+                {
+                    Title = "Save Skin Preset",
+                    Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+                    DefaultExt = "json",
+                    AddExtension = true,
+                    FileName = "skins_preset.json"
+                };
+
+                if (sfd.ShowDialog(this) == DialogResult.OK)
+                {
+                    var json = JsonSerializer.Serialize(selectionsToSave, new JsonSerializerOptions { WriteIndented = true });
+                    await File.WriteAllTextAsync(sfd.FileName, json);
+                    await UpdateStatusAsync($"Saved {selectionsToSave.Count} selection(s)");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SavePreset error: {ex.Message}");
+                await UpdateStatusAsync("Failed to save preset");
+            }
+        }
+
+        /// <summary>
+        /// Handle load preset request from JavaScript.
+        /// </summary>
+        private async Task HandleLoadPresetAsync()
+        {
+            try
+            {
+                using var ofd = new OpenFileDialog
+                {
+                    Title = "Load Skin Preset",
+                    Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+                    DefaultExt = "json"
+                };
+
+                if (ofd.ShowDialog(this) == DialogResult.OK)
+                {
+                    var json = await File.ReadAllTextAsync(ofd.FileName);
+                    var loadedSelections = JsonSerializer.Deserialize<Dictionary<string, int>>(json);
+
+                    if (loadedSelections != null && loadedSelections.Count > 0)
+                    {
+                        _selections = loadedSelections;
+
+                        // Send to JavaScript to update UI
+                        var selectionsJson = JsonSerializer.Serialize(_selections, _jsonOptions);
+                        await ExecuteScriptAsync($"applyLoadedSelections({selectionsJson})");
+                    }
+                    else
+                    {
+                        await UpdateStatusAsync("No selections found in file");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadPreset error: {ex.Message}");
+                await UpdateStatusAsync("Failed to load preset");
             }
         }
 

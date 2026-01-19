@@ -243,6 +243,20 @@
                <!-- Action buttons -->
                <div class="flex items-center gap-2 ml-auto">
                   <button
+                     id="savePresetBtn"
+                     class="px-4 py-2 text-sm text-gray-400 hover:text-white border border-amt-border hover:border-gray-500 rounded-lg transition-all"
+                     title="Save selections to file"
+                  >
+                     Save
+                  </button>
+                  <button
+                     id="loadPresetBtn"
+                     class="px-4 py-2 text-sm text-gray-400 hover:text-white border border-amt-border hover:border-gray-500 rounded-lg transition-all"
+                     title="Load selections from file"
+                  >
+                     Load
+                  </button>
+                  <button
                      id="clearAllBtn"
                      class="px-4 py-2 text-sm text-gray-400 hover:text-white border border-amt-border hover:border-gray-500 rounded-lg transition-all"
                   >
@@ -531,6 +545,61 @@
                   class="px-6 py-2 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition-colors"
                >
                   OK
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <!-- Confirmation Modal -->
+      <div id="confirmModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
+         <div
+            class="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onclick="closeConfirm(false)"
+         ></div>
+         <div
+            class="relative bg-amt-bg border border-amt-border rounded-xl p-6 max-w-md mx-4 shadow-2xl animate-fade-in"
+         >
+            <div class="flex items-start gap-4">
+               <!-- Warning icon -->
+               <div
+                  class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-orange-500/20"
+               >
+                  <svg
+                     class="w-5 h-5 text-orange-400"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                     />
+                  </svg>
+               </div>
+               <div class="flex-1">
+                  <h3 id="confirmTitle" class="text-lg font-semibold text-white mb-2">Confirm</h3>
+                  <div id="confirmMessage" class="text-sm text-gray-400 leading-relaxed"></div>
+                  <!-- Selection list container -->
+                  <div
+                     id="confirmSelectionList"
+                     class="hidden mt-4 max-h-48 overflow-y-auto rounded-lg border border-amt-border bg-black/30"
+                  ></div>
+               </div>
+            </div>
+            <div class="flex justify-end gap-3 mt-6">
+               <button
+                  onclick="closeConfirm(false)"
+                  class="px-5 py-2 text-sm text-gray-400 hover:text-white border border-amt-border hover:border-gray-500 rounded-lg transition-all"
+               >
+                  Cancel
+               </button>
+               <button
+                  onclick="closeConfirm(true)"
+                  class="px-5 py-2 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition-colors"
+               >
+                  Yes, Clear All
                </button>
             </div>
          </div>
@@ -885,10 +954,91 @@
          }
 
          function clearAllSelections() {
+            const selectionCount = Object.keys(selections).length;
+            if (selectionCount === 0) {
+               updateStatus("No selections to clear");
+               return;
+            }
+
+            // Build the list of selected heroes and sets
+            const selectedItems = [];
+            for (const [heroId, setIndex] of Object.entries(selections)) {
+               const hero = heroes.find((h) => h.id === heroId);
+               if (hero && hero.sets && hero.sets[setIndex]) {
+                  selectedItems.push({
+                     heroName: hero.displayName || hero.name,
+                     setName: hero.sets[setIndex].name || `Set ${setIndex + 1}`,
+                     thumbnail: hero.thumbnail,
+                  });
+               }
+            }
+
+            showConfirmWithList(
+               "Clear All Selections",
+               `This will reset all <span class="text-white font-bold text-base">${selectionCount}</span> hero selection(s) to default.`,
+               selectedItems
+            );
+         }
+
+         function doClearAllSelections() {
             selections = {};
             updateSelectionCount();
             renderHeroes();
             notifySelectionChanged();
+            updateStatus("All selections cleared");
+         }
+
+         // Confirmation modal state
+         let confirmCallback = null;
+
+         function showConfirm(title, message) {
+            document.getElementById("confirmTitle").textContent = title;
+            document.getElementById("confirmMessage").innerHTML = message;
+            document.getElementById("confirmSelectionList").classList.add("hidden");
+            document.getElementById("confirmSelectionList").innerHTML = "";
+            document.getElementById("confirmModal").classList.remove("hidden");
+         }
+
+         function showConfirmWithList(title, message, items) {
+            document.getElementById("confirmTitle").textContent = title;
+            document.getElementById("confirmMessage").innerHTML = message;
+
+            const listContainer = document.getElementById("confirmSelectionList");
+
+            if (items && items.length > 0) {
+               // Build the list HTML
+               const listHtml = items
+                  .map(
+                     (item) => `
+                  <div class="flex items-center gap-3 px-3 py-2 border-b border-amt-border/50 last:border-b-0">
+                     <img src="${item.thumbnail}" 
+                          alt="${item.heroName}" 
+                          class="w-8 h-8 rounded object-cover flex-shrink-0"
+                          onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect fill=%22%23222%22 width=%2232%22 height=%2232%22/></svg>'" />
+                     <div class="flex-1 min-w-0">
+                        <div class="text-sm text-white truncate">${item.heroName}</div>
+                        <div class="text-xs text-amt-accent truncate">${item.setName}</div>
+                     </div>
+                  </div>
+               `
+                  )
+                  .join("");
+
+               listContainer.innerHTML = listHtml;
+               listContainer.classList.remove("hidden");
+            } else {
+               listContainer.classList.add("hidden");
+               listContainer.innerHTML = "";
+            }
+
+            document.getElementById("confirmModal").classList.remove("hidden");
+         }
+
+         function closeConfirm(confirmed) {
+            document.getElementById("confirmModal").classList.add("hidden");
+            if (confirmed) {
+               doClearAllSelections();
+            }
          }
 
          function updateSelectionCount() {
@@ -940,6 +1090,33 @@
             }
          }
 
+         function requestSavePreset() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({
+                  type: "savePreset",
+                  selections: selections,
+               });
+            }
+         }
+
+         function requestLoadPreset() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "loadPreset" });
+            }
+         }
+
+         // Called from C# after loading preset file
+         function applyLoadedSelections(loadedSelections) {
+            selections =
+               typeof loadedSelections === "string"
+                  ? JSON.parse(loadedSelections)
+                  : loadedSelections;
+            updateSelectionCount();
+            renderHeroes();
+            notifySelectionChanged();
+            updateStatus(`Loaded ${Object.keys(selections).length} selection(s)`);
+         }
+
          // ============================================
          // Event Listeners
          // ============================================
@@ -959,6 +1136,8 @@
             });
          });
 
+         document.getElementById("savePresetBtn").addEventListener("click", requestSavePreset);
+         document.getElementById("loadPresetBtn").addEventListener("click", requestLoadPreset);
          document.getElementById("clearAllBtn").addEventListener("click", clearAllSelections);
          document.getElementById("generateBtn").addEventListener("click", requestGenerate);
          document.getElementById("prevHeroBtn").addEventListener("click", () => navigateHero(-1));
