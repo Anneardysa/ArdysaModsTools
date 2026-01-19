@@ -252,7 +252,7 @@ namespace ArdysaModsTools.Core.Services
 
                 var modified = new List<string>(lines[..(digestIndex + 1)])
                 {
-                    @"..\..\..\..\..\dota\gameinfo_branchspecific.gi~SHA1:1A9B91FB43FE89AD104B8001282D292EED94584D;CRC:043F604A"
+                    ModConstants.ModPatchLine
                 };
 
                 string tmpSig = signaturesPath + ".tmp";

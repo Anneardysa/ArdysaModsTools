@@ -56,7 +56,7 @@ Main Window → Install → Auto Install → Done
 **After Dota 2 updates**:
 
 ```
-Patch Update → Quick Patch → Done
+Patch Update → Done
 ```
 
 ### Create Custom Hero Skins
@@ -84,8 +84,8 @@ Miscellaneous → Select options → Generate → Done
 
 1. Click **Miscellaneous** from main window
 2. Choose generation mode:
-   -  **Clean Generate**: Start fresh
-   -  **Add to Current**: Add to existing mods
+   - **Clean Generate**: Start fresh
+   - **Add to Current**: Add to existing mods
 3. Select weather, terrain, HUD, or audio options
 4. Click **Generate**
 
@@ -111,7 +111,7 @@ To re-enable: Click **Install** again
 ### Update After Game Patch
 
 ```
-Patch Update → Quick Patch → Done
+Patch Update → Done
 ```
 
 ---
@@ -122,18 +122,18 @@ Patch Update → Quick Patch → Done
 | ------------------ | ------------------------------------ |
 | Can't launch AMT   | Close Dota 2 first                   |
 | Auto detect failed | Use Manual Select                    |
-| Mods not showing   | Click Patch Update → Full Patch      |
-| After game update  | Click Patch Update → Quick Patch     |
+| Mods not showing   | Click Patch Update                   |
+| After game update  | Click Patch Update                   |
 | Error messages     | Copy console logs and ask in Discord |
 
 ---
 
 ## 📊 Status Indicators
 
--  🟢 **Green "Ready"** = Everything working perfectly
--  🟠 **Orange "Need Update"** = Needs patching (run Quick Patch)
--  🔴 **Red "Error"** = Problem detected (check console)
--  ⚫ **Gray** = Not installed or disabled
+- 🟢 **Green "Ready"** = Everything working perfectly
+- 🟠 **Orange "Need Update"** = Needs patching (run Patch Update)
+- 🔴 **Red "Error"** = Problem detected (check console)
+- ⚫ **Gray** = Not installed or disabled
 
 ---
 
@@ -143,15 +143,15 @@ Patch Update → Quick Patch → Done
 2. **Generate multiple heroes at once** - Select sets for several heroes before clicking Generate
 3. **Copy console logs** - Use the Copy button for debugging
 4. **Run as Admin** - If you encounter permission issues
-5. **After every Dota update** - Run Quick Patch to keep mods working
+5. **After every Dota update** - Run Patch Update to keep mods working
 
 ---
 
 ## 🆘 Need Help?
 
--  💬 Join our Discord: [discord.gg/ffXw265Z7e](https://discord.gg/ffXw265Z7e)
--  📺 Watch tutorials: [youtube.com/@ardysa](https://youtube.com/@ardysa)
--  📖 Read full guide: See [USER_GUIDE.md](USER_GUIDE.md)
+- 💬 Join our Discord: [discord.gg/ffXw265Z7e](https://discord.gg/ffXw265Z7e)
+- 📺 Watch tutorials: [youtube.com/@ardysa](https://youtube.com/@ardysa)
+- 📖 Read full guide: See [USER_GUIDE.md](USER_GUIDE.md)
 
 ---
 
@@ -163,7 +163,7 @@ Patch Update → Quick Patch → Done
 
 > Backup important files before modding
 
-> Run Quick Patch after each Dota 2 update
+> Run Patch Update after each Dota 2 update
 
 ---
 

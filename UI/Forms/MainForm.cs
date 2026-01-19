@@ -1263,23 +1263,14 @@ namespace ArdysaModsTools
 
             _patchMenu.Renderer = new ModernMenuRenderer();
 
-            // Quick Patch - Just update signatures
-            var quickPatch = new ToolStripMenuItem("Quick Patch")
-            {
-                ToolTipText = "Update signatures only (fastest)",
-                Padding = new Padding(12, 8, 12, 8),
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            quickPatch.Click += async (s, e) => await ExecutePatchAsync(PatchMode.Quick);
-
-            // Full Re-patch - Re-apply all patches
-            var fullPatch = new ToolStripMenuItem("Full Re-patch")
+            // Patch Update - Re-apply all patches
+            var fullPatch = new ToolStripMenuItem("Patch Update")
             {
                 ToolTipText = "Re-apply all patches (recommended after Dota update)",
                 Padding = new Padding(12, 8, 12, 8),
                 TextAlign = ContentAlignment.MiddleCenter
             };
-            fullPatch.Click += async (s, e) => await ExecutePatchAsync(PatchMode.Full);
+            fullPatch.Click += async (s, e) => await ExecutePatchAsync();
 
             var sep1 = new ToolStripSeparator { BackColor = Color.FromArgb(51, 51, 51) };
 
@@ -1303,7 +1294,6 @@ namespace ArdysaModsTools
 
             _patchMenu.Items.AddRange(new ToolStripItem[] 
             { 
-                quickPatch, 
                 fullPatch, 
                 sep1, 
                 verifyFiles, 
@@ -1344,7 +1334,7 @@ namespace ArdysaModsTools
 
                 if (result == DialogResult.Yes)
                 {
-                    await ExecutePatchAsync(PatchMode.Full);
+                    await ExecutePatchAsync();
                 }
             }
             else if (_currentStatus?.Status == ModStatus.NotInstalled)
@@ -1372,7 +1362,7 @@ namespace ArdysaModsTools
             _patchMenu!.Show(location);
         }
 
-        private async Task ExecutePatchAsync(PatchMode mode)
+        private async Task ExecutePatchAsync()
         {
             if (string.IsNullOrEmpty(targetPath)) return;
             if (!_modInstaller.IsRequiredModFilePresent(targetPath))
@@ -1390,8 +1380,8 @@ namespace ArdysaModsTools
 
             try
             {
-                // Use the new UpdatePatcherAsync with PatchResult
-                var result = await _modInstaller.UpdatePatcherAsync(targetPath, mode, null, token);
+                // Always use full patch mode
+                var result = await _modInstaller.UpdatePatcherAsync(targetPath, null, token);
 
                 switch (result)
                 {
@@ -1487,7 +1477,7 @@ namespace ArdysaModsTools
             {
                 if (patchedVer == "Not patched yet")
                 {
-                    issues.Add("Never patched - run Full Re-patch first");
+                    issues.Add("Never patched - run Patch Update first");
                 }
                 else
                 {
@@ -1508,15 +1498,27 @@ namespace ArdysaModsTools
                 issues.Add("Game compatibility issue detected");
             }
 
-            // Check 4: Mod Integration (gameinfo - hidden name)
+            // Check 4: Mod Integration (gameinfo + signatures format)
             string giPath = Path.Combine(targetPath, "game/dota/gameinfo_branchspecific.gi");
-            if (File.Exists(giPath))
+            if (File.Exists(giPath) && File.Exists(sigPath))
             {
-                var content = await File.ReadAllTextAsync(giPath);
-                if (content.Contains("_Ardysa", StringComparison.OrdinalIgnoreCase))
+                var giContent = await File.ReadAllTextAsync(giPath);
+                var sigContent = await File.ReadAllTextAsync(sigPath);
+                
+                bool hasGameInfoMarker = giContent.Contains("_Ardysa", StringComparison.OrdinalIgnoreCase);
+                bool hasCorrectSigFormat = sigContent.Contains(
+                    ArdysaModsTools.Core.Models.ModConstants.ModPatchLine,
+                    StringComparison.Ordinal);
+                
+                if (hasGameInfoMarker && hasCorrectSigFormat)
                 {
                     checksPassed++;
                     _logger.Log("[VERIFY] ✓ Mod integration active");
+                }
+                else if (hasGameInfoMarker && !hasCorrectSigFormat)
+                {
+                    issues.Add("Mod integration format invalid - run Patch Update");
+                    _logger.Log("[VERIFY] ✗ Mod integration format invalid");
                 }
                 else
                 {
@@ -1553,7 +1555,7 @@ namespace ArdysaModsTools
                     $"Issues:\n• " + string.Join("\n• ", issues) + "\n\n" +
                     $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
                     $"Recommended Actions:\n" +
-                    $"1. Run 'Full Re-patch' from the menu\n" +
+                    $"1. Run 'Patch Update' from the menu\n" +
                     $"2. Verify Dota 2 game files in Steam:\n" +
                     $"   Steam → Dota 2 → Properties → Verify\n" +
                     $"3. Contact developer if issue persists";
@@ -1592,7 +1594,7 @@ namespace ArdysaModsTools
                 using var form = new StatusDetailsForm(
                     _currentStatus, 
                     versionInfo,
-                    async () => await ExecutePatchAsync(PatchMode.Full)
+                    async () => await ExecutePatchAsync()
                 );
                 form.ShowDialog(this);
             }
@@ -1703,6 +1705,18 @@ namespace ArdysaModsTools
             }
 
             lblDotaWarning.Visible = isRunning;
+
+            // Check if Dota 2 is running as admin (matchmaking won't work)
+            if (isRunning && ProcessChecker.IsProcessRunningAsAdmin("dota2"))
+            {
+                lblDotaWarning.Text = "/// ⚠ DOTA 2 IS RUNNING AS ADMIN - MATCHMAKING WON'T WORK ⚠ ///";
+                lblDotaWarning.BackColor = Color.FromArgb(200, 60, 60); // Brighter red for admin warning
+            }
+            else if (isRunning)
+            {
+                lblDotaWarning.Text = "/// ⚠ CLOSE DOTA 2 BEFORE MODIFYING ⚠ ///";
+                lblDotaWarning.BackColor = Color.FromArgb(180, 70, 70); // Standard warning color
+            }
 
             // Tray functionality removed - no longer minimize to tray when Dota runs
 

@@ -49,16 +49,7 @@ namespace ArdysaModsTools.Core.Services
         Cancelled
     }
 
-    /// <summary>
-    /// Mode for patch operation.
-    /// </summary>
-    public enum PatchMode
-    {
-        /// <summary>Quick patch - only update signatures.</summary>
-        Quick,
-        /// <summary>Full patch - update signatures and re-download gameinfo.</summary>
-        Full
-    }
+
 
     /// <summary>
     /// Service for mod installation operations.
@@ -644,17 +635,16 @@ namespace ArdysaModsTools.Core.Services
         /// - Pre-validates if patch is needed
         /// - Atomic operations with rollback on failure
         /// - Status callbacks for UI feedback
-        /// - Supports Quick (signatures only) and Full (signatures + gameinfo) modes
+        /// - Always does full patch (signatures + gameinfo)
         /// </summary>
         public async Task<PatchResult> UpdatePatcherAsync(
             string targetPath,
-            PatchMode mode = PatchMode.Full,
             Action<string>? statusCallback = null,
             CancellationToken ct = default)
         {
             // Use shared constant from ModConstants
 
-            _logger?.Log($"[PATCH] Starting {mode} patch...");
+            _logger?.Log("[PATCH] Starting patch...");
 
             if (string.IsNullOrWhiteSpace(targetPath))
             {
@@ -702,11 +692,7 @@ namespace ArdysaModsTools.Core.Services
                     $"gameinfo_branchspecific.gi~SHA1:{ModConstants.ModPatchSHA1}",
                     StringComparison.OrdinalIgnoreCase);
 
-                if (alreadyPatched && mode == PatchMode.Quick)
-                {
-                    _logger?.Log("[PATCH] Already patched. Skipping Quick patch.");
-                    return PatchResult.AlreadyPatched;
-                }
+
 
                 ct.ThrowIfCancellationRequested();
 
@@ -739,8 +725,7 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
-                    if (mode == PatchMode.Full)
-                    {
+                    // Always update gameinfo
                         statusCallback?.Invoke("Updating game config...");
                         
                         Directory.CreateDirectory(Path.GetDirectoryName(gameInfoPath)!);
@@ -765,11 +750,11 @@ namespace ArdysaModsTools.Core.Services
 
                         _logger?.Log("[PATCH] Game config updated successfully.");
 
-                    }
+
 
                     try { File.Delete(signaturesBackup); } catch { }
 
-                    _logger?.Log($"[PATCH] {mode} patch completed successfully!");
+                    _logger?.Log("[PATCH] Patch completed successfully!");
                     return PatchResult.Success;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
@@ -810,10 +795,10 @@ namespace ArdysaModsTools.Core.Services
         /// <summary>
         /// Legacy method for backward compatibility. Calls new UpdatePatcherAsync.
         /// </summary>
-        [Obsolete("Use UpdatePatcherAsync with PatchMode instead")]
+        [Obsolete("Use UpdatePatcherAsync instead")]
         public async Task<bool> UpdatePatcherAsyncLegacy(string targetPath, CancellationToken ct = default)
         {
-            var result = await UpdatePatcherAsync(targetPath, PatchMode.Full, null, ct);
+            var result = await UpdatePatcherAsync(targetPath, null, ct);
             return result == PatchResult.Success || result == PatchResult.AlreadyPatched;
         }
 

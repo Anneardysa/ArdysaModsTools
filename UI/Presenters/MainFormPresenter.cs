@@ -497,7 +497,7 @@ namespace ArdysaModsTools.UI.Presenters
                 _logger.Log("Patching dota.signatures and gameinfo_branchspecific.gi...");
 
                 // Use ModInstallerService to patch the signatures with new PatchResult
-                var result = await _modInstaller.UpdatePatcherAsync(_targetPath, PatchMode.Full, null, token);
+                var result = await _modInstaller.UpdatePatcherAsync(_targetPath, null, token);
 
                 switch (result)
                 {

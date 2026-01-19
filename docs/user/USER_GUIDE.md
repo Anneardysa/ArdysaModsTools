@@ -14,9 +14,9 @@
 4. [Getting Started](#getting-started)
 5. [Features Overview](#features-overview)
 6. [Main Features](#main-features)
-   -  [Mod Installation](#mod-installation)
-   -  [Hero Set Generation](#hero-set-generation)
-   -  [Miscellaneous Mods](#miscellaneous-mods)
+   - [Mod Installation](#mod-installation)
+   - [Hero Set Generation](#hero-set-generation)
+   - [Miscellaneous Mods](#miscellaneous-mods)
 7. [Advanced Features](#advanced-features)
 8. [Troubleshooting](#troubleshooting)
 9. [FAQ](#faq)
@@ -28,11 +28,11 @@
 
 **ArdysaModsTools (AMT 2.0)** is a powerful Windows desktop application designed to help Dota 2 players easily install and manage custom cosmetic modifications. With AMT 2.0, you can:
 
--  🎮 **Install curated mod packs** with one click
--  🦸 **Create custom hero skins** from community sets
--  🌦️ **Customize weather, terrain, and HUD** elements
--  🔄 **Keep mods working** after game updates
--  🔧 **Auto-detect** your Dota 2 installation
+- 🎮 **Install curated mod packs** with one click
+- 🦸 **Create custom hero skins** from community sets
+- 🌦️ **Customize weather, terrain, and HUD** elements
+- 🔄 **Keep mods working** after game updates
+- 🔧 **Auto-detect** your Dota 2 installation
 
 > [!IMPORTANT]
 > This tool **only modifies cosmetic elements** and does not affect gameplay. Use at your own risk. Always backup your game files before modding.
@@ -59,29 +59,25 @@
 ### Download & Install
 
 1. **Download the Installer**
-
-   -  Get `ArdysaModsTools_Setup_x64.exe` from the official source
+   - Get `ArdysaModsTools_Setup_x64.exe` from the official source
 
 2. **Run the Installer**
-
-   -  Right-click the installer and select **Run as Administrator**
-   -  Follow the installation wizard
+   - Right-click the installer and select **Run as Administrator**
+   - Follow the installation wizard
 
 3. **Dependency Check**
-
-   -  The installer will check for .NET 8 Desktop Runtime
-   -  If not found, you'll be prompted to download it
-   -  After installing .NET 8, run the AMT installer again
+   - The installer will check for .NET 8 Desktop Runtime
+   - If not found, you'll be prompted to download it
+   - After installing .NET 8, run the AMT installer again
 
 4. **Complete Installation**
-
-   -  Choose installation location (default: `C:\Program Files\ArdysaModsTools`)
-   -  Optionally create a desktop shortcut
-   -  Click **Install**
+   - Choose installation location (default: `C:\Program Files\ArdysaModsTools`)
+   - Optionally create a desktop shortcut
+   - Click **Install**
 
 5. **Launch Application**
-   -  Check **Launch ArdysaModsTools** at the end of installation
-   -  Or launch from Start Menu or Desktop shortcut
+   - Check **Launch ArdysaModsTools** at the end of installation
+   - Or launch from Start Menu or Desktop shortcut
 
 > [!WARNING] > **Important**: Close Dota 2 completely before launching ArdysaModsTools. The application cannot run while Dota 2 is active.
 
@@ -89,9 +85,9 @@
 
 When a new version is available:
 
--  The application will notify you automatically
--  Download the new installer
--  The installer will automatically remove the old version before installing the new one
+- The application will notify you automatically
+- Download the new installer
+- The installer will automatically remove the old version before installing the new one
 
 ---
 
@@ -116,7 +112,7 @@ The application needs to know where Dota 2 is installed on your computer.
 
 1. Click the **Manual Select** button
 2. Navigate to your Dota 2 installation folder
-   -  Default: `C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta`
+   - Default: `C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta`
 3. Select the `dota 2 beta` folder
 4. Click **OK**
 
@@ -129,8 +125,8 @@ Once Dota 2 is detected:
 
 1. Click the **Install** button
 2. Choose installation method:
-   -  **Auto Install**: Download the latest mod pack from the server (recommended)
-   -  **Manual Install**: Use a VPK file you already have
+   - **Auto Install**: Download the latest mod pack from the server (recommended)
+   - **Manual Install**: Use a VPK file you already have
 3. Wait for the installation to complete
 4. Status will show "Ready" in green when successful
 
@@ -165,10 +161,10 @@ The primary feature is installing curated mod packs that include multiple cosmet
 1. **Click Install** button
 2. **Choose Auto Install** for the latest mods from the server
 3. The application will:
-   -  Download the latest ModsPack
-   -  Validate the VPK file
-   -  Copy to your Dota 2 folder (`game/dota/_ArdysaMods/`)
-   -  Patch game configuration files for mod compatibility
+   - Download the latest ModsPack
+   - Validate the VPK file
+   - Copy to your Dota 2 folder (`game/dota/_ArdysaMods/`)
+   - Patch game configuration files for mod compatibility
 4. Monitor progress in the console at the bottom
 5. When complete, status shows **Ready** (green)
 
@@ -176,15 +172,15 @@ The primary feature is installing curated mod packs that include multiple cosmet
 
 **Auto Install**:
 
--  Always gets the latest version
--  Automatic validation
--  Recommended for most users
+- Always gets the latest version
+- Automatic validation
+- Recommended for most users
 
 **Manual Install**:
 
--  Use if you have a specific VPK file
--  Must contain `_ArdysaMods` marker to be valid
--  Useful for offline installation
+- Use if you have a specific VPK file
+- Must contain `_ArdysaMods` marker to be valid
+- Useful for offline installation
 
 #### Disabling Mods
 
@@ -201,12 +197,10 @@ When game updates or new mod versions are available:
 
 1. Status indicator will show **Need Update** (orange)
 2. Click the **Patch Update** button
-3. Choose patch mode:
-   -  **Quick Patch**: Fast, updates signatures only (use after game updates)
-   -  **Full Patch**: Complete re-patch of all files
+3. The patch will update signatures and game configuration
 
 > [!IMPORTANT]
-> After each Dota 2 game update, run **Quick Patch** to ensure mods continue working properly.
+> After each Dota 2 game update, run **Patch Update** to ensure mods continue working properly.
 
 ---
 
@@ -230,37 +224,37 @@ The Hero Set Generator:
 
 1. **Click Select Hero** button from main window
 2. **Browse Heroes**:
-   -  Scroll through the grid of hero portraits
-   -  Use the search bar to find specific heroes
-   -  Click the star icon to favorite heroes
+   - Scroll through the grid of hero portraits
+   - Use the search bar to find specific heroes
+   - Click the star icon to favorite heroes
 3. **Select Sets**:
-   -  Click a hero card
-   -  Choose a set from the dropdown menu
-   -  Available sets are displayed with names
+   - Click a hero card
+   - Choose a set from the dropdown menu
+   - Available sets are displayed with names
 4. **Add Multiple Heroes**:
-   -  Select as many heroes as you want
-   -  Each hero can have one active set
+   - Select as many heroes as you want
+   - Each hero can have one active set
 5. **Generate**:
-   -  Click the **Generate** button
-   -  Wait for the process to complete (may take several minutes)
-   -  Monitor progress in the console
+   - Click the **Generate** button
+   - Wait for the process to complete (may take several minutes)
+   - Monitor progress in the console
 
 #### Batch Generation
 
 You can generate multiple heroes at once:
 
--  Select sets for multiple heroes
--  Click **Generate**
--  The application processes them sequentially
--  Progress bar shows overall completion
+- Select sets for multiple heroes
+- Click **Generate**
+- The application processes them sequentially
+- Progress bar shows overall completion
 
 #### Favorites System
 
 Mark frequently used heroes as favorites:
 
--  Click the star icon on any hero card
--  Favorites appear at the top of the list
--  Easier access to your preferred heroes
+- Click the star icon on any hero card
+- Favorites appear at the top of the list
+- Easier access to your preferred heroes
 
 > [!TIP]
 > Hero set generation can take 2-5 minutes per hero depending on set size. Plan accordingly when generating multiple heroes.
@@ -277,42 +271,42 @@ Customize additional game elements beyond hero skins.
 
 **🌦️ Weather Effects**
 
--  Moonbeam
--  Aurora
--  Snow
--  Ash
--  Pestilence
--  And more...
+- Moonbeam
+- Aurora
+- Snow
+- Ash
+- Pestilence
+- And more...
 
 **🗺️ Terrain/Map**
 
--  Custom map skins
--  Different visual themes
+- Custom map skins
+- Different visual themes
 
 **🎨 HUD Modifications**
 
--  Interface customizations
--  UI element replacements
+- Interface customizations
+- UI element replacements
 
 **🔊 Audio Mods**
 
--  Custom sound effects
--  Music replacements
+- Custom sound effects
+- Music replacements
 
 #### Using Miscellaneous Mods
 
 1. **Click Miscellaneous** button from main window
 2. **Choose Generation Mode**:
-   -  **Clean Generate**: Start fresh, replaces all existing misc mods
-   -  **Add to Current**: Merge with existing modifications
+   - **Clean Generate**: Start fresh, replaces all existing misc mods
+   - **Add to Current**: Merge with existing modifications
 3. **Select Options**:
-   -  Browse through categories
-   -  Check boxes or select from dropdowns
-   -  Multiple selections allowed
+   - Browse through categories
+   - Check boxes or select from dropdowns
+   - Multiple selections allowed
 4. **Apply Changes**:
-   -  Click **Generate** or **Apply** button
-   -  Wait for compilation
-   -  Status will confirm completion
+   - Click **Generate** or **Apply** button
+   - Wait for compilation
+   - Status will confirm completion
 
 #### Generation Modes Explained
 
@@ -333,17 +327,15 @@ Customize additional game elements beyond hero skins.
 After Dota 2 game updates, some files may need re-patching:
 
 1. **Automatic Detection**:
-
-   -  Application checks mod status on launch
-   -  Status indicator shows:
-      -  **Ready** (Green): Everything working
-      -  **Need Update** (Orange): Patch required
-      -  **Error** (Red): Issue detected
+   - Application checks mod status on launch
+   - Status indicator shows:
+      - **Ready** (Green): Everything working
+      - **Need Update** (Orange): Patch required
+      - **Error** (Red): Issue detected
 
 2. **Manual Patching**:
-   -  Click **Patch Update** button
-   -  Choose **Quick Patch** for post-update fixes
-   -  Choose **Full Patch** for complete re-installation
+   - Click **Patch Update** button
+   - The patch will update signatures and game configuration
 
 ### Verification
 
@@ -352,32 +344,32 @@ To verify mod installation integrity:
 1. Right-click the **Patch Update** button
 2. Select **Verify Mod Files**
 3. The application checks:
-   -  Presence of all required files
-   -  VPK integrity
-   -  Configuration patches
+   - Presence of all required files
+   - VPK integrity
+   - Configuration patches
 4. View detailed status report
 
 ### Console Logs
 
 The console at the bottom shows real-time operation logs:
 
--  Download progress
--  File operations
--  Errors and warnings
--  Completion status
+- Download progress
+- File operations
+- Errors and warnings
+- Completion status
 
 **Copy Logs**:
 
--  Click the **Copy** button above console
--  Paste logs when reporting issues
+- Click the **Copy** button above console
+- Paste logs when reporting issues
 
 ### Clear Temp Files
 
 To free up disk space:
 
--  The application stores temporary files during operations
--  These are automatically cleaned on exit
--  Manual cleanup happens during reinstall
+- The application stores temporary files during operations
+- These are automatically cleaned on exit
+- Manual cleanup happens during reinstall
 
 ---
 
@@ -391,10 +383,10 @@ To free up disk space:
 
 **Solution**:
 
--  Close Dota 2 completely
--  Check Task Manager for `dota2.exe` process
--  End the process if found
--  Launch AMT again
+- Close Dota 2 completely
+- Check Task Manager for `dota2.exe` process
+- End the process if found
+- Launch AMT again
 
 ---
 
@@ -432,11 +424,11 @@ To free up disk space:
 **Solutions**:
 
 1. **Check Status**: Status should show "Ready" (green)
-2. **Run Patch**: Click Patch Update → Full Patch
+2. **Run Patch**: Click Patch Update
 3. **Restart Dota 2**: Completely exit and relaunch
 4. **Verify Installation**:
-   -  Check folder exists: `dota 2 beta/game/dota/_ArdysaMods/`
-   -  Check `pak01_dir.vpk` is present
+   - Check folder exists: `dota 2 beta/game/dota/_ArdysaMods/`
+   - Check `pak01_dir.vpk` is present
 5. **Reinstall**: Click Disable, then Install again
 
 ---
@@ -449,7 +441,7 @@ To free up disk space:
 
 1. Launch AMT
 2. Status will show "Need Update" (orange)
-3. Click **Patch Update** → **Quick Patch**
+3. Click **Patch Update**
 4. Wait for completion
 5. Relaunch Dota 2
 
@@ -476,16 +468,16 @@ Hero set generation taking very long:
 
 **Causes**:
 
--  Large set files
--  Slow internet connection (for downloads)
--  Antivirus scanning VPK operations
+- Large set files
+- Slow internet connection (for downloads)
+- Antivirus scanning VPK operations
 
 **Solutions**:
 
--  Be patient (2-5 minutes per hero is normal)
--  Ensure stable internet connection
--  Exclude AMT folder from antivirus scanning
--  Close other applications
+- Be patient (2-5 minutes per hero is normal)
+- Ensure stable internet connection
+- Exclude AMT folder from antivirus scanning
+- Close other applications
 
 ---
 
@@ -580,9 +572,9 @@ If you encounter issues or have questions:
 
 ### Links
 
--  💬 **Discord Server**: [discord.gg/ffXw265Z7e](https://discord.gg/ffXw265Z7e)
--  📺 **YouTube Channel**: [youtube.com/@ardysa](https://youtube.com/@ardysa)
--  ☕ **Support Development**: [ko-fi.com/ardysa](https://ko-fi.com/ardysa)
+- 💬 **Discord Server**: [discord.gg/ffXw265Z7e](https://discord.gg/ffXw265Z7e)
+- 📺 **YouTube Channel**: [youtube.com/@ardysa](https://youtube.com/@ardysa)
+- ☕ **Support Development**: [ko-fi.com/ardysa](https://ko-fi.com/ardysa)
 
 ### Reporting Bugs
 
@@ -599,9 +591,9 @@ When reporting bugs, include:
 
 Have an idea? Request features in:
 
--  Discord suggestions channel
--  YouTube video comments
--  Community forums
+- Discord suggestions channel
+- YouTube video comments
+- Community forums
 
 ---
 
@@ -620,9 +612,9 @@ See LICENSE for full details.
 
 AMT uses:
 
--  **HLExtract** - VPK extraction (HLLib)
--  **vpk.exe** - VPK compilation (Valve)
--  Various .NET libraries (see LICENSE.txt)
+- **HLExtract** - VPK extraction (HLLib)
+- **vpk.exe** - VPK compilation (Valve)
+- Various .NET libraries (see LICENSE.txt)
 
 ---
 
@@ -632,11 +624,11 @@ AMT uses:
 >
 > This tool modifies Dota 2 game files. While it only changes cosmetic elements:
 >
-> -  Use at your own risk
-> -  The developers are not responsible for any issues
-> -  This includes game bans, corrupted files, or data loss
-> -  Always backup your files before modding
-> -  Valve's policy on mods may change at any time
+> - Use at your own risk
+> - The developers are not responsible for any issues
+> - This includes game bans, corrupted files, or data loss
+> - Always backup your files before modding
+> - Valve's policy on mods may change at any time
 
 **By using ArdysaModsTools, you acknowledge and accept these risks.**
 
@@ -651,7 +643,7 @@ AMT uses:
 | **First Time Setup**  | Auto Detect → Install → Launch Dota 2           |
 | **Install Mods**      | Install button → Auto Install → Wait            |
 | **Disable Mods**      | Disable button → Confirm                        |
-| **After Game Update** | Patch Update → Quick Patch                      |
+| **After Game Update** | Patch Update                                    |
 | **Create Hero Skin**  | Select Hero → Pick hero → Choose set → Generate |
 | **Add Misc Mods**     | Miscellaneous → Select options → Generate       |
 | **Verify Mods**       | Right-click Patch Update → Verify               |

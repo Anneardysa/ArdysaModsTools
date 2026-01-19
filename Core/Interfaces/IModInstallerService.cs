@@ -71,11 +71,10 @@ namespace ArdysaModsTools.Core.Interfaces
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null);
 
         /// <summary>
-        /// Update patcher (signatures and optionally gameinfo).
+        /// Update patcher (signatures and gameinfo).
         /// </summary>
         Task<PatchResult> UpdatePatcherAsync(
             string dotaPath,
-            PatchMode mode = PatchMode.Full,
             Action<string>? statusCallback = null,
             CancellationToken ct = default);
     }

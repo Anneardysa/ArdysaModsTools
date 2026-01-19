@@ -315,17 +315,33 @@ namespace ArdysaModsTools.Core.Services
             }
 
             string afterDigest = content.Substring(digestIndex);
-            bool hasModPatch = afterDigest.Contains(
+            
+            // Check for exact match of the correct patch line
+            bool hasCorrectPatch = afterDigest.Contains(
+                ModConstants.ModPatchLine,
+                StringComparison.Ordinal);
+
+            // Check if SHA1 is present but path might be wrong (malformed patch)
+            bool hasSha1Only = !hasCorrectPatch && afterDigest.Contains(
                 $"gameinfo_branchspecific.gi~SHA1:{ModConstants.ModPatchSHA1}",
                 StringComparison.OrdinalIgnoreCase);
 
-            if (hasModPatch)
+            if (hasCorrectPatch)
             {
                 return CreateStatus(ModStatus.Ready, "Ready",
                     "ModsPack is active and up-to-date. Enjoy your game!",
                     action: RecommendedAction.None,
                     version: version,
                     lastModified: lastModified);
+            }
+            else if (hasSha1Only)
+            {
+                // SHA1 matches but path is wrong - this could trigger VAC!
+                return CreateStatus(ModStatus.Error, "Invalid Patch Format",
+                    "The patch format is incorrect and may cause matchmaking issues. Please run 'Patch Update' to fix.",
+                    action: RecommendedAction.Fix,
+                    actionText: "Patch Update",
+                    errorMessage: "Signature patch line has incorrect path format");
             }
             else
             {
