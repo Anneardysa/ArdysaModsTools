@@ -1564,6 +1564,9 @@ namespace ArdysaModsTools
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
             }
+
+            // Refresh status indicator to reflect verification results
+            await CheckModsStatus();
         }
 
         private async void ShowStatusDetails()
