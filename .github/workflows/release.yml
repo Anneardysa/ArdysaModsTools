@@ -1,6 +1,6 @@
 # GitHub Actions Workflow: Build and Release
 # Triggers when you push a version tag like v2.0.0
-# Creates a GitHub release with installer and portable builds
+# Creates a GitHub release with installer build
 
 name: Build and Release
 
@@ -48,7 +48,7 @@ jobs:
          - name: Restore dependencies
            run: dotnet restore ${{ env.PROJECT_FILE }}
 
-         # Build Installer (self-contained, multi-file)
+         # Build for Installer (self-contained, multi-file)
          - name: Build Installer Package
            run: |
               dotnet publish ${{ env.PROJECT_FILE }} `
@@ -58,17 +58,6 @@ jobs:
                 -p:PublishSingleFile=false `
                 -o publish/installer
 
-         # Build Portable (single-file, self-contained)
-         - name: Build Portable Package
-           run: |
-              dotnet publish ${{ env.PROJECT_FILE }} `
-                -c Release `
-                -r win-x64 `
-                --self-contained true `
-                -p:PublishSingleFile=true `
-                -p:IncludeNativeLibrariesForSelfExtract=true `
-                -o publish/portable
-
          # Install Inno Setup
          - name: Install Inno Setup
            shell: pwsh
@@ -76,19 +65,27 @@ jobs:
               choco install innosetup -y
               echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
 
-         # Build Installer EXE
          - name: Build Installer EXE
            shell: pwsh
            run: |
               # Update version in ISS file
               $issContent = Get-Content "Build\Installer\${{ env.PROJECT_NAME }}.iss" -Raw
-              $issContent = $issContent -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"${{ steps.version.outputs.VERSION }}`""
+              $displayVersion = "${{ steps.version.outputs.VERSION }}"
+
+              # Create numeric version (strip -beta, -alpha, etc. and ensure 4 parts)
+              $numericVersion = $displayVersion -replace '-.*$', ''
+              $parts = $numericVersion.Split('.')
+              while ($parts.Count -lt 4) { $parts += '0' }
+              $numericVersion = ($parts[0..3]) -join '.'
+
+              # Replace both versions
+              $issContent = $issContent -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$displayVersion`""
+              $issContent = $issContent -replace '#define MyAppVersionNumeric ".*"', "#define MyAppVersionNumeric `"$numericVersion`""
               Set-Content "Build\Installer\${{ env.PROJECT_NAME }}.iss" $issContent
 
               # Compile installer
               iscc "Build\Installer\${{ env.PROJECT_NAME }}.iss"
 
-         # Rename portable exe with version
          - name: Prepare Artifacts
            shell: pwsh
            run: |
@@ -99,9 +96,6 @@ jobs:
 
               # Copy installer
               Copy-Item "Build\Installer\Output\*.exe" "release\${{ env.PROJECT_NAME }}_Setup_$version.exe"
-
-              # Copy portable exe
-              Copy-Item "publish\portable\${{ env.PROJECT_NAME }}.exe" "release\${{ env.PROJECT_NAME }}_Portable_$version.exe"
 
               # List files
               Get-ChildItem "release"
@@ -124,6 +118,5 @@ jobs:
               generate_release_notes: true
               files: |
                  release/${{ env.PROJECT_NAME }}_Setup_${{ steps.version.outputs.VERSION }}.exe
-                 release/${{ env.PROJECT_NAME }}_Portable_${{ steps.version.outputs.VERSION }}.exe
            env:
               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

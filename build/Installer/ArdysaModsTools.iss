@@ -7,6 +7,7 @@
 
 #define MyAppName "ArdysaModsTools"
 #define MyAppVersion "2.0"
+#define MyAppVersionNumeric "2.0.0.0"
 #define MyAppPublisher "Ardysa"
 #define MyAppURL "https://github.com/Anneardysa/ArdysaModsTools"
 #define MyAppExeName "ArdysaModsTools.exe"
@@ -70,7 +71,7 @@ ShowLanguageDialog=auto
 ; ============================================================================
 ; VERSION INFO
 ; ============================================================================
-VersionInfoVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersionNumeric}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription=The Ultimate Dota 2 Mod Manager
 VersionInfoCopyright=© 2024-2026 Ardysa
