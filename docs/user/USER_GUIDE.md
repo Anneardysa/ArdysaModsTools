@@ -1,6 +1,6 @@
 # ArdysaModsTools User Guide
 
-**Version 2.0** | The Ultimate Dota 2 Mod Manager
+**Version 2.1.2-beta** | The Ultimate Dota 2 Mod Manager
 
 ![Banner](images/main_window_interface.jpg)
 
@@ -523,10 +523,10 @@ A: Yes, ArdysaModsTools is completely free. Donations are appreciated to support
 A: Mods are installed in: `dota 2 beta/game/dota/_ArdysaMods/pak01_dir.vpk`
 
 **Q: Where are logs saved?**  
-A: Logs are in: `%APPDATA%/ArdysaModsTools/logs/`
+A: Logs are in: `[Dota 2 Path]/game/_ArdysaMods/_temp/logs/`
 
 **Q: Where are settings saved?**  
-A: Settings are in: `%APPDATA%/ArdysaModsTools/` (config.json, settings.json, etc.)
+A: Settings are in: `[Dota 2 Path]/game/_ArdysaMods/_temp/` (config files are stored within your Dota 2 installation)
 
 **Q: Can I backup my mods?**  
 A: Yes, backup the `_ArdysaMods` folder and your AMT settings folder.
@@ -536,7 +536,7 @@ A:
 
 1. Click **Disable** in AMT to restore original files
 2. Uninstall via Windows Settings → Apps
-3. Optionally delete `%APPDATA%/ArdysaModsTools/` folder
+3. Optionally delete the `_ArdysaMods` folder in your Dota 2 installation
 
 ---
 
@@ -662,5 +662,4 @@ AMT uses:
 
 **Thank you for using ArdysaModsTools! Enjoy your customized Dota 2 experience! 🎮**
 
-_Last Updated: January 2026_
-_Version 2.0_
+_Version 2.1.2-beta_

@@ -25,7 +25,7 @@ This guide will help you get started quickly.
      
   ⚠  AFTER DOTA 2 UPDATES
      
-     Run "Quick Patch" after every Dota 2 game update to keep mods working.
+     Run "Install ModsPack" after every Dota 2 game update to keep mods working.
 
 ═══════════════════════════════════════════════════════════════════════════════
   FIRST TIME SETUP (Takes 5 minutes)
@@ -70,7 +70,7 @@ STEP 4: LAUNCH DOTA 2
    
    To update after game patches:
    - Click "Patch Update"
-   - Select "Quick Patch"
+   - Click "Install ModsPack"
 
 2. HERO SET GENERATION
    
@@ -106,7 +106,7 @@ STEP 4: LAUNCH DOTA 2
 The main window shows mod status:
 
   ✓ GREEN "Ready"         - Everything working perfectly
-  ⚠ ORANGE "Need Update"  - Patch needed (run Quick Patch)
+  ⚠ ORANGE "Need Update"  - Patch needed (run Install ModsPack)
   ✗ RED "Error"           - Problem detected (check console logs)
   ○ GRAY "Not Installed"  - No mods installed yet
 
@@ -132,7 +132,7 @@ PROBLEM: After Dota 2 update, mods stopped working
 SOLUTION:
   1. Launch ArdysaModsTools
   2. Click "Patch Update"
-  3. Select "Quick Patch"
+  3. Click "Install ModsPack"
   4. Wait for completion
   5. Relaunch Dota 2
 
@@ -175,11 +175,11 @@ A: No, Windows-only (Windows 10/11 64-bit).
 ═══════════════════════════════════════════════════════════════════════════════
 
 Application Settings:
-  %APPDATA%\ArdysaModsTools\
-  (Usually: C:\Users\YourName\AppData\Roaming\ArdysaModsTools)
+  [Dota 2 Path]\game\_ArdysaMods\_temp\
+  (Settings are stored within your Dota 2 installation)
 
 Log Files:
-  %APPDATA%\ArdysaModsTools\logs\
+  [Dota 2 Path]\game\_ArdysaMods\_temp\logs\
 
 Mods Installed To:
   [Dota 2 Path]\game\dota\_ArdysaMods\pak01_dir.vpk
@@ -215,7 +215,7 @@ Daily Usage:
   Install Mods:          Install → Auto Install
   Custom Hero Skins:     Select Hero → Choose → Generate
   Weather/Terrain:       Miscellaneous → Select → Generate
-  After Game Update:     Patch Update → Quick Patch
+  After Game Update:     Click "Install ModsPack"
   Disable Mods:          Disable button
   Copy Logs:             Click Copy Console button
 
@@ -228,7 +228,7 @@ Console Logs Are Your Friend:
   PRO TIPS
 ═══════════════════════════════════════════════════════════════════════════════
 
-  ★ Always run Quick Patch after Dota 2 updates
+  ★ Always run Install ModsPack after Dota 2 updates
   ★ Star your favorite heroes for faster access  
   ★ Generate multiple heroes at once to save time
   ★ Use "Copy Console" button when reporting errors
@@ -272,6 +272,6 @@ See LICENSE for full license terms and third-party notices.
 Thank you for using ArdysaModsTools!
 Enjoy your customized Dota 2 experience! 🎮
 
-Version 2.1.0 | January 2026
+Version 2.1.2-beta | January 2026
 
 ═══════════════════════════════════════════════════════════════════════════════

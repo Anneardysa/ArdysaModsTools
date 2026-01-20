@@ -10,11 +10,11 @@ Welcome to the AMT 2.0 documentation hub. Find everything you need to use or con
 
 Start here if you want to use AMT 2.0:
 
-| Guide                                  | Description                                       |
-| -------------------------------------- | ------------------------------------------------- |
-| **[Main README](../README.md)**        | Complete project overview, features, installation |
-| **[Quick Start](GETTING_STARTED.txt)** | Get up and running in 5 minutes                   |
-| **[User Guide](USER_GUIDE.md)**        | Detailed usage walkthrough                        |
+| Guide                                       | Description                                       |
+| ------------------------------------------- | ------------------------------------------------- |
+| **[Main README](../README.md)**             | Complete project overview, features, installation |
+| **[Quick Start](user/GETTING_STARTED.txt)** | Get up and running in 5 minutes                   |
+| **[User Guide](USER_GUIDE.md)**             | Detailed usage walkthrough                        |
 
 ### 👨‍💻 For Developers
 
@@ -33,8 +33,11 @@ Contributing or understanding the codebase:
 ```
 docs/
 ├── README.md              ← You are here
-├── GETTING_STARTED.txt    ← Quick start for users
-├── USER_GUIDE.md          ← Complete user guide
+│
+├── user/                  ← End-user guides
+│   ├── GETTING_STARTED.txt
+│   ├── QUICK_START.md
+│   └── USER_GUIDE.md
 │
 ├── dev/                   ← Contributor guidelines
 │   ├── CONTRIBUTING.md
@@ -51,9 +54,9 @@ docs/
 
 ## 🔗 External Links
 
--  📦 [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases)
--  🐛 [Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
--  💬 [Discussions](https://github.com/Anneardysa/ArdysaModsTools/discussions)
+- 📦 [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases)
+- 🐛 [Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
+- 💬 [Discussions](https://github.com/Anneardysa/ArdysaModsTools/discussions)
 
 ---
 

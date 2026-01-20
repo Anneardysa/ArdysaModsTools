@@ -375,12 +375,12 @@ graph TB
 
 ## Configuration Management
 
-| Service               | Storage                                    | Purpose            |
-| --------------------- | ------------------------------------------ | ------------------ |
-| `ConfigService`       | `%APPDATA%/ArdysaModsTools/config.json`    | General app config |
-| `UserSettingsService` | `%APPDATA%/ArdysaModsTools/settings.json`  | User preferences   |
-| `FavoritesStore`      | `%APPDATA%/ArdysaModsTools/favorites.json` | Favorite heroes    |
-| `MainConfigService`   | `%APPDATA%/ArdysaModsTools/main.json`      | Window state       |
+| Service               | Storage                                 | Purpose            |
+| --------------------- | --------------------------------------- | ------------------ |
+| `ConfigService`       | `game/_ArdysaMods/_temp/config.json`    | General app config |
+| `UserSettingsService` | `game/_ArdysaMods/_temp/settings.json`  | User preferences   |
+| `FavoritesStore`      | `game/_ArdysaMods/_temp/favorites.json` | Favorite heroes    |
+| `MainConfigService`   | `game/_ArdysaMods/_temp/main.json`      | Window state       |
 
 ---
 

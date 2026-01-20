@@ -288,10 +288,10 @@ public class MyWebForm : Form
 
 ### General
 
--  C# 12 features allowed
--  Nullable enabled
--  Async/await preferred
--  Use `OperationResult` for expected failures
+- C# 12 features allowed
+- Nullable enabled
+- Async/await preferred
+- Use `OperationResult` for expected failures
 
 ### Naming
 
@@ -348,7 +348,7 @@ public class MyService
 
 1. **Skip security checks** — Comment out `SecurityManager.Initialize()` in debug
 2. **Use console** — Watch `mainConsoleBox` for logs
-3. **Check logs** — `%APPDATA%/ArdysaModsTools/logs/`
+3. **Check logs** — `[Dota 2 Path]/game/_ArdysaMods/_temp/logs/`
 
 ---
 

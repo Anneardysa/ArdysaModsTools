@@ -318,7 +318,7 @@ catch (VpkException ex)
 
 ### Debug Steps
 
-1. Check `%APPDATA%/ArdysaModsTools/logs/` for detailed logs
+1. Check `[Dota 2 Path]/game/_ArdysaMods/_temp/logs/` for detailed logs
 2. Verify Dota 2 path is correct
 3. Ensure Dota 2 is not running
 4. Check antivirus isn't blocking tools

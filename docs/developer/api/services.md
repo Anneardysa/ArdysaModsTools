@@ -51,20 +51,10 @@ Primary service for mod installation operations.
 | `InstallModsAsync(dotaPath, force, ct)`         | Download and install mod pack              | `OperationResult` |
 | `DisableModsAsync(dotaPath, ct)`                | Remove mods, restore original gameinfo     | `OperationResult` |
 | `ManualInstallModsAsync(dotaPath, vpkPath, ct)` | Install user-provided VPK                  | `OperationResult` |
-| `UpdatePatcherAsync(dotaPath, mode, cb, ct)`    | Patch signatures/gameinfo                  | `OperationResult` |
+| `UpdatePatcherAsync(dotaPath, cb, ct)`          | Patch signatures/gameinfo (full patch)     | `OperationResult` |
 | `ValidateVpkAsync(vpkPath, ct)`                 | Validate VPK contains `_ArdysaMods` marker | `bool`            |
 | `IsRequiredModFilePresent(dotaPath)`            | Check if mods installed                    | `bool`            |
 | `CheckForNewerModsPackAsync(dotaPath, ct)`      | Compare local/remote hashes                | `bool`            |
-
-#### Patch Modes
-
-```csharp
-public enum PatchMode
-{
-    Quick,  // Signatures only (fast, after game update)
-    Full    // Signatures + gameinfo (complete patch)
-}
-```
 
 #### Usage Example
 
@@ -79,8 +69,8 @@ if (!result.Success)
     return;
 }
 
-// After game update
-await installer.UpdatePatcherAsync(dotaPath, PatchMode.Quick,
+// After game update - always does full patch
+await installer.UpdatePatcherAsync(dotaPath,
     msg => Console.WriteLine(msg), ct);
 ```
 
@@ -252,10 +242,10 @@ Task<OperationResult> PerformGenerationAsync(
 
 Applies asset modifications based on user selections. Handles:
 
--  Weather effects
--  Terrain/map replacements
--  HUD modifications
--  Audio replacements
+- Weather effects
+- Terrain/map replacements
+- HUD modifications
+- Audio replacements
 
 ---
 
@@ -409,9 +399,9 @@ FallbackLogger.Log($"UnhandledException: {ex}");
 
 ## Configuration Services
 
-| Service               | Purpose            | Storage Location           |
-| --------------------- | ------------------ | -------------------------- |
-| `ConfigService`       | General app config | `%APPDATA%/config.json`    |
-| `UserSettingsService` | User preferences   | `%APPDATA%/settings.json`  |
-| `FavoritesStore`      | Favorite heroes    | `%APPDATA%/favorites.json` |
-| `MainConfigService`   | Window state       | `%APPDATA%/main.json`      |
+| Service               | Purpose            | Storage Location                        |
+| --------------------- | ------------------ | --------------------------------------- |
+| `ConfigService`       | General app config | `game/_ArdysaMods/_temp/config.json`    |
+| `UserSettingsService` | User preferences   | `game/_ArdysaMods/_temp/settings.json`  |
+| `FavoritesStore`      | Favorite heroes    | `game/_ArdysaMods/_temp/favorites.json` |
+| `MainConfigService`   | Window state       | `game/_ArdysaMods/_temp/main.json`      |

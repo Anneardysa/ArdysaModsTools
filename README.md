@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/Version-2.1.0--beta-00d4ff?style=for-the-badge&logo=v)
+![Version](https://img.shields.io/badge/Version-2.1.2--beta-00d4ff?style=for-the-badge&logo=v)
 ![Build](https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=github)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
@@ -31,11 +31,11 @@ This tool is **NOT** affiliated with Valve Corporation. Modifying game files may
 
 ## ✨ Features
 
--  **One-Click Installation** - Install mod packs instantly
--  **Custom Hero Sets** - Generate personalized hero cosmetics
--  **Miscellaneous Mods** - Weather, terrain, HUD, and more
--  **Auto-Patching** - Re-apply mods after Dota 2 updates
--  **Safe & Reversible** - Disable mods anytime
+- **One-Click Installation** - Install mod packs instantly
+- **Custom Hero Sets** - Generate personalized hero cosmetics
+- **Miscellaneous Mods** - Weather, terrain, HUD, and more
+- **Auto-Patching** - Re-apply mods after Dota 2 updates
+- **Safe & Reversible** - Disable mods anytime
 
 ---
 
@@ -43,9 +43,9 @@ This tool is **NOT** affiliated with Valve Corporation. Modifying game files may
 
 ### Requirements
 
--  Windows 10/11 (64-bit)
--  .NET 8.0 Desktop Runtime
--  Dota 2 installed via Steam
+- Windows 10/11 (64-bit)
+- .NET 8.0 Desktop Runtime
+- Dota 2 installed via Steam
 
 ### Download
 
@@ -131,14 +131,14 @@ See [CONTRIBUTING.md](docs/dev/CONTRIBUTING.md) for guidelines.
 
 ## 💬 Support
 
--  **Issues**: [GitHub Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
--  **Author**: Ardysa
+- **Issues**: [GitHub Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
+- **Author**: Ardysa
 
 ---
 
 <div align="center">
 
-© 2024-2026 Ardysa. All rights reserved.
+© 2025-2026 Ardysa. All rights reserved.
 
 Made with ❤️ for the Dota 2 community
 
