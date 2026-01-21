@@ -45,13 +45,13 @@ namespace ArdysaModsTools.Core.Services
         
         // URLs loaded from environment configuration
         private static string GitHubHeroesUrl => EnvironmentConfig.BuildRawUrl("Assets/heroes.json");
-        private static string GitHubSetUpdatesUrl => EnvironmentConfig.BuildRawUrl("Assets/set_updates.json");
+        private static string GitHubSetUpdatesUrl => EnvironmentConfig.BuildRawUrl("Assets/set_update.json");
 
         public HeroService(string baseFolder)
         {
             _baseFolder = baseFolder ?? throw new ArgumentNullException(nameof(baseFolder));
             _heroesJsonPath = Path.Combine(_baseFolder, "heroes.json");
-            _setUpdatesJsonPath = Path.Combine(_baseFolder, "Assets", "set_updates.json");
+            _setUpdatesJsonPath = Path.Combine(_baseFolder, "Assets", "set_update.json");
         }
 
         /// <summary>
