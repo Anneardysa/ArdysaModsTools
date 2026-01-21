@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
    <head>
       <meta charset="UTF-8" />
@@ -109,7 +109,9 @@
 
          /* Card glow on selection */
          .hero-card.selected > div {
-            box-shadow: 0 0 0 2px #00d4ff, 0 0 20px rgba(0, 212, 255, 0.3);
+            box-shadow:
+               0 0 0 2px #00d4ff,
+               0 0 20px rgba(0, 212, 255, 0.3);
          }
 
          /* Hover lift effect */
@@ -155,7 +157,9 @@
             box-shadow: 0 4px 20px rgba(0, 212, 255, 0.2);
          }
          .set-tile.selected {
-            box-shadow: 0 0 0 2px #00d4ff, 0 0 15px rgba(0, 212, 255, 0.4);
+            box-shadow:
+               0 0 0 2px #00d4ff,
+               0 0 15px rgba(0, 212, 255, 0.4);
          }
          .set-tile.focused {
             box-shadow: 0 0 0 2px #f59e0b;
@@ -175,6 +179,91 @@
          }
          .nav-arrow:active {
             transform: scale(0.95);
+         }
+
+         /* Latest Updates Section */
+         .update-card {
+            transition: all 0.3s ease-out;
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.1);
+         }
+         .update-card:hover {
+            transform: translateY(-3px) scale(1.01);
+            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.2);
+            border-color: rgba(34, 197, 94, 0.5);
+         }
+         .update-card .new-badge {
+            animation: badge-pulse 1.5s ease-in-out infinite;
+         }
+         @keyframes badge-pulse {
+            0%,
+            100% {
+               box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+               transform: scale(1);
+            }
+            50% {
+               box-shadow:
+                  0 0 15px rgba(34, 197, 94, 0.9),
+                  0 0 25px rgba(34, 197, 94, 0.5);
+               transform: scale(1.05);
+            }
+         }
+         /* Shimmer effect on cards */
+         .update-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: 0.5s;
+            pointer-events: none;
+         }
+         .update-card:hover::before {
+            left: 100%;
+         }
+         /* Show/hide animation for container */
+         #latestUpdatesContainer {
+            transition: all 0.4s ease-out;
+            max-height: 280px;
+            opacity: 1;
+            padding-bottom: 8px;
+         }
+         #latestUpdatesContainer.collapsed {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+         }
+         /* Highlighted set in modal */
+         .set-tile.highlighted {
+            animation: highlight-pulse 0.6s ease-out;
+            box-shadow:
+               0 0 0 3px #22c55e,
+               0 0 25px rgba(34, 197, 94, 0.5) !important;
+         }
+         @keyframes highlight-pulse {
+            0% {
+               transform: scale(1.1);
+            }
+            100% {
+               transform: scale(1);
+            }
+         }
+         #latestUpdatesContainer::-webkit-scrollbar {
+            height: 6px;
+         }
+         #latestUpdatesContainer::-webkit-scrollbar-track {
+            background: transparent;
+         }
+         #latestUpdatesContainer::-webkit-scrollbar-thumb {
+            background: #22c55e40;
+            border-radius: 3px;
+         }
+         #latestUpdatesContainer::-webkit-scrollbar-thumb:hover {
+            background: #22c55e70;
          }
       </style>
    </head>
@@ -336,6 +425,65 @@
 
       <!-- Hero Grid -->
       <main class="p-6 pb-20 pt-16">
+         <!-- Latest Updates Section -->
+         <div id="latestUpdatesSection" class="hidden mb-10">
+            <!-- Section Header -->
+            <div class="flex items-center justify-between mb-5">
+               <div class="flex items-center gap-4">
+                  <div class="flex items-center gap-2">
+                     <svg
+                        class="w-5 h-5 text-green-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                     >
+                        <path
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                           stroke-width="2"
+                           d="M13 10V3L4 14h7v7l9-11h-7z"
+                        />
+                     </svg>
+                     <span class="text-base font-bold uppercase tracking-wider text-white"
+                        >Latest Updates</span
+                     >
+                  </div>
+                  <span
+                     id="updatesCount"
+                     class="text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/40 font-semibold"
+                     >0 new</span
+                  >
+               </div>
+               <button
+                  onclick="toggleUpdatesSection()"
+                  class="flex items-center gap-2 px-3 py-1.5 text-xs text-gray-400 hover:text-white border border-amt-border hover:border-gray-500 rounded-lg transition-all"
+               >
+                  <span id="toggleUpdatesText">Hide</span>
+                  <svg
+                     id="toggleUpdatesIcon"
+                     class="w-4 h-4 transition-transform duration-300"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M5 15l7-7 7 7"
+                     />
+                  </svg>
+               </button>
+            </div>
+
+            <!-- Cards Container -->
+            <div id="latestUpdatesContainer" class="overflow-x-auto overflow-y-hidden">
+               <div id="latestUpdatesGrid" class="flex gap-4 min-w-max py-3 px-1">
+                  <!-- Update cards will be inserted here -->
+               </div>
+            </div>
+         </div>
+
          <div
             id="heroGrid"
             class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3"
@@ -636,9 +784,124 @@
 
          function loadFavorites(favoritesArray) {
             favorites = new Set(
-               typeof favoritesArray === "string" ? JSON.parse(favoritesArray) : favoritesArray
+               typeof favoritesArray === "string" ? JSON.parse(favoritesArray) : favoritesArray,
             );
             renderHeroes();
+         }
+
+         // ============================================
+         // Latest Updates Section
+         // ============================================
+         let latestUpdates = [];
+         let updatesCollapsed = false;
+         let highlightSetIndex = -1; // Track which set to highlight
+
+         function loadLatestUpdates(updatesJson) {
+            latestUpdates = typeof updatesJson === "string" ? JSON.parse(updatesJson) : updatesJson;
+
+            if (!latestUpdates || latestUpdates.length === 0) {
+               document.getElementById("latestUpdatesSection").classList.add("hidden");
+               return;
+            }
+
+            // Show section
+            document.getElementById("latestUpdatesSection").classList.remove("hidden");
+            document.getElementById("updatesCount").textContent = `${latestUpdates.length} new`;
+
+            // Render update cards (only hero name and date, no set name)
+            const grid = document.getElementById("latestUpdatesGrid");
+            grid.innerHTML = latestUpdates
+               .map((update, idx) => {
+                  const daysText =
+                     update.daysAgo === 0
+                        ? "Today"
+                        : update.daysAgo === 1
+                          ? "Yesterday"
+                          : `${update.daysAgo}d ago`;
+
+                  return `
+               <div class="update-card relative flex-shrink-0 w-36 bg-amt-card rounded-xl overflow-hidden cursor-pointer group"
+                    onclick="navigateToUpdate('${update.heroId}', ${update.setIndex})"
+                    style="animation: slide-up 0.3s ease-out ${idx * 60}ms backwards">
+                  <div class="relative h-36 overflow-hidden">
+                     <img src="${update.setThumbnail || update.heroThumbnail || ""}" 
+                          alt="${update.heroName}"
+                          class="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-110"
+                          onerror="this.src='${update.heroThumbnail || ""}'" />
+                     <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                     <div class="new-badge absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[10px] font-bold rounded-sm bg-green-500 text-black uppercase tracking-wide">
+                        NEW
+                     </div>
+                  </div>
+                  <div class="p-2 bg-black/80">
+                     <p class="text-xs font-semibold text-white truncate">${update.heroName}</p>
+                     <p class="text-[10px] text-green-400 font-medium">${daysText}</p>
+                  </div>
+               </div>
+               `;
+               })
+               .join("");
+         }
+
+         function navigateToUpdate(heroId, setIndex) {
+            // Store which set to highlight
+            highlightSetIndex = setIndex;
+
+            // Find hero card
+            const heroCard = document.querySelector(`[data-hero-id="${heroId}"]`);
+            if (heroCard) {
+               // Scroll to hero if not visible
+               heroCard.scrollIntoView({ behavior: "smooth", block: "center" });
+
+               // Open the modal after scroll
+               setTimeout(() => {
+                  openHeroModal(heroId);
+
+                  // Highlight and focus the specific set
+                  if (setIndex >= 0) {
+                     setTimeout(() => {
+                        focusedSetIndex = setIndex;
+                        updateFocusState();
+
+                        // Add highlight effect to the set tile
+                        const setTiles = document.querySelectorAll(".set-tile");
+                        if (setTiles[setIndex]) {
+                           setTiles[setIndex].classList.add("highlighted");
+                           setTiles[setIndex].scrollIntoView({
+                              behavior: "smooth",
+                              block: "nearest",
+                           });
+
+                           // Remove highlight after animation
+                           setTimeout(() => {
+                              setTiles[setIndex].classList.remove("highlighted");
+                           }, 2000);
+                        }
+
+                        // Reset highlight tracker
+                        highlightSetIndex = -1;
+                     }, 150);
+                  }
+               }, 350);
+            }
+         }
+
+         function toggleUpdatesSection() {
+            const container = document.getElementById("latestUpdatesContainer");
+            const toggleText = document.getElementById("toggleUpdatesText");
+            const toggleIcon = document.getElementById("toggleUpdatesIcon");
+
+            updatesCollapsed = !updatesCollapsed;
+
+            if (updatesCollapsed) {
+               container.classList.add("collapsed");
+               toggleText.textContent = "Show";
+               toggleIcon.style.transform = "rotate(180deg)";
+            } else {
+               container.classList.remove("collapsed");
+               toggleText.textContent = "Hide";
+               toggleIcon.style.transform = "rotate(0deg)";
+            }
          }
 
          let shouldCloseFormOnAlert = false;
@@ -789,10 +1052,10 @@
                               isSelected && selectedSet
                                  ? `<p class="text-[10px] text-amt-accent truncate">${selectedSet.name}</p>`
                                  : hasSets
-                                 ? `<p class="text-[10px] text-gray-500">${hero.sets.length} set${
-                                      hero.sets.length > 1 ? "s" : ""
-                                   }</p>`
-                                 : ""
+                                   ? `<p class="text-[10px] text-gray-500">${hero.sets.length} set${
+                                        hero.sets.length > 1 ? "s" : ""
+                                     }</p>`
+                                   : ""
                            }
                         </div>
                      </div>
@@ -839,8 +1102,8 @@
 
                   return `
                <div class="set-tile ${isSelected ? "selected" : ""} ${
-                     isFocused ? "focused" : ""
-                  } bg-amt-card rounded-xl overflow-hidden border border-amt-border cursor-pointer"
+                  isFocused ? "focused" : ""
+               } bg-amt-card rounded-xl overflow-hidden border border-amt-border cursor-pointer"
                     data-set-index="${idx}"
                     onclick="selectSetFromModal('${currentModalHeroId}', ${idx})">
                   <div class="aspect-square overflow-hidden">
@@ -898,7 +1161,7 @@
             // Scroll focused tile into view
             setTimeout(() => {
                const focusedTile = document.querySelector(
-                  `.set-tile[data-set-index="${focusedSetIndex}"]`
+                  `.set-tile[data-set-index="${focusedSetIndex}"]`,
                );
                if (focusedTile) {
                   focusedTile.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -976,7 +1239,7 @@
             showConfirmWithList(
                "Clear All Selections",
                `This will reset all <span class="text-white font-bold text-base">${selectionCount}</span> hero selection(s) to default.`,
-               selectedItems
+               selectedItems,
             );
          }
 
@@ -1020,7 +1283,7 @@
                         <div class="text-xs text-amt-accent truncate">${item.setName}</div>
                      </div>
                   </div>
-               `
+               `,
                   )
                   .join("");
 
