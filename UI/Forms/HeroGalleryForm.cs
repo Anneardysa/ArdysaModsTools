@@ -253,12 +253,84 @@ namespace ArdysaModsTools.UI.Forms
                 var favoritesJson = JsonSerializer.Serialize(_favorites.ToList(), _jsonOptions);
                 await ExecuteScriptAsync($"loadFavorites({favoritesJson})");
 
+                // Load set updates for "Latest Updates" section
+                await LoadSetUpdatesAsync();
+
                 await UpdateStatusAsync($"Loaded {_heroes.Count} heroes");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"LoadHeroDataAsync error: {ex.Message}");
                 await UpdateStatusAsync("Error loading heroes");
+            }
+        }
+
+        /// <summary>
+        /// Load set updates and send to JavaScript for the Latest Updates section.
+        /// </summary>
+        private async Task LoadSetUpdatesAsync()
+        {
+            try
+            {
+                var updatesData = await _heroService.LoadSetUpdatesAsync();
+                
+                if (updatesData.Updates.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("No set updates found");
+                    return;
+                }
+
+                // Get recent updates (last 30 days) and convert to JS format
+                var recentUpdates = updatesData.GetRecentUpdates(30);
+                
+                // Build update entries with hero info from our loaded heroes
+                var jsUpdates = recentUpdates.Select(u => {
+                    var hero = _heroes.FirstOrDefault(h => 
+                        string.Equals(h.Id, u.HeroId, StringComparison.OrdinalIgnoreCase));
+                    
+                    // Find set thumbnail
+                    string? setThumbnail = null;
+                    int setIndex = -1;
+                    if (hero?.Sets != null)
+                    {
+                        var setEntry = hero.Sets
+                            .Select((kvp, idx) => new { Name = kvp.Key, Files = kvp.Value, Index = idx })
+                            .FirstOrDefault(s => string.Equals(s.Name, u.SetName, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (setEntry != null)
+                        {
+                            setIndex = setEntry.Index;
+                            setThumbnail = setEntry.Files?.FirstOrDefault(f =>
+                                f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                                f.EndsWith(".webp", StringComparison.OrdinalIgnoreCase));
+                        }
+                    }
+                    
+                    return new
+                    {
+                        heroId = u.HeroId,
+                        heroName = hero?.DisplayName ?? hero?.Name ?? u.HeroId,
+                        heroThumbnail = hero != null ? GetHeroThumbnail(hero) : null,
+                        setName = u.SetName,
+                        setIndex = setIndex,
+                        setThumbnail = setThumbnail,
+                        addedDate = u.AddedDate.ToString("yyyy-MM-dd"),
+                        daysAgo = (int)(DateTime.Now - u.AddedDate).TotalDays
+                    };
+                }).Where(u => u.setIndex >= 0).ToList(); // Only include valid sets
+                
+                if (jsUpdates.Count > 0)
+                {
+                    var json = JsonSerializer.Serialize(jsUpdates, _jsonOptions);
+                    await ExecuteScriptAsync($"loadLatestUpdates({json})");
+                    System.Diagnostics.Debug.WriteLine($"Loaded {jsUpdates.Count} recent updates");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"LoadSetUpdatesAsync error: {ex.Message}");
+                // Don't fail silently - just skip updates section
             }
         }
 

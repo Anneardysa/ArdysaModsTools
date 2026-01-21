@@ -41,14 +41,118 @@ namespace ArdysaModsTools.Core.Services
     {
         private readonly string _baseFolder;
         private readonly string _heroesJsonPath;
+        private readonly string _setUpdatesJsonPath;
         
-        // URL now loaded from environment configuration
+        // URLs loaded from environment configuration
         private static string GitHubHeroesUrl => EnvironmentConfig.BuildRawUrl("Assets/heroes.json");
+        private static string GitHubSetUpdatesUrl => EnvironmentConfig.BuildRawUrl("Assets/set_updates.json");
 
         public HeroService(string baseFolder)
         {
             _baseFolder = baseFolder ?? throw new ArgumentNullException(nameof(baseFolder));
             _heroesJsonPath = Path.Combine(_baseFolder, "heroes.json");
+            _setUpdatesJsonPath = Path.Combine(_baseFolder, "Assets", "set_updates.json");
+        }
+
+        /// <summary>
+        /// Load set updates from GitHub (or local fallback).
+        /// Returns empty data if file doesn't exist or fails to load.
+        /// </summary>
+        public async Task<Models.SetUpdatesData> LoadSetUpdatesAsync()
+        {
+            try
+            {
+                string raw;
+                
+                // Try loading from GitHub first
+                try
+                {
+                    using var client = new System.Net.Http.HttpClient();
+                    client.Timeout = TimeSpan.FromSeconds(10);
+                    client.DefaultRequestHeaders.Add("User-Agent", "ArdysaModsTools");
+                    
+                    var response = await client.GetAsync(GitHubSetUpdatesUrl).ConfigureAwait(false);
+                    response.EnsureSuccessStatusCode();
+                    raw = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Fallback to local file
+                    if (!File.Exists(_setUpdatesJsonPath))
+                        return new Models.SetUpdatesData();
+                    
+                    raw = await File.ReadAllTextAsync(_setUpdatesJsonPath, Encoding.UTF8).ConfigureAwait(false);
+                }
+                
+                raw = NormalizeJson(raw);
+                return ParseSetUpdatesJson(raw);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load set updates: {ex.Message}");
+                return new Models.SetUpdatesData();
+            }
+        }
+
+        private static Models.SetUpdatesData ParseSetUpdatesJson(string raw)
+        {
+            var options = new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip
+            };
+
+            using var doc = JsonDocument.Parse(raw, options);
+            var root = doc.RootElement;
+            
+            var data = new Models.SetUpdatesData();
+            
+            if (root.TryGetProperty("version", out var versionEl))
+                data.Version = versionEl.GetString() ?? "1.0.0";
+                
+            if (root.TryGetProperty("lastUpdated", out var lastUpdatedEl) && 
+                DateTime.TryParse(lastUpdatedEl.GetString(), out var lastUpdated))
+                data.LastUpdated = lastUpdated;
+            
+            if (root.TryGetProperty("updates", out var updatesEl) && updatesEl.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var batchEl in updatesEl.EnumerateArray())
+                {
+                    var batch = new Models.SetUpdateBatch();
+                    
+                    if (batchEl.TryGetProperty("date", out var dateEl) && 
+                        DateTime.TryParse(dateEl.GetString(), out var batchDate))
+                    {
+                        batch = batch with { Date = batchDate };
+                    }
+                    
+                    if (batchEl.TryGetProperty("sets", out var setsEl) && setsEl.ValueKind == JsonValueKind.Array)
+                    {
+                        var sets = new List<Models.SetUpdateEntry>();
+                        foreach (var setEl in setsEl.EnumerateArray())
+                        {
+                            var heroId = "";
+                            var setName = "";
+                            
+                            if (setEl.TryGetProperty("heroId", out var heroIdEl))
+                                heroId = heroIdEl.GetString() ?? "";
+                            if (setEl.TryGetProperty("setName", out var setNameEl))
+                                setName = setNameEl.GetString() ?? "";
+                            
+                            if (!string.IsNullOrEmpty(heroId) && !string.IsNullOrEmpty(setName))
+                            {
+                                sets.Add(new Models.SetUpdateEntry { HeroId = heroId, SetName = setName });
+                            }
+                        }
+                        batch = batch with { Sets = sets };
+                    }
+                    
+                    if (batch.Sets.Count > 0)
+                        data.Updates.Add(batch);
+                }
+            }
+            
+            return data;
         }
 
         public async Task<List<HeroSummary>> LoadHeroesAsync()

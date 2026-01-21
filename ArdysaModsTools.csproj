@@ -193,6 +193,11 @@
     <Content Include="Assets\Html\misc_form.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    
+    <!-- Data Files -->
+    <Content Include="Assets\set_updates.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
 
     
     <!-- Fonts -->
