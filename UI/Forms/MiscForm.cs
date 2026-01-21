@@ -42,6 +42,11 @@ namespace ArdysaModsTools
         // UI state
         private readonly Dictionary<string, MiscRow> _rows = new();
 
+        /// <summary>
+        /// Result of the generation operation. Check after form closes.
+        /// </summary>
+        public ModGenerationResult? GenerationResult { get; private set; }
+
         public MiscForm(string? targetPath, Action<string> log, Action disableButtons, Action enableButtons)
         {
             _targetPath = targetPath;
@@ -397,6 +402,16 @@ namespace ArdysaModsTools
                     _miscLogger.Log("");
                     _miscLogger.Log($"Completed in {elapsed.TotalSeconds:F1}s");
                     
+                    // Store result for MainForm logging
+                    GenerationResult = new ModGenerationResult
+                    {
+                        Success = true,
+                        Type = GenerationType.Miscellaneous,
+                        MiscMode = selectedMode,
+                        OptionsCount = selections.Count,
+                        Duration = elapsed
+                    };
+                    
                     // Give UI time to update log
                     await Task.Delay(500);
                     Application.DoEvents();
@@ -407,11 +422,24 @@ namespace ArdysaModsTools
                         : "All mods have been successfully applied!";
                     
                     MessageBox.Show(successMessage, "Miscellaneous - Generation Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    
+                    this.DialogResult = DialogResult.OK;
                 }
                 else
                 {
                     if (operationResult.Message != "Operation cancelled by user.")
                     {
+                        // Store failed result
+                        GenerationResult = new ModGenerationResult
+                        {
+                            Success = false,
+                            Type = GenerationType.Miscellaneous,
+                            MiscMode = selectedMode,
+                            OptionsCount = selections.Count,
+                            Duration = elapsed,
+                            ErrorMessage = operationResult.Message
+                        };
+                        
                         _miscLogger.Log($"! Error: {operationResult.Message}");
                         MessageBox.Show($"Generation failed: {operationResult.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }

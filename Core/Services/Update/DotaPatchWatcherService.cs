@@ -18,6 +18,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Models;
 
 namespace ArdysaModsTools.Core.Services.Update
@@ -44,10 +45,6 @@ namespace ArdysaModsTools.Core.Services.Update
         private const int DebounceDelayMs = 3000; // 3 seconds to let patches settle
         private int _pendingChangeCount;
         
-        // File paths relative to Dota 2 folder
-        private const string SteamInfRelative = @"game\dota\steam.inf";
-        private const string SignaturesRelative = @"game\bin\win64\dota.signatures";
-        
         /// <summary>
         /// Fired when a Dota 2 patch is detected.
         /// </summary>
@@ -61,7 +58,7 @@ namespace ArdysaModsTools.Core.Services.Update
         public DotaPatchWatcherService(ILogger? logger = null)
         {
             _logger = logger;
-            _versionService = new DotaVersionService(logger ?? new NullLogger());
+            _versionService = new DotaVersionService(logger ?? NullLogger.Instance);
         }
         
         /// <summary>
@@ -85,7 +82,7 @@ namespace ArdysaModsTools.Core.Services.Update
             _logger?.Log($"[PatchWatcher] Current version: {_lastKnownVersion.DotaVersion} (Build {_lastKnownVersion.BuildNumber})");
             
             // Setup steam.inf watcher
-            string steamInfPath = Path.Combine(dotaPath, SteamInfRelative);
+            string steamInfPath = Path.Combine(dotaPath, DotaPaths.SteamInfWindows);
             if (File.Exists(steamInfPath))
             {
                 _steamInfWatcher = CreateWatcher(
@@ -95,7 +92,7 @@ namespace ArdysaModsTools.Core.Services.Update
             }
             
             // Setup dota.signatures watcher
-            string signaturesPath = Path.Combine(dotaPath, SignaturesRelative);
+            string signaturesPath = Path.Combine(dotaPath, DotaPaths.SignaturesWindows);
             if (File.Exists(signaturesPath))
             {
                 _signaturesWatcher = CreateWatcher(
@@ -238,15 +235,6 @@ namespace ArdysaModsTools.Core.Services.Update
             _disposed = true;
             
             StopWatching();
-        }
-        
-        /// <summary>
-        /// Null logger implementation for when no logger is provided.
-        /// </summary>
-        private class NullLogger : ILogger
-        {
-            public void Log(string message) { }
-            public void FlushBufferedLogs() { }
         }
     }
 }

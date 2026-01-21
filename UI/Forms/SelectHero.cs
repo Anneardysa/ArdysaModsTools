@@ -62,6 +62,13 @@ namespace ArdysaModsTools.UI.Forms
 
         // HeroService instance (loads heroes.json robustly)
         private readonly HeroService _heroService;
+        private DateTime _generationStartTime;
+        private int _heroCount;
+
+        /// <summary>
+        /// Result of the generation operation. Check after form closes.
+        /// </summary>
+        public ModGenerationResult? GenerationResult { get; private set; }
 
         public SelectHero()
         {
@@ -579,6 +586,10 @@ namespace ArdysaModsTools.UI.Forms
             // Disable UI
             SetUiEnabled(false);
 
+            // Track for result logging
+            _generationStartTime = DateTime.Now;
+            _heroCount = heroesWithSets.Count;
+
             // Capture logs during generation for error reporting
             var generationLogs = new System.Text.StringBuilder();
             generationLogs.AppendLine($"=== Generation Started: {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===");
@@ -641,6 +652,16 @@ namespace ArdysaModsTools.UI.Forms
                         "Generation Complete", MessageBoxButtons.OK,
                         operationResult.FailedItems?.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
 
+                    // Store result for MainForm logging
+                    GenerationResult = new ModGenerationResult
+                    {
+                        Success = true,
+                        Type = GenerationType.SkinSelector,
+                        OptionsCount = _heroCount,
+                        Duration = DateTime.Now - _generationStartTime,
+                        Details = $"{_heroCount} hero set(s)" + (operationResult.FailedItems?.Count > 0 ? $", {operationResult.FailedItems.Count} failed" : "")
+                    };
+
                     // Auto-close the SelectHero form after successful generation
                     this.DialogResult = DialogResult.OK;
                     this.Close();
@@ -653,6 +674,16 @@ namespace ArdysaModsTools.UI.Forms
                         generationLogs.AppendLine();
                         generationLogs.AppendLine($"=== Error: {operationResult.Message} ===");
                         generationLogs.AppendLine($"=== Failed at: {DateTime.Now:yyyy-MM-dd HH:mm:ss} ===");
+                        
+                        // Store failed result
+                        GenerationResult = new ModGenerationResult
+                        {
+                            Success = false,
+                            Type = GenerationType.SkinSelector,
+                            OptionsCount = _heroCount,
+                            Duration = DateTime.Now - _generationStartTime,
+                            ErrorMessage = operationResult.Message
+                        };
                         
                         using var errorDialog = new ErrorLogDialog(
                             "Generation Failed",

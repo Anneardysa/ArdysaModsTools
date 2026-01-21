@@ -22,6 +22,8 @@ using ArdysaModsTools.Core.DependencyInjection;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.UI;
+using ArdysaModsTools.UI.Styles;
+using ArdysaModsTools.UI.Helpers;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.UI.Forms;
 using System;
@@ -397,12 +399,15 @@ namespace ArdysaModsTools
             supportDialog.ShowDialog(this);
         }
 
-        private void MiscellaneousButton_Click(object? sender, EventArgs e)
+        private async void MiscellaneousButton_Click(object? sender, EventArgs e)
         {
+            ModGenerationResult? generationResult = null;
+            
             try
             {
                 using var miscForm = new UI.Forms.MiscFormWebView(targetPath, _logger.Log, DisableAllButtons, EnableAllButtons);
                 miscForm.ShowDialog(this);
+                generationResult = miscForm.GenerationResult;
             }
             catch (Exception ex)
             {
@@ -410,6 +415,75 @@ namespace ArdysaModsTools
                 // Fallback to classic form
                 using var miscForm = new MiscForm(targetPath, _logger.Log, DisableAllButtons, EnableAllButtons);
                 miscForm.ShowDialog(this);
+                generationResult = miscForm.GenerationResult;
+            }
+            
+            // Log generation result to MainForm console
+            if (generationResult != null)
+            {
+                LogGenerationResult(generationResult);
+            }
+            
+            // Always refresh status after MiscForm closes
+            // Mods may have been generated/modified
+            await RefreshStatusAfterModOperation();
+        }
+
+        /// <summary>
+        /// Refreshes mod status after any mod generation/modification operation.
+        /// Shows checking state, performs fresh status check, updates UI and cached status.
+        /// </summary>
+        private async Task RefreshStatusAfterModOperation()
+        {
+            if (string.IsNullOrEmpty(targetPath)) return;
+            
+            _logger?.Log("Refreshing mod status...");
+            ShowCheckingState();
+            
+            try
+            {
+                // Force a fresh status check (clears cache)
+                var freshStatus = await _status.ForceRefreshAsync(targetPath);
+                SetModsStatusDetailed(freshStatus);
+                _logger?.Log($"Status refreshed: {freshStatus.StatusText}");
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"Status refresh failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Logs the result of a mod generation operation to the MainForm console.
+        /// Provides specific messaging for different generation types and modes.
+        /// </summary>
+        private void LogGenerationResult(ModGenerationResult result)
+        {
+            if (result.Success)
+            {
+                switch (result.Type)
+                {
+                    case GenerationType.Miscellaneous:
+                        string modeText = result.MiscMode == MiscGenerationMode.GenerateOnly 
+                            ? "Clean Generate" 
+                            : "Add to Current";
+                        _logger?.Log($"[MISC] Generation complete ({modeText}) - {result.OptionsCount} option(s) in {result.Duration.TotalSeconds:F1}s");
+                        break;
+                        
+                    case GenerationType.SkinSelector:
+                        _logger?.Log($"[SKIN] Generation complete - {result.Details ?? $"{result.OptionsCount} hero(es)"} in {result.Duration.TotalSeconds:F1}s");
+                        break;
+                        
+                    default:
+                        _logger?.Log($"[GEN] Generation complete - {result.OptionsCount} item(s) in {result.Duration.TotalSeconds:F1}s");
+                        break;
+                }
+            }
+            else
+            {
+                string typePrefix = result.Type == GenerationType.Miscellaneous ? "[MISC]" : 
+                                   result.Type == GenerationType.SkinSelector ? "[SKIN]" : "[GEN]";
+                _logger?.Log($"{typePrefix} Generation failed: {result.ErrorMessage ?? "Unknown error"}");
             }
         }
 
@@ -963,7 +1037,8 @@ namespace ArdysaModsTools
                 if (success)
                 {
                     // Progress handled by overlay
-                    await _status.CheckAndUpdateUIAsync(targetPath!, statusModsDotLabel, statusModsTextLabel);
+                    var statusResult = await _status.GetDetailedStatusAsync(targetPath!);
+                    StatusUIHelper.UpdateLabels(statusResult, statusModsDotLabel, statusModsTextLabel);
                 }
             }
             catch (OperationCanceledException)
@@ -1203,7 +1278,8 @@ namespace ArdysaModsTools
                     }
                 }
 
-                await _status.CheckAndUpdateUIAsync(targetPath, statusModsDotLabel, statusModsTextLabel);
+                var statusResult2 = await _status.GetDetailedStatusAsync(targetPath);
+                StatusUIHelper.UpdateLabels(statusResult2, statusModsDotLabel, statusModsTextLabel);
             }
             catch (OperationCanceledException)
             {
@@ -1312,18 +1388,25 @@ namespace ArdysaModsTools
                 return;
             }
 
-            // Check current status to determine action
-            if (_currentStatus?.Status == ModStatus.NeedUpdate)
+            // CRITICAL: Always get fresh status before making decisions
+            // The cached _currentStatus may be stale if user generated mods
+            // without the FileWatcher triggering (e.g., from MiscForm)
+            ShowCheckingState();
+            var freshStatus = await _status.ForceRefreshAsync(targetPath);
+            SetModsStatusDetailed(freshStatus);
+            
+            // Now use the fresh status for decision-making
+            if (freshStatus.Status == ModStatus.NeedUpdate)
             {
                 // Direct action when update is needed - show menu
                 ShowPatchMenu();
             }
-            else if (_currentStatus?.Status == ModStatus.Ready)
+            else if (freshStatus.Status == ModStatus.Ready)
             {
                 // If already ready, show options menu
                 ShowPatchMenu();
             }
-            else if (_currentStatus?.Status == ModStatus.Disabled)
+            else if (freshStatus.Status == ModStatus.Disabled)
             {
                 // If disabled, offer to enable
                 var result = MessageBox.Show(
@@ -1337,7 +1420,7 @@ namespace ArdysaModsTools
                     await ExecutePatchAsync();
                 }
             }
-            else if (_currentStatus?.Status == ModStatus.NotInstalled)
+            else if (freshStatus.Status == ModStatus.NotInstalled)
             {
                 MessageBox.Show(
                     "Please install mods first using the 'Skin Selector' or 'Miscellaneous' buttons.",
@@ -1787,7 +1870,7 @@ namespace ArdysaModsTools
             }
             if (!string.IsNullOrEmpty(statusInfo.ActionButtonText))
             {
-                tooltipText += $"\n\n→ {statusInfo.ActionButtonText}";
+                tooltipText += $"\n\n-> {statusInfo.ActionButtonText}";
             }
 
             _statusTooltip.SetToolTip(statusModsDotLabel, tooltipText);
@@ -1795,6 +1878,24 @@ namespace ArdysaModsTools
 
             // Update button states based on status
             UpdateButtonsForStatus(statusInfo);
+            
+            // Re-enable refresh button after status update
+            statusRefreshButton.Enabled = true;
+            statusRefreshButton.ForeColor = Color.FromArgb(100, 100, 100);
+        }
+
+        /// <summary>
+        /// Shows the "Checking..." loading state for the status indicator.
+        /// </summary>
+        public void ShowCheckingState()
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => ShowCheckingState()));
+                return;
+            }
+
+            StatusUIHelper.ShowCheckingState(statusModsDotLabel, statusModsTextLabel, statusRefreshButton);
         }
 
         /// <summary>
@@ -1805,38 +1906,8 @@ namespace ArdysaModsTools
             // Always keep SpringGreen text for consistency
             updatePatcherButton.ForeColor = Color.SpringGreen;
 
-            switch (statusInfo.Status)
-            {
-                case ModStatus.Ready:
-                    // Normal state - mods are working fine
-                    updatePatcherButton.BackColor = Color.FromArgb(42, 42, 55);
-                    break;
-
-                case ModStatus.NeedUpdate:
-                    // Highlight - needs attention
-                    updatePatcherButton.BackColor = Color.FromArgb(60, 80, 60);
-                    break;
-
-                case ModStatus.Disabled:
-                    // User needs to re-enable
-                    updatePatcherButton.BackColor = Color.FromArgb(50, 60, 70);
-                    break;
-
-                case ModStatus.NotInstalled:
-                    // Dimmed - button less relevant
-                    updatePatcherButton.BackColor = Color.FromArgb(35, 35, 45);
-                    break;
-
-                case ModStatus.Error:
-                    // Error state
-                    updatePatcherButton.BackColor = Color.FromArgb(60, 40, 40);
-                    break;
-
-                default:
-                    // Default state
-                    updatePatcherButton.BackColor = Color.FromArgb(42, 42, 55);
-                    break;
-            }
+            // Use centralized status colors for button backgrounds
+            updatePatcherButton.BackColor = StatusColors.ButtonForStatus(statusInfo.Status);
         }
 
         #endregion
@@ -1857,8 +1928,9 @@ namespace ArdysaModsTools
             }
             
             _logger?.Log("Refreshing mod status...");
-            statusRefreshButton.Enabled = false;
-            statusRefreshButton.ForeColor = Color.FromArgb(60, 60, 60);
+            
+            // Show checking state with animation
+            StatusUIHelper.ShowCheckingState(statusModsDotLabel, statusModsTextLabel, statusRefreshButton);
             
             try
             {
@@ -1869,12 +1941,15 @@ namespace ArdysaModsTools
                     updatePatcherButton.Enabled = true;
                 }
                 
-                await _status.CheckAndUpdateUIAsync(targetPath, statusModsDotLabel, statusModsTextLabel);
-                _logger?.Log("Status refreshed.");
+                var statusResult3 = await _status.ForceRefreshAsync(targetPath);
+                StatusUIHelper.UpdateLabels(statusResult3, statusModsDotLabel, statusModsTextLabel);
+                _logger?.Log($"Status refreshed: {statusResult3.StatusText}");
             }
             catch (Exception ex)
             {
                 _logger?.Log($"Status refresh failed: {ex.Message}");
+                StatusUIHelper.UpdateLabels(statusModsDotLabel, statusModsTextLabel, 
+                    "Error", StatusColors.Error);
             }
             finally
             {
@@ -1945,10 +2020,13 @@ namespace ArdysaModsTools
 
             // Try modern WebView2 gallery first, fallback to classic if it fails
             DialogResult dialogResult;
+            ModGenerationResult? generationResult = null;
+            
             using (var f = new ArdysaModsTools.UI.Forms.HeroGalleryForm())
             {
                 f.StartPosition = FormStartPosition.CenterParent;
                 dialogResult = f.ShowDialog(this);
+                generationResult = f.GenerationResult;
                 
                 // If WebView2 failed, fallback to classic SelectHero
                 if (dialogResult == DialogResult.Abort)
@@ -1958,15 +2036,24 @@ namespace ArdysaModsTools
                     {
                         classic.StartPosition = FormStartPosition.CenterParent;
                         dialogResult = classic.ShowDialog(this);
+                        generationResult = classic.GenerationResult;
                     }
                 }
             }
             
-            // If generation was successful, refresh mod status and check if patching needed
+            // Log generation result to MainForm console
+            if (generationResult != null)
+            {
+                LogGenerationResult(generationResult);
+            }
+            
+            // Always refresh status after hero gallery closes
+            // Mods may have been partially generated even if cancelled
+            await RefreshStatusAfterModOperation();
+            
+            // If generation was successful, check if patching needed
             if (dialogResult == DialogResult.OK)
             {
-                await CheckModsStatus();
-                
                 await ShowPatchRequiredIfNeededAsync("Custom ModsPack installed successfully!");
             }
         }

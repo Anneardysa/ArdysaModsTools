@@ -20,6 +20,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Config;
@@ -51,7 +52,7 @@ namespace ArdysaModsTools.UI.Presenters
         private Task<(bool Success, bool IsUpToDate)>? _ongoingOperationTask;
         private bool _disposed;
 
-        private const string RequiredModFilePath = "game/_ArdysaMods/pak01_dir.vpk";
+        private const string RequiredModFilePath = DotaPaths.ModsVpk;
 
         #endregion
 
@@ -584,13 +585,14 @@ namespace ArdysaModsTools.UI.Presenters
         }
 
         /// <summary>
-        /// Start auto-refresh of status (every 30 seconds).
+        /// Start auto-refresh of status (every 30 seconds + real-time file watching).
         /// </summary>
         public void StartAutoRefresh()
         {
             if (!string.IsNullOrEmpty(_targetPath))
             {
                 _status.OnStatusChanged += OnStatusChanged;
+                _status.OnCheckingStarted += OnCheckingStarted;
                 _status.StartAutoRefresh(_targetPath);
             }
         }
@@ -601,6 +603,7 @@ namespace ArdysaModsTools.UI.Presenters
         public void StopAutoRefresh()
         {
             _status.OnStatusChanged -= OnStatusChanged;
+            _status.OnCheckingStarted -= OnCheckingStarted;
             _status.StopAutoRefresh();
         }
 
@@ -609,6 +612,14 @@ namespace ArdysaModsTools.UI.Presenters
             _view.InvokeOnUIThread(() =>
             {
                 _view.SetModsStatusDetailed(statusInfo);
+            });
+        }
+
+        private void OnCheckingStarted()
+        {
+            _view.InvokeOnUIThread(() =>
+            {
+                _view.ShowCheckingState();
             });
         }
 

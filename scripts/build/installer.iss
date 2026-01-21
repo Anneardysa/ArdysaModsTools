@@ -7,6 +7,7 @@
 
 #define MyAppName "ArdysaModsTools"
 #define MyAppVersion "2.0"
+#define MyAppVersionNumeric "2.0.0.0"
 #define MyAppPublisher "Ardysa"
 #define MyAppURL "https://github.com/Anneardysa/ArdysaModsTools"
 #define MyAppExeName "ArdysaModsTools.exe"
@@ -39,7 +40,7 @@ InfoBeforeFile=..\..\docs\INSTALL_INFO.txt
 ; ============================================================================
 ; OUTPUT SETTINGS
 ; ============================================================================
-OutputDir=..\..\installer_output
+OutputDir=Output
 OutputBaseFilename=ArdysaModsTools_Setup_x64
 SetupIconFile=..\..\Assets\Icons\AppIcon.ico
 
@@ -70,7 +71,7 @@ ShowLanguageDialog=auto
 ; ============================================================================
 ; VERSION INFO
 ; ============================================================================
-VersionInfoVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersionNumeric}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription=The Ultimate Dota 2 Mod Manager
 VersionInfoCopyright=© 2024-2026 Ardysa
@@ -97,15 +98,15 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "A
 ; ============================================================================
 ; MAIN APPLICATION FILES
 ; ============================================================================
-Source: "..\..\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\publish\*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "..\..\publish\*.json"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-Source: "..\..\publish\*.xml"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "..\..\publish\installer\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\publish\installer\*.dll"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "..\..\publish\installer\*.json"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
+Source: "..\..\publish\installer\*.xml"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
 
 ; ============================================================================
 ; ASSETS
 ; ============================================================================
-Source: "..\..\publish\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs
+Source: "..\..\publish\installer\Assets\*"; DestDir: "{app}\Assets"; Flags: ignoreversion recursesubdirs
 
 ; ============================================================================
 ; FONTS (JetBrains Mono)
@@ -258,35 +259,63 @@ begin
 end;
 
 // ============================================================================
-// UNINSTALL PREVIOUS VERSION
+// UNINSTALL PREVIOUS VERSION (MANUAL CLEANUP - NO DIALOGS)
 // ============================================================================
+// We bypass the old uninstaller entirely because it may show dialogs during
+// silent uninstall. Instead, we manually delete files and clean up registry.
+// This ensures a completely silent upgrade experience.
+// ============================================================================
+
+procedure CleanupOldRegistryEntries();
+var
+  UninstallKey: String;
+begin
+  UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{B8F9E7A2-4C3D-4F1E-9B2A-7E8D5C1F4A6B}_is1';
+  
+  // Delete registry entries from both HKLM and HKCU
+  RegDeleteKeyIncludingSubkeys(HKLM, UninstallKey);
+  RegDeleteKeyIncludingSubkeys(HKCU, UninstallKey);
+  
+  // Also clean up App Paths
+  RegDeleteKeyIncludingSubkeys(HKA, 'Software\Microsoft\Windows\CurrentVersion\App Paths\ArdysaModsTools.exe');
+end;
 
 function UninstallOldVersion(): Boolean;
 var
-  UninstallString: String;
   InstallLocation: String;
-  ResultCode: Integer;
 begin
   Result := True;
-  UninstallString := GetUninstallString();
   InstallLocation := GetInstallLocation();
   
-  if UninstallString <> '' then
+  if InstallLocation <> '' then
   begin
-    if (Length(UninstallString) > 0) and (UninstallString[1] = '"') then
-      UninstallString := RemoveQuotes(UninstallString);
+    // First, try to close the app if running
+    CloseRunningApp('ArdysaModsTools.exe');
+    Sleep(500);
     
-    if not Exec(UninstallString, '/SILENT /NORESTART /SUPPRESSMSGBOXES', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    // Delete the installation directory completely
+    if DirExists(InstallLocation) then
     begin
-      Result := False;
-    end;
-    
-    if Result and (InstallLocation <> '') then
-    begin
-      Sleep(1000);
+      DeleteDirectory(InstallLocation);
+      
+      // Wait and verify deletion
+      Sleep(500);
       if DirExists(InstallLocation) then
+      begin
+        // If directory still exists, try once more
+        Sleep(1000);
         DeleteDirectory(InstallLocation);
+      end;
     end;
+    
+    // The uninstaller is inside the InstallLocation, so it's already deleted
+    // by DeleteDirectory above. Just clean up registry entries.
+    CleanupOldRegistryEntries();
+  end
+  else
+  begin
+    // No install location found, just clean up registry
+    CleanupOldRegistryEntries();
   end;
 end;
 
@@ -510,25 +539,25 @@ begin
 end;
 
 // ============================================================================
-// UNINSTALL CONFIRMATION
+// UNINSTALL - SILENT DATA CLEANUP (NO DIALOGS)
+// ============================================================================
+// Completely silent uninstall - no confirmation dialogs.
+// All settings and mod data are automatically removed on uninstall.
 // ============================================================================
 
 function InitializeUninstall(): Boolean;
 begin
-  Result := MsgBox('Are you sure you want to completely remove {#MyAppName}?',
-                   mbConfirmation, MB_YESNO) = IDYES;
+  // Always allow uninstall - no confirmation dialog
+  Result := True;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
+  // After uninstall completes, silently clean up all user data
   if CurUninstallStep = usPostUninstall then
   begin
-    // Ask about removing user data
-    if MsgBox('Do you want to remove all saved settings and mod data?', 
-              mbConfirmation, MB_YESNO) = IDYES then
-    begin
-      DelTree(ExpandConstant('{userappdata}\{#MyAppName}'), True, True, True);
-      DelTree(ExpandConstant('{localappdata}\{#MyAppName}'), True, True, True);
-    end;
+    // Silently delete all settings and mod data - no dialog needed
+    DelTree(ExpandConstant('{userappdata}\{#MyAppName}'), True, True, True);
+    DelTree(ExpandConstant('{localappdata}\{#MyAppName}'), True, True, True);
   end;
 end;

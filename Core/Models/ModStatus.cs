@@ -26,6 +26,8 @@ namespace ArdysaModsTools.Core.Models
     {
         /// <summary>Initial state, not yet checked.</summary>
         NotChecked,
+        /// <summary>Currently checking status (loading state).</summary>
+        Checking,
         /// <summary>Mods active and up-to-date.</summary>
         Ready,
         /// <summary>Mods active but Dota was updated, need to re-patch.</summary>

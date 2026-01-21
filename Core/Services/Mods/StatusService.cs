@@ -19,9 +19,11 @@ using System.Drawing;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Services.Mods;
+using ArdysaModsTools.UI.Styles;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -34,6 +36,7 @@ namespace ArdysaModsTools.Core.Services
         #region Private Fields
 
         private readonly ILogger? _logger;
+        private readonly FileWatcherService? _fileWatcher;
         private System.Threading.Timer? _autoRefreshTimer;
         private string? _currentTargetPath;
         private ModStatusInfo? _lastStatus;
@@ -44,15 +47,6 @@ namespace ArdysaModsTools.Core.Services
 
         #region Constants
 
-        private static class Paths
-        {
-            public const string ModsVpk = "game/_ArdysaMods/pak01_dir.vpk";
-            public const string ModsVersion = "game/_ArdysaMods/version.txt";
-            public const string Signatures = "game/bin/win64/dota.signatures";
-            public const string GameInfo = "game/dota/gameinfo_branchspecific.gi";
-            public const string Dota2Exe = "game/bin/win64/dota2.exe";
-        }
-
         private static readonly TimeSpan AutoRefreshInterval = TimeSpan.FromSeconds(30);
 
         #endregion
@@ -62,13 +56,21 @@ namespace ArdysaModsTools.Core.Services
         /// <summary>Event fired when status changes.</summary>
         public event Action<ModStatusInfo>? OnStatusChanged;
 
+        /// <summary>Event fired when checking starts (for UI loading state).</summary>
+        public event Action? OnCheckingStarted;
+
         #endregion
 
         #region Constructor
 
         public StatusService(ILogger? logger = null)
         {
-            _logger = logger; // Logger is optional for DI compatibility
+            _logger = logger;
+            _fileWatcher = new FileWatcherService(logger);
+            
+            // Wire up file watcher events
+            _fileWatcher.OnChangeDetected += HandleFileChangeDetected;
+            _fileWatcher.OnFilesChanged += HandleFilesChanged;
         }
 
         #endregion
@@ -172,29 +174,34 @@ namespace ArdysaModsTools.Core.Services
         }
 
         /// <summary>
-        /// Start auto-refresh timer.
+        /// Start auto-refresh timer and file watcher.
         /// </summary>
         public void StartAutoRefresh(string targetPath)
         {
             StopAutoRefresh();
             _currentTargetPath = targetPath;
             
+            // Start file system watcher for real-time updates
+            _fileWatcher?.StartWatching(targetPath);
+            
+            // Fallback timer for periodic refresh (catches edge cases)
             _autoRefreshTimer = new System.Threading.Timer(
                 async _ => await RefreshStatusAsync(_currentTargetPath),
                 null,
                 TimeSpan.Zero,
                 AutoRefreshInterval);
             
-            _logger?.Log("[STATUS] Auto-refresh started (30s interval)");
+            _logger?.Log("[STATUS] Auto-refresh started (FileWatcher + 30s fallback timer)");
         }
 
         /// <summary>
-        /// Stop auto-refresh timer.
+        /// Stop auto-refresh timer and file watcher.
         /// </summary>
         public void StopAutoRefresh()
         {
             _autoRefreshTimer?.Dispose();
             _autoRefreshTimer = null;
+            _fileWatcher?.StopWatching();
         }
 
         /// <summary>
@@ -214,8 +221,8 @@ namespace ArdysaModsTools.Core.Services
         {
             ct.ThrowIfCancellationRequested();
 
-            string dota2Exe = Path.Combine(targetPath, Paths.Dota2Exe);
-            string signatures = Path.Combine(targetPath, Paths.Signatures);
+            string dota2Exe = Path.Combine(targetPath, DotaPaths.Dota2Exe);
+            string signatures = Path.Combine(targetPath, DotaPaths.Signatures);
 
             if (!File.Exists(dota2Exe))
             {
@@ -243,8 +250,8 @@ namespace ArdysaModsTools.Core.Services
         {
             ct.ThrowIfCancellationRequested();
 
-            string vpkFile = Path.Combine(targetPath, Paths.ModsVpk);
-            string versionFile = Path.Combine(targetPath, Paths.ModsVersion);
+            string vpkFile = Path.Combine(targetPath, DotaPaths.ModsVpk);
+            string versionFile = Path.Combine(targetPath, DotaPaths.ModsVersion);
 
             if (!File.Exists(vpkFile))
             {
@@ -269,7 +276,7 @@ namespace ArdysaModsTools.Core.Services
         {
             ct.ThrowIfCancellationRequested();
 
-            string gameInfoFile = Path.Combine(targetPath, Paths.GameInfo);
+            string gameInfoFile = Path.Combine(targetPath, DotaPaths.GameInfo);
 
             if (!File.Exists(gameInfoFile))
             {
@@ -302,7 +309,7 @@ namespace ArdysaModsTools.Core.Services
         {
             ct.ThrowIfCancellationRequested();
 
-            string signaturesFile = Path.Combine(targetPath, Paths.Signatures);
+            string signaturesFile = Path.Combine(targetPath, DotaPaths.Signatures);
             string content = await ReadFileFreshAsync(signaturesFile, ct);
 
             // Find DIGEST line
@@ -366,7 +373,7 @@ namespace ArdysaModsTools.Core.Services
 
             try
             {
-                var versionService = new DotaVersionService(_logger ?? new NullLogger());
+                var versionService = new DotaVersionService(_logger ?? NullLogger.Instance);
                 var (matches, currentBuild, patchedBuild) = 
                     await versionService.ComparePatchedVersionAsync(targetPath);
 
@@ -411,15 +418,7 @@ namespace ArdysaModsTools.Core.Services
             DateTime? lastModified = null,
             string? errorMessage = null)
         {
-            var color = status switch
-            {
-                ModStatus.Ready => Color.FromArgb(80, 200, 120),        // Green
-                ModStatus.NeedUpdate => Color.FromArgb(255, 180, 50),   // Orange
-                ModStatus.Disabled => Color.FromArgb(150, 150, 180),    // Blue-gray
-                ModStatus.NotInstalled => Color.FromArgb(120, 120, 120), // Gray
-                ModStatus.Error => Color.FromArgb(255, 80, 80),         // Red
-                _ => Color.FromArgb(150, 150, 150)                      // Gray
-            };
+            var color = StatusColors.ForStatus(status);
 
             return new ModStatusInfo
             {
@@ -470,36 +469,32 @@ namespace ArdysaModsTools.Core.Services
 
         #endregion
 
-        #region Legacy Compatibility
+        #region File Watcher Handlers
 
         /// <summary>
-        /// Update UI labels based on status.
+        /// Called immediately when a file change is detected.
+        /// Shows "Checking..." state in UI.
         /// </summary>
-        public void UpdateStatusUI(ModStatusInfo result, Label dotLabel, Label textLabel)
+        private void HandleFileChangeDetected()
         {
-            SetLabelStatus(dotLabel, textLabel, result.StatusText, result.StatusColor);
+            _logger?.Log("[STATUS] File change detected, starting check...");
+            OnCheckingStarted?.Invoke();
+            
+            // Emit "Checking" status for immediate UI feedback
+            var checkingStatus = CreateStatus(ModStatus.Checking, "Checking...",
+                "Detecting changes, please wait...");
+            OnStatusChanged?.Invoke(checkingStatus);
         }
 
         /// <summary>
-        /// Check status and update UI in one call.
+        /// Called after debounce when files have changed.
+        /// Triggers actual status refresh.
         /// </summary>
-        public async Task CheckAndUpdateUIAsync(string? targetPath, Label dotLabel, Label textLabel)
+        private async void HandleFilesChanged()
         {
-            var result = await GetDetailedStatusAsync(targetPath);
-            UpdateStatusUI(result, dotLabel, textLabel);
-        }
-
-        private void SetLabelStatus(Label dotLabel, Label textLabel, string text, Color color)
-        {
-            if (dotLabel.InvokeRequired)
-            {
-                dotLabel.BeginInvoke(new Action(() => SetLabelStatus(dotLabel, textLabel, text, color)));
-                return;
-            }
-
-            dotLabel.BackColor = color;
-            textLabel.Text = text;
-            textLabel.ForeColor = color;
+            if (string.IsNullOrEmpty(_currentTargetPath)) return;
+            
+            await RefreshStatusAsync(_currentTargetPath);
         }
 
         #endregion
@@ -510,21 +505,9 @@ namespace ArdysaModsTools.Core.Services
         {
             if (_disposed) return;
             StopAutoRefresh();
+            _fileWatcher?.Dispose();
             _refreshLock.Dispose();
             _disposed = true;
-        }
-
-        #endregion
-
-        #region NullLogger
-
-        /// <summary>
-        /// Null logger implementation for when no logger is provided.
-        /// </summary>
-        private sealed class NullLogger : ILogger
-        {
-            public void Log(string message) { }
-            public void FlushBufferedLogs() { }
         }
 
         #endregion

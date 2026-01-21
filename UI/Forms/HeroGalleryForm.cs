@@ -49,6 +49,13 @@ namespace ArdysaModsTools.UI.Forms
         private Dictionary<string, int> _selections = new(); // heroId -> setIndex
         private HashSet<string> _favorites = new(StringComparer.OrdinalIgnoreCase);
         private readonly HeroService _heroService;
+        private DateTime _generationStartTime;
+        private int _heroCount;
+
+        /// <summary>
+        /// Result of the generation operation. Check after form closes.
+        /// </summary>
+        public ModGenerationResult? GenerationResult { get; private set; }
 
         // P/Invoke for window dragging
         [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -571,6 +578,10 @@ namespace ArdysaModsTools.UI.Forms
                 // Save selections before generating
                 await SaveSelectionsAsync();
 
+                // Track for result logging
+                _generationStartTime = DateTime.Now;
+                _heroCount = heroesWithSets.Count;
+
                 // Run generation with progress overlay
                 var operationResult = await ProgressOperationRunner.RunAsync(
                     this,
@@ -629,11 +640,31 @@ namespace ArdysaModsTools.UI.Forms
                     var timeoutTask = Task.Delay(60000); // 60 second timeout
                     await Task.WhenAny(_alertDismissed.Task, timeoutTask);
                     
+                    // Store result for MainForm logging
+                    GenerationResult = new ModGenerationResult
+                    {
+                        Success = true,
+                        Type = GenerationType.SkinSelector,
+                        OptionsCount = _heroCount,
+                        Duration = DateTime.Now - _generationStartTime,
+                        Details = $"{_heroCount} hero set(s)" + (operationResult.FailedItems?.Count > 0 ? $", {operationResult.FailedItems.Count} failed" : "")
+                    };
+                    
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }
                 else if (operationResult.Message != "Operation cancelled by user.")
                 {
+                    // Store failed result
+                    GenerationResult = new ModGenerationResult
+                    {
+                        Success = false,
+                        Type = GenerationType.SkinSelector,
+                        OptionsCount = _heroCount,
+                        Duration = DateTime.Now - _generationStartTime,
+                        ErrorMessage = operationResult.Message
+                    };
+                    
                     using var errorDialog = new ErrorLogDialog(
                         "Generation Failed",
                         "Copy the log below and send to developer for help.",
