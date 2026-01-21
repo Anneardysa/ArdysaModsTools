@@ -20,6 +20,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Constants;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -73,13 +74,6 @@ namespace ArdysaModsTools.Core.Services
     {
         private readonly ILogger? _logger;
         
-        // File paths (relative to Dota 2 folder)
-        private const string SteamInfPath = "game/dota/steam.inf";
-        private const string SignaturesPath = "game/bin/win64/dota.signatures";
-        private const string GameInfoPath = "game/dota/gameinfo_branchspecific.gi";
-        private const string VersionCachePath = "game/_ArdysaMods/_temp/version_cache.txt";
-        private const string VersionJsonPath = "game/_ArdysaMods/_temp/version.json";
-        
         private const string ModMarker = "_ArdysaMods";
 
         public DotaVersionService(ILogger? logger = null)
@@ -100,13 +94,13 @@ namespace ArdysaModsTools.Core.Services
             try
             {
                 // Read Dota version from steam.inf
-                var (version, build) = await ReadSteamInfAsync(Path.Combine(targetPath, SteamInfPath));
+                var (version, build) = await ReadSteamInfAsync(Path.Combine(targetPath, DotaPaths.SteamInf));
                 
                 // Read current DIGEST from signatures
-                string currentDigest = await ReadDigestAsync(Path.Combine(targetPath, SignaturesPath));
+                string currentDigest = await ReadDigestAsync(Path.Combine(targetPath, DotaPaths.Signatures));
                 
                 // Read and analyze gameinfo
-                string gameInfoPath = Path.Combine(targetPath, GameInfoPath);
+                string gameInfoPath = Path.Combine(targetPath, DotaPaths.GameInfo);
                 string gameInfoContent = File.Exists(gameInfoPath) 
                     ? await File.ReadAllTextAsync(gameInfoPath) 
                     : "";
@@ -114,7 +108,7 @@ namespace ArdysaModsTools.Core.Services
                 bool hasModEntry = gameInfoContent.Contains(ModMarker, StringComparison.OrdinalIgnoreCase);
                 
                 // Read cached version info
-                var cached = await ReadVersionCacheAsync(Path.Combine(targetPath, VersionCachePath));
+                var cached = await ReadVersionCacheAsync(Path.Combine(targetPath, DotaPaths.VersionCache));
                 
                 return new DotaVersionInfo
                 {
@@ -156,7 +150,7 @@ namespace ArdysaModsTools.Core.Services
         {
             try
             {
-                string cachePath = Path.Combine(targetPath, VersionCachePath);
+                string cachePath = Path.Combine(targetPath, DotaPaths.VersionCache);
                 Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
                 
                 var lines = new[]
@@ -184,10 +178,10 @@ namespace ArdysaModsTools.Core.Services
         {
             try
             {
-                string steamInfPath = Path.Combine(targetPath, SteamInfPath);
+                string steamInfPath = Path.Combine(targetPath, DotaPaths.SteamInf);
                 var (version, build) = await ReadSteamInfAsync(steamInfPath);
                 
-                string jsonPath = Path.Combine(targetPath, VersionJsonPath);
+                string jsonPath = Path.Combine(targetPath, DotaPaths.VersionJson);
                 Directory.CreateDirectory(Path.GetDirectoryName(jsonPath)!);
                 
                 var json = System.Text.Json.JsonSerializer.Serialize(new
@@ -213,8 +207,8 @@ namespace ArdysaModsTools.Core.Services
         {
             try
             {
-                string steamInfPath = Path.Combine(targetPath, SteamInfPath);
-                string jsonPath = Path.Combine(targetPath, VersionJsonPath);
+                string steamInfPath = Path.Combine(targetPath, DotaPaths.SteamInf);
+                string jsonPath = Path.Combine(targetPath, DotaPaths.VersionJson);
                 
                 // Read current steam.inf
                 var (currentVersion, currentBuild) = await ReadSteamInfAsync(steamInfPath);

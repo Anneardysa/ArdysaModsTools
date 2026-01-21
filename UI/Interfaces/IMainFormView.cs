@@ -46,6 +46,12 @@ namespace ArdysaModsTools.UI.Interfaces
         void SetModsStatusDetailed(ModStatusInfo statusInfo);
 
         /// <summary>
+        /// Shows the "Checking..." state for the status indicator.
+        /// Used when a file change is detected and status is being verified.
+        /// </summary>
+        void ShowCheckingState();
+
+        /// <summary>
         /// Updates the version label.
         /// </summary>
         /// <param name="version">Version string to display</param>

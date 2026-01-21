@@ -24,6 +24,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Services;
@@ -72,7 +73,7 @@ namespace ArdysaModsTools.Core.Services
             EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific_disable.gi")
         };
 
-        private const string RequiredModFilePath = "game/_ArdysaMods/pak01_dir.vpk";
+        private const string RequiredModFilePath = DotaPaths.ModsVpk;
 
         public ModInstallerService(ILogger? logger = null)
         {
@@ -565,8 +566,8 @@ namespace ArdysaModsTools.Core.Services
 
             try
             {
-                string signaturesPath = Path.Combine(targetPath, "game", "bin", "win64", "dota.signatures");
-                string gameInfoPath = Path.Combine(targetPath, "game", "dota", "gameinfo_branchspecific.gi");
+                string signaturesPath = Path.Combine(targetPath, DotaPaths.Signatures);
+                string gameInfoPath = Path.Combine(targetPath, DotaPaths.GameInfo);
 
                 if (!File.Exists(signaturesPath))
                     return true;
@@ -892,8 +893,8 @@ namespace ArdysaModsTools.Core.Services
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // Patch gameinfo and signatures (same as auto-install)
-                string signaturesPath = Path.Combine(targetPath, "game", "bin", "win64", "dota.signatures");
-                string gameInfoPath = Path.Combine(targetPath, "game", "dota", "gameinfo_branchspecific.gi");
+                string signaturesPath = Path.Combine(targetPath, DotaPaths.Signatures);
+                string gameInfoPath = Path.Combine(targetPath, DotaPaths.GameInfo);
 
                 if (!File.Exists(signaturesPath))
                 {

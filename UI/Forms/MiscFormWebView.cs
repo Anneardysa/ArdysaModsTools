@@ -50,6 +50,11 @@ namespace ArdysaModsTools.UI.Forms
 
         private Dictionary<string, string> _selections = new(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Result of the generation operation. Check after form closes.
+        /// </summary>
+        public ModGenerationResult? GenerationResult { get; private set; }
+
         // P/Invoke for window dragging
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool ReleaseCapture();
@@ -454,6 +459,16 @@ namespace ArdysaModsTools.UI.Forms
                 {
                     await ExecuteScriptAsync("flashConsole('success')");
                     
+                    // Store generation result for MainForm logging
+                    GenerationResult = new ModGenerationResult
+                    {
+                        Success = true,
+                        Type = GenerationType.Miscellaneous,
+                        MiscMode = selectedMode,
+                        OptionsCount = _selections.Count,
+                        Duration = elapsed
+                    };
+                    
                     string successMessage = selectedMode == MiscGenerationMode.GenerateOnly
                         ? "Miscellaneous mods generated successfully!\\n\\nNote: Previous mods have been replaced."
                         : "All mods have been successfully applied!";
@@ -469,6 +484,17 @@ namespace ArdysaModsTools.UI.Forms
                 }
                 else if (result.Message != "Operation cancelled by user.")
                 {
+                    // Store failed result
+                    GenerationResult = new ModGenerationResult
+                    {
+                        Success = false,
+                        Type = GenerationType.Miscellaneous,
+                        MiscMode = selectedMode,
+                        OptionsCount = _selections.Count,
+                        Duration = elapsed,
+                        ErrorMessage = result.Message
+                    };
+                    
                     await ExecuteScriptAsync("flashConsole('error')");
                     var errorMsg = (result.Message ?? "Unknown error").Replace("'", "\\'").Replace("\n", "\\n");
                     await ExecuteScriptAsync($"showAlert('Generation Failed', '{errorMsg}', 'error')");
@@ -476,6 +502,17 @@ namespace ArdysaModsTools.UI.Forms
             }
             catch (Exception ex)
             {
+                // Store exception result
+                GenerationResult = new ModGenerationResult
+                {
+                    Success = false,
+                    Type = GenerationType.Miscellaneous,
+                    MiscMode = selectedMode,
+                    OptionsCount = _selections.Count,
+                    Duration = DateTime.Now - startTime,
+                    ErrorMessage = ex.Message
+                };
+                
                 await ExecuteScriptAsync("flashConsole('error')");
                 var errorMsg = ex.Message.Replace("'", "\\'");
                 await ExecuteScriptAsync($"showAlert('Error', '{errorMsg}', 'error')");

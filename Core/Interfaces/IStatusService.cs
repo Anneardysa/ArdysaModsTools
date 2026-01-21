@@ -17,9 +17,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 using ArdysaModsTools.Core.Models;
-using ArdysaModsTools.Core.Services;
 
 namespace ArdysaModsTools.Core.Interfaces
 {
@@ -33,6 +31,11 @@ namespace ArdysaModsTools.Core.Interfaces
         /// Event fired when status changes during auto-refresh.
         /// </summary>
         event Action<ModStatusInfo>? OnStatusChanged;
+
+        /// <summary>
+        /// Event fired when checking starts (for UI loading state).
+        /// </summary>
+        event Action? OnCheckingStarted;
 
         /// <summary>
         /// Get detailed mod status with step-based validation.
@@ -74,19 +77,6 @@ namespace ArdysaModsTools.Core.Interfaces
         /// </summary>
         /// <returns>Cached status or null if never checked.</returns>
         ModStatusInfo? GetCachedStatus();
-
-        /// <summary>
-        /// Update UI labels based on status.
-        /// </summary>
-        void UpdateStatusUI(ModStatusInfo status, Label statusLabel, Label actionLabel);
-
-        /// <summary>
-        /// Check status and update UI in one call.
-        /// </summary>
-        Task CheckAndUpdateUIAsync(
-            string? dotaPath,
-            Label dotLabel,
-            Label textLabel);
     }
 }
 

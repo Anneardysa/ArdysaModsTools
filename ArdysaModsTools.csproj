@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- ============================================== -->
   <!-- CORE PROJECT SETTINGS                          -->
@@ -29,8 +29,8 @@
   <!-- ============================================== -->
   <PropertyGroup>
     <Version>2.1.2-beta</Version>
-    <AssemblyVersion>2.1.2.2040</AssemblyVersion>
-    <FileVersion>2.1.2.2040</FileVersion>
+    <AssemblyVersion>2.1.2.2043</AssemblyVersion>
+    <FileVersion>2.1.2.2043</FileVersion>
     <InformationalVersion>2.1.2-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
@@ -193,6 +193,7 @@
     <Content Include="Assets\Html\misc_form.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+
     
     <!-- Fonts -->
     <Content Include="Assets\Fonts\*.ttf">
