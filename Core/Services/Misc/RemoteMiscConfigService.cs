@@ -18,6 +18,7 @@ using System.Net.Http;
 using System.Text.Json;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services.Misc
 {
@@ -52,8 +53,11 @@ namespace ArdysaModsTools.Core.Services.Misc
             // Try to load from remote
             try
             {
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-                var json = await client.GetStringAsync(ConfigUrl).ConfigureAwait(false);
+                var client = HttpClientProvider.Client;
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var response = await client.GetAsync(ConfigUrl, cts.Token).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+                var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 config = JsonSerializer.Deserialize<RemoteMiscConfig>(json);
 
                 if (config != null)

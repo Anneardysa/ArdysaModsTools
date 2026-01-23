@@ -20,6 +20,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -71,21 +72,8 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private static readonly HttpClient _httpClient;
-
-        static MiscUtilityService()
-        {
-            _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-            _httpClient.Timeout = TimeSpan.FromSeconds(300);
-
-            // GitHub token for API rate limiting (optional - set via GITHUB_TOKEN env var)
-            var githubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
-            if (!string.IsNullOrEmpty(githubToken))
-            {
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", githubToken);
-            }
-        }
+        // Use shared HttpClient from HttpClientProvider for connection reuse
+        private static HttpClient _httpClient => HttpClientProvider.Client;
 
         public static async Task<HttpResponseMessage?> GetWithRetryAsync(string url, int maxRetries = 3)
         {

@@ -16,6 +16,7 @@
  */
 // Services/HeroService.cs
 using ArdysaModsTools.Models;
+using ArdysaModsTools.Helpers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -67,11 +68,10 @@ namespace ArdysaModsTools.Core.Services
                 // Try loading from GitHub first
                 try
                 {
-                    using var client = new System.Net.Http.HttpClient();
-                    client.Timeout = TimeSpan.FromSeconds(10);
-                    client.DefaultRequestHeaders.Add("User-Agent", "ArdysaModsTools");
+                    var client = HttpClientProvider.Client;
+                    using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
                     
-                    var response = await client.GetAsync(GitHubSetUpdatesUrl).ConfigureAwait(false);
+                    var response = await client.GetAsync(GitHubSetUpdatesUrl, cts.Token).ConfigureAwait(false);
                     response.EnsureSuccessStatusCode();
                     raw = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 }
@@ -182,11 +182,10 @@ namespace ArdysaModsTools.Core.Services
         /// </summary>
         private async Task<string> LoadFromGitHubAsync()
         {
-            using var client = new System.Net.Http.HttpClient();
-            client.Timeout = TimeSpan.FromSeconds(15);
-            client.DefaultRequestHeaders.Add("User-Agent", "ArdysaModsTools");
+            var client = HttpClientProvider.Client;
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
             
-            var response = await client.GetAsync(GitHubHeroesUrl).ConfigureAwait(false);
+            var response = await client.GetAsync(GitHubHeroesUrl, cts.Token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             
             return await response.Content.ReadAsStringAsync().ConfigureAwait(false);

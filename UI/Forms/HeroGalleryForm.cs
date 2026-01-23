@@ -285,8 +285,11 @@ namespace ArdysaModsTools.UI.Forms
                 
                 // Build update entries with hero info from our loaded heroes
                 var jsUpdates = recentUpdates.Select(u => {
+                    // Try to find hero - handle both "npc_dota_hero_xxx" and just "xxx" formats
                     var hero = _heroes.FirstOrDefault(h => 
-                        string.Equals(h.Id, u.HeroId, StringComparison.OrdinalIgnoreCase));
+                        string.Equals(h.Id, u.HeroId, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(h.Id, $"npc_dota_hero_{u.HeroId.Replace("npc_dota_hero_", "")}", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(h.Id?.Replace("npc_dota_hero_", ""), u.HeroId.Replace("npc_dota_hero_", ""), StringComparison.OrdinalIgnoreCase));
                     
                     // Find set thumbnail
                     string? setThumbnail = null;
@@ -307,24 +310,32 @@ namespace ArdysaModsTools.UI.Forms
                         }
                     }
                     
+                    // If we couldn't find set thumbnail but have hero, use hero thumbnail as fallback
+                    var heroThumbnail = hero != null ? GetHeroThumbnail(hero) : null;
+                    
                     return new
                     {
                         heroId = u.HeroId,
-                        heroName = hero?.DisplayName ?? hero?.Name ?? u.HeroId,
-                        heroThumbnail = hero != null ? GetHeroThumbnail(hero) : null,
+                        heroName = hero?.DisplayName ?? hero?.Name ?? FormatHeroIdAsName(u.HeroId),
+                        heroThumbnail = heroThumbnail,
                         setName = u.SetName,
                         setIndex = setIndex,
-                        setThumbnail = setThumbnail,
+                        setThumbnail = setThumbnail ?? heroThumbnail, // Fallback to hero thumbnail
                         addedDate = u.AddedDate.ToString("yyyy-MM-dd"),
-                        daysAgo = (int)(DateTime.Now - u.AddedDate).TotalDays
+                        daysAgo = (int)(DateTime.Now - u.AddedDate).TotalDays,
+                        isValid = hero != null && setIndex >= 0
                     };
-                }).Where(u => u.setIndex >= 0).ToList(); // Only include valid sets
+                })
+                // Keep original order from JSON (newest sets first)
+                // Only filter out entries where hero lookup completely failed
+                .Where(u => u.heroThumbnail != null)
+                .ToList();
                 
                 if (jsUpdates.Count > 0)
                 {
                     var json = JsonSerializer.Serialize(jsUpdates, _jsonOptions);
                     await ExecuteScriptAsync($"loadLatestUpdates({json})");
-                    System.Diagnostics.Debug.WriteLine($"Loaded {jsUpdates.Count} recent updates");
+                    System.Diagnostics.Debug.WriteLine($"Loaded {jsUpdates.Count} recent updates ({jsUpdates.Count(u => u.isValid)} valid)");
                 }
             }
             catch (Exception ex)
@@ -333,6 +344,16 @@ namespace ArdysaModsTools.UI.Forms
                 // Don't fail silently - just skip updates section
             }
         }
+
+        /// <summary>
+        /// Format a hero ID like "npc_dota_hero_crystal_maiden" to "Crystal Maiden".
+        /// </summary>
+        private static string FormatHeroIdAsName(string heroId)
+        {
+            var name = heroId.Replace("npc_dota_hero_", "").Replace("_", " ");
+            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name);
+        }
+
 
         /// <summary>
         /// Convert HeroSummary list to HeroModel list (same logic as SelectHero).

@@ -25,6 +25,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -39,7 +40,7 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public sealed class GeneratorService
     {
-        private static readonly HttpClient _http = new HttpClient() { Timeout = TimeSpan.FromMinutes(5) };
+        private static HttpClient _http => HttpClientProvider.Client;
         private readonly string _cacheRoot;
 
         public GeneratorService(string? baseFolder = null)

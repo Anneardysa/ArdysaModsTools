@@ -181,89 +181,169 @@
             transform: scale(0.95);
          }
 
-         /* Latest Updates Section */
-         .update-card {
-            transition: all 0.3s ease-out;
-            border: 1px solid rgba(34, 197, 94, 0.35);
-            box-shadow: 0 0 8px rgba(34, 197, 94, 0.1);
+         /* Latest Updates Carousel */
+         .carousel-wrapper {
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(34, 197, 94, 0.08);
+            padding: 12px 40px;
          }
-         .update-card:hover {
-            transform: translateY(-3px) scale(1.01);
-            box-shadow: 0 4px 15px rgba(34, 197, 94, 0.2);
+         .carousel-track {
+            display: flex;
+            gap: 12px;
+            transition: transform 0.4s ease;
+         }
+         .carousel-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            cursor: pointer;
+            opacity: 0;
+            transition: all 0.2s ease;
+            color: white;
+         }
+         .carousel-wrapper:hover .carousel-arrow {
+            opacity: 1;
+         }
+         .carousel-arrow:hover {
+            background: rgba(34, 197, 94, 0.3);
             border-color: rgba(34, 197, 94, 0.5);
          }
-         .update-card .new-badge {
-            animation: badge-pulse 1.5s ease-in-out infinite;
-         }
-         @keyframes badge-pulse {
-            0%,
-            100% {
-               box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
-               transform: scale(1);
-            }
-            50% {
-               box-shadow:
-                  0 0 15px rgba(34, 197, 94, 0.9),
-                  0 0 25px rgba(34, 197, 94, 0.5);
-               transform: scale(1.05);
-            }
-         }
-         /* Shimmer effect on cards */
-         .update-card::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-            transition: 0.5s;
+         .carousel-arrow.disabled {
+            opacity: 0 !important;
             pointer-events: none;
          }
-         .update-card:hover::before {
-            left: 100%;
+         .carousel-arrow-left {
+            left: 6px;
          }
-         /* Show/hide animation for container */
+         .carousel-arrow-right {
+            right: 6px;
+         }
+
+         /* Carousel Dots */
+         .carousel-dots {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 8px;
+         }
+         .carousel-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.2s ease;
+         }
+         .carousel-dot:hover {
+            background: rgba(255, 255, 255, 0.4);
+         }
+         .carousel-dot.active {
+            background: #22c55e;
+            transform: scale(1.2);
+         }
+
+         /* Update Cards */
+         .update-card {
+            flex-shrink: 0;
+            width: 140px;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+            background: #0a0a0a;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.25s ease;
+         }
+         .update-card:hover {
+            border-color: rgba(34, 197, 94, 0.4);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+         }
+         .update-card-image {
+            position: relative;
+            height: 120px;
+            overflow: hidden;
+         }
+         .update-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top;
+            transition: transform 0.3s ease;
+         }
+         .update-card:hover .update-card-image img {
+            transform: scale(1.05);
+         }
+         .update-card-gradient {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 50%);
+         }
+         .new-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            padding: 3px 6px;
+            background: #22c55e;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 700;
+            color: black;
+            text-transform: uppercase;
+         }
+         .update-card-content {
+            padding: 10px;
+         }
+         .update-card-hero {
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+         }
+         .update-card-date {
+            font-size: 10px;
+            color: #22c55e;
+         }
+
+         /* Container */
          #latestUpdatesContainer {
-            transition: all 0.4s ease-out;
-            max-height: 280px;
+            transition: all 0.3s ease;
+            max-height: 320px;
             opacity: 1;
-            padding-bottom: 8px;
          }
          #latestUpdatesContainer.collapsed {
             max-height: 0;
             opacity: 0;
             overflow: hidden;
-            margin: 0;
-            padding: 0;
          }
+
          /* Highlighted set in modal */
          .set-tile.highlighted {
-            animation: highlight-pulse 0.6s ease-out;
-            box-shadow:
-               0 0 0 3px #22c55e,
-               0 0 25px rgba(34, 197, 94, 0.5) !important;
+            animation: highlight-pulse 0.5s ease-out;
+            box-shadow: 0 0 0 2px #22c55e !important;
          }
          @keyframes highlight-pulse {
             0% {
-               transform: scale(1.1);
+               transform: scale(1.05);
             }
             100% {
                transform: scale(1);
             }
-         }
-         #latestUpdatesContainer::-webkit-scrollbar {
-            height: 6px;
-         }
-         #latestUpdatesContainer::-webkit-scrollbar-track {
-            background: transparent;
-         }
-         #latestUpdatesContainer::-webkit-scrollbar-thumb {
-            background: #22c55e40;
-            border-radius: 3px;
-         }
-         #latestUpdatesContainer::-webkit-scrollbar-thumb:hover {
-            background: #22c55e70;
          }
       </style>
    </head>
@@ -476,11 +556,49 @@
                </button>
             </div>
 
-            <!-- Cards Container -->
-            <div id="latestUpdatesContainer" class="overflow-x-auto overflow-y-hidden">
-               <div id="latestUpdatesGrid" class="flex gap-4 min-w-max py-3 px-1">
-                  <!-- Update cards will be inserted here -->
+            <!-- Carousel Container -->
+            <div id="latestUpdatesContainer">
+               <div class="carousel-wrapper">
+                  <!-- Left Arrow -->
+                  <button
+                     class="carousel-arrow carousel-arrow-left"
+                     onclick="carouselPrev()"
+                     id="carouselPrevBtn"
+                  >
+                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                           stroke-width="2"
+                           d="M15 19l-7-7 7-7"
+                        />
+                     </svg>
+                  </button>
+
+                  <!-- Carousel Track -->
+                  <div id="latestUpdatesGrid" class="carousel-track">
+                     <!-- Cards rendered by JS -->
+                  </div>
+
+                  <!-- Right Arrow -->
+                  <button
+                     class="carousel-arrow carousel-arrow-right"
+                     onclick="carouselNext()"
+                     id="carouselNextBtn"
+                  >
+                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                           stroke-width="2"
+                           d="M9 5l7 7-7 7"
+                        />
+                     </svg>
+                  </button>
                </div>
+
+               <!-- Carousel Dots -->
+               <div id="carouselDots" class="carousel-dots"></div>
             </div>
          </div>
 
@@ -790,11 +908,13 @@
          }
 
          // ============================================
-         // Latest Updates Section
+         // Latest Updates Carousel
          // ============================================
          let latestUpdates = [];
          let updatesCollapsed = false;
-         let highlightSetIndex = -1; // Track which set to highlight
+         let highlightSetIndex = -1;
+         let carouselIndex = 0;
+         let carouselItemsPerPage = 5;
 
          function loadLatestUpdates(updatesJson) {
             latestUpdates = typeof updatesJson === "string" ? JSON.parse(updatesJson) : updatesJson;
@@ -808,7 +928,10 @@
             document.getElementById("latestUpdatesSection").classList.remove("hidden");
             document.getElementById("updatesCount").textContent = `${latestUpdates.length} new`;
 
-            // Render update cards (only hero name and date, no set name)
+            // Calculate items per page
+            updateCarouselItemsPerPage();
+
+            // Render cards
             const grid = document.getElementById("latestUpdatesGrid");
             grid.innerHTML = latestUpdates
                .map((update, idx) => {
@@ -818,29 +941,105 @@
                         : update.daysAgo === 1
                           ? "Yesterday"
                           : `${update.daysAgo}d ago`;
-
                   return `
-               <div class="update-card relative flex-shrink-0 w-36 bg-amt-card rounded-xl overflow-hidden cursor-pointer group"
-                    onclick="navigateToUpdate('${update.heroId}', ${update.setIndex})"
-                    style="animation: slide-up 0.3s ease-out ${idx * 60}ms backwards">
-                  <div class="relative h-36 overflow-hidden">
-                     <img src="${update.setThumbnail || update.heroThumbnail || ""}" 
-                          alt="${update.heroName}"
-                          class="w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-110"
-                          onerror="this.src='${update.heroThumbnail || ""}'" />
-                     <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
-                     <div class="new-badge absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[10px] font-bold rounded-sm bg-green-500 text-black uppercase tracking-wide">
-                        NEW
+                  <div class="update-card" onclick="navigateToUpdate('${update.heroId}', ${update.setIndex})">
+                     <div class="update-card-image">
+                        <img src="${update.setThumbnail || update.heroThumbnail || ""}" 
+                             alt="${update.heroName}"
+                             onerror="this.src='${update.heroThumbnail || ""}'" />
+                        <div class="update-card-gradient"></div>
+                        <span class="new-badge">NEW</span>
+                     </div>
+                     <div class="update-card-content">
+                        <p class="update-card-hero">${update.heroName}</p>
+                        <p class="update-card-date">${daysText}</p>
                      </div>
                   </div>
-                  <div class="p-2 bg-black/80">
-                     <p class="text-xs font-semibold text-white truncate">${update.heroName}</p>
-                     <p class="text-[10px] text-green-400 font-medium">${daysText}</p>
-                  </div>
-               </div>
                `;
                })
                .join("");
+
+            // Init carousel
+            carouselIndex = 0;
+            renderCarouselDots();
+            updateCarouselPosition();
+            updateCarouselArrows();
+
+            window.addEventListener("resize", handleCarouselResize);
+         }
+
+         function updateCarouselItemsPerPage() {
+            const width = window.innerWidth;
+            if (width < 640) carouselItemsPerPage = 2;
+            else if (width < 900) carouselItemsPerPage = 3;
+            else if (width < 1100) carouselItemsPerPage = 4;
+            else carouselItemsPerPage = 5;
+         }
+
+         function handleCarouselResize() {
+            updateCarouselItemsPerPage();
+            renderCarouselDots();
+            updateCarouselPosition();
+            updateCarouselArrows();
+         }
+
+         function getCarouselTotalPages() {
+            return Math.ceil(latestUpdates.length / carouselItemsPerPage);
+         }
+
+         function renderCarouselDots() {
+            const dotsContainer = document.getElementById("carouselDots");
+            const totalPages = getCarouselTotalPages();
+            if (totalPages <= 1) {
+               dotsContainer.innerHTML = "";
+               return;
+            }
+            dotsContainer.innerHTML = Array.from(
+               { length: totalPages },
+               (_, i) =>
+                  `<button class="carousel-dot ${i === carouselIndex ? "active" : ""}" onclick="goToCarouselPage(${i})"></button>`,
+            ).join("");
+         }
+
+         function updateCarouselPosition() {
+            const grid = document.getElementById("latestUpdatesGrid");
+            const cardWidth = 140 + 12; // card width + gap
+            const offset = carouselIndex * carouselItemsPerPage * cardWidth;
+            grid.style.transform = `translateX(-${offset}px)`;
+            document.querySelectorAll(".carousel-dot").forEach((dot, i) => {
+               dot.classList.toggle("active", i === carouselIndex);
+            });
+         }
+
+         function updateCarouselArrows() {
+            const prevBtn = document.getElementById("carouselPrevBtn");
+            const nextBtn = document.getElementById("carouselNextBtn");
+            const totalPages = getCarouselTotalPages();
+            if (prevBtn) prevBtn.classList.toggle("disabled", carouselIndex === 0);
+            if (nextBtn) nextBtn.classList.toggle("disabled", carouselIndex >= totalPages - 1);
+         }
+
+         function carouselPrev() {
+            if (carouselIndex > 0) {
+               carouselIndex--;
+               updateCarouselPosition();
+               updateCarouselArrows();
+            }
+         }
+
+         function carouselNext() {
+            const totalPages = getCarouselTotalPages();
+            if (carouselIndex < totalPages - 1) {
+               carouselIndex++;
+               updateCarouselPosition();
+               updateCarouselArrows();
+            }
+         }
+
+         function goToCarouselPage(page) {
+            carouselIndex = page;
+            updateCarouselPosition();
+            updateCarouselArrows();
          }
 
          function navigateToUpdate(heroId, setIndex) {

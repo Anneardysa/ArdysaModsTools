@@ -2066,10 +2066,10 @@ namespace ArdysaModsTools
             string heroesJsonUrl = EnvironmentConfig.BuildRawUrl("Assets/heroes.json");
             try
             {
-                using var client = new System.Net.Http.HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(10);
+                var client = Helpers.HttpClientProvider.Client;
+                using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
                 using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, heroesJsonUrl);
-                using var response = await client.SendAsync(request);
+                using var response = await client.SendAsync(request, cts.Token);
                 return response.IsSuccessStatusCode;
             }
             catch
