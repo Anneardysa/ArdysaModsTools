@@ -44,9 +44,9 @@ namespace ArdysaModsTools.Core.Services
         private readonly string _heroesJsonPath;
         private readonly string _setUpdatesJsonPath;
         
-        // URLs loaded from environment configuration
-        private static string GitHubHeroesUrl => EnvironmentConfig.BuildRawUrl("Assets/heroes.json");
-        private static string GitHubSetUpdatesUrl => EnvironmentConfig.BuildRawUrl("Assets/set_update.json");
+        // URLs loaded from environment configuration (with cache-busting for real-time updates)
+        private static string GitHubHeroesUrl => EnvironmentConfig.BuildFreshUrl("Assets/heroes.json");
+        private static string GitHubSetUpdatesUrl => EnvironmentConfig.BuildFreshUrl("Assets/set_update.json");
 
         public HeroService(string baseFolder)
         {

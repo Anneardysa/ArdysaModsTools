@@ -260,8 +260,8 @@ namespace ArdysaModsTools.UI.Forms
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"LoadHeroDataAsync error: {ex.Message}");
-                await UpdateStatusAsync("Error loading heroes");
+                System.Diagnostics.Debug.WriteLine($"LoadHeroDataAsync error: {ex}");
+                await UpdateStatusAsync($"Error loading heroes: {ex.Message}");
             }
         }
 
@@ -307,7 +307,23 @@ namespace ArdysaModsTools.UI.Forms
                                 f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                                 f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
                                 f.EndsWith(".webp", StringComparison.OrdinalIgnoreCase));
+                            
+                            // Debug: log if thumbnail wasn't found
+                            if (setThumbnail == null)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[SetUpdate] {u.HeroId}/{u.SetName}: No image in {setEntry.Files?.Count ?? 0} files");
+                            }
                         }
+                        else
+                        {
+                            // Debug: log if set wasn't found
+                            System.Diagnostics.Debug.WriteLine($"[SetUpdate] {u.HeroId}/{u.SetName}: Set not found in hero.Sets (has {hero.Sets.Count} sets: {string.Join(", ", hero.Sets.Keys)})");
+                        }
+                    }
+                    else
+                    {
+                        // Debug: log if hero wasn't found
+                        System.Diagnostics.Debug.WriteLine($"[SetUpdate] {u.HeroId}/{u.SetName}: Hero not found or has no sets");
                     }
                     
                     // If we couldn't find set thumbnail but have hero, use hero thumbnail as fallback
@@ -335,7 +351,9 @@ namespace ArdysaModsTools.UI.Forms
                 {
                     var json = JsonSerializer.Serialize(jsUpdates, _jsonOptions);
                     await ExecuteScriptAsync($"loadLatestUpdates({json})");
-                    System.Diagnostics.Debug.WriteLine($"Loaded {jsUpdates.Count} recent updates ({jsUpdates.Count(u => u.isValid)} valid)");
+                    var validCount = jsUpdates.Count(u => u.isValid);
+                    var withThumb = jsUpdates.Count(u => u.setThumbnail != null && !u.setThumbnail.Contains("steamstatic.com"));
+                    System.Diagnostics.Debug.WriteLine($"[SetUpdate] Loaded {jsUpdates.Count} updates ({validCount} valid, {withThumb} with set thumbnails)");
                 }
             }
             catch (Exception ex)
@@ -369,7 +387,8 @@ namespace ArdysaModsTools.UI.Forms
 
                 var hm = new HeroModel
                 {
-                    Name = internalId,
+                    HeroId = internalId,  // This is the npc_dota_hero_xxx ID
+                    Name = internalId,     // Keep for backwards compatibility  
                     LocalizedName = friendlyName,
                     PrimaryAttribute = !string.IsNullOrWhiteSpace(hs.PrimaryAttr) ? hs.PrimaryAttr.ToLowerInvariant() : "universal"
                 };

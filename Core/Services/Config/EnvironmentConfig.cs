@@ -186,12 +186,34 @@ namespace ArdysaModsTools.Core.Services.Config
         public static string ToolsReleasesApi =>
             $"https://api.github.com/repos/{GitHubOwner}/{GitHubToolsRepo}/releases/latest";
         
+        // ============================================================
+        // Cache-Busting for CDN
+        // ============================================================
+        
+        /// <summary>
+        /// Generate a cache-busting key based on current hour.
+        /// This ensures cache refreshes at most once per hour while maximizing CDN hits.
+        /// Format: YYYYMMDDHH (year + month + day + hour)
+        /// </summary>
+        private static string GetCacheBustKey() =>
+            DateTime.UtcNow.ToString("yyyyMMddHH");
+        
         /// <summary>
         /// Build content URL for a specific path.
         /// Uses CDN when enabled for faster downloads.
+        /// NOTE: This URL is cached by CDN - use BuildFreshUrl for JSON that needs real-time updates.
         /// </summary>
         public static string BuildRawUrl(string path) =>
             $"{ContentBase}/{path.TrimStart('/')}";
+        
+        /// <summary>
+        /// Build content URL with cache-busting for files that need real-time updates (e.g., JSON configs).
+        /// Adds an hourly cache-bust parameter to ensure fresh data while still benefiting from CDN.
+        /// Use this for: heroes.json, set_update.json, and other frequently-updated metadata.
+        /// </summary>
+        /// <param name="path">Path within repo (e.g., "Assets/heroes.json")</param>
+        public static string BuildFreshUrl(string path) =>
+            $"{ContentBase}/{path.TrimStart('/')}?v={GetCacheBustKey()}";
         
         /// <summary>
         /// Build download URL for a specific path.

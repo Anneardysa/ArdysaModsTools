@@ -282,13 +282,55 @@ namespace ArdysaModsTools.Core.Services
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
         {
             bool downloadComplete = false;
+            string currentUrl = url;
+            
             try
             {
                 // Use retry logic for transient network failures
                 await RetryHelper.ExecuteAsync(async () =>
                 {
-                    using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct)
+                    using var response = await _httpClient.GetAsync(currentUrl,HttpCompletionOption.ResponseHeadersRead, ct)
                         .ConfigureAwait(false);
+                    
+                    // Handle HTTP 403 from jsDelivr CDN (file too large, >20MB)
+                    // Automatically fall back to raw GitHub URL
+                    if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                    {
+                        string? fallbackUrl = TryConvertCdnToRawUrl(currentUrl);
+                        if (fallbackUrl != null && fallbackUrl != currentUrl)
+                        {
+                            log($"CDN blocked large file (403). Retrying with direct GitHub URL...");
+                            _logger?.Log($"CDN 403 for {currentUrl}, falling back to {fallbackUrl}");
+                            currentUrl = fallbackUrl;
+                            
+                            // Retry immediately with fallback URL
+                            var fallbackResponse = await _httpClient.GetAsync(currentUrl, HttpCompletionOption.ResponseHeadersRead, ct)
+                                .ConfigureAwait(false);
+                            fallbackResponse.EnsureSuccessStatusCode(); // Will throw if fallback also fails
+                            
+                            // Continue with successful fallback response
+                            var fbTotalBytes = fallbackResponse.Content.Headers.ContentLength ?? -1;
+                            await using var fbContentStream = await fallbackResponse.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                            await using var fbProgressStream = new ArdysaModsTools.Core.Helpers.ProgressStream(fbContentStream, speedProgress, fbTotalBytes > 0 ? fbTotalBytes : null);
+                            await using var fbFileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
+                            
+                            var fbBuffer = new byte[81920];
+                            long fbTotalRead = 0;
+                            int fbBytesRead;
+                            
+                            while ((fbBytesRead = await fbProgressStream.ReadAsync(fbBuffer, 0, fbBuffer.Length, ct).ConfigureAwait(false)) > 0)
+                            {
+                                await fbFileStream.WriteAsync(fbBuffer, 0, fbBytesRead, ct).ConfigureAwait(false);
+                                fbTotalRead += fbBytesRead;
+                            }
+                            return;
+                        }
+                        else
+                        {
+                            // No fallback available, throw original error
+                            response.EnsureSuccessStatusCode();
+                        }
+                    }
                     
                     // Check for transient status codes that should trigger retry
                     if (RetryHelper.IsTransientStatusCode(response.StatusCode))
@@ -338,7 +380,7 @@ namespace ArdysaModsTools.Core.Services
             catch (HttpRequestException ex)
             {
                 var dlEx = new DownloadException(ErrorCodes.DL_NETWORK_ERROR,
-                    $"Network error downloading file: {ex.Message}", ex, url);
+                    $"Network error downloading file: {ex.Message}", ex, currentUrl);
                 log($"Download failed: {ex.Message}");
                 _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
                 throw dlEx;
@@ -346,7 +388,7 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 var dlEx = new DownloadException(ErrorCodes.DL_NETWORK_ERROR,
-                    $"Download failed: {ex.Message}", ex, url);
+                    $"Download failed: {ex.Message}", ex, currentUrl);
                 log($"Download failed: {ex.Message}");
                 _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
                 throw dlEx;
@@ -363,6 +405,46 @@ namespace ArdysaModsTools.Core.Services
                     }
                     catch { /* Ignore cleanup errors */ }
                 }
+            }
+        }
+        
+        /// <summary>
+        /// Converts a jsDelivr CDN URL to a raw GitHub URL for fallback when CDN blocks large files.
+        /// </summary>
+        /// <param name="cdnUrl">jsDelivr CDN URL</param>
+        /// <returns>Raw GitHub URL, or null if conversion failed</returns>
+        private static string? TryConvertCdnToRawUrl(string cdnUrl)
+        {
+            // Pattern: https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
+            // Convert to: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
+            const string cdnPrefix = "https://cdn.jsdelivr.net/gh/";
+            if (!cdnUrl.StartsWith(cdnPrefix, StringComparison.OrdinalIgnoreCase))
+                return null;
+            
+            try
+            {
+                var remainder = cdnUrl.Substring(cdnPrefix.Length);
+                var parts = remainder.Split(new[] { '/' }, 3);
+                
+                if (parts.Length < 3)
+                    return null;
+                
+                var owner = parts[0];
+                var repoBranch = parts[1]; // Format: "repo@branch"
+                var path = parts[2];
+                
+                var atIndex = repoBranch.IndexOf('@');
+                if (atIndex < 0)
+                    return null;
+                
+                var repo = repoBranch.Substring(0, atIndex);
+                var branch = repoBranch.Substring(atIndex + 1);
+                
+                return $"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}";
+            }
+            catch
+            {
+                return null;
             }
         }
 
