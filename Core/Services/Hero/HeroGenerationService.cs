@@ -236,8 +236,11 @@ namespace ArdysaModsTools.Core.Services
                             string setFolder;
                             try
                             {
+                                // Convert raw GitHub URL to CDN for faster downloads
+                                var fastZipUrl = Core.Services.Config.EnvironmentConfig.ConvertToFastUrl(zipUrl);
+                                
                                 setFolder = await _downloader.DownloadAndExtractAsync(
-                                    hero.Id, setName, zipUrl, log, ct, speedProgress).ConfigureAwait(false);
+                                    hero.Id, setName, fastZipUrl, log, ct, speedProgress).ConfigureAwait(false);
 #if DEBUG
                                 System.Diagnostics.Debug.WriteLine($"[DEBUG] setFolder = {setFolder}");
 #endif

@@ -162,7 +162,8 @@ namespace ArdysaModsTools.Core.Services
             if (!selections.TryGetValue(category, out var selectedKey) || string.IsNullOrEmpty(selectedKey))
                 return content;
 
-            var url = ModConfigurationData.GetUrl(category, selectedKey);
+            var rawUrl = ModConfigurationData.GetUrl(category, selectedKey);
+            var url = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
             if (string.IsNullOrEmpty(url))
                 return content;
 
@@ -205,7 +206,8 @@ namespace ArdysaModsTools.Core.Services
             if (!selections.TryGetValue(category, out var selEmblem) || string.IsNullOrEmpty(selEmblem))
                 return;
 
-            var url = ModConfigurationData.GetUrl(category, selEmblem);
+            var rawUrl = ModConfigurationData.GetUrl(category, selEmblem);
+            var url = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
             if (string.IsNullOrEmpty(url))
                 return;
 
@@ -248,7 +250,8 @@ namespace ArdysaModsTools.Core.Services
             if (!selections.TryGetValue(category, out var selShader) || string.IsNullOrEmpty(selShader))
                 return;
 
-            var url = ModConfigurationData.GetUrl(category, selShader);
+            var rawUrl = ModConfigurationData.GetUrl(category, selShader);
+            var url = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
             if (string.IsNullOrEmpty(url))
                 return;
 
@@ -291,7 +294,8 @@ namespace ArdysaModsTools.Core.Services
             if (!selections.TryGetValue(category, out var selRiver) || string.IsNullOrEmpty(selRiver))
                 return;
 
-            var url = ModConfigurationData.GetUrl(category, selRiver);
+            var rawUrl = ModConfigurationData.GetUrl(category, selRiver);
+            var url = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
             if (string.IsNullOrEmpty(url))
                 return;
 
@@ -317,7 +321,8 @@ namespace ArdysaModsTools.Core.Services
             if (!selections.TryGetValue(category, out var selAtk) || string.IsNullOrEmpty(selAtk))
                 return;
 
-            var url = ModConfigurationData.GetUrl(category, selAtk);
+            var rawUrl = ModConfigurationData.GetUrl(category, selAtk);
+            var url = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
             if (string.IsNullOrEmpty(url))
                 return;
 

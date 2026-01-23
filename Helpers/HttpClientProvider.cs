@@ -18,6 +18,7 @@ using System;
 using System.Net;
 using System.Net.Http;
 using System.Security.Authentication;
+using ArdysaModsTools.Core.Services.Config;
 
 namespace ArdysaModsTools.Helpers
 {
@@ -42,6 +43,14 @@ namespace ArdysaModsTools.Helpers
             };
 
             c.DefaultRequestHeaders.Add("User-Agent", "ArdysaModsTools/1.0");
+            
+            // Add GitHub token if configured (for higher rate limits: 5000/hour vs 60/hour)
+            var token = EnvironmentConfig.GitHubToken;
+            if (!string.IsNullOrEmpty(token))
+            {
+                c.DefaultRequestHeaders.Add("Authorization", $"token {token}");
+            }
+            
             return c;
         });
 

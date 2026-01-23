@@ -83,11 +83,17 @@ namespace ArdysaModsTools.Core.Services.Security
 
         /// <summary>
         /// Constructs a raw GitHub URL for ModsPack assets.
+        /// Uses jsDelivr CDN when enabled for faster downloads.
         /// </summary>
         /// <param name="branch">Branch name (e.g., "main")</param>
         /// <param name="path">Path within repo (e.g., "Assets/heroes.json")</param>
         public static string BuildModsPackRawUrl(string branch, string path)
         {
+            if (EnvironmentConfig.UseJsDelivrCdn)
+            {
+                // jsDelivr format: https://cdn.jsdelivr.net/gh/owner/repo@branch/path
+                return $"https://cdn.jsdelivr.net/gh{GetModsPackRepoPath()}@{branch}/{path}";
+            }
             return $"{GetGitHubRawBase()}{GetModsPackRepoPath()}/{branch}/{path}";
         }
 

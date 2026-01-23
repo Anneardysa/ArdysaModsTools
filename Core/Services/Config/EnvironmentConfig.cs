@@ -16,6 +16,7 @@
  */
 using System;
 using System.IO;
+using System.Linq;
 
 namespace ArdysaModsTools.Core.Services.Config
 {
@@ -124,45 +125,140 @@ namespace ArdysaModsTools.Core.Services.Config
         public static string GitHubBranch => 
             Environment.GetEnvironmentVariable("GITHUB_BRANCH") ?? "main";
         
+        /// <summary>
+        /// Whether to use jsDelivr CDN for GitHub content (faster global CDN).
+        /// Set USE_JSDELIVR_CDN=false in .env to disable.
+        /// Default: true (CDN enabled for better performance).
+        /// </summary>
+        public static bool UseJsDelivrCdn =>
+            !string.Equals(
+                Environment.GetEnvironmentVariable("USE_JSDELIVR_CDN"), 
+                "false", 
+                StringComparison.OrdinalIgnoreCase);
+        
+        /// <summary>
+        /// Optional GitHub Personal Access Token for higher rate limits.
+        /// Without token: 60 requests/hour. With token: 5000 requests/hour.
+        /// Only needs "public_repo" scope for public repository access.
+        /// </summary>
+        public static string? GitHubToken =>
+            Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+        
         // ============================================================
         // URL Builders
         // ============================================================
         
         /// <summary>
-        /// Base URL for raw GitHub content.
+        /// Base URL for raw GitHub content (original, may be slower).
         /// </summary>
-        public static string RawGitHubBase => 
+        public static string RawGitHubBase =>
             $"https://raw.githubusercontent.com/{GitHubOwner}/{GitHubModsRepo}/{GitHubBranch}";
+        
+        /// <summary>
+        /// Base URL for jsDelivr CDN GitHub content (faster, cached globally).
+        /// Format: https://cdn.jsdelivr.net/gh/owner/repo@branch
+        /// </summary>
+        public static string JsDelivrBase =>
+            $"https://cdn.jsdelivr.net/gh/{GitHubOwner}/{GitHubModsRepo}@{GitHubBranch}";
+        
+        /// <summary>
+        /// Get the best content base URL.
+        /// Uses jsDelivr CDN when enabled (default), otherwise falls back to raw GitHub.
+        /// </summary>
+        public static string ContentBase =>
+            UseJsDelivrCdn ? JsDelivrBase : RawGitHubBase;
         
         /// <summary>
         /// Base URL for GitHub downloads.
         /// </summary>
-        public static string GitHubDownloadBase => 
+        public static string GitHubDownloadBase =>
             $"https://github.com/{GitHubOwner}/{GitHubModsRepo}/raw/{GitHubBranch}";
         
         /// <summary>
         /// GitHub API URL for mods repository releases.
         /// </summary>
-        public static string ModsPackReleasesApi => 
+        public static string ModsPackReleasesApi =>
             $"https://api.github.com/repos/{GitHubOwner}/{GitHubModsRepo}/releases/latest";
         
         /// <summary>
         /// GitHub API URL for tools repository releases.
         /// </summary>
-        public static string ToolsReleasesApi => 
+        public static string ToolsReleasesApi =>
             $"https://api.github.com/repos/{GitHubOwner}/{GitHubToolsRepo}/releases/latest";
         
         /// <summary>
-        /// Build raw content URL for a specific path.
+        /// Build content URL for a specific path.
+        /// Uses CDN when enabled for faster downloads.
         /// </summary>
-        public static string BuildRawUrl(string path) => 
-            $"{RawGitHubBase}/{path.TrimStart('/')}";
+        public static string BuildRawUrl(string path) =>
+            $"{ContentBase}/{path.TrimStart('/')}";
         
         /// <summary>
         /// Build download URL for a specific path.
         /// </summary>
         public static string BuildDownloadUrl(string path) => 
             $"{GitHubDownloadBase}/{path.TrimStart('/')}";
+        
+        /// <summary>
+        /// Convert a raw GitHub URL to use jsDelivr CDN when enabled.
+        /// If CDN is disabled or URL is not a GitHub raw URL, returns original URL.
+        /// </summary>
+        /// <example>
+        /// Input:  https://raw.githubusercontent.com/Owner/Repo/main/path/file.zip
+        /// Input:  https://raw.githubusercontent.com/Owner/Repo/refs/heads/main/path/file.zip
+        /// Output: https://cdn.jsdelivr.net/gh/Owner/Repo@main/path/file.zip
+        /// </example>
+        public static string ConvertToFastUrl(string? url)
+        {
+            if (string.IsNullOrEmpty(url) || !UseJsDelivrCdn)
+                return url ?? string.Empty;
+            
+            // Pattern: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
+            // Also handles: https://raw.githubusercontent.com/{owner}/{repo}/refs/heads/{branch}/{path}
+            const string rawPrefix = "https://raw.githubusercontent.com/";
+            if (!url.StartsWith(rawPrefix, StringComparison.OrdinalIgnoreCase))
+                return url;
+            
+            try
+            {
+                // Extract: owner/repo/...rest
+                var remainder = url.Substring(rawPrefix.Length);
+                var parts = remainder.Split('/');
+                
+                if (parts.Length < 4)
+                    return url; // Invalid format, return original
+                
+                var owner = parts[0];
+                var repo = parts[1];
+                
+                string branch;
+                string path;
+                
+                // Handle refs/heads/branch format
+                if (parts.Length >= 5 && parts[2] == "refs" && parts[3] == "heads")
+                {
+                    // Format: owner/repo/refs/heads/branch/path...
+                    branch = parts[4];
+                    path = string.Join("/", parts.Skip(5));
+                }
+                else
+                {
+                    // Standard format: owner/repo/branch/path...
+                    branch = parts[2];
+                    path = string.Join("/", parts.Skip(3));
+                }
+                
+                if (string.IsNullOrEmpty(path))
+                    return url; // No path, return original
+                
+                // jsDelivr format: https://cdn.jsdelivr.net/gh/owner/repo@branch/path
+                return $"https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}";
+            }
+            catch
+            {
+                return url; // Any error, return original
+            }
+        }
         
         // ============================================================
         // ============================================================

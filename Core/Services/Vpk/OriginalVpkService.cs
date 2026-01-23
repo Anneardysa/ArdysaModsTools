@@ -48,8 +48,8 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public sealed class OriginalVpkService : IOriginalVpkProvider
     {
-        // URL now loaded from environment configuration
-        private static string OriginalZipUrl => EnvironmentConfig.BuildDownloadUrl("Assets/Original.zip");
+        // URL now loaded from environment configuration, uses CDN when enabled
+        private static string OriginalZipUrl => EnvironmentConfig.BuildRawUrl("Assets/Original.zip");
         
         private readonly HttpClient _httpClient;
         private readonly IVpkExtractor _extractor;
