@@ -494,7 +494,15 @@ namespace ArdysaModsTools.Core.Services
         {
             if (string.IsNullOrEmpty(_currentTargetPath)) return;
             
-            await RefreshStatusAsync(_currentTargetPath);
+            try
+            {
+                await RefreshStatusAsync(_currentTargetPath);
+            }
+            catch (Exception ex)
+            {
+                // Silent catch - file watcher events shouldn't crash the app
+                System.Diagnostics.Debug.WriteLine($"[StatusService] HandleFilesChanged error: {ex.Message}");
+            }
         }
 
         #endregion
