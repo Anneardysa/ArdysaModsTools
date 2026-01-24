@@ -749,6 +749,52 @@
          </div>
       </footer>
 
+      <!-- Caching Overlay (Loading Assets) -->
+      <div
+         id="cachingOverlay"
+         class="fixed inset-0 z-[80] bg-amt-bg flex flex-col items-center justify-center"
+      >
+         <div class="max-w-md w-full mx-4 text-center">
+            <!-- Logo/Icon -->
+            <div
+               class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-amt-accent/10 flex items-center justify-center"
+            >
+               <svg
+                  class="w-10 h-10 text-amt-accent"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+               >
+                  <path
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                     stroke-width="2"
+                     d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+               </svg>
+            </div>
+
+            <!-- Title -->
+            <h2 class="text-xl font-semibold text-white mb-2">Loading Assets</h2>
+            <p id="cachingStatus" class="text-sm text-gray-400 mb-6">Preparing thumbnails...</p>
+
+            <!-- Progress Bar -->
+            <div class="h-2 bg-amt-card rounded-full overflow-hidden mb-3">
+               <div
+                  id="cachingBar"
+                  class="h-full bg-amt-accent rounded-full transition-all duration-200"
+                  style="width: 0%"
+               ></div>
+            </div>
+
+            <!-- Progress Text -->
+            <div class="flex justify-between text-xs text-gray-500">
+               <span id="cachingCount">0 / 0</span>
+               <span id="cachingPercent">0%</span>
+            </div>
+         </div>
+      </div>
+
       <!-- Custom Alert Modal -->
       <div id="alertModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center">
          <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeAlert()"></div>
@@ -898,6 +944,40 @@
          // ============================================
          // C# Interop Functions
          // ============================================
+         
+         // Caching Overlay Control
+         function showCachingOverlay() {
+            const overlay = document.getElementById("cachingOverlay");
+            if (overlay) {
+               overlay.classList.remove("hidden");
+               overlay.style.opacity = "1";
+               document.getElementById("cachingStatus").textContent = "Downloading thumbnails...";
+               document.getElementById("cachingBar").style.width = "0%";
+               document.getElementById("cachingCount").textContent = "0 / 0";
+               document.getElementById("cachingPercent").textContent = "0%";
+            }
+         }
+
+         function updateCachingProgress(current, total) {
+            const pct = total > 0 ? Math.round((current / total) * 100) : 100;
+            document.getElementById("cachingBar").style.width = `${pct}%`;
+            document.getElementById("cachingCount").textContent = `${current} / ${total}`;
+            document.getElementById("cachingPercent").textContent = `${pct}%`;
+            
+            if (current >= total && total > 0) {
+               document.getElementById("cachingStatus").textContent = "Complete!";
+            }
+         }
+
+         function hideCachingOverlay() {
+            const overlay = document.getElementById("cachingOverlay");
+            if (overlay) {
+               overlay.style.opacity = "0";
+               overlay.style.transition = "opacity 0.2s ease";
+               setTimeout(() => overlay.classList.add("hidden"), 200);
+            }
+         }
+
          function loadHeroes(heroesJson) {
             heroes = typeof heroesJson === "string" ? JSON.parse(heroesJson) : heroesJson;
             renderHeroes();

@@ -21,6 +21,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Core.Services.Cache;
 using SixLabors.ImageSharp.PixelFormats;
 using ImageSharpImage = SixLabors.ImageSharp.Image;
 
@@ -135,9 +136,9 @@ namespace ArdysaModsTools.UI.Controls.Widgets
             {
                 try
                 {
-                    using var client = new HttpClient();
-                    client.Timeout = TimeSpan.FromSeconds(10);
-                    var bytes = await client.GetByteArrayAsync(formatUrl).ConfigureAwait(false);
+                    // Use cache service for local-first loading
+                    var bytes = await AssetCacheService.Instance.GetAssetBytesAsync(formatUrl).ConfigureAwait(false);
+                    if (bytes == null || bytes.Length == 0) continue;
 
                     // Use ImageSharp for WebP and other formats, then convert to GDI+ Bitmap
                     var img = ConvertToGdiBitmap(bytes);

@@ -29,6 +29,7 @@ using ArdysaModsTools.Core.DependencyInjection;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Services.Cache;
 using ArdysaModsTools.Models;
 
 namespace ArdysaModsTools.UI.Forms
@@ -257,6 +258,9 @@ namespace ArdysaModsTools.UI.Forms
                 await LoadSetUpdatesAsync();
 
                 await UpdateStatusAsync($"Loaded {_heroes.Count} heroes");
+
+                // Preload thumbnails with HTML overlay (shows progress before content is visible)
+                await PreloadThumbnailsAsync(_heroes);
             }
             catch (Exception ex)
             {
@@ -430,6 +434,101 @@ namespace ArdysaModsTools.UI.Forms
             // Always use Dota 2 CDN for default hero portrait (not set thumbnails)
             var heroName = hero.Name?.Replace("npc_dota_hero_", "") ?? "";
             return $"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/{heroName}.png";
+        }
+
+        /// <summary>
+        /// Preload set thumbnails into cache with HTML overlay showing progress.
+        /// Two-phase: 1) Check freshness of cached items, 2) Download missing items.
+        /// </summary>
+        private async Task PreloadThumbnailsAsync(List<HeroModel> heroes)
+        {
+            var cacheService = AssetCacheService.Instance;
+            var allUrls = new List<string>();
+
+            // Collect all set thumbnail URLs
+            foreach (var hero in heroes)
+            {
+                if (hero.Sets == null) continue;
+                
+                foreach (var kvp in hero.Sets)
+                {
+                    var thumbUrl = kvp.Value?.FirstOrDefault(u =>
+                        u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                        u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                        u.EndsWith(".webp", StringComparison.OrdinalIgnoreCase));
+                    
+                    if (!string.IsNullOrEmpty(thumbUrl))
+                        allUrls.Add(thumbUrl);
+                }
+            }
+
+            if (allUrls.Count == 0)
+            {
+                await ExecuteScriptAsync("hideCachingOverlay()");
+                return;
+            }
+
+            // Separate cached vs not cached
+            var cached = allUrls.Where(u => cacheService.IsCached(u)).ToList();
+            var notCached = allUrls.Where(u => !cacheService.IsCached(u)).ToList();
+
+            // If nothing to do, hide quickly
+            if (cached.Count == 0 && notCached.Count == 0)
+            {
+                await ExecuteScriptAsync("hideCachingOverlay()");
+                return;
+            }
+
+            // Show caching overlay
+            await ExecuteScriptAsync("showCachingOverlay()");
+            
+            try
+            {
+                int refreshed = 0, downloaded = 0;
+
+                // Phase 1: Check freshness of cached items (quick HEAD requests)
+                if (cached.Count > 0)
+                {
+                    await ExecuteScriptAsync($"document.getElementById('cachingStatus').textContent = 'Checking for updates...'");
+                    
+                    var refreshProgress = new Progress<(int current, int total, string url)>(async p =>
+                    {
+                        try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
+                        catch { }
+                    });
+
+                    var refreshResult = await cacheService.RefreshStaleAssetsAsync(cached, refreshProgress);
+                    refreshed = refreshResult.refreshed;
+                    
+                    System.Diagnostics.Debug.WriteLine($"[HeroGallery] Refreshed {refreshed} stale assets");
+                }
+
+                // Phase 2: Download missing items
+                if (notCached.Count > 0)
+                {
+                    await ExecuteScriptAsync($"document.getElementById('cachingStatus').textContent = 'Downloading thumbnails...'");
+                    await ExecuteScriptAsync($"updateCachingProgress(0, {notCached.Count})");
+
+                    var downloadProgress = new Progress<(int current, int total, string url)>(async p =>
+                    {
+                        try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
+                        catch { }
+                    });
+
+                    var downloadResult = await cacheService.PreloadAssetsWithProgressAsync(notCached, downloadProgress);
+                    downloaded = downloadResult.downloaded;
+                    
+                    System.Diagnostics.Debug.WriteLine($"[HeroGallery] Downloaded {downloaded} new assets");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[HeroGallery] Total: {refreshed} refreshed, {downloaded} downloaded, {cached.Count - refreshed} fresh from cache");
+            }
+            finally
+            {
+                // Hide overlay with small delay for smooth transition
+                await Task.Delay(300);
+                await ExecuteScriptAsync("hideCachingOverlay()");
+            }
         }
 
         /// <summary>

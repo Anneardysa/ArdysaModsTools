@@ -2017,6 +2017,9 @@ namespace ArdysaModsTools
                 return;
             }
 
+            // Asset caching now happens inside HeroGalleryForm with HTML overlay
+            // (same "Loading Assets" UI as Miscellaneous form)
+
             // Try modern WebView2 gallery first, fallback to classic if it fails
             DialogResult dialogResult;
             ModGenerationResult? generationResult = null;
@@ -2074,6 +2077,113 @@ namespace ArdysaModsTools
             catch
             {
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Preload hero set thumbnails with a progress dialog.
+        /// Downloads all thumbnails to local cache before opening the gallery.
+        /// </summary>
+        private async Task<bool> PreloadHeroAssetsAsync()
+        {
+            try
+            {
+                // Load hero data first
+                var baseFolder = AppDomain.CurrentDomain.BaseDirectory;
+                var heroService = new Core.Services.HeroService(baseFolder);
+                var heroSummaries = await heroService.LoadHeroesAsync();
+
+                if (heroSummaries == null || heroSummaries.Count == 0)
+                {
+                    _logger?.Log("No heroes found to preload.");
+                    return true; // Continue anyway
+                }
+
+                // Extract all thumbnail URLs
+                var thumbnailUrls = new List<string>();
+                foreach (var hero in heroSummaries)
+                {
+                    if (hero.Sets == null) continue;
+                    foreach (var kvp in hero.Sets)
+                    {
+                        var urls = kvp.Value;
+                        if (urls == null) continue;
+                        foreach (var url in urls)
+                        {
+                            if (url.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                                url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                                url.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
+                            {
+                                thumbnailUrls.Add(url);
+                            }
+                        }
+                    }
+                }
+
+                if (thumbnailUrls.Count == 0)
+                {
+                    _logger?.Log("No thumbnails to preload.");
+                    return true;
+                }
+
+                // Check how many are already cached
+                var cacheService = Core.Services.Cache.AssetCacheService.Instance;
+                var notCached = thumbnailUrls.Where(u => !cacheService.IsCached(u)).ToList();
+
+                if (notCached.Count == 0)
+                {
+                    _logger?.Log($"All {thumbnailUrls.Count} thumbnails already cached.");
+                    return true;
+                }
+
+                _logger?.Log($"Downloading {notCached.Count} of {thumbnailUrls.Count} thumbnails...");
+
+                // Run preload with progress dialog
+                var result = await UI.ProgressOperationRunner.RunAsync(
+                    this,
+                    $"Downloading asset images (0/{notCached.Count})...",
+                    async (context) =>
+                    {
+                        var progress = new Progress<(int current, int total, string url)>(p =>
+                        {
+                            int percent = (int)((p.current / (double)p.total) * 100);
+                            context.Progress.Report(percent);
+                            context.Status.Report($"Downloading asset images ({p.current}/{p.total})...");
+                            
+                            // Show filename in substatus
+                            try
+                            {
+                                var filename = Path.GetFileName(new Uri(p.url).AbsolutePath);
+                                context.Substatus.Report(filename);
+                            }
+                            catch { }
+                        });
+
+                        var (downloaded, skipped, failed) = await cacheService.PreloadAssetsWithProgressAsync(
+                            notCached, progress, context.Token);
+
+                        return new Core.Models.OperationResult
+                        {
+                            Success = true,
+                            Message = $"Downloaded {downloaded} assets"
+                        };
+                    },
+                    hideDownloadSpeed: true);
+
+                if (!result.Success && result.Message == "Operation cancelled by user.")
+                {
+                    _logger?.Log("Asset preload cancelled by user.");
+                    return false;
+                }
+
+                _logger?.Log("Asset preload complete.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"Asset preload error: {ex.Message}");
+                // Don't block - let user continue anyway
+                return true;
             }
         }
 

@@ -26,6 +26,7 @@ using System.Windows.Forms;
 using ArdysaModsTools.Core.Controllers;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Services.Cache;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -183,6 +184,10 @@ namespace ArdysaModsTools.UI.Forms
 
                 // Load options
                 await LoadOptionsAsync();
+                
+                // Preload thumbnails with HTML overlay (same UI pattern as Skin Selector)
+                await PreloadMiscThumbnailsAsync();
+                
                 await RestoreSelectionsAsync();
             }
             catch (Exception ex)
@@ -236,6 +241,98 @@ namespace ArdysaModsTools.UI.Forms
             catch (Exception ex)
             {
                 await AppendConsoleAsync($"Error loading options: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Preload all misc option thumbnails using AssetCacheService with HTML overlay progress.
+        /// Two-phase: 1) Check freshness of cached items, 2) Download missing items.
+        /// </summary>
+        private async Task PreloadMiscThumbnailsAsync()
+        {
+            var cacheService = AssetCacheService.Instance;
+            var options = MiscCategoryService.GetAllOptions();
+            var allUrls = new List<string>();
+
+            // Collect all thumbnail URLs from options
+            foreach (var option in options)
+            {
+                if (string.IsNullOrEmpty(option.ThumbnailUrlPattern)) continue;
+                
+                foreach (var choice in option.Choices)
+                {
+                    var thumbUrl = option.GetThumbnailUrl(choice);
+                    if (!string.IsNullOrEmpty(thumbUrl))
+                        allUrls.Add(thumbUrl);
+                }
+            }
+
+            if (allUrls.Count == 0)
+            {
+                await ExecuteScriptAsync("hideCachingOverlay()");
+                return;
+            }
+
+            // Separate cached vs not cached
+            var cached = allUrls.Where(u => cacheService.IsCached(u)).ToList();
+            var notCached = allUrls.Where(u => !cacheService.IsCached(u)).ToList();
+
+            // If nothing to do, hide quickly
+            if (cached.Count == 0 && notCached.Count == 0)
+            {
+                await ExecuteScriptAsync("hideCachingOverlay()");
+                return;
+            }
+
+            // Show caching overlay
+            await ExecuteScriptAsync("showCachingOverlay()");
+
+            try
+            {
+                int refreshed = 0, downloaded = 0;
+
+                // Phase 1: Check freshness of cached items (quick HEAD requests)
+                if (cached.Count > 0)
+                {
+                    await ExecuteScriptAsync($"document.getElementById('cachingStatus').textContent = 'Checking for updates...'");
+                    
+                    var refreshProgress = new Progress<(int current, int total, string url)>(async p =>
+                    {
+                        try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
+                        catch { }
+                    });
+
+                    var refreshResult = await cacheService.RefreshStaleAssetsAsync(cached, refreshProgress);
+                    refreshed = refreshResult.refreshed;
+                    
+                    System.Diagnostics.Debug.WriteLine($"[MiscForm] Refreshed {refreshed} stale assets");
+                }
+
+                // Phase 2: Download missing items
+                if (notCached.Count > 0)
+                {
+                    await ExecuteScriptAsync($"document.getElementById('cachingStatus').textContent = 'Downloading thumbnails...'");
+                    await ExecuteScriptAsync($"updateCachingProgress(0, {notCached.Count})");
+
+                    var downloadProgress = new Progress<(int current, int total, string url)>(async p =>
+                    {
+                        try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
+                        catch { }
+                    });
+
+                    var downloadResult = await cacheService.PreloadAssetsWithProgressAsync(notCached, downloadProgress);
+                    downloaded = downloadResult.downloaded;
+                    
+                    System.Diagnostics.Debug.WriteLine($"[MiscForm] Downloaded {downloaded} new assets");
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[MiscForm] Total: {refreshed} refreshed, {downloaded} downloaded, {cached.Count - refreshed} fresh from cache");
+            }
+            finally
+            {
+                // Hide overlay with small delay for smooth transition
+                await Task.Delay(300);
+                await ExecuteScriptAsync("hideCachingOverlay()");
             }
         }
 
