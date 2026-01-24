@@ -20,6 +20,10 @@ env:
    PROJECT_NAME: ArdysaModsTools
    PROJECT_FILE: ArdysaModsTools.csproj
 
+# Required permissions for creating releases
+permissions:
+   contents: write
+
 jobs:
    build:
       runs-on: windows-latest
