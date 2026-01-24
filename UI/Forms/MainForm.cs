@@ -1111,11 +1111,10 @@ namespace ArdysaModsTools
                     dialog.StartPosition = FormStartPosition.CenterParent;
                     dialog.ShowDialog(this);
                     
-                    // If user clicked "Patch Now", trigger patch update
+                    // If user clicked "Patch Now", execute patch directly (no additional dialogs)
                     if (dialog.ShouldPatch && !string.IsNullOrEmpty(targetPath))
                     {
-                        // Simulate clicking the Patch Update button
-                        UpdatePatcherButton_Click(null, EventArgs.Empty);
+                        await ExecutePatchAsync();
                     }
                 }
             }

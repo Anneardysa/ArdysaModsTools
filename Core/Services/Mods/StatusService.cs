@@ -95,10 +95,11 @@ namespace ArdysaModsTools.Core.Services
                 var dotaCheck = await ValidateDotaInstallation(targetPath, ct);
                 if (dotaCheck != null) return dotaCheck;
 
-                var modsCheck = await CheckModsInstalled(targetPath, ct);
-                if (modsCheck != null) return modsCheck.Value.Result;
+                var modsResult = await CheckModsInstalled(targetPath, ct);
+                if (!modsResult.IsInstalled)
+                    return modsResult.NotInstalledStatus!;
                 
-                var (version, lastModified) = modsCheck?.Metadata ?? (null, null);
+                var (version, lastModified) = (modsResult.Version, modsResult.LastModified);
 
                 var gameInfoCheck = await CheckGameInfoPatched(targetPath, ct);
                 if (gameInfoCheck != null) 
@@ -245,7 +246,22 @@ namespace ArdysaModsTools.Core.Services
         /// Step 3: Check if mods are installed.
         /// Returns null if installed, or not-installed status.
         /// </summary>
-        private async Task<(ModStatusInfo Result, (string? Version, DateTime? LastModified) Metadata)?> CheckModsInstalled(
+        /// <summary>
+        /// Result from CheckModsInstalled - indicates if mods are installed and provides metadata.
+        /// </summary>
+        private readonly struct ModsInstalledResult
+        {
+            public bool IsInstalled { get; init; }
+            public ModStatusInfo? NotInstalledStatus { get; init; }
+            public string? Version { get; init; }
+            public DateTime? LastModified { get; init; }
+        }
+
+        /// <summary>
+        /// Step 3: Check if mods are installed.
+        /// Returns installed=true with metadata if installed, or installed=false with not-installed status.
+        /// </summary>
+        private async Task<ModsInstalledResult> CheckModsInstalled(
             string targetPath, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -255,17 +271,26 @@ namespace ArdysaModsTools.Core.Services
 
             if (!File.Exists(vpkFile))
             {
-                return (CreateStatus(ModStatus.NotInstalled, "Not Installed",
-                    "ModsPack is not installed. Click 'Install' to get started.",
-                    action: RecommendedAction.Install,
-                    actionText: "Install ModsPack"), (null, null));
+                return new ModsInstalledResult
+                {
+                    IsInstalled = false,
+                    NotInstalledStatus = CreateStatus(ModStatus.NotInstalled, "Not Installed",
+                        "ModsPack is not installed. Click 'Install' to get started.",
+                        action: RecommendedAction.Install,
+                        actionText: "Install ModsPack")
+                };
             }
 
             // Get metadata
             string? version = await GetVersionAsync(versionFile, ct);
             DateTime? lastModified = GetLastModified(vpkFile);
 
-            return null; // Mods are installed
+            return new ModsInstalledResult
+            {
+                IsInstalled = true,
+                Version = version,
+                LastModified = lastModified
+            };
         }
 
         /// <summary>
