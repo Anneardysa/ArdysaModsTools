@@ -280,8 +280,8 @@ namespace ArdysaModsTools.UI.Forms
                     return;
                 }
 
-                // Get recent updates (last 30 days) and convert to JS format
-                var recentUpdates = updatesData.GetRecentUpdates(30);
+                // Get recent updates (last 7 days) and convert to JS format
+                var recentUpdates = updatesData.GetRecentUpdates(7);
                 
                 // Build update entries with hero info from our loaded heroes
                 var jsUpdates = recentUpdates.Select(u => {

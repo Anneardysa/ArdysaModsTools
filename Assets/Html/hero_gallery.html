@@ -188,78 +188,79 @@
             border-radius: 10px;
             background: rgba(0, 0, 0, 0.25);
             border: 1px solid rgba(34, 197, 94, 0.08);
-            padding: 12px 40px;
+            padding: 12px 0;
          }
          .carousel-track {
             display: flex;
-            gap: 12px;
-            transition: transform 0.4s ease;
+            gap: 10px;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0 12px;
          }
          .carousel-arrow {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
             z-index: 10;
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 50%;
             cursor: pointer;
             opacity: 0;
             transition: all 0.2s ease;
             color: white;
          }
-         .carousel-wrapper:hover .carousel-arrow {
+         .carousel-wrapper:hover .carousel-arrow:not(.disabled) {
             opacity: 1;
          }
          .carousel-arrow:hover {
-            background: rgba(34, 197, 94, 0.3);
-            border-color: rgba(34, 197, 94, 0.5);
+            background: rgba(34, 197, 94, 0.4);
+            border-color: rgba(34, 197, 94, 0.6);
          }
          .carousel-arrow.disabled {
             opacity: 0 !important;
             pointer-events: none;
          }
          .carousel-arrow-left {
-            left: 6px;
+            left: 4px;
          }
          .carousel-arrow-right {
-            right: 6px;
+            right: 4px;
          }
 
-         /* Carousel Dots */
+         /* Carousel Progress Indicator - Dots */
          .carousel-dots {
             display: flex;
             justify-content: center;
-            gap: 6px;
-            margin-top: 8px;
+            gap: 5px;
+            margin-top: 10px;
+            height: 8px;
          }
          .carousel-dot {
             width: 6px;
             height: 6px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.15);
             cursor: pointer;
             transition: all 0.2s ease;
          }
          .carousel-dot:hover {
-            background: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.35);
          }
          .carousel-dot.active {
             background: #22c55e;
-            transform: scale(1.2);
+            transform: scale(1.3);
          }
 
-         /* Update Cards */
          .update-card {
             flex-shrink: 0;
-            width: 140px;
-            border-radius: 10px;
+            width: 150px;
+            border-radius: 8px;
             overflow: hidden;
             cursor: pointer;
             background: #0a0a0a;
@@ -273,7 +274,7 @@
          }
          .update-card-image {
             position: relative;
-            height: 120px;
+            height: 130px;
             overflow: hidden;
          }
          .update-card-image img {
@@ -302,21 +303,32 @@
             font-weight: 700;
             color: black;
             text-transform: uppercase;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.6), 0 0 16px rgba(34, 197, 94, 0.3);
+            animation: badge-glow 2s ease-in-out infinite;
+         }
+         @keyframes badge-glow {
+            0%, 100% {
+               box-shadow: 0 0 8px rgba(34, 197, 94, 0.6), 0 0 16px rgba(34, 197, 94, 0.3);
+            }
+            50% {
+               box-shadow: 0 0 12px rgba(34, 197, 94, 0.8), 0 0 24px rgba(34, 197, 94, 0.5);
+            }
          }
          .update-card-content {
             padding: 10px;
          }
          .update-card-hero {
-            font-size: 12px;
+            font-size: 13px;
             font-weight: 600;
             color: white;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
+            line-height: 1.2;
          }
          .update-card-date {
-            font-size: 10px;
+            font-size: 11px;
             color: #22c55e;
          }
 
@@ -592,7 +604,6 @@
                            stroke-linejoin="round"
                            stroke-width="2"
                            d="M9 5l7 7-7 7"
-                        />
                      </svg>
                   </button>
                </div>
@@ -914,22 +925,22 @@
          let updatesCollapsed = false;
          let highlightSetIndex = -1;
          let carouselIndex = 0;
-         let carouselItemsPerPage = 5;
+         const MAX_CAROUSEL_ITEMS = 30; // Maximum items to show for better UX
 
          function loadLatestUpdates(updatesJson) {
-            latestUpdates = typeof updatesJson === "string" ? JSON.parse(updatesJson) : updatesJson;
+            let parsed = typeof updatesJson === "string" ? JSON.parse(updatesJson) : updatesJson;
 
-            if (!latestUpdates || latestUpdates.length === 0) {
+            if (!parsed || parsed.length === 0) {
                document.getElementById("latestUpdatesSection").classList.add("hidden");
                return;
             }
 
+            // Limit to max items for better UX
+            latestUpdates = parsed.slice(0, MAX_CAROUSEL_ITEMS);
+
             // Show section
             document.getElementById("latestUpdatesSection").classList.remove("hidden");
             document.getElementById("updatesCount").textContent = `${latestUpdates.length} new`;
-
-            // Calculate items per page
-            updateCarouselItemsPerPage();
 
             // Render cards
             const grid = document.getElementById("latestUpdatesGrid");
@@ -946,97 +957,189 @@
                      <div class="update-card-image">
                         <img src="${update.setThumbnail || update.heroThumbnail || ""}" 
                              alt="${update.heroName}"
-                             onerror="this.src='${update.heroThumbnail || ""}'" />
-                        <div class="update-card-gradient"></div>
-                        <span class="new-badge">NEW</span>
-                     </div>
-                     <div class="update-card-content">
-                        <p class="update-card-hero">${update.heroName}</p>
-                        <p class="update-card-date">${daysText}</p>
-                     </div>
-                  </div>
-               `;
+                              onerror="this.src='${update.heroThumbnail || ""}'" />
+                         <div class="update-card-gradient"></div>
+                         ${update.daysAgo <= 2 ? '<span class="new-badge">NEW</span>' : ''}
+                      </div>
+                      <div class="update-card-content">
+                         <p class="update-card-hero">${update.heroName}</p>
+                         <p class="update-card-date">${daysText}</p>
+                      </div>
+                   </div>
+                `;
                })
                .join("");
 
             // Init carousel
             carouselIndex = 0;
-            renderCarouselDots();
             updateCarouselPosition();
             updateCarouselArrows();
 
             window.addEventListener("resize", handleCarouselResize);
+            
+            // Add mouse wheel scrolling for carousel
+            const carouselWrapper = document.querySelector('.carousel-wrapper');
+            if (carouselWrapper) {
+               carouselWrapper.addEventListener('wheel', handleCarouselWheel, { passive: false });
+            }
          }
 
-         function updateCarouselItemsPerPage() {
-            const width = window.innerWidth;
-            if (width < 640) carouselItemsPerPage = 2;
-            else if (width < 900) carouselItemsPerPage = 3;
-            else if (width < 1100) carouselItemsPerPage = 4;
-            else carouselItemsPerPage = 5;
+         function handleCarouselWheel(e) {
+            const metrics = getCarouselMetrics();
+            if (!metrics || metrics.maxScrollIndex <= 0) return;
+            
+            // Prevent page scroll when on carousel
+            e.preventDefault();
+            
+            // Scroll direction: positive deltaY = scroll down = next, negative = prev
+            if (e.deltaY > 0) {
+               // Scroll right (next)
+               if (carouselIndex < metrics.maxScrollIndex) {
+                  carouselIndex = Math.min(carouselIndex + 1, metrics.maxScrollIndex);
+                  updateCarouselPosition();
+                  updateCarouselArrows();
+               }
+            } else if (e.deltaY < 0) {
+               // Scroll left (prev)
+               if (carouselIndex > 0) {
+                  carouselIndex = Math.max(carouselIndex - 1, 0);
+                  updateCarouselPosition();
+                  updateCarouselArrows();
+               }
+            }
          }
 
          function handleCarouselResize() {
-            updateCarouselItemsPerPage();
-            renderCarouselDots();
+            // Clamp carouselIndex to valid range after resize
+            const metrics = getCarouselMetrics();
+            if (metrics) {
+               carouselIndex = Math.min(carouselIndex, metrics.maxScrollIndex);
+            }
             updateCarouselPosition();
             updateCarouselArrows();
          }
 
-         function getCarouselTotalPages() {
-            return Math.ceil(latestUpdates.length / carouselItemsPerPage);
+         function getCarouselMetrics() {
+            const wrapper = document.querySelector(".carousel-wrapper");
+            const grid = document.getElementById("latestUpdatesGrid");
+            if (!wrapper || !grid) return null;
+
+            const cardWidth = 150; // card width
+            const gap = 10; // gap between cards
+            const padding = 24; // 12px padding on each side
+            const wrapperWidth = wrapper.clientWidth - padding;
+            const totalCards = latestUpdates.length;
+            const totalContentWidth = totalCards * cardWidth + (totalCards - 1) * gap;
+            const visibleCards = Math.floor((wrapperWidth + gap) / (cardWidth + gap));
+            const maxScrollIndex = Math.max(0, totalCards - visibleCards);
+
+            return {
+               cardWidth,
+               gap,
+               padding,
+               wrapperWidth,
+               totalCards,
+               totalContentWidth,
+               visibleCards,
+               maxScrollIndex,
+            };
          }
 
          function renderCarouselDots() {
+            const metrics = getCarouselMetrics();
             const dotsContainer = document.getElementById("carouselDots");
-            const totalPages = getCarouselTotalPages();
-            if (totalPages <= 1) {
+            if (!metrics || !dotsContainer) return;
+
+            const { totalCards, visibleCards, maxScrollIndex } = metrics;
+
+            // Hide dots if all items fit or only one page
+            if (totalCards <= visibleCards || maxScrollIndex <= 0) {
                dotsContainer.innerHTML = "";
                return;
             }
-            dotsContainer.innerHTML = Array.from(
-               { length: totalPages },
-               (_, i) =>
-                  `<button class="carousel-dot ${i === carouselIndex ? "active" : ""}" onclick="goToCarouselPage(${i})"></button>`,
-            ).join("");
+
+            // Create dots for each scroll position (page-based for cleaner UX)
+            const totalDots = Math.min(maxScrollIndex + 1, 5); // Max 5 dots
+            const dotStep = maxScrollIndex / (totalDots - 1);
+            
+            dotsContainer.innerHTML = Array.from({ length: totalDots }, (_, i) => {
+               const dotIndex = Math.round(i * dotStep);
+               const isActive = carouselIndex >= dotIndex - dotStep/2 && carouselIndex < dotIndex + dotStep/2 + 1;
+               return `<button class="carousel-dot ${i === 0 && carouselIndex === 0 ? 'active' : ''} ${isActive ? 'active' : ''}" onclick="goToCarouselIndex(${dotIndex})"></button>`;
+            }).join("");
+            
+            // Update active dot
+            const dots = dotsContainer.querySelectorAll('.carousel-dot');
+            dots.forEach((dot, i) => {
+               const dotIndex = Math.round(i * dotStep);
+               const isActive = (i === 0 && carouselIndex <= dotStep/2) || 
+                               (i === totalDots - 1 && carouselIndex >= maxScrollIndex - dotStep/2) ||
+                               (carouselIndex >= dotIndex - dotStep/2 && carouselIndex < dotIndex + dotStep/2);
+               dot.classList.toggle('active', isActive);
+            });
+         }
+
+         function goToCarouselIndex(index) {
+            const metrics = getCarouselMetrics();
+            if (!metrics) return;
+            carouselIndex = Math.max(0, Math.min(index, metrics.maxScrollIndex));
+            updateCarouselPosition();
+            updateCarouselArrows();
          }
 
          function updateCarouselPosition() {
             const grid = document.getElementById("latestUpdatesGrid");
-            const cardWidth = 140 + 12; // card width + gap
-            const offset = carouselIndex * carouselItemsPerPage * cardWidth;
+            const metrics = getCarouselMetrics();
+            if (!grid || !metrics) return;
+
+            const { cardWidth, gap, maxScrollIndex } = metrics;
+
+            // Clamp carousel index to valid range
+            carouselIndex = Math.max(0, Math.min(carouselIndex, maxScrollIndex));
+
+            // Calculate offset
+            const offset = carouselIndex * (cardWidth + gap);
             grid.style.transform = `translateX(-${offset}px)`;
-            document.querySelectorAll(".carousel-dot").forEach((dot, i) => {
-               dot.classList.toggle("active", i === carouselIndex);
-            });
+
+            renderCarouselDots();
          }
 
          function updateCarouselArrows() {
             const prevBtn = document.getElementById("carouselPrevBtn");
             const nextBtn = document.getElementById("carouselNextBtn");
-            const totalPages = getCarouselTotalPages();
-            if (prevBtn) prevBtn.classList.toggle("disabled", carouselIndex === 0);
-            if (nextBtn) nextBtn.classList.toggle("disabled", carouselIndex >= totalPages - 1);
+            const metrics = getCarouselMetrics();
+
+            if (!metrics) return;
+            const { maxScrollIndex } = metrics;
+
+            if (prevBtn) prevBtn.classList.toggle("disabled", carouselIndex <= 0);
+            if (nextBtn) nextBtn.classList.toggle("disabled", carouselIndex >= maxScrollIndex);
          }
 
          function carouselPrev() {
-            if (carouselIndex > 0) {
-               carouselIndex--;
-               updateCarouselPosition();
-               updateCarouselArrows();
-            }
+            const metrics = getCarouselMetrics();
+            if (!metrics) return;
+
+            // Scroll by a few items at a time for better UX
+            const scrollAmount = Math.max(1, Math.floor(metrics.visibleCards / 2));
+            carouselIndex = Math.max(0, carouselIndex - scrollAmount);
+            updateCarouselPosition();
+            updateCarouselArrows();
          }
 
          function carouselNext() {
-            const totalPages = getCarouselTotalPages();
-            if (carouselIndex < totalPages - 1) {
-               carouselIndex++;
-               updateCarouselPosition();
-               updateCarouselArrows();
-            }
+            const metrics = getCarouselMetrics();
+            if (!metrics) return;
+
+            const { maxScrollIndex, visibleCards } = metrics;
+            const scrollAmount = Math.max(1, Math.floor(visibleCards / 2));
+            carouselIndex = Math.min(maxScrollIndex, carouselIndex + scrollAmount);
+            updateCarouselPosition();
+            updateCarouselArrows();
          }
 
          function goToCarouselPage(page) {
+            // Legacy function - kept for compatibility
             carouselIndex = page;
             updateCarouselPosition();
             updateCarouselArrows();
