@@ -178,11 +178,30 @@ namespace ArdysaModsTools.Core.Services.Update
                 var response = await _httpClient.GetAsync(CdnConfig.ReleaseManifestUrl, cts.Token).ConfigureAwait(false);
                 
                 if (!response.IsSuccessStatusCode)
+                {
+                    _logger.Log($"R2 manifest not available (HTTP {(int)response.StatusCode})");
                     return null;
+                }
 
-                using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                using var doc = await JsonDocument.ParseAsync(stream);
+                // Read content as string first to validate
+                var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                
+                // Check if content is empty or not valid JSON
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    _logger.Log("R2 manifest is empty, using GitHub API fallback");
+                    return null;
+                }
 
+                // Quick check for valid JSON start
+                content = content.TrimStart();
+                if (!content.StartsWith("{") && !content.StartsWith("["))
+                {
+                    _logger.Log("R2 manifest is not valid JSON, using GitHub API fallback");
+                    return null;
+                }
+
+                using var doc = JsonDocument.Parse(content);
                 var root = doc.RootElement;
 
                 // Get latest version
@@ -222,9 +241,15 @@ namespace ArdysaModsTools.Core.Services.Update
                     IsUpdateAvailable = IsNewerVersion(latestVersion, CurrentVersion)
                 };
             }
+            catch (OperationCanceledException)
+            {
+                _logger.Log("R2 manifest request timed out, using GitHub API fallback");
+                return null;
+            }
             catch (Exception ex)
             {
-                _logger.Log($"R2 manifest fetch failed: {ex.Message}");
+                // Only log unexpected errors, not expected fallback scenarios
+                _logger.Log($"R2 CDN unavailable: {ex.Message}");
                 return null;
             }
         }
