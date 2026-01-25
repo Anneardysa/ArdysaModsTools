@@ -1,6 +1,8 @@
 # GitHub Actions Workflow: Sync Releases to R2 CDN
 # Triggers after a release is published
-# Uploads release assets to Cloudflare R2 and updates releases.json manifest
+# - Uploads release assets to Cloudflare R2
+# - Updates releases.json manifest
+# - Cleans up old releases to save storage
 
 name: Sync Release to R2
 
@@ -13,10 +15,18 @@ on:
             description: "Release tag to sync (e.g., v2.1.2)"
             required: true
             type: string
+         cleanup_only:
+            description: "Only cleanup old releases (skip upload)"
+            required: false
+            type: boolean
+            default: false
 
 env:
    R2_BUCKET: modspack-asset
    R2_RELEASES_PATH: releases
+   CDN_BASE_URL: https://cdn.ardysamods.my.id
+   # Number of releases to keep (others will be deleted)
+   RELEASES_TO_KEEP: 3
 
 permissions:
    contents: read
@@ -26,47 +36,31 @@ jobs:
       runs-on: ubuntu-latest
 
       steps:
-         - name: Get Release Info
-           id: release
+         - name: Checkout Repository
+           uses: actions/checkout@v4
+           with:
+              sparse-checkout: |
+                 .github
+
+         - name: Install Dependencies
            run: |
-              if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-                TAG="${{ github.event.inputs.tag }}"
-              else
-                TAG="${{ github.event.release.tag_name }}"
-              fi
-              VERSION="${TAG#v}"
-              echo "TAG=$TAG" >> $GITHUB_OUTPUT
-              echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-              echo "Syncing release: $TAG (version: $VERSION)"
+              set -e
+              echo "Installing jq..."
+              sudo apt-get update -qq
+              sudo apt-get install -y -qq jq
+              jq --version
 
-         - name: Download Release Assets
-           env:
-              GH_TOKEN: ${{ github.token }}
-           run: |
-              mkdir -p assets
-
-              # Get release assets using GitHub CLI
-              gh release download "${{ steps.release.outputs.TAG }}" \
-                --repo "${{ github.repository }}" \
-                --dir assets \
-                --pattern "*.exe" --pattern "*.zip" \
-                || echo "No matching assets found"
-
-              # List downloaded files
-              echo "Downloaded assets:"
-              ls -la assets/
-
-         - name: Setup rclone
-           run: |
-              curl -O https://downloads.rclone.org/rclone-current-linux-amd64.zip
-              unzip rclone-current-linux-amd64.zip
+              echo "Installing rclone..."
+              curl -sO https://downloads.rclone.org/rclone-current-linux-amd64.zip
+              unzip -q rclone-current-linux-amd64.zip
               sudo mv rclone-*-linux-amd64/rclone /usr/local/bin/
               rclone version
 
          - name: Configure rclone for R2
            run: |
+              set -e
               mkdir -p ~/.config/rclone
-              cat > ~/.config/rclone/rclone.conf << EOF
+              cat > ~/.config/rclone/rclone.conf << 'EOF'
               [r2]
               type = s3
               provider = Cloudflare
@@ -77,49 +71,136 @@ jobs:
               no_check_bucket = true
               EOF
 
-         - name: Upload Assets to R2
+              echo "Testing R2 connection..."
+              rclone lsd "r2:${{ env.R2_BUCKET }}" --max-depth 1 || echo "Warning: Could not list bucket root"
+
+         - name: Get Release Info
+           id: release
            run: |
-              VERSION="${{ steps.release.outputs.VERSION }}"
-              DEST_PATH="${{ env.R2_RELEASES_PATH }}/${VERSION}"
+              set -e
 
-              echo "Uploading to: r2:${{ env.R2_BUCKET }}/${DEST_PATH}/"
+              if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+                TAG="${{ github.event.inputs.tag }}"
+              else
+                TAG="${{ github.event.release.tag_name }}"
+              fi
 
-              # Upload all assets
-              rclone copy assets/ "r2:${{ env.R2_BUCKET }}/${DEST_PATH}/" \
-                --progress \
-                -v
+              # Remove 'v' prefix for version
+              VERSION="${TAG#v}"
 
-              echo "Upload complete!"
+              echo "TAG=$TAG" >> $GITHUB_OUTPUT
+              echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+              echo "CLEANUP_ONLY=${{ github.event.inputs.cleanup_only || 'false' }}" >> $GITHUB_OUTPUT
 
-         - name: Update releases.json Manifest
+              echo "📦 Release: $TAG (version: $VERSION)"
+
+         - name: Download Release Assets
+           if: steps.release.outputs.CLEANUP_ONLY != 'true'
            env:
               GH_TOKEN: ${{ github.token }}
            run: |
-              VERSION="${{ steps.release.outputs.VERSION }}"
-              CDN_BASE="https://cdn.ardysamods.my.id"
-              RELEASES_PATH="${{ env.R2_RELEASES_PATH }}"
+              set -e
+              mkdir -p assets
 
-              # Get release notes from GitHub
+              echo "Downloading assets for ${{ steps.release.outputs.TAG }}..."
+
+              # Download release assets
+              gh release download "${{ steps.release.outputs.TAG }}" \
+                --repo "${{ github.repository }}" \
+                --dir assets \
+                --pattern "*.exe" --pattern "*.zip" \
+                || { echo "⚠️ No matching assets found"; exit 0; }
+
+              echo "📁 Downloaded assets:"
+              ls -lah assets/ || echo "No files in assets/"
+
+         - name: Detect Asset Files
+           if: steps.release.outputs.CLEANUP_ONLY != 'true'
+           id: assets
+           run: |
+              set -e
+
+              # Find installer file
+              INSTALLER_FILE=""
+              if ls assets/*_Setup_*.exe 1>/dev/null 2>&1; then
+                INSTALLER_FILE=$(ls assets/*_Setup_*.exe | head -1 | xargs basename)
+              fi
+
+              # Find portable file (try multiple patterns)
+              PORTABLE_FILE=""
+              for pattern in "AMT-v*.zip" "AMTv*.zip" "*_Portable_*.zip"; do
+                if ls assets/$pattern 1>/dev/null 2>&1; then
+                  PORTABLE_FILE=$(ls assets/$pattern | head -1 | xargs basename)
+                  break
+                fi
+              done
+
+              echo "INSTALLER_FILE=$INSTALLER_FILE" >> $GITHUB_OUTPUT
+              echo "PORTABLE_FILE=$PORTABLE_FILE" >> $GITHUB_OUTPUT
+
+              echo "🔍 Detected files:"
+              echo "   Installer: ${INSTALLER_FILE:-'(none)'}"
+              echo "   Portable: ${PORTABLE_FILE:-'(none)'}"
+
+         - name: Upload Assets to R2
+           if: steps.release.outputs.CLEANUP_ONLY != 'true'
+           run: |
+              set -e
+
+              VERSION="${{ steps.release.outputs.VERSION }}"
+              DEST_PATH="${{ env.R2_RELEASES_PATH }}/${VERSION}"
+
+              # Check if we have any files to upload
+              if [ -z "$(ls -A assets/ 2>/dev/null)" ]; then
+                echo "⚠️ No assets to upload"
+                exit 0
+              fi
+
+              echo "📤 Uploading to: r2:${{ env.R2_BUCKET }}/${DEST_PATH}/"
+
+              rclone copy assets/ "r2:${{ env.R2_BUCKET }}/${DEST_PATH}/" \
+                --progress \
+                --stats 1s \
+                -v
+
+              echo "✅ Upload complete!"
+
+         - name: Update releases.json Manifest
+           if: steps.release.outputs.CLEANUP_ONLY != 'true'
+           env:
+              GH_TOKEN: ${{ github.token }}
+           run: |
+              set -eo pipefail
+
+              VERSION="${{ steps.release.outputs.VERSION }}"
+              CDN_BASE="${{ env.CDN_BASE_URL }}"
+              RELEASES_PATH="${{ env.R2_RELEASES_PATH }}"
+              INSTALLER_FILE="${{ steps.assets.outputs.INSTALLER_FILE }}"
+              PORTABLE_FILE="${{ steps.assets.outputs.PORTABLE_FILE }}"
+
+              echo "📝 Updating releases.json manifest..."
+
+              # Get release notes from GitHub (truncate to 500 chars)
               NOTES=$(gh release view "${{ steps.release.outputs.TAG }}" \
                 --repo "${{ github.repository }}" \
-                --json body -q '.body' | head -c 500 || echo "")
+                --json body -q '.body' 2>/dev/null | head -c 500 || echo "")
 
-              # Find asset filenames
-              INSTALLER_FILE=$(ls assets/*_Setup_*.exe 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
-              PORTABLE_FILE=$(ls assets/AMT-v*.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
-
-              # Fallback to AMTv-*.zip format (no hyphen between AMT and v)
-              if [ -z "$PORTABLE_FILE" ]; then
-                PORTABLE_FILE=$(ls assets/AMTv-*.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+              # Download existing manifest or create new one
+              echo "Downloading existing manifest..."
+              if rclone cat "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" > manifest.json 2>/dev/null; then
+                echo "Found existing manifest"
+                # Validate it's proper JSON
+                if ! jq empty manifest.json 2>/dev/null; then
+                  echo "⚠️ Existing manifest is invalid JSON, creating fresh one"
+                  echo '{"latest":"","releases":{}}' > manifest.json
+                fi
+              else
+                echo "No existing manifest, creating new one"
+                echo '{"latest":"","releases":{}}' > manifest.json
               fi
 
-              # Fallback to legacy portable format
-              if [ -z "$PORTABLE_FILE" ]; then
-                PORTABLE_FILE=$(ls assets/*_Portable_*.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
-              fi
-
-              # Download existing manifest or create new
-              rclone cat "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" > manifest.json 2>/dev/null || echo '{"latest":"","releases":{}}' > manifest.json
+              echo "Current manifest:"
+              cat manifest.json | jq . || cat manifest.json
 
               # Build URLs
               INSTALLER_URL=""
@@ -127,47 +208,159 @@ jobs:
               [ -n "$INSTALLER_FILE" ] && INSTALLER_URL="${CDN_BASE}/${RELEASES_PATH}/${VERSION}/${INSTALLER_FILE}"
               [ -n "$PORTABLE_FILE" ] && PORTABLE_URL="${CDN_BASE}/${RELEASES_PATH}/${VERSION}/${PORTABLE_FILE}"
 
+              echo "URLs:"
+              echo "   Installer: ${INSTALLER_URL:-'(none)'}"
+              echo "   Portable: ${PORTABLE_URL:-'(none)'}"
+
               # Update manifest using jq
               jq --arg ver "$VERSION" \
                  --arg inst "$INSTALLER_URL" \
                  --arg port "$PORTABLE_URL" \
                  --arg notes "$NOTES" \
-                 --arg date "$(date -u +%Y-%m-%d)" \
-                 '.latest = $ver | .releases[$ver] = {
+                 --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                 '
+                 .latest = $ver |
+                 .releases[$ver] = {
                    "version": $ver,
                    "date": $date,
                    "installer": (if $inst == "" then null else $inst end),
                    "portable": (if $port == "" then null else $port end),
                    "notes": (if $notes == "" then null else $notes end)
-                 }' manifest.json > updated_manifest.json
+                 }
+                 ' manifest.json > updated_manifest.json
 
-              # Upload updated manifest
+              # Validate the new manifest
+              echo "Validating updated manifest..."
+              if ! jq empty updated_manifest.json; then
+                echo "❌ Generated manifest is invalid JSON!"
+                cat updated_manifest.json
+                exit 1
+              fi
+
+              echo "✅ Manifest is valid JSON"
+              echo "Updated manifest:"
+              jq . updated_manifest.json
+
+              # Upload manifest
+              echo "Uploading manifest to R2..."
               rclone copyto updated_manifest.json "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" -v
 
-              echo "Manifest updated!"
-              cat updated_manifest.json
+              echo "✅ Manifest updated successfully!"
+
+         - name: Cleanup Old Releases
+           id: cleanup
+           run: |
+              set -eo pipefail
+
+              RELEASES_PATH="${{ env.R2_RELEASES_PATH }}"
+              KEEP="${{ env.RELEASES_TO_KEEP }}"
+
+              echo "🧹 Cleaning up old releases (keeping $KEEP most recent)..."
+
+              # Get list of all version directories in R2
+              echo "Fetching release list from R2..."
+              VERSIONS=$(rclone lsd "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/" 2>/dev/null | awk '{print $NF}' | sort -V || echo "")
+
+              if [ -z "$VERSIONS" ]; then
+                echo "No versions found on R2"
+                echo "DELETED_COUNT=0" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+
+              # Count total versions
+              TOTAL=$(echo "$VERSIONS" | wc -l)
+              echo "Found $TOTAL versions on R2"
+
+              if [ "$TOTAL" -le "$KEEP" ]; then
+                echo "✅ Only $TOTAL versions exist, keeping all (threshold: $KEEP)"
+                echo "DELETED_COUNT=0" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+
+              # Calculate how many to delete
+              DELETE_COUNT=$((TOTAL - KEEP))
+              echo "Will delete $DELETE_COUNT old versions"
+
+              # Get the oldest versions to delete
+              TO_DELETE=$(echo "$VERSIONS" | head -n $DELETE_COUNT)
+
+              echo "Versions to delete:"
+              echo "$TO_DELETE"
+
+              # Delete each old version
+              DELETED=0
+              for VERSION in $TO_DELETE; do
+                echo "🗑️ Deleting version: $VERSION"
+                if rclone purge "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/${VERSION}/" -v; then
+                  DELETED=$((DELETED + 1))
+                  echo "   ✅ Deleted $VERSION"
+                else
+                  echo "   ⚠️ Failed to delete $VERSION"
+                fi
+              done
+
+              echo "DELETED_COUNT=$DELETED" >> $GITHUB_OUTPUT
+              echo "✅ Cleanup complete! Deleted $DELETED old versions"
+
+              # Update manifest to remove deleted versions
+              if [ "$DELETED" -gt 0 ]; then
+                echo "Updating manifest to remove deleted versions..."
+                
+                # Download current manifest
+                rclone cat "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" > cleanup_manifest.json 2>/dev/null || echo '{}' > cleanup_manifest.json
+                
+                # Remove deleted versions from manifest
+                for VERSION in $TO_DELETE; do
+                  echo "Removing $VERSION from manifest"
+                  jq --arg ver "$VERSION" 'del(.releases[$ver])' cleanup_manifest.json > temp_manifest.json
+                  mv temp_manifest.json cleanup_manifest.json
+                done
+                
+                # Validate and upload
+                if jq empty cleanup_manifest.json 2>/dev/null; then
+                  rclone copyto cleanup_manifest.json "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" -v
+                  echo "✅ Manifest cleaned up"
+                fi
+              fi
 
          - name: Verify Upload
            run: |
+              set -e
+
               VERSION="${{ steps.release.outputs.VERSION }}"
               RELEASES_PATH="${{ env.R2_RELEASES_PATH }}"
 
-              echo "Verifying files on R2:"
-              rclone ls "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/${VERSION}/" || echo "No files found"
+              echo "🔍 Verifying files on R2..."
+              echo ""
+              echo "Files for version $VERSION:"
+              rclone ls "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/${VERSION}/" 2>/dev/null || echo "(no files or version doesn't exist)"
+
+              echo ""
+              echo "All versions on R2:"
+              rclone lsd "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/" 2>/dev/null | awk '{print "  - " $NF}' || echo "(none)"
 
               echo ""
               echo "Current manifest:"
-              rclone cat "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" | jq .
+              rclone cat "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" 2>/dev/null | jq . || echo "(no manifest found)"
 
          - name: Summary
            run: |
               VERSION="${{ steps.release.outputs.VERSION }}"
-              CDN_BASE="https://cdn.ardysamods.my.id"
+              CDN_BASE="${{ env.CDN_BASE_URL }}"
+              DELETED="${{ steps.cleanup.outputs.DELETED_COUNT || '0' }}"
 
-              echo "## Release Sync Complete! 🚀" >> $GITHUB_STEP_SUMMARY
+              echo "## 🚀 Release Sync Complete!" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "**Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
+              echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+              echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+              echo "| **Version** | \`${VERSION}\` |" >> $GITHUB_STEP_SUMMARY
+              echo "| **Old Releases Cleaned** | ${DELETED} |" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "**CDN URLs:**" >> $GITHUB_STEP_SUMMARY
-              echo "- Manifest: ${CDN_BASE}/releases/releases.json" >> $GITHUB_STEP_SUMMARY
-              echo "- Release folder: ${CDN_BASE}/releases/${VERSION}/" >> $GITHUB_STEP_SUMMARY
+              echo "### 🔗 CDN URLs" >> $GITHUB_STEP_SUMMARY
+              echo "- **Manifest**: [\`releases.json\`](${CDN_BASE}/releases/releases.json)" >> $GITHUB_STEP_SUMMARY
+              echo "- **Release folder**: [\`${VERSION}/\`](${CDN_BASE}/releases/${VERSION}/)" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### 📋 Manifest Content" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+              rclone cat "r2:${{ env.R2_BUCKET }}/${{ env.R2_RELEASES_PATH }}/releases.json" 2>/dev/null | jq . >> $GITHUB_STEP_SUMMARY || echo "{}" >> $GITHUB_STEP_SUMMARY
+              echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
