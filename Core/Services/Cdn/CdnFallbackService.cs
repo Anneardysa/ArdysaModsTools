@@ -135,7 +135,9 @@ namespace ArdysaModsTools.Core.Services.Cdn
                 return CdnDownloadResult.Fail("URL is empty", 0, 0);
 
             var stopwatch = Stopwatch.StartNew();
-            var cdnUrls = CdnConfig.GetCdnBaseUrls();
+            
+            // Use SmartCdnSelector for speed-optimized CDN order
+            var cdnUrls = SmartCdnSelector.Instance.GetOrderedCdnUrls();
             int fallbackCount = 0;
             string? lastError = null;
 
@@ -169,6 +171,8 @@ namespace ArdysaModsTools.Core.Services.Cdn
                     }
 
                     lastError = result.ErrorMessage;
+                    // Report failure to SmartCdnSelector for future reordering
+                    SmartCdnSelector.Instance.ReportFailure(cdnBase);
                 }
                 catch (OperationCanceledException)
                 {
@@ -177,6 +181,7 @@ namespace ArdysaModsTools.Core.Services.Cdn
                 catch (Exception ex)
                 {
                     lastError = ex.Message;
+                    SmartCdnSelector.Instance.ReportFailure(cdnBase);
                     Debug.WriteLine($"[CdnFallback] Failed: {targetUrl} -> {ex.Message}");
                 }
 

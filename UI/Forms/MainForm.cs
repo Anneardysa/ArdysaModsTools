@@ -25,6 +25,7 @@ using ArdysaModsTools.UI;
 using ArdysaModsTools.UI.Styles;
 using ArdysaModsTools.UI.Helpers;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.UI.Forms;
 using System;
 using System.Diagnostics;
@@ -334,6 +335,9 @@ namespace ArdysaModsTools
 
                 await _updater.CheckForUpdatesAsync();
                 await UpdateVersionLabelAsync();
+
+                // Initialize smart CDN selector (tests CDN speeds in background)
+                _ = SmartCdnSelector.Instance.InitializeAsync();
 
                 using (Stream? discordStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ArdysaModsTools.dc.png"))
                 {
