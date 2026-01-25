@@ -90,5 +90,5 @@ commit-and-push.ps1
 COMMIT_GUIDE.md
 
 # PERSONAL/INTERNAL DOCUMENTATION
-docs/resume.md
+docs/samples/
 *.trx

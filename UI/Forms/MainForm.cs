@@ -67,6 +67,7 @@ namespace ArdysaModsTools
         private Dota2Monitor _dotaMonitor;
         private DotaPatchWatcherService? _patchWatcher;
         private bool _modFileWarningLogged; // Prevent duplicate logging
+        private bool _patchDialogDismissedByUser; // Track if user clicked "Later" in PatchRequiredDialog
 
         public MainForm()
         {
@@ -786,6 +787,10 @@ namespace ArdysaModsTools
                 
                 // Show install dialog if mods are not installed
                 await ShowInstallDialogIfNeeded();
+                
+                // Show patch dialog if mods need update (detection found outdated patch)
+                // But only if user hasn't dismissed it with "Later" already
+                await ShowPatchRequiredIfNeededAsync("Dota 2 path detected successfully!", fromDetection: true);
                 return;
             }
         }
@@ -1095,14 +1100,22 @@ namespace ArdysaModsTools
         /// Check status after install and show PatchRequiredDialog if not Ready.
         /// </summary>
         /// <param name="successMessage">Message to show in dialog (e.g. "ModsPack installed successfully!" or "Custom ModsPack installed successfully!")</param>
-        private async Task ShowPatchRequiredIfNeededAsync(string successMessage = "ModsPack installed successfully!")
+        /// <param name="fromDetection">If true, respects user's previous "Later" dismissal to avoid repeating dialog</param>
+        private async Task ShowPatchRequiredIfNeededAsync(string successMessage = "ModsPack installed successfully!", bool fromDetection = false)
         {
             try
             {
                 var statusInfo = await _status.GetDetailedStatusAsync(targetPath);
                 
-                // If status is Ready, no action needed
+                // If status is Ready, no action needed - also reset dismissed flag
                 if (statusInfo.Status == ModStatus.Ready)
+                {
+                    _patchDialogDismissedByUser = false;
+                    return;
+                }
+                
+                // If from detection and user already dismissed with "Later", skip showing again
+                if (fromDetection && _patchDialogDismissedByUser)
                 {
                     return;
                 }
@@ -1118,7 +1131,13 @@ namespace ArdysaModsTools
                     // If user clicked "Patch Now", execute patch directly (no additional dialogs)
                     if (dialog.ShouldPatch && !string.IsNullOrEmpty(targetPath))
                     {
+                        _patchDialogDismissedByUser = false; // Reset on successful patch
                         await ExecutePatchAsync();
+                    }
+                    else
+                    {
+                        // User clicked "Later" - remember this choice for detection-triggered dialogs
+                        _patchDialogDismissedByUser = true;
                     }
                 }
             }

@@ -19,13 +19,16 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Services;
 
 namespace ArdysaModsTools.UI.Forms
 {
     /// <summary>
     /// Support dialog with payment options: PayPal, Ko-Fi, Sociabuzz.
-    /// Styled to match GenerationPreviewForm theme.
+    /// Includes YouTube subscriber goal with progress bar.
     /// </summary>
     public sealed class SupportDialog : Form
     {
@@ -33,19 +36,42 @@ namespace ArdysaModsTools.UI.Forms
         private const string KoFiUrl = "https://ko-fi.com/ardysa";
         private const string SociabuzzUrl = "https://sociabuzz.com/ardysa/support";
 
+        // Subscriber goal UI elements
+        private Panel? _subsGoalPanel;
+        private Panel? _progressBarPanel;
+        private Panel? _progressFillPanel;
+        private Label? _subsCountLabel;
+        private readonly SubsGoalService _subsGoalService = new();
+        private string _channelUrl = "https://youtube.com/@ArdysaMods";
+        
+        // Default config for immediate display
+        private static readonly SubsGoalConfig DefaultConfig = new()
+        {
+            CurrentSubs = 1792,
+            GoalSubs = 2000,
+            ChannelUrl = "https://youtube.com/@ArdysaMods",
+            Enabled = true
+        };
+
         public SupportDialog()
         {
             InitializeComponent();
             UI.FontHelper.ApplyToForm(this);
+            
+            // Show default values immediately (UI is now created)
+            UpdateProgressBar(DefaultConfig);
+            
+            // Load remote config asynchronously after form is shown
+            this.Shown += async (s, e) => await LoadSubsGoalAsync();
         }
 
         private void InitializeComponent()
         {
-            // Form settings - compact size
+            // Form settings - increased height for subscriber goal
             Text = "Support";
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(680, 380);
+            Size = new Size(680, 480); // Increased from 380 to 480
             BackColor = Color.Black;
             ShowInTaskbar = false;
             KeyPreview = true;
@@ -151,12 +177,161 @@ namespace ArdysaModsTools.UI.Forms
             };
             mainContainer.Controls.Add(footerLabel);
 
+            // ═══════════════════════════════════════════════════════════════
+            // SUBSCRIBER GOAL SECTION - Modern card design
+            // ═══════════════════════════════════════════════════════════════
+            
+            // Separator line
+            var separatorLine = new Panel
+            {
+                Location = new Point(40, 272),
+                Size = new Size(Width - 80, 1),
+                BackColor = Color.FromArgb(40, 40, 40)
+            };
+            mainContainer.Controls.Add(separatorLine);
+            
+            // Card container (matching donate button style)
+            int cardWidth = 400;
+            int cardHeight = 80;
+            _subsGoalPanel = new Panel
+            {
+                Location = new Point((Width - cardWidth) / 2, 290),
+                Size = new Size(cardWidth, cardHeight),
+                BackColor = Color.FromArgb(20, 20, 20),
+                Cursor = Cursors.Hand
+            };
+            _subsGoalPanel.Click += (s, e) => OpenUrl(_channelUrl);
+            _subsGoalPanel.Paint += (s, e) =>
+            {
+                using var pen = new Pen(Color.FromArgb(51, 51, 51), 1);
+                e.Graphics.DrawRectangle(pen, 0, 0, _subsGoalPanel!.Width - 1, _subsGoalPanel.Height - 1);
+            };
+            _subsGoalPanel.MouseEnter += (s, e) => { _subsGoalPanel!.BackColor = Color.FromArgb(30, 30, 30); };
+            _subsGoalPanel.MouseLeave += (s, e) => { _subsGoalPanel!.BackColor = Color.FromArgb(20, 20, 20); };
+            mainContainer.Controls.Add(_subsGoalPanel);
+            
+            // YouTube icon (left side)
+            var ytIconPath = Path.Combine(assetsPath, "youtube.png");
+            var ytIcon = new PictureBox
+            {
+                Size = new Size(20, 20),
+                Location = new Point(16, 12),
+                BackColor = Color.Transparent,
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Cursor = Cursors.Hand
+            };
+            try
+            {
+                if (File.Exists(ytIconPath))
+                    ytIcon.Image = Image.FromFile(ytIconPath);
+            }
+            catch { }
+            ytIcon.Click += (s, e) => OpenUrl(_channelUrl);
+            _subsGoalPanel.Controls.Add(ytIcon);
+            
+            // Title (next to icon)
+            var subsGoalTitle = new Label
+            {
+                Text = "SUBSCRIBE GOAL",
+                Font = new Font("JetBrains Mono", 9f, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = false,
+                Size = new Size(140, 20),
+                Location = new Point(42, 12),
+                TextAlign = ContentAlignment.MiddleLeft,
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
+            };
+            subsGoalTitle.Click += (s, e) => OpenUrl(_channelUrl);
+            _subsGoalPanel.Controls.Add(subsGoalTitle);
+            
+            // Subscriber count (right aligned in header)
+            _subsCountLabel = new Label
+            {
+                Text = "Loading...",
+                Font = new Font("JetBrains Mono", 9f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(255, 80, 80), // Soft red
+                AutoSize = false,
+                Size = new Size(180, 20),
+                Location = new Point(cardWidth - 196, 12),
+                TextAlign = ContentAlignment.MiddleRight,
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
+            };
+            _subsCountLabel.Click += (s, e) => OpenUrl(_channelUrl);
+            _subsGoalPanel.Controls.Add(_subsCountLabel);
+            
+            // Progress bar background (full width with padding)
+            _progressBarPanel = new Panel
+            {
+                Location = new Point(16, 42),
+                Size = new Size(cardWidth - 32, 12),
+                BackColor = Color.FromArgb(40, 40, 40)
+            };
+            _progressBarPanel.Paint += (s, e) =>
+            {
+                // Rounded corners effect
+                using var brush = new SolidBrush(Color.FromArgb(35, 35, 35));
+                e.Graphics.FillRectangle(brush, 0, 0, _progressBarPanel!.Width, _progressBarPanel.Height);
+            };
+            _progressBarPanel.Click += (s, e) => OpenUrl(_channelUrl);
+            _subsGoalPanel.Controls.Add(_progressBarPanel);
+            
+            // Progress bar fill (YouTube red gradient)
+            _progressFillPanel = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(0, 12),
+                BackColor = Color.FromArgb(255, 0, 0)
+            };
+            _progressFillPanel.Paint += (s, e) =>
+            {
+                // Gradient fill effect
+                if (_progressFillPanel!.Width > 0)
+                {
+                    using var brush = new LinearGradientBrush(
+                        new Rectangle(0, 0, _progressFillPanel.Width, _progressFillPanel.Height),
+                        Color.FromArgb(255, 50, 50),
+                        Color.FromArgb(200, 0, 0),
+                        LinearGradientMode.Horizontal);
+                    e.Graphics.FillRectangle(brush, 0, 0, _progressFillPanel.Width, _progressFillPanel.Height);
+                }
+            };
+            _progressBarPanel.Controls.Add(_progressFillPanel);
+            
+            // Updated time label (bottom of card)
+            var updateLabel = new Label
+            {
+                Text = "Updated daily at 0:00 GMT",
+                Font = new Font("JetBrains Mono", 7f),
+                ForeColor = Color.FromArgb(70, 70, 70),
+                AutoSize = false,
+                Size = new Size(cardWidth - 32, 14),
+                Location = new Point(16, 58),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
+            };
+            updateLabel.Click += (s, e) => OpenUrl(_channelUrl);
+            _subsGoalPanel.Controls.Add(updateLabel);
+            
+            // Make all child controls propagate hover
+            foreach (Control ctrl in _subsGoalPanel.Controls)
+            {
+                ctrl.MouseEnter += (s, e) => { _subsGoalPanel.BackColor = Color.FromArgb(30, 30, 30); };
+                ctrl.MouseLeave += (s, e) => { _subsGoalPanel.BackColor = Color.FromArgb(20, 20, 20); };
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // CLOSE BUTTON (moved down)
+            // ═══════════════════════════════════════════════════════════════
+            
             // Close button - centered
             var closeButton = new Controls.RoundedButton
             {
                 Text = "[ CLOSE ]",
                 Size = new Size(120, 38),
-                Location = new Point((Width - 120) / 2, 290),
+                Location = new Point((Width - 120) / 2, 400), // Moved from 290 to 400
                 BackColor = Color.Black,
                 ForeColor = Color.FromArgb(136, 136, 136),
                 FlatStyle = FlatStyle.Flat,
@@ -187,6 +362,56 @@ namespace ArdysaModsTools.UI.Forms
                     NativeMethods.SendMessage(Handle, 0xA1, 0x2, 0);
                 }
             };
+        }
+        
+        /// <summary>
+        /// Load subscriber goal config from remote and update UI.
+        /// Falls back to default values if fetch fails.
+        /// </summary>
+        private async Task LoadSubsGoalAsync()
+        {
+            try
+            {
+                var config = await _subsGoalService.GetConfigAsync();
+                
+                // Use remote config if available and enabled
+                if (config != null && config.Enabled)
+                {
+                    _channelUrl = config.ChannelUrl;
+                    UpdateProgressBar(config);
+                }
+                else if (config != null && !config.Enabled)
+                {
+                    // Remote explicitly disabled - hide section
+                    if (_subsGoalPanel != null)
+                        _subsGoalPanel.Visible = false;
+                }
+                // else: keep showing default values
+            }
+            catch
+            {
+                // Silent fail - keep showing default values
+                // Don't hide the section on error
+            }
+        }
+        
+        /// <summary>
+        /// Update progress bar UI based on config.
+        /// </summary>
+        private void UpdateProgressBar(SubsGoalConfig config)
+        {
+            if (_progressBarPanel == null || _progressFillPanel == null || _subsCountLabel == null)
+                return;
+            
+            // Calculate fill width (full bar width)
+            int maxFillWidth = _progressBarPanel.Width;
+            int fillWidth = (int)(maxFillWidth * config.ProgressPercent / 100.0);
+            
+            _progressFillPanel.Width = Math.Max(0, fillWidth);
+            _progressFillPanel.Invalidate(); // Force repaint for gradient
+            
+            // Update label
+            _subsCountLabel.Text = $"{config.CurrentSubs:N0} / {config.GoalSubs:N0}";
         }
 
         private Panel CreateOptionPanel(string title, string subtitle, string imagePath, int x, int y, int w, int h)
@@ -291,4 +516,3 @@ namespace ArdysaModsTools.UI.Forms
         }
     }
 }
-

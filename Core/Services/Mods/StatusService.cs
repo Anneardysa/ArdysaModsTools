@@ -42,6 +42,7 @@ namespace ArdysaModsTools.Core.Services
         private ModStatusInfo? _lastStatus;
         private bool _disposed;
         private readonly SemaphoreSlim _refreshLock = new(1, 1);
+        private string? _lastLoggedBuildChange; // Prevent duplicate "Build changed" logs
 
         #endregion
 
@@ -411,7 +412,14 @@ namespace ArdysaModsTools.Core.Services
                 // If versions don't match, Dota was updated
                 if (!matches)
                 {
-                    _logger?.Log($"[STATUS] Build changed: {patchedBuild} → {currentBuild}");
+                    // Only log if this is a new build change (avoid duplicate logs)
+                    string buildChangeKey = $"{patchedBuild}→{currentBuild}";
+                    if (_lastLoggedBuildChange != buildChangeKey)
+                    {
+                        _lastLoggedBuildChange = buildChangeKey;
+                        _logger?.Log($"[STATUS] Build changed: {patchedBuild} → {currentBuild}");
+                    }
+                    
                     return CreateStatus(ModStatus.NeedUpdate, "Update Required",
                         $"Dota 2 was updated ({currentBuild}). Run 'Patch Update' to fix.",
                         action: RecommendedAction.Update,
@@ -420,6 +428,8 @@ namespace ArdysaModsTools.Core.Services
                         lastModified: lastModified);
                 }
 
+                // Versions match - clear the build change tracking
+                _lastLoggedBuildChange = null;
                 return null; // Versions match - proceed to Ready
             }
             catch (Exception ex)
