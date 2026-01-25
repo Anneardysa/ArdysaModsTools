@@ -108,6 +108,11 @@ jobs:
               INSTALLER_FILE=$(ls assets/*_Setup_*.exe 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
               PORTABLE_FILE=$(ls assets/AMT-v*.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
 
+              # Fallback to AMTv-*.zip format (no hyphen between AMT and v)
+              if [ -z "$PORTABLE_FILE" ]; then
+                PORTABLE_FILE=$(ls assets/AMTv-*.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+              fi
+
               # Fallback to legacy portable format
               if [ -z "$PORTABLE_FILE" ]; then
                 PORTABLE_FILE=$(ls assets/*_Portable_*.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
