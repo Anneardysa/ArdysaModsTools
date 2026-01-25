@@ -309,7 +309,7 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
         private void UpdateSuccessStats(string cdnBase)
         {
-            if (cdnBase.Contains("r2.dev"))
+            if (cdnBase.Contains("r2.dev") || cdnBase.Contains("ardysamods.my.id"))
                 Interlocked.Increment(ref _r2Successes);
             else if (cdnBase.Contains("jsdelivr"))
                 Interlocked.Increment(ref _jsdelivrSuccesses);

@@ -1,0 +1,168 @@
+# GitHub Actions Workflow: Sync Releases to R2 CDN
+# Triggers after a release is published
+# Uploads release assets to Cloudflare R2 and updates releases.json manifest
+
+name: Sync Release to R2
+
+on:
+   release:
+      types: [published]
+   workflow_dispatch:
+      inputs:
+         tag:
+            description: "Release tag to sync (e.g., v2.1.2)"
+            required: true
+            type: string
+
+env:
+   R2_BUCKET: modspack-asset
+   R2_RELEASES_PATH: releases
+
+permissions:
+   contents: read
+
+jobs:
+   sync-to-r2:
+      runs-on: ubuntu-latest
+
+      steps:
+         - name: Get Release Info
+           id: release
+           run: |
+              if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+                TAG="${{ github.event.inputs.tag }}"
+              else
+                TAG="${{ github.event.release.tag_name }}"
+              fi
+              VERSION="${TAG#v}"
+              echo "TAG=$TAG" >> $GITHUB_OUTPUT
+              echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+              echo "Syncing release: $TAG (version: $VERSION)"
+
+         - name: Download Release Assets
+           env:
+              GH_TOKEN: ${{ github.token }}
+           run: |
+              mkdir -p assets
+
+              # Get release assets using GitHub CLI
+              gh release download "${{ steps.release.outputs.TAG }}" \
+                --repo "${{ github.repository }}" \
+                --dir assets \
+                --pattern "*.exe" --pattern "*.zip" \
+                || echo "No matching assets found"
+
+              # List downloaded files
+              echo "Downloaded assets:"
+              ls -la assets/
+
+         - name: Setup rclone
+           run: |
+              curl -O https://downloads.rclone.org/rclone-current-linux-amd64.zip
+              unzip rclone-current-linux-amd64.zip
+              sudo mv rclone-*-linux-amd64/rclone /usr/local/bin/
+              rclone version
+
+         - name: Configure rclone for R2
+           run: |
+              mkdir -p ~/.config/rclone
+              cat > ~/.config/rclone/rclone.conf << EOF
+              [r2]
+              type = s3
+              provider = Cloudflare
+              access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}
+              secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}
+              endpoint = ${{ secrets.R2_ENDPOINT }}
+              acl = private
+              no_check_bucket = true
+              EOF
+
+         - name: Upload Assets to R2
+           run: |
+              VERSION="${{ steps.release.outputs.VERSION }}"
+              DEST_PATH="${{ env.R2_RELEASES_PATH }}/${VERSION}"
+
+              echo "Uploading to: r2:${{ env.R2_BUCKET }}/${DEST_PATH}/"
+
+              # Upload all assets
+              rclone copy assets/ "r2:${{ env.R2_BUCKET }}/${DEST_PATH}/" \
+                --progress \
+                -v
+
+              echo "Upload complete!"
+
+         - name: Update releases.json Manifest
+           env:
+              GH_TOKEN: ${{ github.token }}
+           run: |
+              VERSION="${{ steps.release.outputs.VERSION }}"
+              CDN_BASE="https://cdn.ardysamods.my.id"
+              RELEASES_PATH="${{ env.R2_RELEASES_PATH }}"
+
+              # Get release notes from GitHub
+              NOTES=$(gh release view "${{ steps.release.outputs.TAG }}" \
+                --repo "${{ github.repository }}" \
+                --json body -q '.body' | head -c 500 || echo "")
+
+              # Find asset filenames
+              INSTALLER_FILE=$(ls assets/*_Setup_*.exe 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+              PORTABLE_FILE=$(ls assets/AMT-v*.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+
+              # Fallback to legacy portable format
+              if [ -z "$PORTABLE_FILE" ]; then
+                PORTABLE_FILE=$(ls assets/*_Portable_*.zip 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo "")
+              fi
+
+              # Download existing manifest or create new
+              rclone cat "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" > manifest.json 2>/dev/null || echo '{"latest":"","releases":{}}' > manifest.json
+
+              # Build URLs
+              INSTALLER_URL=""
+              PORTABLE_URL=""
+              [ -n "$INSTALLER_FILE" ] && INSTALLER_URL="${CDN_BASE}/${RELEASES_PATH}/${VERSION}/${INSTALLER_FILE}"
+              [ -n "$PORTABLE_FILE" ] && PORTABLE_URL="${CDN_BASE}/${RELEASES_PATH}/${VERSION}/${PORTABLE_FILE}"
+
+              # Update manifest using jq
+              jq --arg ver "$VERSION" \
+                 --arg inst "$INSTALLER_URL" \
+                 --arg port "$PORTABLE_URL" \
+                 --arg notes "$NOTES" \
+                 --arg date "$(date -u +%Y-%m-%d)" \
+                 '.latest = $ver | .releases[$ver] = {
+                   "version": $ver,
+                   "date": $date,
+                   "installer": (if $inst == "" then null else $inst end),
+                   "portable": (if $port == "" then null else $port end),
+                   "notes": (if $notes == "" then null else $notes end)
+                 }' manifest.json > updated_manifest.json
+
+              # Upload updated manifest
+              rclone copyto updated_manifest.json "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" -v
+
+              echo "Manifest updated!"
+              cat updated_manifest.json
+
+         - name: Verify Upload
+           run: |
+              VERSION="${{ steps.release.outputs.VERSION }}"
+              RELEASES_PATH="${{ env.R2_RELEASES_PATH }}"
+
+              echo "Verifying files on R2:"
+              rclone ls "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/${VERSION}/" || echo "No files found"
+
+              echo ""
+              echo "Current manifest:"
+              rclone cat "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" | jq .
+
+         - name: Summary
+           run: |
+              VERSION="${{ steps.release.outputs.VERSION }}"
+              CDN_BASE="https://cdn.ardysamods.my.id"
+
+              echo "## Release Sync Complete! 🚀" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Version:** ${VERSION}" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**CDN URLs:**" >> $GITHUB_STEP_SUMMARY
+              echo "- Manifest: ${CDN_BASE}/releases/releases.json" >> $GITHUB_STEP_SUMMARY
+              echo "- Release folder: ${CDN_BASE}/releases/${VERSION}/" >> $GITHUB_STEP_SUMMARY

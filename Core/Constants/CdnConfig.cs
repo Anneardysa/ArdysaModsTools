@@ -26,9 +26,10 @@ namespace ArdysaModsTools.Core.Constants
         #region CDN Base URLs
 
         /// <summary>
-        /// Cloudflare R2 public URL (Primary CDN).
+        /// Cloudflare R2 with custom domain (Primary CDN).
+        /// Custom domain bypasses ISP blocking of *.r2.dev in some regions.
         /// </summary>
-        public const string R2BaseUrl = "https://pub-b2340f107edb43b19bdb93b4492d7258.r2.dev";
+        public const string R2BaseUrl = "https://cdn.ardysamods.my.id";
 
         /// <summary>
         /// jsDelivr CDN URL (Fallback 1).
@@ -76,6 +77,33 @@ namespace ArdysaModsTools.Core.Constants
         /// Maximum retry attempts per CDN before falling back.
         /// </summary>
         public const int MaxRetryPerCdn = 1;
+
+        #endregion
+
+        #region Release Mirror
+
+        /// <summary>
+        /// URL to releases.json manifest on R2 CDN.
+        /// Contains version info and download URLs for app updates.
+        /// </summary>
+        public const string ReleaseManifestUrl = R2BaseUrl + "/releases/releases.json";
+
+        /// <summary>
+        /// Base path for release files on R2 CDN.
+        /// Format: {R2BaseUrl}/releases/{version}/{filename}
+        /// </summary>
+        public const string ReleasesBasePath = "releases";
+
+        /// <summary>
+        /// Build release file URL for a specific version and filename.
+        /// </summary>
+        /// <param name="version">Version string (e.g., "2.1.2")</param>
+        /// <param name="filename">File name (e.g., "ArdysaModsTools_Setup_2.1.2.exe")</param>
+        /// <returns>Full CDN URL for the release file</returns>
+        public static string BuildReleaseUrl(string version, string filename)
+        {
+            return $"{R2BaseUrl}/{ReleasesBasePath}/{version}/{filename}";
+        }
 
         #endregion
 
@@ -167,6 +195,7 @@ namespace ArdysaModsTools.Core.Constants
 
             return url.Contains("ModsPack") || 
                    url.Contains("r2.dev") ||
+                   url.Contains("ardysamods.my.id") ||
                    url.Contains("Anneardysa");
         }
 

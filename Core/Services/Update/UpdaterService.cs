@@ -27,6 +27,7 @@ using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Services.Update.Models;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Constants;
 
 namespace ArdysaModsTools.Core.Services.Update
 {
@@ -148,9 +149,90 @@ namespace ArdysaModsTools.Core.Services.Update
         }
 
         /// <summary>
-        /// Gets update information from GitHub releases.
+        /// Gets update information with R2 CDN priority.
+        /// Tries R2 manifest first (faster), falls back to GitHub API.
         /// </summary>
         public async Task<UpdateInfo?> GetUpdateInfoAsync()
+        {
+            // Try R2 manifest first (faster CDN)
+            var updateInfo = await TryGetUpdateFromR2ManifestAsync();
+            if (updateInfo != null)
+            {
+                _logger.Log($"Got update info from R2 CDN: v{updateInfo.Version}");
+                return updateInfo;
+            }
+
+            // Fallback to GitHub API
+            _logger.Log("R2 manifest unavailable, falling back to GitHub API");
+            return await GetUpdateFromGitHubAsync();
+        }
+
+        /// <summary>
+        /// Try to get update info from R2 manifest (fast CDN).
+        /// </summary>
+        private async Task<UpdateInfo?> TryGetUpdateFromR2ManifestAsync()
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var response = await _httpClient.GetAsync(CdnConfig.ReleaseManifestUrl, cts.Token).ConfigureAwait(false);
+                
+                if (!response.IsSuccessStatusCode)
+                    return null;
+
+                using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                using var doc = await JsonDocument.ParseAsync(stream);
+
+                var root = doc.RootElement;
+
+                // Get latest version
+                if (!root.TryGetProperty("latest", out var latestProp) || latestProp.ValueKind != JsonValueKind.String)
+                    return null;
+
+                string latestVersion = latestProp.GetString() ?? "0.0.0";
+
+                // Get release info for this version
+                if (!root.TryGetProperty("releases", out var releases) || releases.ValueKind != JsonValueKind.Object)
+                    return null;
+
+                if (!releases.TryGetProperty(latestVersion, out var releaseInfo) || releaseInfo.ValueKind != JsonValueKind.Object)
+                    return null;
+
+                // Extract URLs
+                string? mirrorInstaller = null;
+                string? mirrorPortable = null;
+                string? releaseNotes = null;
+
+                if (releaseInfo.TryGetProperty("installer", out var instEl) && instEl.ValueKind == JsonValueKind.String)
+                    mirrorInstaller = instEl.GetString();
+
+                if (releaseInfo.TryGetProperty("portable", out var portEl) && portEl.ValueKind == JsonValueKind.String)
+                    mirrorPortable = portEl.GetString();
+
+                if (releaseInfo.TryGetProperty("notes", out var notesEl) && notesEl.ValueKind == JsonValueKind.String)
+                    releaseNotes = notesEl.GetString();
+
+                return new UpdateInfo
+                {
+                    Version = latestVersion,
+                    CurrentVersion = CurrentVersion,
+                    MirrorInstallerUrl = mirrorInstaller,
+                    MirrorPortableUrl = mirrorPortable,
+                    ReleaseNotes = releaseNotes,
+                    IsUpdateAvailable = IsNewerVersion(latestVersion, CurrentVersion)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"R2 manifest fetch failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Gets update information from GitHub releases (fallback).
+        /// </summary>
+        private async Task<UpdateInfo?> GetUpdateFromGitHubAsync()
         {
             try
             {
@@ -172,7 +254,7 @@ namespace ArdysaModsTools.Core.Services.Update
                 // Handle rate limiting gracefully
                 if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
-                    _logger.Log("GitHub API rate limit reached. Try again later."); // ERR_UPDATE_002: Rate limit
+                    _logger.Log("GitHub API rate limit reached. Try again later.");
                     return null;
                 }
                 
@@ -200,7 +282,9 @@ namespace ArdysaModsTools.Core.Services.Update
                 // Find download URLs for installer and portable
                 string? installerUrl = null;
                 string? portableUrl = null;
-                string? legacyPortableUrl = null;  // Fallback for old _Portable_ format
+                string? installerFilename = null;
+                string? portableFilename = null;
+                string? legacyPortableUrl = null;
 
                 if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
                 {
@@ -226,14 +310,16 @@ namespace ArdysaModsTools.Core.Services.Update
                                     name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                                 {
                                     installerUrl = url;
+                                    installerFilename = name;
                                 }
-                                // Portable (new format): AMT-v*.zip (e.g., AMT-v2.0.1.zip)
+                                // Portable (new format): AMT-v*.zip
                                 else if (name.StartsWith("AMT-v", StringComparison.OrdinalIgnoreCase) && 
                                          name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                                 {
                                     portableUrl = url;
+                                    portableFilename = name;
                                 }
-                                // Portable (legacy format): *_Portable_*.exe or *_Portable_*.zip
+                                // Portable (legacy format)
                                 else if (name.Contains("_Portable_", StringComparison.OrdinalIgnoreCase) &&
                                         (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
                                          name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)))
@@ -251,12 +337,22 @@ namespace ArdysaModsTools.Core.Services.Update
                     portableUrl = legacyPortableUrl;
                 }
 
+                // Build mirror URLs if we have filenames
+                string? mirrorInstaller = installerFilename != null 
+                    ? CdnConfig.BuildReleaseUrl(latestVersion, installerFilename) 
+                    : null;
+                string? mirrorPortable = portableFilename != null 
+                    ? CdnConfig.BuildReleaseUrl(latestVersion, portableFilename) 
+                    : null;
+
                 return new UpdateInfo
                 {
                     Version = latestVersion,
                     CurrentVersion = CurrentVersion,
                     InstallerDownloadUrl = installerUrl,
                     PortableDownloadUrl = portableUrl,
+                    MirrorInstallerUrl = mirrorInstaller,
+                    MirrorPortableUrl = mirrorPortable,
                     ReleaseNotes = releaseNotes,
                     IsUpdateAvailable = IsNewerVersion(latestVersion, CurrentVersion)
                 };
@@ -290,7 +386,12 @@ namespace ArdysaModsTools.Core.Services.Update
                     ? updateInfo.InstallerDownloadUrl
                     : updateInfo.PortableDownloadUrl;
 
-                if (string.IsNullOrEmpty(downloadUrl))
+                // Try mirror URL first (R2 CDN - faster for some regions)
+                string? mirrorUrl = _installationType == InstallationType.Installer
+                    ? updateInfo.MirrorInstallerUrl
+                    : updateInfo.MirrorPortableUrl;
+
+                if (string.IsNullOrEmpty(downloadUrl) && string.IsNullOrEmpty(mirrorUrl))
                 {
                     string assetType = _installationType == InstallationType.Installer ? "installer" : "portable";
                     _logger.Log($"No {assetType} asset found in release.");
@@ -303,10 +404,13 @@ namespace ArdysaModsTools.Core.Services.Update
                     return;
                 }
 
-                // Download the update with progress overlay
-                _logger.Log($"Downloading update from: {downloadUrl}");
+                // Download the update with progress overlay - try mirror first, then GitHub
+                string primaryUrl = mirrorUrl ?? downloadUrl!;
+                string? fallbackUrl = !string.IsNullOrEmpty(mirrorUrl) ? downloadUrl : null;
                 
-                tempFilePath = await DownloadWithProgressOverlayAsync(downloadUrl, updateInfo.Version);
+                _logger.Log($"Downloading update from: {primaryUrl}");
+                
+                tempFilePath = await DownloadWithFallbackAsync(primaryUrl, fallbackUrl, updateInfo.Version);
 
                 if (string.IsNullOrEmpty(tempFilePath))
                 {
@@ -361,6 +465,42 @@ namespace ArdysaModsTools.Core.Services.Update
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// Downloads update with fallback support.
+        /// Tries primary URL first (R2 CDN), falls back to secondary URL (GitHub) if failed.
+        /// </summary>
+        /// <param name="primaryUrl">Primary download URL (typically R2 mirror)</param>
+        /// <param name="fallbackUrl">Fallback URL (typically GitHub), can be null</param>
+        /// <param name="version">Version being downloaded</param>
+        /// <returns>Path to downloaded file, or null if all downloads failed</returns>
+        private async Task<string?> DownloadWithFallbackAsync(string primaryUrl, string? fallbackUrl, string version)
+        {
+            // Try primary URL first (R2 CDN - faster for some regions)
+            string? result = await DownloadWithProgressOverlayAsync(primaryUrl, version);
+            
+            if (!string.IsNullOrEmpty(result))
+            {
+                _logger.Log($"Download successful from primary source");
+                return result;
+            }
+
+            // If primary failed and we have a fallback, try it
+            if (!string.IsNullOrEmpty(fallbackUrl))
+            {
+                _logger.Log($"Primary download failed, trying fallback: {fallbackUrl}");
+                result = await DownloadWithProgressOverlayAsync(fallbackUrl, version);
+                
+                if (!string.IsNullOrEmpty(result))
+                {
+                    _logger.Log($"Download successful from fallback source");
+                    return result;
+                }
+            }
+
+            _logger.Log("All download sources failed");
+            return null;
         }
 
         /// <summary>

@@ -305,7 +305,7 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
         private static string GetCdnName(string url)
         {
-            if (url.Contains("r2.dev")) return "Cloudflare R2";
+            if (url.Contains("r2.dev") || url.Contains("ardysamods.my.id")) return "Cloudflare R2";
             if (url.Contains("jsdelivr")) return "jsDelivr";
             if (url.Contains("github")) return "GitHub Raw";
             return "Unknown CDN";

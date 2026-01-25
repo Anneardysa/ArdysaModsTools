@@ -50,6 +50,16 @@ namespace ArdysaModsTools.Core.Services.Update.Models
         /// The current application version for reference.
         /// </summary>
         public string CurrentVersion { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Mirror download URL for installer on R2 CDN (faster for some regions).
+        /// </summary>
+        public string? MirrorInstallerUrl { get; set; }
+
+        /// <summary>
+        /// Mirror download URL for portable on R2 CDN (faster for some regions).
+        /// </summary>
+        public string? MirrorPortableUrl { get; set; }
     }
 }
 
