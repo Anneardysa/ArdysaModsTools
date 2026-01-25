@@ -187,20 +187,40 @@ jobs:
 
               # Download existing manifest or create new one
               echo "Downloading existing manifest..."
+              MANIFEST_VALID=false
+
               if rclone cat "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" > manifest.json 2>/dev/null; then
-                echo "Found existing manifest"
-                # Validate it's proper JSON
-                if ! jq empty manifest.json 2>/dev/null; then
-                  echo "⚠️ Existing manifest is invalid JSON, creating fresh one"
-                  echo '{"latest":"","releases":{}}' > manifest.json
+                echo "Downloaded manifest from R2"
+                echo "Raw content (first 200 chars):"
+                head -c 200 manifest.json || true
+                echo ""
+                
+                # Check if file is empty
+                if [ ! -s manifest.json ]; then
+                  echo "⚠️ Downloaded manifest is empty"
+                elif ! jq empty manifest.json 2>/dev/null; then
+                  echo "⚠️ Downloaded manifest is invalid JSON"
+                elif ! jq -e '.releases' manifest.json >/dev/null 2>&1; then
+                  echo "⚠️ Downloaded manifest missing 'releases' key"
+                else
+                  echo "✅ Existing manifest is valid"
+                  MANIFEST_VALID=true
                 fi
               else
-                echo "No existing manifest, creating new one"
+                echo "No existing manifest on R2"
+              fi
+
+              # Create fresh manifest if needed
+              if [ "$MANIFEST_VALID" = "false" ]; then
+                echo "Creating fresh manifest..."
                 echo '{"latest":"","releases":{}}' > manifest.json
               fi
 
-              echo "Current manifest:"
-              cat manifest.json | jq . || cat manifest.json
+              echo "Current manifest content:"
+              cat manifest.json
+              echo ""
+              echo "Parsed JSON:"
+              jq . manifest.json || echo "(failed to parse)"
 
               # Build URLs
               INSTALLER_URL=""
