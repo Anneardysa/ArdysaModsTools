@@ -20,7 +20,9 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Helpers;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services.Cache
@@ -480,37 +482,72 @@ namespace ArdysaModsTools.Core.Services.Cache
         {
             try
             {
-                var client = HttpClientProvider.Client;
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(TimeSpan.FromSeconds(30)); // 30s timeout per asset
+                byte[] data;
+                string? etag;
+                string? lastModified;
+                string actualUrl = url;
 
-                var response = await client.GetAsync(url, cts.Token).ConfigureAwait(false);
-                
-                if (!response.IsSuccessStatusCode)
+                // Use CDN fallback for ModsPack assets
+                if (CdnConfig.IsModsPackUrl(url))
                 {
-                    System.Diagnostics.Debug.WriteLine($"[AssetCacheService] Download failed: {url} -> {response.StatusCode}");
-                    return null;
+                    var cdnResult = await CdnFallbackService.Instance
+                        .DownloadWithFallbackAsync(url, ct)
+                        .ConfigureAwait(false);
+
+                    if (!cdnResult.Success)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[AssetCacheService] CDN fallback failed: {url} -> {cdnResult.ErrorMessage}");
+                        return null;
+                    }
+
+                    data = cdnResult.Data!;
+                    etag = cdnResult.ETag;
+                    lastModified = cdnResult.LastModified;
+                    actualUrl = cdnResult.SuccessfulUrl ?? url;
+
+                    if (cdnResult.FallbacksAttempted > 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[AssetCacheService] Used fallback CDN (attempts: {cdnResult.FallbacksAttempted}): {actualUrl}");
+                    }
+                }
+                else
+                {
+                    // Non-ModsPack URL: direct download
+                    var client = HttpClientProvider.Client;
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+                    var response = await client.GetAsync(url, cts.Token).ConfigureAwait(false);
+
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[AssetCacheService] Download failed: {url} -> {response.StatusCode}");
+                        return null;
+                    }
+
+                    data = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                    etag = response.Headers.ETag?.Tag;
+                    lastModified = response.Content.Headers.LastModified?.ToString("R");
                 }
 
-                byte[] data = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-                
                 if (data.Length == 0)
                     return null;
-
-                // Extract freshness headers for cache validation
-                string? etag = response.Headers.ETag?.Tag;
-                string? lastModified = response.Content.Headers.LastModified?.ToString("R");
 
                 // Cache to disk with freshness metadata
                 string cacheFilePath = GetCacheFilePath(cacheKey);
                 string extension = Path.GetExtension(new Uri(url).AbsolutePath);
-                
-                await AssetCacheFile.WriteAsync(cacheFilePath, url, extension, data, etag, lastModified).ConfigureAwait(false);
+
+                await AssetCacheFile.WriteAsync(cacheFilePath, url, extension, data, etag, lastModified)
+                    .ConfigureAwait(false);
 
                 // Add to memory cache
                 AddToMemoryCache(cacheKey, data);
 
-                System.Diagnostics.Debug.WriteLine($"[AssetCacheService] Cached: {url} ({data.Length} bytes) ETag={etag ?? "none"}");
+                System.Diagnostics.Debug.WriteLine(
+                    $"[AssetCacheService] Cached: {actualUrl} ({data.Length} bytes) ETag={etag ?? "none"}");
                 return data;
             }
             catch (OperationCanceledException)
