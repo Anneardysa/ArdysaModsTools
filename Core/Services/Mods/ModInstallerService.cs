@@ -501,9 +501,10 @@ namespace ArdysaModsTools.Core.Services
 
                 using (var transaction = new FileTransaction(_logger))
                 {
+                    foreach (string subDir in Directory.GetDirectories(extractPath, "*", SearchOption.AllDirectories))
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        string rel = Path.GetRelativePath(extractPath, dir);
+                        string rel = Path.GetRelativePath(extractPath, subDir);
                         string dest = Path.Combine(modsDir, rel);
                         transaction.AddOperation(new CreateDirectoryOperation(dest));
                     }
