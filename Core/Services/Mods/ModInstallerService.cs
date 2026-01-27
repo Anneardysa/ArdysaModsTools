@@ -32,6 +32,7 @@ using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Services.FileTransactions;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -494,32 +495,29 @@ namespace ArdysaModsTools.Core.Services
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // Copy files to modsDir
+                // Copy files to modsDir using transaction
                 statusCallback?.Invoke("Installing files...");
                 Directory.CreateDirectory(modsDir);
 
-                foreach (string dir in Directory.GetDirectories(extractPath, "*", SearchOption.AllDirectories))
+                using (var transaction = new FileTransaction(_logger))
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    string rel = Path.GetRelativePath(extractPath, dir);
-                    string dest = Path.Combine(modsDir, rel);
-                    try { Directory.CreateDirectory(dest); } catch (Exception ex) { FallbackLogger.Log($"Create dir failed: {dest} - {ex.Message}"); }
-                }
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        string rel = Path.GetRelativePath(extractPath, dir);
+                        string dest = Path.Combine(modsDir, rel);
+                        transaction.AddOperation(new CreateDirectoryOperation(dest));
+                    }
 
-                foreach (string file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    string rel = Path.GetRelativePath(extractPath, file);
-                    string dest = Path.Combine(modsDir, rel);
-                    try
+                    foreach (string file in Directory.GetFiles(extractPath, "*", SearchOption.AllDirectories))
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                        File.Copy(file, dest, true);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        string rel = Path.GetRelativePath(extractPath, file);
+                        string dest = Path.Combine(modsDir, rel);
+                        transaction.AddOperation(new CopyOperation(file, dest, true));
                     }
-                    catch (Exception ex)
-                    {
-                        FallbackLogger.Log($"Copy file failed {file} -> {dest}: {ex.Message}");
-                    }
+
+                    await transaction.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+                    transaction.Commit();
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -693,40 +691,39 @@ namespace ArdysaModsTools.Core.Services
                     $"gameinfo_branchspecific.gi~SHA1:{ModConstants.ModPatchSHA1}",
                     StringComparison.OrdinalIgnoreCase);
 
-
-
                 ct.ThrowIfCancellationRequested();
 
-                statusCallback?.Invoke("Creating backup...");
-                File.Copy(signaturesPath, signaturesBackup, overwrite: true);
-
-                try
+                using (var transaction = new FileTransaction(_logger))
                 {
-                    statusCallback?.Invoke("Patching core files...");
-                    
-                    string[] lines = await File.ReadAllLinesAsync(signaturesPath, ct).ConfigureAwait(false);
-                    int lineDigestIndex = Array.FindIndex(lines, l => l.StartsWith("DIGEST:"));
-                    
-                    if (lineDigestIndex < 0)
+                    try
                     {
-                        _logger?.Log("[PATCH] Error: DIGEST line not found.");
-                        return PatchResult.Failed;
-                    }
+                        statusCallback?.Invoke("Patching core files...");
+                        
+                        string[] lines = await File.ReadAllLinesAsync(signaturesPath, ct).ConfigureAwait(false);
+                        int lineDigestIndex = Array.FindIndex(lines, l => l.StartsWith("DIGEST:"));
+                        
+                        if (lineDigestIndex < 0)
+                        {
+                            _logger?.Log("[PATCH] Error: DIGEST line not found.");
+                            return PatchResult.Failed;
+                        }
 
-                    var modified = new List<string>(lines[..(lineDigestIndex + 1)])
-                    {
-                        ModConstants.ModPatchLine
-                    };
+                        var modified = new List<string>(lines[..(lineDigestIndex + 1)])
+                        {
+                            ModConstants.ModPatchLine
+                        };
 
-                    string tmpSig = signaturesPath + ".tmp";
-                    await File.WriteAllLinesAsync(tmpSig, modified, ct).ConfigureAwait(false);
-                    File.Replace(tmpSig, signaturesPath, null);
+                        string tmpSig = signaturesPath + ".tmp";
+                        await File.WriteAllLinesAsync(tmpSig, modified, ct).ConfigureAwait(false);
+                        
+                        // Use MoveOperation for atomic replacement
+                        transaction.AddOperation(new MoveOperation(tmpSig, signaturesPath));
 
-                    _logger?.Log("[PATCH] Core files patched successfully.");
+                        _logger?.Log("[PATCH] Core files patched successfully.");
 
-                    ct.ThrowIfCancellationRequested();
+                        ct.ThrowIfCancellationRequested();
 
-                    // Always update gameinfo
+                        // Always update gameinfo
                         statusCallback?.Invoke("Updating game config...");
                         
                         Directory.CreateDirectory(Path.GetDirectoryName(gameInfoPath)!);
@@ -735,47 +732,31 @@ namespace ArdysaModsTools.Core.Services
                         if (fileBytes == null || fileBytes.Length == 0)
                         {
                             _logger?.Log("[PATCH] Error: Failed to download game config. Rolling back...");
-                            // Rollback signatures
-                            File.Copy(signaturesBackup, signaturesPath, overwrite: true);
-                            _logger?.Log("[PATCH] Rollback completed.");
+                            await transaction.RollbackAsync(ct).ConfigureAwait(false);
                             return PatchResult.Failed;
                         }
 
                         string tmpGi = gameInfoPath + ".tmp";
                         await File.WriteAllBytesAsync(tmpGi, fileBytes, ct).ConfigureAwait(false);
                         
-                        if (File.Exists(gameInfoPath))
-                            File.Replace(tmpGi, gameInfoPath, null);
-                        else
-                            File.Move(tmpGi, gameInfoPath, true);
+                        // Use MoveOperation for atomic replacement
+                        transaction.AddOperation(new MoveOperation(tmpGi, gameInfoPath));
 
+                        // Execute all queued operations
+                        await transaction.ExecuteAsync(ct).ConfigureAwait(false);
+                        
                         _logger?.Log("[PATCH] Game config updated successfully.");
-
-
-
-                    try { File.Delete(signaturesBackup); } catch { }
-
-                    _logger?.Log("[PATCH] Patch completed successfully!");
-                    return PatchResult.Success;
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    // Rollback on any failure
-                    _logger?.Log($"[PATCH] Error during patch: {ex.Message}. Rolling back...");
-                    try
-                    {
-                        if (File.Exists(signaturesBackup))
-                        {
-                            File.Copy(signaturesBackup, signaturesPath, overwrite: true);
-                            File.Delete(signaturesBackup);
-                            _logger?.Log("[PATCH] Rollback completed.");
-                        }
+                        
+                        transaction.Commit();
+                        _logger?.Log("[PATCH] Patch completed successfully!");
+                        return PatchResult.Success;
                     }
-                    catch (Exception rollbackEx)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
-                        _logger?.Log($"[PATCH] Rollback failed: {rollbackEx.Message}");
+                        _logger?.Log($"[PATCH] Error during patch: {ex.Message}. Rolling back...");
+                        await transaction.RollbackAsync(ct).ConfigureAwait(false);
+                        return PatchResult.Failed;
                     }
-                    return PatchResult.Failed;
                 }
             }
             catch (OperationCanceledException)
