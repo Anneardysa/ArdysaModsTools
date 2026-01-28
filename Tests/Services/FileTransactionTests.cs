@@ -148,5 +148,120 @@ namespace ArdysaModsTools.Tests.Services
             // Assert
             Assert.That(Directory.Exists(path), Is.False);
         }
+
+        [Test]
+        public async Task WriteContentOperation_Rollback_RestoresFile()
+        {
+            // Arrange
+            string path = Path.Combine(_testDir, "write_content.bin");
+            byte[] originalContent = new byte[] { 1, 2, 3 };
+            byte[] newContent = new byte[] { 4, 5, 6, 7 };
+            
+            File.WriteAllBytes(path, originalContent);
+
+            var op = new WriteContentOperation(path, newContent);
+
+            // Act
+            await op.ExecuteAsync(CancellationToken.None);
+            Assert.That(File.ReadAllBytes(path), Is.EqualTo(newContent));
+
+            await op.RollbackAsync(CancellationToken.None);
+
+            // Assert
+            Assert.That(File.ReadAllBytes(path), Is.EqualTo(originalContent));
+        }
+
+        [Test]
+        public async Task WriteTextOperation_Rollback_RestoresFile()
+        {
+            // Arrange
+            string path = Path.Combine(_testDir, "write_text.txt");
+            string originalContent = "original text";
+            string newContent = "new text content";
+            
+            File.WriteAllText(path, originalContent);
+
+            var op = new WriteTextOperation(path, newContent);
+
+            // Act
+            await op.ExecuteAsync(CancellationToken.None);
+            Assert.That(File.ReadAllText(path), Is.EqualTo(newContent));
+
+            await op.RollbackAsync(CancellationToken.None);
+
+            // Assert
+            Assert.That(File.ReadAllText(path), Is.EqualTo(originalContent));
+        }
+
+        [Test]
+        public async Task WriteContentOperation_NewFile_Rollback_DeletesFile()
+        {
+            // Arrange
+            string path = Path.Combine(_testDir, "new_content.bin");
+            byte[] content = new byte[] { 1, 2, 3, 4 };
+
+            var op = new WriteContentOperation(path, content);
+
+            // Act
+            await op.ExecuteAsync(CancellationToken.None);
+            Assert.That(File.Exists(path), Is.True);
+
+            await op.RollbackAsync(CancellationToken.None);
+
+            // Assert
+            Assert.That(File.Exists(path), Is.False);
+        }
+
+        [Test]
+        public async Task ReplaceFileOperation_Rollback_RestoresFile()
+        {
+            // Arrange
+            string path = Path.Combine(_testDir, "replace_file.bin");
+            byte[] originalContent = new byte[] { 10, 20, 30 };
+            byte[] newContent = new byte[] { 40, 50, 60, 70 };
+            
+            File.WriteAllBytes(path, originalContent);
+
+            var op = new ReplaceFileOperation(path, newContent);
+
+            // Act
+            await op.ExecuteAsync(CancellationToken.None);
+            Assert.That(File.ReadAllBytes(path), Is.EqualTo(newContent));
+            Assert.That(File.Exists(path + ".tmp"), Is.False, "Temp file should be cleaned up");
+
+            await op.RollbackAsync(CancellationToken.None);
+
+            // Assert
+            Assert.That(File.ReadAllBytes(path), Is.EqualTo(originalContent));
+        }
+
+        [Test]
+        public async Task Transaction_ProgressChanged_ReportsCorrectly()
+        {
+            // Arrange
+            string source = Path.Combine(_testDir, "source.txt");
+            string dest1 = Path.Combine(_testDir, "dest1.txt");
+            string dest2 = Path.Combine(_testDir, "dest2.txt");
+            File.WriteAllText(source, "hello");
+
+            var progressReports = new System.Collections.Generic.List<(int current, int total)>();
+
+            using (var transaction = new FileTransaction())
+            {
+                transaction.ProgressChanged += (current, total) => progressReports.Add((current, total));
+                transaction.AddOperation(new CopyOperation(source, dest1, true));
+                transaction.AddOperation(new CopyOperation(source, dest2, true));
+
+                // Act
+                await transaction.ExecuteAsync();
+                transaction.Commit();
+            }
+
+            // Assert
+            Assert.That(progressReports.Count, Is.EqualTo(2));
+            Assert.That(progressReports[0], Is.EqualTo((1, 2)));
+            Assert.That(progressReports[1], Is.EqualTo((2, 2)));
+        }
     }
 }
+

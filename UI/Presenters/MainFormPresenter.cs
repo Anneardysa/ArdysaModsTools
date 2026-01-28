@@ -447,6 +447,7 @@ namespace ArdysaModsTools.UI.Presenters
 
         /// <summary>
         /// Disables all mods by removing the VPK file.
+        /// Simple version that just removes the VPK.
         /// </summary>
         public async Task DisableAsync()
         {
@@ -476,6 +477,111 @@ namespace ArdysaModsTools.UI.Presenters
             {
                 EndOperation();
             }
+        }
+
+        /// <summary>
+        /// Disables mods with user options (simple disable or permanent delete).
+        /// Shows options dialog and handles both cases including temp folder cleanup.
+        /// </summary>
+        public async Task DisableWithOptionsAsync()
+        {
+            if (string.IsNullOrEmpty(_targetPath))
+            {
+                _logger.Log("No Dota 2 folder selected.");
+                return;
+            }
+
+            // Show options dialog
+            var (shouldProceed, deletePermanently) = _view.ShowDisableOptionsDialog();
+            if (!shouldProceed)
+                return;
+
+            // Confirm if deleting permanently
+            if (deletePermanently)
+            {
+                var confirm = _view.ShowMessageBox(
+                    "This will permanently delete all mod files.\n\nAre you sure?",
+                    "Confirm Delete",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (confirm != DialogResult.Yes)
+                    return;
+            }
+
+            var cts = StartOperation();
+            var token = cts.Token;
+
+            try
+            {
+                // Disable mods (remove VPK, revert signatures)
+                bool success = await _modInstaller.DisableModsAsync(_targetPath, token);
+
+                // If delete permanently, also remove _ArdysaMods folder and clear temp
+                if (deletePermanently && success)
+                {
+                    string modsFolder = Path.Combine(_targetPath, "game", "_ArdysaMods");
+                    if (Directory.Exists(modsFolder))
+                    {
+                        try
+                        {
+                            Directory.Delete(modsFolder, true);
+                            _logger.Log("Mod folder deleted permanently.");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Log($"Failed to delete mod folder: {ex.Message}");
+                        }
+                    }
+
+                    // Clear temp folder
+                    ClearTempFolder();
+
+                    // Show restart dialog
+                    if (_view.ShowRestartAppDialog("All mod files have been deleted.\nPlease restart the application."))
+                    {
+                        _view.RestartApplication();
+                    }
+                }
+
+                await CheckModsStatusAsync();
+            }
+            catch (OperationCanceledException)
+            {
+                // Silent cancel
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Disable operation failed: {ex.Message}");
+            }
+            finally
+            {
+                EndOperation();
+            }
+        }
+
+        /// <summary>
+        /// Clears all files and subdirectories in the Windows temp folder (%temp%).
+        /// </summary>
+        private void ClearTempFolder()
+        {
+            try
+            {
+                string tempPath = Path.GetTempPath();
+
+                // Delete files
+                foreach (var file in Directory.GetFiles(tempPath))
+                {
+                    try { File.Delete(file); } catch { }
+                }
+
+                // Delete subdirectories
+                foreach (var dir in Directory.GetDirectories(tempPath))
+                {
+                    try { Directory.Delete(dir, true); } catch { }
+                }
+            }
+            catch { }
         }
 
         #endregion
@@ -553,6 +659,7 @@ namespace ArdysaModsTools.UI.Presenters
             {
                 // Get detailed status from enhanced StatusService
                 var statusInfo = await _status.GetDetailedStatusAsync(_targetPath);
+                _currentStatus = statusInfo; // Store for ShowStatusDetails
                 
                 _view.InvokeOnUIThread(() =>
                 {
@@ -609,6 +716,7 @@ namespace ArdysaModsTools.UI.Presenters
 
         private void OnStatusChanged(ModStatusInfo statusInfo)
         {
+            _currentStatus = statusInfo; // Store for ShowStatusDetails
             _view.InvokeOnUIThread(() =>
             {
                 _view.SetModsStatusDetailed(statusInfo);
@@ -724,6 +832,392 @@ namespace ArdysaModsTools.UI.Presenters
         public bool IsModFilePresent =>
             !string.IsNullOrEmpty(_targetPath) &&
             File.Exists(Path.Combine(_targetPath, RequiredModFilePath));
+
+        #endregion
+
+        #region Hero Gallery
+
+        /// <summary>
+        /// Flag to track if user dismissed patch dialog with "Later".
+        /// </summary>
+        private bool _patchDialogDismissedByUser;
+
+        /// <summary>
+        /// Opens the hero gallery with proper validation and beta warning.
+        /// </summary>
+        public async Task OpenHeroGalleryAsync()
+        {
+            if (string.IsNullOrEmpty(_targetPath))
+            {
+                return;
+            }
+
+            // Check GitHub access before opening form
+            var hasAccess = await CheckHeroesJsonAccessAsync();
+            if (!hasAccess)
+            {
+                _view.ShowMessageBox(
+                    "Unable to access this feature.\n\n" +
+                    "Please check your internet connection and try again.\n" +
+                    "The Select Hero feature requires online access to load hero data.",
+                    "Connection Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                _logger.Log("Connection to server failed.");
+                return;
+            }
+
+            // Show beta warning dialog
+            var betaResult = _view.ShowMessageBox(
+                "[BETA VERSION] - Skin Selector\n\n" +
+                "This feature is currently in beta. Not all hero sets are available yet.\n\n" +
+                "More hero sets will be added soon!\n\n" +
+                "IMPORTANT:\n" +
+                "Using this feature will remove your ModsPack.\n" +
+                "Custom sets are built independently and are NOT linked to the standard ModsPack.\n\n" +
+                "Do you want to continue?",
+                "Beta Feature Warning",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (betaResult != DialogResult.Yes)
+            {
+                return;
+            }
+
+            // Show hero gallery and get result
+            var (dialogResult, generationResult) = _view.ShowHeroGallery();
+
+            // Log generation result to console
+            if (generationResult != null)
+            {
+                LogGenerationResult(generationResult);
+            }
+
+            // Always refresh status after hero gallery closes
+            await RefreshStatusAfterModOperationAsync();
+
+            // If generation was successful, check if patching needed
+            if (dialogResult == DialogResult.OK)
+            {
+                await ShowPatchRequiredIfNeededAsync("Custom ModsPack installed successfully!");
+            }
+        }
+
+        /// <summary>
+        /// Checks if heroes.json is accessible from GitHub/CDN.
+        /// </summary>
+        private async Task<bool> CheckHeroesJsonAccessAsync()
+        {
+            string heroesJsonUrl = Core.Services.Config.EnvironmentConfig.BuildRawUrl("Assets/heroes.json");
+            try
+            {
+                using var client = new System.Net.Http.HttpClient();
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, heroesJsonUrl);
+                using var response = await client.SendAsync(request, cts.Token);
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        #endregion
+
+        #region Miscellaneous Form
+
+        /// <summary>
+        /// Opens the miscellaneous form for additional mod options.
+        /// </summary>
+        public async Task OpenMiscFormAsync()
+        {
+            var generationResult = _view.ShowMiscForm(_targetPath);
+
+            // Log generation result to MainForm console
+            if (generationResult != null)
+            {
+                LogGenerationResult(generationResult);
+            }
+
+            // Always refresh status after MiscForm closes
+            await RefreshStatusAfterModOperationAsync();
+        }
+
+        /// <summary>
+        /// Logs the result of a mod generation operation to the console.
+        /// </summary>
+        private void LogGenerationResult(ModGenerationResult result)
+        {
+            if (result.Success)
+            {
+                switch (result.Type)
+                {
+                    case GenerationType.Miscellaneous:
+                        string modeText = result.MiscMode == MiscGenerationMode.GenerateOnly
+                            ? "Clean Generate"
+                            : "Add to Current";
+                        _logger.Log($"[MISC] Generation complete ({modeText}) - {result.OptionsCount} option(s) in {result.Duration.TotalSeconds:F1}s");
+                        break;
+
+                    case GenerationType.SkinSelector:
+                        _logger.Log($"[SKIN] Generation complete - {result.Details ?? $"{result.OptionsCount} hero(es)"} in {result.Duration.TotalSeconds:F1}s");
+                        break;
+
+                    default:
+                        _logger.Log($"[GEN] Generation complete - {result.OptionsCount} item(s) in {result.Duration.TotalSeconds:F1}s");
+                        break;
+                }
+            }
+            else
+            {
+                string typePrefix = result.Type == GenerationType.Miscellaneous ? "[MISC]" :
+                                   result.Type == GenerationType.SkinSelector ? "[SKIN]" : "[GEN]";
+                _logger.Log($"{typePrefix} Generation failed: {result.ErrorMessage ?? "Unknown error"}");
+            }
+        }
+
+        #endregion
+
+        #region Post-Install Dialogs
+
+        /// <summary>
+        /// Shows install dialog if mods are not installed.
+        /// Called after successful path detection for better UX.
+        /// </summary>
+        public async Task ShowInstallDialogIfNeededAsync()
+        {
+            // Only show dialog if mods are not installed
+            if (IsModFilePresent)
+                return;
+
+            if (_view.ShowInstallRequiredDialog())
+            {
+                // User clicked Install Now - trigger install
+                await InstallAsync();
+            }
+        }
+
+        /// <summary>
+        /// Check status after install and show PatchRequiredDialog if not Ready.
+        /// </summary>
+        /// <param name="successMessage">Message to show in dialog</param>
+        /// <param name="fromDetection">If true, respects user's previous "Later" dismissal</param>
+        public async Task ShowPatchRequiredIfNeededAsync(string successMessage = "ModsPack installed successfully!", bool fromDetection = false)
+        {
+            try
+            {
+                var statusInfo = await _status.GetDetailedStatusAsync(_targetPath);
+
+                // If status is Ready, no action needed - also reset dismissed flag
+                if (statusInfo.Status == ModStatus.Ready)
+                {
+                    _patchDialogDismissedByUser = false;
+                    return;
+                }
+
+                // If from detection and user already dismissed with "Later", skip showing again
+                if (fromDetection && _patchDialogDismissedByUser)
+                {
+                    return;
+                }
+
+                // If status is NeedUpdate or Disabled - show dialog
+                if (statusInfo.Status == ModStatus.NeedUpdate ||
+                    statusInfo.Status == ModStatus.Disabled)
+                {
+                    // If user clicked "Patch Now", execute patch directly
+                    if (_view.ShowPatchRequiredDialog(successMessage))
+                    {
+                        _patchDialogDismissedByUser = false; // Reset on successful patch
+                        await ExecutePatchAsync();
+                    }
+                    else
+                    {
+                        // User clicked "Later" - remember this choice for detection-triggered dialogs
+                        _patchDialogDismissedByUser = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"[STATUS] Post-install check failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Refreshes mod status after any mod generation/modification operation.
+        /// </summary>
+        public async Task RefreshStatusAfterModOperationAsync()
+        {
+            if (string.IsNullOrEmpty(_targetPath)) return;
+
+            _logger.Log("Refreshing mod status...");
+            _view.ShowCheckingState();
+
+            try
+            {
+                // Force a fresh status check (clears cache)
+                var freshStatus = await _status.ForceRefreshAsync(_targetPath);
+                _view.SetModsStatusDetailed(freshStatus);
+                _logger.Log($"Status refreshed: {freshStatus.StatusText}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Status refresh failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Executes the patch update operation.
+        /// </summary>
+        public async Task ExecutePatchAsync()
+        {
+            if (string.IsNullOrEmpty(_targetPath)) return;
+            if (!_modInstaller.IsRequiredModFilePresent(_targetPath))
+            {
+                _view.ShowMessageBox(
+                    "Mod VPK file not found. Please install mods first.",
+                    "Cannot Patch",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            var cts = StartOperation();
+            var token = cts.Token;
+
+            try
+            {
+                // Always use full patch mode
+                var result = await _modInstaller.UpdatePatcherAsync(_targetPath, null, token);
+
+                switch (result)
+                {
+                    case PatchResult.Success:
+                        // Refresh status
+                        await CheckModsStatusAsync();
+
+                        _view.ShowMessageBox(
+                            "Patch applied successfully! Your mods are now ready.",
+                            "Patch Complete",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        break;
+
+                    case PatchResult.AlreadyPatched:
+                        await CheckModsStatusAsync();
+                        _view.ShowMessageBox(
+                            "Already patched! No action needed.",
+                            "Already Up To Date",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        break;
+
+                    case PatchResult.Failed:
+                        _view.ShowMessageBox(
+                            "Patch failed. Check the console for details.",
+                            "Patch Failed",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        break;
+
+                    case PatchResult.Cancelled:
+                        // Silently handled
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"[PATCH] Error: {ex.Message}");
+                _view.ShowMessageBox(
+                    $"Patch error: {ex.Message}",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+            finally
+            {
+                EndOperation();
+            }
+        }
+
+        /// <summary>
+        /// Handles the patch button click with status-aware behavior.
+        /// Shows menu or takes direct action based on current status.
+        /// </summary>
+        public async Task HandlePatchButtonClickAsync()
+        {
+            if (string.IsNullOrEmpty(_targetPath))
+                return;
+
+            // Get fresh status before making decisions
+            _view.ShowCheckingState();
+            var freshStatus = await _status.ForceRefreshAsync(_targetPath);
+            _view.SetModsStatusDetailed(freshStatus);
+
+            // Take action based on status
+            switch (freshStatus.Status)
+            {
+                case ModStatus.NeedUpdate:
+                case ModStatus.Ready:
+                    // Show options menu
+                    _view.ShowPatchMenu();
+                    break;
+
+                case ModStatus.Disabled:
+                    // Offer to enable
+                    var result = _view.ShowMessageBox(
+                        "Mods are currently disabled. Would you like to enable them?",
+                        "Enable Mods",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (result == DialogResult.Yes)
+                    {
+                        await ExecutePatchAsync();
+                    }
+                    break;
+
+                case ModStatus.NotInstalled:
+                    _view.ShowMessageBox(
+                        "Please install mods first using the 'Skin Selector' or 'Miscellaneous' buttons.",
+                        "Mods Not Installed",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    break;
+
+                default:
+                    // Default: show menu
+                    _view.ShowPatchMenu();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Shows status details in a dedicated form.
+        /// </summary>
+        public void ShowStatusDetails()
+        {
+            if (_currentStatus == null)
+            {
+                _view.ShowMessageBox("Status not checked yet. Please wait...", "Loading", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(_targetPath))
+            {
+                _view.ShowMessageBox("Please detect Dota 2 path first.", "Path Required", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            _view.ShowStatusDetails(_currentStatus, ExecutePatchAsync);
+        }
+
+        private ModStatusInfo? _currentStatus;
 
         #endregion
 

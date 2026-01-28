@@ -38,9 +38,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+using ArdysaModsTools.UI.Interfaces;
+
 namespace ArdysaModsTools
 {
-    public partial class MainForm : Form
+    public partial class MainForm : Form, IMainFormView
     {
         private string? targetPath = null;
         private CancellationTokenSource? _operationCts;
@@ -514,7 +516,7 @@ namespace ArdysaModsTools
             disableButton.Visible = true;
         }
 
-        private void DisableAllButtons()
+        public void DisableAllButtons()
         {
             autoDetectButton.Enabled = false;
             manualDetectButton.Enabled = false;
@@ -525,7 +527,7 @@ namespace ArdysaModsTools
             btn_OpenSelectHero.Enabled = false;
         }
 
-        private void EnableDetectionButtonsOnly()
+        public void EnableDetectionButtonsOnly()
         {
             autoDetectButton.Enabled = true;
             manualDetectButton.Enabled = true;
@@ -540,7 +542,7 @@ namespace ArdysaModsTools
             manualDetectButton.Highlighted = true;
         }
 
-        private void EnableAllButtons()
+        public void EnableAllButtons()
         {
             autoDetectButton.Enabled = true;
             manualDetectButton.Enabled = true;
@@ -730,7 +732,7 @@ namespace ArdysaModsTools
         /// NeedUpdate: Black bg, Orange border, Orange text
         /// Error: Red bg, White text
         /// </summary>
-        private void UpdatePatchButtonStatus(ModStatus? status, bool isError = false)
+        public void UpdatePatchButtonStatus(ModStatus? status, bool isError = false)
         {
             if (updatePatcherButton == null) return;
 
@@ -1457,7 +1459,7 @@ namespace ArdysaModsTools
             }
         }
 
-        private void ShowPatchMenu()
+        public void ShowPatchMenu()
         {
             EnsurePatchMenuCreated();
             
@@ -1851,7 +1853,7 @@ namespace ArdysaModsTools
         /// <summary>
         /// Updates the mod status display with detailed information.
         /// </summary>
-        private void SetModsStatusDetailed(ModStatusInfo statusInfo)
+        public void SetModsStatusDetailed(ModStatusInfo statusInfo)
         {
             if (InvokeRequired)
             {
@@ -1923,7 +1925,7 @@ namespace ArdysaModsTools
         /// <summary>
         /// Updates action buttons based on current mod status.
         /// </summary>
-        private void UpdateButtonsForStatus(ModStatusInfo statusInfo)
+        public void UpdateButtonsForStatus(ModStatusInfo statusInfo)
         {
             // Always keep SpringGreen text for consistency
             updatePatcherButton.ForeColor = Color.SpringGreen;

@@ -177,6 +177,114 @@ namespace ArdysaModsTools.UI.Interfaces
         void CloseForm();
 
         #endregion
+
+        #region Extended Dialogs
+
+        /// <summary>
+        /// Shows the disable options dialog and returns user selection.
+        /// </summary>
+        /// <returns>Tuple of (ShouldProceed, DeletePermanently)</returns>
+        (bool ShouldProceed, bool DeletePermanently) ShowDisableOptionsDialog();
+
+        /// <summary>
+        /// Shows the patch required dialog after installation.
+        /// </summary>
+        /// <param name="message">Success message to display</param>
+        /// <returns>True if user clicked "Patch Now"</returns>
+        bool ShowPatchRequiredDialog(string message);
+
+        /// <summary>
+        /// Shows the install required dialog when mods are not installed.
+        /// </summary>
+        /// <returns>True if user clicked Install Now</returns>
+        bool ShowInstallRequiredDialog();
+
+        /// <summary>
+        /// Shows the restart app dialog.
+        /// </summary>
+        /// <param name="message">Message to display</param>
+        /// <returns>True if user clicked Restart</returns>
+        bool ShowRestartAppDialog(string message);
+
+        /// <summary>
+        /// Shows the support dialog.
+        /// </summary>
+        void ShowSupportDialog();
+
+        /// <summary>
+        /// Shows the hero gallery and returns the generation result.
+        /// </summary>
+        /// <returns>Tuple of (DialogResult, GenerationResult)</returns>
+        (DialogResult Result, ModGenerationResult? GenerationResult) ShowHeroGallery();
+
+        /// <summary>
+        /// Shows the miscellaneous form and returns the generation result.
+        /// </summary>
+        /// <param name="targetPath">Current target path</param>
+        /// <returns>Generation result, or null if cancelled</returns>
+        ModGenerationResult? ShowMiscForm(string? targetPath);
+
+        /// <summary>
+        /// Shows the status details form.
+        /// </summary>
+        /// <param name="status">Current mod status info</param>
+        /// <param name="patchAction">Action to execute patch</param>
+        void ShowStatusDetails(ModStatusInfo status, Func<Task> patchAction);
+
+        #endregion
+
+        #region Extended Status Updates
+
+        /// <summary>
+        /// Updates the Patch Update button visual state based on mod status.
+        /// </summary>
+        /// <param name="status">Current mod status</param>
+        /// <param name="isError">Whether an error occurred</param>
+        void UpdatePatchButtonStatus(ModStatus? status, bool isError = false);
+
+        /// <summary>
+        /// Shows the patch context menu.
+        /// </summary>
+        void ShowPatchMenu();
+
+        /// <summary>
+        /// Updates buttons based on current mod status.
+        /// </summary>
+        /// <param name="statusInfo">Status information</param>
+        void UpdateButtonsForStatus(ModStatusInfo statusInfo);
+
+        #endregion
+
+        #region Application Control
+
+        /// <summary>
+        /// Gets or sets the current target path (Dota 2 installation path).
+        /// </summary>
+        string? TargetPath { get; set; }
+
+        /// <summary>
+        /// Restarts the application.
+        /// </summary>
+        void RestartApplication();
+
+        /// <summary>
+        /// Runs an operation with progress overlay.
+        /// </summary>
+        /// <param name="initialStatus">Initial status message</param>
+        /// <param name="operation">The operation to run</param>
+        /// <param name="hideDownloadSpeed">Whether to hide download speed</param>
+        /// <returns>Operation result</returns>
+        Task<OperationResult> RunWithProgressOverlayAsync(
+            string initialStatus,
+            Func<ProgressContext, Task<OperationResult>> operation,
+            bool hideDownloadSpeed = false);
+
+        /// <summary>
+        /// Gets the application path (directory where the exe is located).
+        /// </summary>
+        string AppPath { get; }
+
+        #endregion
     }
 }
 

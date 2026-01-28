@@ -209,4 +209,185 @@ namespace ArdysaModsTools.Core.Services.FileTransactions
             // Nothing to do for directory creation
         }
     }
+
+    /// <summary>
+    /// Operation to write byte content to a file with rollback support.
+    /// Creates a backup of the existing file if it exists.
+    /// </summary>
+    public sealed class WriteContentOperation : IFileOperation
+    {
+        private readonly string _path;
+        private readonly byte[] _content;
+        private string? _backupPath;
+        private bool _existedBefore;
+
+        public WriteContentOperation(string path, byte[] content)
+        {
+            _path = path;
+            _content = content;
+        }
+
+        public async Task ExecuteAsync(CancellationToken ct)
+        {
+            _existedBefore = File.Exists(_path);
+            if (_existedBefore)
+            {
+                _backupPath = _path + ".transaction_bak";
+                File.Copy(_path, _backupPath, true);
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+            await File.WriteAllBytesAsync(_path, _content, ct).ConfigureAwait(false);
+        }
+
+        public async Task RollbackAsync(CancellationToken ct)
+        {
+            if (_existedBefore && _backupPath != null && File.Exists(_backupPath))
+            {
+                File.Copy(_backupPath, _path, true);
+            }
+            else if (!_existedBefore && File.Exists(_path))
+            {
+                File.Delete(_path);
+            }
+            await Task.CompletedTask;
+        }
+
+        public void Cleanup()
+        {
+            if (_backupPath != null && File.Exists(_backupPath))
+            {
+                File.Delete(_backupPath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Operation to write text content to a file with rollback support.
+    /// Creates a backup of the existing file if it exists.
+    /// </summary>
+    public sealed class WriteTextOperation : IFileOperation
+    {
+        private readonly string _path;
+        private readonly string _content;
+        private readonly System.Text.Encoding _encoding;
+        private string? _backupPath;
+        private bool _existedBefore;
+
+        public WriteTextOperation(string path, string content, System.Text.Encoding? encoding = null)
+        {
+            _path = path;
+            _content = content;
+            _encoding = encoding ?? System.Text.Encoding.UTF8;
+        }
+
+        public async Task ExecuteAsync(CancellationToken ct)
+        {
+            _existedBefore = File.Exists(_path);
+            if (_existedBefore)
+            {
+                _backupPath = _path + ".transaction_bak";
+                File.Copy(_path, _backupPath, true);
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+            await File.WriteAllTextAsync(_path, _content, _encoding, ct).ConfigureAwait(false);
+        }
+
+        public async Task RollbackAsync(CancellationToken ct)
+        {
+            if (_existedBefore && _backupPath != null && File.Exists(_backupPath))
+            {
+                File.Copy(_backupPath, _path, true);
+            }
+            else if (!_existedBefore && File.Exists(_path))
+            {
+                File.Delete(_path);
+            }
+            await Task.CompletedTask;
+        }
+
+        public void Cleanup()
+        {
+            if (_backupPath != null && File.Exists(_backupPath))
+            {
+                File.Delete(_backupPath);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Operation to atomically replace a file using the temp-file swap pattern.
+    /// Writes content to a temp file, then moves it to the destination.
+    /// </summary>
+    public sealed class ReplaceFileOperation : IFileOperation
+    {
+        private readonly string _path;
+        private readonly byte[] _content;
+        private string? _tempPath;
+        private string? _backupPath;
+        private bool _existedBefore;
+
+        public ReplaceFileOperation(string path, byte[] content)
+        {
+            _path = path;
+            _content = content;
+        }
+
+        public async Task ExecuteAsync(CancellationToken ct)
+        {
+            _existedBefore = File.Exists(_path);
+            
+            // Backup existing file
+            if (_existedBefore)
+            {
+                _backupPath = _path + ".transaction_bak";
+                File.Copy(_path, _backupPath, true);
+            }
+
+            // Write to temp file first
+            Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
+            _tempPath = _path + ".tmp";
+            await File.WriteAllBytesAsync(_tempPath, _content, ct).ConfigureAwait(false);
+
+            // Atomic move
+            File.Move(_tempPath, _path, true);
+            _tempPath = null; // Clear since file is now moved
+        }
+
+        public async Task RollbackAsync(CancellationToken ct)
+        {
+            // Clean up temp file if it still exists
+            if (_tempPath != null && File.Exists(_tempPath))
+            {
+                try { File.Delete(_tempPath); } catch { }
+            }
+
+            // Restore from backup
+            if (_existedBefore && _backupPath != null && File.Exists(_backupPath))
+            {
+                File.Copy(_backupPath, _path, true);
+            }
+            else if (!_existedBefore && File.Exists(_path))
+            {
+                File.Delete(_path);
+            }
+            await Task.CompletedTask;
+        }
+
+        public void Cleanup()
+        {
+            // Clean up temp file if still exists (shouldn't normally)
+            if (_tempPath != null && File.Exists(_tempPath))
+            {
+                try { File.Delete(_tempPath); } catch { }
+            }
+            
+            // Clean up backup
+            if (_backupPath != null && File.Exists(_backupPath))
+            {
+                try { File.Delete(_backupPath); } catch { }
+            }
+        }
+    }
 }
