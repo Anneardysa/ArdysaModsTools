@@ -27,6 +27,7 @@ using System.Threading.Tasks;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Constants;
 using SharpCompress.Archives;
 using SharpCompress.Archives.Rar;
 using SharpCompress.Common;
@@ -282,172 +283,170 @@ namespace ArdysaModsTools.Core.Services
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
         {
             bool downloadComplete = false;
-            string currentUrl = url;
+            string successfulUrl = url;
             
-            try
+            // Get all CDN URLs to try in priority order (R2 → jsDelivr → GitHub Raw)
+            var cdnUrls = GetCdnUrlsInPriorityOrder(url);
+            Exception? lastException = null;
+            
+            foreach (var cdnUrl in cdnUrls)
             {
-                // Use retry logic for transient network failures
-                await RetryHelper.ExecuteAsync(async () =>
+                ct.ThrowIfCancellationRequested();
+                
+                try
                 {
-                    using var response = await _httpClient.GetAsync(currentUrl,HttpCompletionOption.ResponseHeadersRead, ct)
-                        .ConfigureAwait(false);
+                    var cdnName = GetCdnDisplayName(cdnUrl);
+                    log($"Trying {cdnName}...");
+                    _logger?.Log($"Attempting download from: {cdnUrl}");
                     
-                    // Handle HTTP 403 from jsDelivr CDN (file too large, >20MB)
-                    // Automatically fall back to raw GitHub URL
-                    if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
-                    {
-                        string? fallbackUrl = TryConvertCdnToRawUrl(currentUrl);
-                        if (fallbackUrl != null && fallbackUrl != currentUrl)
-                        {
-                            log($"CDN blocked large file (403). Retrying with direct GitHub URL...");
-                            _logger?.Log($"CDN 403 for {currentUrl}, falling back to {fallbackUrl}");
-                            currentUrl = fallbackUrl;
-                            
-                            // Retry immediately with fallback URL
-                            var fallbackResponse = await _httpClient.GetAsync(currentUrl, HttpCompletionOption.ResponseHeadersRead, ct)
-                                .ConfigureAwait(false);
-                            fallbackResponse.EnsureSuccessStatusCode(); // Will throw if fallback also fails
-                            
-                            // Continue with successful fallback response
-                            var fbTotalBytes = fallbackResponse.Content.Headers.ContentLength ?? -1;
-                            await using var fbContentStream = await fallbackResponse.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                            await using var fbProgressStream = new ArdysaModsTools.Core.Helpers.ProgressStream(fbContentStream, speedProgress, fbTotalBytes > 0 ? fbTotalBytes : null);
-                            await using var fbFileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
-                            
-                            var fbBuffer = new byte[81920];
-                            long fbTotalRead = 0;
-                            int fbBytesRead;
-                            
-                            while ((fbBytesRead = await fbProgressStream.ReadAsync(fbBuffer, 0, fbBuffer.Length, ct).ConfigureAwait(false)) > 0)
-                            {
-                                await fbFileStream.WriteAsync(fbBuffer, 0, fbBytesRead, ct).ConfigureAwait(false);
-                                fbTotalRead += fbBytesRead;
-                            }
-                            return;
-                        }
-                        else
-                        {
-                            // No fallback available, throw original error
-                            response.EnsureSuccessStatusCode();
-                        }
-                    }
+                    await DownloadFromUrlAsync(cdnUrl, destPath, log, ct, speedProgress).ConfigureAwait(false);
                     
-                    // Check for transient status codes that should trigger retry
-                    if (RetryHelper.IsTransientStatusCode(response.StatusCode))
-                        throw new HttpRequestException($"Server returned {response.StatusCode}");
-                    
-                    response.EnsureSuccessStatusCode();
-
-                    var totalBytes = response.Content.Headers.ContentLength ?? -1;
-                    await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                    await using var progressStream = new ArdysaModsTools.Core.Helpers.ProgressStream(contentStream, speedProgress, totalBytes > 0 ? totalBytes : null);
-                    await using var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
-                    
-                    // Use larger buffer for better download performance
-                    var buffer = new byte[81920];
-                    long totalRead = 0;
-                    int bytesRead;
-                    
-                    while ((bytesRead = await progressStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
-                    {
-                        await fileStream.WriteAsync(buffer, 0, bytesRead, ct).ConfigureAwait(false);
-                        totalRead += bytesRead;
-                    }
-                },
-                maxAttempts: 3,
-                initialDelayMs: 500,
-                onRetry: (attempt, ex) => log($"Retry {attempt}/3: {ex.Message}"),
-                ct: ct).ConfigureAwait(false);
-
-                downloadComplete = true;
-                log("Download completed.");
-            }
-            catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
-            {
-                // Timeout (not user cancellation)
-                var dlEx = new DownloadException(ErrorCodes.DL_TIMEOUT,
-                    "Download timed out", ex, url);
-                log("Download timed out.");
-                _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
-                throw dlEx;
-            }
-            catch (OperationCanceledException)
-            {
-                // User cancellation
-                log("Download cancelled. Cleaning up partial file...");
-                throw; // Re-throw to propagate cancellation
-            }
-            catch (HttpRequestException ex)
-            {
-                var dlEx = new DownloadException(ErrorCodes.DL_NETWORK_ERROR,
-                    $"Network error downloading file: {ex.Message}", ex, currentUrl);
-                log($"Download failed: {ex.Message}");
-                _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
-                throw dlEx;
-            }
-            catch (Exception ex)
-            {
-                var dlEx = new DownloadException(ErrorCodes.DL_NETWORK_ERROR,
-                    $"Download failed: {ex.Message}", ex, currentUrl);
-                log($"Download failed: {ex.Message}");
-                _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
-                throw dlEx;
-            }
-            finally
-            {
-                // Clean up partial download if not complete
-                if (!downloadComplete && File.Exists(destPath))
+                    // Success!
+                    downloadComplete = true;
+                    successfulUrl = cdnUrl;
+                    log($"Download completed from {cdnName}.");
+                    _logger?.Log($"Successfully downloaded from {cdnName}: {cdnUrl}");
+                    return;
+                }
+                catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
-                    try 
-                    { 
-                        File.Delete(destPath);
-                        _logger?.Log($"Deleted partial download: {Path.GetFileName(destPath)}");
+                    // 403 Forbidden - try next CDN (jsDelivr blocks files > 20MB)
+                    log($"CDN blocked (403). Trying next source...");
+                    _logger?.Log($"HTTP 403 from {cdnUrl}, trying next CDN");
+                    lastException = ex;
+                    continue;
+                }
+                catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    // 404 Not Found - file doesn't exist on this CDN
+                    _logger?.Log($"HTTP 404 from {cdnUrl}, trying next CDN");
+                    lastException = ex;
+                    continue;
+                }
+                catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
+                {
+                    // Timeout - try next CDN
+                    log($"Request timed out. Trying next source...");
+                    _logger?.Log($"Timeout from {cdnUrl}, trying next CDN");
+                    lastException = ex;
+                    continue;
+                }
+                catch (OperationCanceledException)
+                {
+                    // User cancelled - don't retry
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    // Other error - try next CDN
+                    _logger?.Log($"Error from {cdnUrl}: {ex.Message}");
+                    lastException = ex;
+                    continue;
+                }
+                finally
+                {
+                    // Clean up partial download if not complete
+                    if (!downloadComplete && File.Exists(destPath))
+                    {
+                        try { File.Delete(destPath); } catch { }
                     }
-                    catch { /* Ignore cleanup errors */ }
                 }
             }
+            
+            // All CDNs failed
+            var dlEx = new DownloadException(ErrorCodes.DL_NETWORK_ERROR,
+                $"Download failed from all CDNs: {lastException?.Message ?? "Unknown error"}", 
+                lastException, 
+                url);
+            log($"Download failed: {dlEx.Message}");
+            _logger?.Log($"[{dlEx.ErrorCode}] All CDNs failed for: {url}");
+            throw dlEx;
         }
         
         /// <summary>
-        /// Converts a jsDelivr CDN URL to a raw GitHub URL for fallback when CDN blocks large files.
+        /// Downloads from a specific URL with retry logic.
         /// </summary>
-        /// <param name="cdnUrl">jsDelivr CDN URL</param>
-        /// <returns>Raw GitHub URL, or null if conversion failed</returns>
-        private static string? TryConvertCdnToRawUrl(string cdnUrl)
+        private async Task DownloadFromUrlAsync(
+            string url,
+            string destPath,
+            Action<string> log,
+            CancellationToken ct,
+            IProgress<SpeedMetrics>? speedProgress = null)
         {
-            // Pattern: https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}
-            // Convert to: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
-            const string cdnPrefix = "https://cdn.jsdelivr.net/gh/";
-            if (!cdnUrl.StartsWith(cdnPrefix, StringComparison.OrdinalIgnoreCase))
-                return null;
-            
-            try
+            await RetryHelper.ExecuteAsync(async () =>
             {
-                var remainder = cdnUrl.Substring(cdnPrefix.Length);
-                var parts = remainder.Split(new[] { '/' }, 3);
+                using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct)
+                    .ConfigureAwait(false);
                 
-                if (parts.Length < 3)
-                    return null;
+                response.EnsureSuccessStatusCode();
                 
-                var owner = parts[0];
-                var repoBranch = parts[1]; // Format: "repo@branch"
-                var path = parts[2];
+                var totalBytes = response.Content.Headers.ContentLength ?? -1;
+                await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                await using var progressStream = new ProgressStream(contentStream, speedProgress, totalBytes > 0 ? totalBytes : null);
+                await using var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
                 
-                var atIndex = repoBranch.IndexOf('@');
-                if (atIndex < 0)
-                    return null;
+                var buffer = new byte[81920];
+                int bytesRead;
                 
-                var repo = repoBranch.Substring(0, atIndex);
-                var branch = repoBranch.Substring(atIndex + 1);
-                
-                return $"https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}";
-            }
-            catch
-            {
-                return null;
-            }
+                while ((bytesRead = await progressStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
+                {
+                    await fileStream.WriteAsync(buffer, 0, bytesRead, ct).ConfigureAwait(false);
+                }
+            },
+            maxAttempts: 2,
+            initialDelayMs: 500,
+            onRetry: (attempt, ex) => log($"Retry {attempt}/2: {ex.Message}"),
+            ct: ct).ConfigureAwait(false);
         }
-
+        
+        /// <summary>
+        /// Gets a display-friendly name for a CDN based on its URL.
+        /// </summary>
+        private static string GetCdnDisplayName(string url)
+        {
+            if (url.Contains("ardysamods.my.id") || url.Contains("r2.dev"))
+                return "R2 CDN";
+            if (url.Contains("jsdelivr.net"))
+                return "jsDelivr CDN";
+            if (url.Contains("githubusercontent.com"))
+                return "GitHub";
+            return "CDN";
+        }
+        
+        /// <summary>
+        /// Gets all CDN URLs for an asset in priority order: R2 → jsDelivr → GitHub Raw.
+        /// This ensures large files (>20MB) can be downloaded from R2, which has no size limit.
+        /// </summary>
+        /// <param name="originalUrl">Original asset URL (can be from any CDN)</param>
+        /// <returns>Array of URLs to try in priority order</returns>
+        private static string[] GetCdnUrlsInPriorityOrder(string originalUrl)
+        {
+            // Extract the asset path from the URL
+            var assetPath = CdnConfig.ExtractAssetPath(originalUrl);
+            
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                // Can't extract asset path, just return original URL
+                return new[] { originalUrl };
+            }
+            
+            var urls = new List<string>();
+            
+            // Priority 1: R2 CDN (no file size limit)
+            if (CdnConfig.IsR2Enabled)
+            {
+                urls.Add($"{CdnConfig.R2BaseUrl}/{assetPath}");
+            }
+            
+            // Priority 2: jsDelivr (fast but has 20MB limit)
+            urls.Add($"{CdnConfig.JsDelivrBaseUrl}/{assetPath}");
+            
+            // Priority 3: Raw GitHub (slowest but always works)
+            urls.Add($"{CdnConfig.GitHubRawBaseUrl}/{assetPath}");
+            
+            return urls.ToArray();
+        }
+        
         private static string MakeSafeFileName(string input)
         {
             var invalidChars = Path.GetInvalidFileNameChars();
