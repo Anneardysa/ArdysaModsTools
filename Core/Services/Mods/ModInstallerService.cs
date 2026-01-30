@@ -59,7 +59,7 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public sealed class ModInstallerService : IModInstallerService
     {
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
         private readonly HttpClient _httpClient;
 
         // GameInfo URLs - loaded from environment configuration
@@ -76,7 +76,7 @@ namespace ArdysaModsTools.Core.Services
 
         private const string RequiredModFilePath = DotaPaths.ModsVpk;
 
-        public ModInstallerService(ILogger? logger = null)
+        public ModInstallerService(IAppLogger? logger = null)
         {
             _logger = logger; // Logger is optional for DI compatibility
             _httpClient = HttpClientProvider.Client;

@@ -18,6 +18,7 @@ using System;
 using System.Windows.Forms;
 using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Helpers
@@ -27,12 +28,12 @@ namespace ArdysaModsTools.Core.Helpers
     /// </summary>
     public static class GlobalExceptionHandler
     {
-        private static ILogger? _logger;
+        private static IAppLogger? _logger;
 
         /// <summary>
         /// Initializes the global exception handler with a logger.
         /// </summary>
-        public static void Initialize(ILogger logger)
+        public static void Initialize(IAppLogger logger)
         {
             _logger = logger;
             

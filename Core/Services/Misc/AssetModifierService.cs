@@ -29,6 +29,7 @@ using ArdysaModsTools.Core.Services.Security;
 using ArdysaModsTools.Helpers;
 using SharpCompress.Archives;
 using SharpCompress.Common;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -60,7 +61,7 @@ namespace ArdysaModsTools.Core.Services
     public sealed class AssetModifierService : IAssetModifier
     {
         private readonly HttpClient _httpClient;
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
         // Tracks installed files from last operation (category -> file paths)
         private readonly Dictionary<string, List<string>> _installedFiles = new();
@@ -84,7 +85,7 @@ namespace ArdysaModsTools.Core.Services
             { "DireTower", "678" }
         };
 
-        public AssetModifierService(HttpClient? httpClient = null, ILogger? logger = null)
+        public AssetModifierService(HttpClient? httpClient = null, IAppLogger? logger = null)
         {
             _httpClient = httpClient ?? HttpClientProvider.Client;
             _logger = logger;

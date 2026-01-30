@@ -26,8 +26,9 @@ namespace ArdysaModsTools.Core.DependencyInjection
     /// <remarks>
     /// This is a temporary solution to enable DI in forms that cannot receive
     /// constructor injection. As the codebase matures, direct constructor 
-    /// injection should be preferred.
+    /// injection should be preferred. Use IMainFormFactory for MainForm.
     /// </remarks>
+    [Obsolete("Use constructor injection instead. For MainForm, use IMainFormFactory. Will be removed in v3.0.")]
     public static class ServiceLocator
     {
         private static IServiceProvider? _serviceProvider;

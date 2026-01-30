@@ -41,7 +41,7 @@ namespace ArdysaModsTools.Core.Services
         private readonly IHeroSetPatcher _patcher;
         private readonly IVpkRecompiler _recompiler;
         private readonly IVpkReplacer _replacer;
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
         public HeroGenerationService(
             IOriginalVpkProvider? originalProvider = null,
@@ -49,7 +49,7 @@ namespace ArdysaModsTools.Core.Services
             IHeroSetPatcher? patcher = null,
             IVpkRecompiler? recompiler = null,
             IVpkReplacer? replacer = null,
-            ILogger? logger = null)
+            IAppLogger? logger = null)
         {
             _originalProvider = originalProvider ?? new OriginalVpkService(logger: logger);
             _downloader = downloader ?? new HeroSetDownloaderService();

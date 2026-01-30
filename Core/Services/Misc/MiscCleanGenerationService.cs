@@ -23,6 +23,7 @@ using System.Threading.Tasks;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -37,7 +38,7 @@ namespace ArdysaModsTools.Core.Services
         private readonly AssetModifierService _modifier;
         private readonly IVpkRecompiler _recompiler;
         private readonly IVpkReplacer _replacer;
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
         private readonly HttpClient _httpClient;
 
         // GameInfo URLs - loaded from environment configuration
@@ -51,7 +52,7 @@ namespace ArdysaModsTools.Core.Services
             AssetModifierService? modifier = null,
             IVpkRecompiler? recompiler = null,
             IVpkReplacer? replacer = null,
-            ILogger? logger = null)
+            IAppLogger? logger = null)
         {
             _originalProvider = originalProvider ?? new OriginalVpkService(logger: logger);
             _modifier = modifier ?? new AssetModifierService(null, logger);

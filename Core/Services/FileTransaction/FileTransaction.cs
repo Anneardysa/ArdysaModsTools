@@ -21,7 +21,7 @@ namespace ArdysaModsTools.Core.Services.FileTransactions
     public sealed class FileTransaction : IFileTransaction
     {
         private readonly List<IFileOperation> _operations = new();
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
         private readonly string? _operationName;
         private bool _committed;
         private bool _rolledBack;
@@ -37,7 +37,7 @@ namespace ArdysaModsTools.Core.Services.FileTransactions
         /// </summary>
         /// <param name="logger">Optional logger for operation logging.</param>
         /// <param name="operationName">Optional name for contextual logging.</param>
-        public FileTransaction(ILogger? logger = null, string? operationName = null)
+        public FileTransaction(IAppLogger? logger = null, string? operationName = null)
         {
             _logger = logger;
             _operationName = operationName;

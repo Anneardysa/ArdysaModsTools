@@ -65,12 +65,12 @@ namespace ArdysaModsTools.Core.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _cacheRoot;
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
         // Max parts to prevent infinite loops if something is wrong
         private const int MaxSplitParts = 50;
 
-        public HeroSetDownloaderService(string? baseFolder = null, HttpClient? httpClient = null, ILogger? logger = null)
+        public HeroSetDownloaderService(string? baseFolder = null, HttpClient? httpClient = null, IAppLogger? logger = null)
         {
             var bf = string.IsNullOrWhiteSpace(baseFolder) 
                 ? Path.Combine(Path.GetTempPath(), "ArdysaSelectHero")

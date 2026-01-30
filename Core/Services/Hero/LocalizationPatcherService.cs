@@ -25,6 +25,7 @@ using System.Threading.Tasks;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Models;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -35,7 +36,7 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public class LocalizationPatcherService
     {
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
         private readonly HttpClient _http = HttpClientProvider.Client;
 
         // URL now loaded from environment configuration
@@ -67,7 +68,7 @@ namespace ArdysaModsTools.Core.Services
             "dota_ukrainian.txt"
         };
 
-        public LocalizationPatcherService(ILogger? logger = null)
+        public LocalizationPatcherService(IAppLogger? logger = null)
         {
             _logger = logger;
         }

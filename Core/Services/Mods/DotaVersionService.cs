@@ -21,6 +21,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -72,11 +73,11 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public class DotaVersionService
     {
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
         
         private const string ModMarker = "_ArdysaMods";
 
-        public DotaVersionService(ILogger? logger = null)
+        public DotaVersionService(IAppLogger? logger = null)
         {
             _logger = logger; // Logger is optional for DI compatibility
         }

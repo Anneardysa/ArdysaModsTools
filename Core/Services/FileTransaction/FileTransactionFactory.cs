@@ -15,13 +15,13 @@ namespace ArdysaModsTools.Core.Services.FileTransactions
     /// </summary>
     public sealed class FileTransactionFactory : IFileTransactionFactory
     {
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
         /// <summary>
         /// Creates a new FileTransactionFactory.
         /// </summary>
         /// <param name="logger">Optional logger for transaction logging.</param>
-        public FileTransactionFactory(ILogger? logger = null)
+        public FileTransactionFactory(IAppLogger? logger = null)
         {
             _logger = logger;
         }

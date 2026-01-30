@@ -31,7 +31,7 @@ namespace ArdysaModsTools.Core.Services.Mods
     {
         #region Private Fields
 
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
         private readonly List<FileSystemWatcher> _watchers = new();
         private readonly object _lock = new();
         private System.Threading.Timer? _debounceTimer;
@@ -61,7 +61,7 @@ namespace ArdysaModsTools.Core.Services.Mods
 
         #region Constructor
 
-        public FileWatcherService(ILogger? logger = null)
+        public FileWatcherService(IAppLogger? logger = null)
         {
             _logger = logger;
         }

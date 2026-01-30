@@ -71,8 +71,36 @@ namespace ArdysaModsTools
         private bool _modFileWarningLogged; // Prevent duplicate logging
         private bool _patchDialogDismissedByUser; // Track if user clicked "Later" in PatchRequiredDialog
 
-        public MainForm()
+        /// <summary>
+        /// Default constructor that uses ServiceLocator for backward compatibility.
+        /// New code should use the DI constructor via MainFormFactory.
+        /// </summary>
+        [Obsolete("Use MainFormFactory.Create() for proper DI. This constructor will be removed in v3.0.")]
+        public MainForm() : this(
+            ServiceLocator.GetRequired<IConfigService>(),
+            ServiceLocator.GetRequired<IDetectionService>(),
+            ServiceLocator.GetRequired<IModInstallerService>(),
+            ServiceLocator.GetRequired<IStatusService>())
         {
+        }
+
+        /// <summary>
+        /// DI-enabled constructor for proper dependency injection.
+        /// </summary>
+        /// <param name="configService">Configuration service.</param>
+        /// <param name="detectionService">Dota 2 detection service.</param>
+        /// <param name="modInstallerService">Mod installation service.</param>
+        /// <param name="statusService">Mod status service.</param>
+        public MainForm(
+            IConfigService configService,
+            IDetectionService detectionService,
+            IModInstallerService modInstallerService,
+            IStatusService statusService)
+        {
+            // Store injected dependencies
+            _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+            _detection = detectionService ?? throw new ArgumentNullException(nameof(detectionService));
+
             InitializeComponent();
 
             // Use embedded JetBrains Mono font for console
@@ -88,18 +116,18 @@ namespace ArdysaModsTools
             this.KeyDown += MainForm_KeyDown;
 
             // ═══════════════════════════════════════════════════════════════
-            // DEPENDENCY INJECTION - Get services from container
+            // LOGGER INITIALIZATION
             // ═══════════════════════════════════════════════════════════════
             _logger = new Logger(mainConsoleBox);
             
             // Initialize global exception handler with logger
             GlobalExceptionHandler.Initialize(_logger);
 
-            // Get services from DI container where available
-            _configService = ServiceLocator.GetRequired<IConfigService>();
-            _detection = ServiceLocator.GetRequired<IDetectionService>();
-
-            // Services that need logger passed directly (not registered in DI)
+            // ═══════════════════════════════════════════════════════════════
+            // SERVICE INITIALIZATION
+            // Services that need logger are created here (can't inject logger
+            // because it needs the UI control which is created in InitializeComponent)
+            // ═══════════════════════════════════════════════════════════════
             _updater = new UpdaterService(_logger);
             _updater.OnVersionChanged += version =>
             {
@@ -109,8 +137,11 @@ namespace ArdysaModsTools
                     versionLabel.Text = $"Version: {version}";
             };
 
-            _modInstaller = new ModInstallerService(_logger);
-            _status = new StatusService(_logger);
+            // Use injected services where available, create others with logger
+            _modInstaller = modInstallerService as ModInstallerService 
+                ?? new ModInstallerService(_logger);
+            _status = statusService as StatusService 
+                ?? new StatusService(_logger);
             _versionService = new DotaVersionService(_logger);
 
             _dotaMonitor = new Dota2Monitor();

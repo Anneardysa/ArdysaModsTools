@@ -57,10 +57,17 @@ namespace ArdysaModsTools.Core.DependencyInjection
             services.AddTransient<IHeroGenerationService, HeroGenerationService>();
             
             // ═══════════════════════════════════════════════════════════════
-            // NOTE: ILogger is NOT registered here because it requires a UI control
-            // (RetroTerminal/RichTextBox). Forms should create their own Logger
-            // and register it in a scoped container if needed.
+            // LOGGING
+            // NullLogger is registered as default. UI can replace this with
+            // a real Logger instance after the form is initialized.
             // ═══════════════════════════════════════════════════════════════
+            services.AddSingleton<IAppLogger>(NullLogger.Instance);
+            
+            // ═══════════════════════════════════════════════════════════════
+            // UI FACTORIES
+            // Factory pattern for WinForms that can't use constructor injection
+            // ═══════════════════════════════════════════════════════════════
+            services.AddSingleton<UI.Factories.IMainFormFactory, UI.Factories.MainFormFactory>();
             
             return services;
         }

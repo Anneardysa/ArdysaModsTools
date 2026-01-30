@@ -24,6 +24,7 @@ using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -54,9 +55,9 @@ namespace ArdysaModsTools.Core.Services
         private readonly HttpClient _httpClient;
         private readonly IVpkExtractor _extractor;
         private readonly string _cacheRoot;
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
-        public OriginalVpkService(HttpClient? httpClient = null, IVpkExtractor? extractor = null, ILogger? logger = null)
+        public OriginalVpkService(HttpClient? httpClient = null, IVpkExtractor? extractor = null, IAppLogger? logger = null)
         {
             _httpClient = httpClient ?? HttpClientProvider.Client;
             _extractor = extractor ?? new VpkExtractorService(logger);

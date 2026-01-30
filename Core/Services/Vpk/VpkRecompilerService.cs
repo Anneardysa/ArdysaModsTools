@@ -21,6 +21,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -43,7 +44,7 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public sealed class VpkRecompilerService : IVpkRecompiler
     {
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
         // Optimized timing constants
         private const int PostProcessDelayMs = 500;      // Brief delay after vpk.exe completes
@@ -53,7 +54,7 @@ namespace ArdysaModsTools.Core.Services
         private const int FileReadyMaxAttempts = 20;     // Max attempts for file ready check
         private const int VpkProcessTimeoutMinutes = 5;  // Timeout for vpk.exe process
 
-        public VpkRecompilerService(ILogger? logger = null)
+        public VpkRecompilerService(IAppLogger? logger = null)
         {
             _logger = logger;
         }

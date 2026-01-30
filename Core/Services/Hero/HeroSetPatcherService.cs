@@ -22,6 +22,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -74,9 +75,9 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public sealed class HeroSetPatcherService : IHeroSetPatcher
     {
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
-        public HeroSetPatcherService(ILogger? logger = null)
+        public HeroSetPatcherService(IAppLogger? logger = null)
         {
             _logger = logger;
         }

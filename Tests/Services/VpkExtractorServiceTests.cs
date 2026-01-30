@@ -17,6 +17,7 @@
 using Moq;
 using NUnit.Framework;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Tests.Services
 {
@@ -27,13 +28,13 @@ namespace ArdysaModsTools.Tests.Services
     public class VpkExtractorServiceTests
     {
         private VpkExtractorService _service = null!;
-        private Mock<ILogger> _loggerMock = null!;
+        private Mock<IAppLogger> _loggerMock = null!;
         private List<string> _logMessages = null!;
 
         [SetUp]
         public void Setup()
         {
-            _loggerMock = new Mock<ILogger>();
+            _loggerMock = new Mock<IAppLogger>();
             _logMessages = new List<string>();
             _service = new VpkExtractorService(_loggerMock.Object);
         }

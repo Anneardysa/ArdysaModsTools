@@ -19,17 +19,29 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.UI.Controls;
 
 namespace ArdysaModsTools.Core.Services
 {
+    /// <summary>
+    /// Legacy interface for backward compatibility.
+    /// New code should use <see cref="IAppLogger"/> instead.
+    /// </summary>
+    [Obsolete("Use IAppLogger instead. Will be removed in v3.0.")]
     public interface ILogger
     {
         void Log(string message);
         void FlushBufferedLogs();
     }
 
-    public class Logger : ILogger
+    /// <summary>
+    /// UI-bound logger that outputs to RetroTerminal or RichTextBox controls.
+    /// Implements both IAppLogger (new) and ILogger (legacy) for compatibility.
+    /// </summary>
+#pragma warning disable CS0618 // ILogger is obsolete - Logger still supports it for compatibility
+    public class Logger : IAppLogger, ILogger
+#pragma warning restore CS0618
     {
         private readonly RetroTerminal? _terminal;
         private readonly RichTextBox? _richTextBox;
@@ -186,6 +198,40 @@ namespace ArdysaModsTools.Core.Services
 
             _buffer.Clear();
         }
+
+        #region IAppLogger Implementation
+
+        /// <inheritdoc />
+        public void Log(string message, LogLevel level = LogLevel.Info)
+        {
+            // Prefix message with level indicator for categorization
+            string prefixedMessage = level switch
+            {
+                LogLevel.Debug => $"[DEBUG] {message}",
+                LogLevel.Warning => $"Warning: {message}",
+                LogLevel.Error => $"Error: {message}",
+                _ => message  // Info has no prefix
+            };
+            Log(prefixedMessage);
+        }
+
+        /// <inheritdoc />
+        public void LogError(string message, Exception? ex = null)
+        {
+            string fullMessage = ex != null 
+                ? $"{message}: {ex.Message}" 
+                : message;
+            Log(fullMessage, LogLevel.Error);
+        }
+
+        /// <inheritdoc />
+        public void LogWarning(string message) => Log(message, LogLevel.Warning);
+
+        /// <inheritdoc />
+        public void LogDebug(string message) => Log(message, LogLevel.Debug);
+
+        #endregion
+
 
         private static string CleanMessage(string message)
         {

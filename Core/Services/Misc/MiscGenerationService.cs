@@ -22,6 +22,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Helpers;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -36,14 +37,14 @@ namespace ArdysaModsTools.Core.Services
         private readonly AssetModifierService _modifier;
         private readonly IVpkRecompiler _recompiler;
         private readonly IVpkReplacer _replacer;
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
         public MiscGenerationService(
             IVpkExtractor? extractor = null,
             AssetModifierService? modifier = null,
             IVpkRecompiler? recompiler = null,
             IVpkReplacer? replacer = null,
-            ILogger? logger = null)
+            IAppLogger? logger = null)
         {
             _extractor = extractor ?? new VpkExtractorService(logger);
             _modifier = modifier ?? new AssetModifierService(null, logger);

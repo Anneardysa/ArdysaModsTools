@@ -20,6 +20,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services.Update
 {
@@ -29,7 +30,7 @@ namespace ArdysaModsTools.Core.Services.Update
     /// </summary>
     public sealed class DotaPatchWatcherService : IDisposable
     {
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
         private readonly DotaVersionService _versionService;
         
         private FileSystemWatcher? _steamInfWatcher;
@@ -55,7 +56,7 @@ namespace ArdysaModsTools.Core.Services.Update
         /// </summary>
         public bool IsWatching => _isWatching;
         
-        public DotaPatchWatcherService(ILogger? logger = null)
+        public DotaPatchWatcherService(IAppLogger? logger = null)
         {
             _logger = logger;
             _versionService = new DotaVersionService(logger ?? NullLogger.Instance);

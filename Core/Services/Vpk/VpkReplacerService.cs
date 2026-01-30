@@ -18,6 +18,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -39,9 +40,9 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public sealed class VpkReplacerService : IVpkReplacer
     {
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
-        public VpkReplacerService(ILogger? logger = null)
+        public VpkReplacerService(IAppLogger? logger = null)
         {
             _logger = logger;
         }

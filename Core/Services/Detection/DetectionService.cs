@@ -30,9 +30,9 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public class DetectionService : IDetectionService
     {
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
-        public DetectionService(ILogger? logger = null)
+        public DetectionService(IAppLogger? logger = null)
         {
             _logger = logger; // Logger is optional for DI compatibility
         }

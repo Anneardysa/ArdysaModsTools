@@ -20,6 +20,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Exceptions;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -42,9 +43,9 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public sealed class VpkExtractorService : IVpkExtractor
     {
-        private readonly ILogger? _logger;
+        private readonly IAppLogger? _logger;
 
-        public VpkExtractorService(ILogger? logger = null)
+        public VpkExtractorService(IAppLogger? logger = null)
         {
             _logger = logger;
         }

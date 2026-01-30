@@ -15,15 +15,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System.Diagnostics;
+using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
     /// <summary>
-    /// A null-object implementation of ILogger that safely handles all log calls.
+    /// A null-object implementation of IAppLogger that safely handles all log calls.
     /// Writes to Debug output in DEBUG builds, otherwise does nothing.
     /// Use this instead of null checks: _logger = logger ?? NullLogger.Instance
     /// </summary>
-    public sealed class NullLogger : ILogger
+    /// <remarks>
+    /// This follows the Null Object Pattern, providing a safe default
+    /// that eliminates null checks throughout the codebase.
+    /// </remarks>
+#pragma warning disable CS0618 // ILogger is obsolete - NullLogger still supports it for compatibility
+    public sealed class NullLogger : IAppLogger, ILogger
+#pragma warning restore CS0618
     {
         /// <summary>
         /// Singleton instance of NullLogger.
@@ -32,17 +39,44 @@ namespace ArdysaModsTools.Core.Services
 
         private NullLogger() { }
 
+        #region IAppLogger Implementation
+
         /// <inheritdoc />
-        public void Log(string message)
+        public void Log(string message, LogLevel level = LogLevel.Info)
         {
-            WriteDebug(message);
+            WriteDebug($"[{level}] {message}");
         }
+
+        /// <inheritdoc />
+        public void LogError(string message, Exception? ex = null)
+        {
+            var fullMessage = ex != null ? $"{message}: {ex.Message}" : message;
+            WriteDebug($"[Error] {fullMessage}");
+        }
+
+        /// <inheritdoc />
+        public void LogWarning(string message) => WriteDebug($"[Warning] {message}");
+
+        /// <inheritdoc />
+        public void LogDebug(string message) => WriteDebug($"[Debug] {message}");
 
         /// <inheritdoc />
         public void FlushBufferedLogs()
         {
             // No-op for null logger - nothing to flush
         }
+
+        #endregion
+
+        #region Legacy ILogger Implementation
+
+        /// <inheritdoc />
+        public void Log(string message)
+        {
+            WriteDebug(message);
+        }
+
+        #endregion
 
         [Conditional("DEBUG")]
         private static void WriteDebug(string message)
