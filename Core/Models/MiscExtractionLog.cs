@@ -46,6 +46,20 @@ namespace ArdysaModsTools.Core.Models
         public Dictionary<string, List<string>> InstalledFiles { get; set; } = new();
 
         /// <summary>
+        /// Conflicts that were detected during generation.
+        /// Contains conflict IDs for reference.
+        /// </summary>
+        [JsonPropertyName("conflictsDetected")]
+        public List<string> ConflictsDetected { get; set; } = new();
+
+        /// <summary>
+        /// Resolutions that were applied during generation.
+        /// Key: conflict ID, Value: resolution description
+        /// </summary>
+        [JsonPropertyName("resolutionsApplied")]
+        public Dictionary<string, string> ResolutionsApplied { get; set; } = new();
+
+        /// <summary>
         /// Loads the extraction log from the specified target path.
         /// </summary>
         public static MiscExtractionLog? Load(string targetPath)

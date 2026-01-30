@@ -63,6 +63,7 @@ namespace ArdysaModsTools
             LoadPreset.Click += (s, e) => LoadPreset_Click();
             SavePreset.Click += (s, e) => SavePreset_Click();
             generateButton.Click += async (s, e) => await GenerateButton_Click();
+            PrioritySettings.Click += (s, e) => PrioritySettings_Click();
 
             // Apply font fallback
             UI.FontHelper.ApplyToForm(this);
@@ -309,6 +310,18 @@ namespace ArdysaModsTools
             }
         }
 
+        private void PrioritySettings_Click()
+        {
+            if (string.IsNullOrEmpty(_targetPath))
+            {
+                _miscLogger.Log("Error: No target path set. Cannot open priority settings.");
+                return;
+            }
+
+            using var dialog = new UI.Forms.PrioritySettingsDialog(_targetPath);
+            dialog.ShowDialog(this);
+        }
+
 
         private async Task GenerateButton_Click()
         {
@@ -393,6 +406,58 @@ namespace ArdysaModsTools
                     cleanLog, 
                     cts.Token,
                     null); // No speed progress
+
+                // Handle critical conflicts - show resolution dialog
+                while (operationResult.RequiresConflictResolution && operationResult.Conflicts != null)
+                {
+                    _miscLogger.Log("");
+                    _miscLogger.Log("Showing conflict resolution dialog...");
+                    
+                    var userChoices = new Dictionary<string, ConflictResolutionOption>();
+                    
+                    foreach (var conflict in operationResult.Conflicts)
+                    {
+                        using var conflictDialog = new UI.Forms.ConflictResolutionDialog(conflict);
+                        if (conflictDialog.ShowDialog(this) == DialogResult.OK && conflictDialog.SelectedOption != null)
+                        {
+                            userChoices[conflict.Id] = conflictDialog.SelectedOption;
+                            cleanLog($"User chose: {conflictDialog.SelectedOption.Strategy} for {conflict.Description}");
+                        }
+                        else
+                        {
+                            // User cancelled - abort generation
+                            _miscLogger.Log("! Conflict resolution cancelled by user.");
+                            return;
+                        }
+                    }
+                    
+                    // Apply user's resolutions
+                    _miscLogger.Log("Applying conflict resolutions...");
+                    var applyResult = await controller.ApplyConflictResolutionsAsync(
+                        operationResult.Conflicts,
+                        userChoices,
+                        _targetPath!,
+                        cleanLog,
+                        cts.Token);
+                    
+                    if (!applyResult.Success)
+                    {
+                        _miscLogger.Log($"! Failed to apply resolutions: {applyResult.Message}");
+                        MessageBox.Show($"Failed to apply conflict resolutions: {applyResult.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+                    
+                    // Retry generation with resolved conflicts
+                    _miscLogger.Log("");
+                    _miscLogger.Log("Retrying generation with resolved conflicts...");
+                    operationResult = await controller.GenerateModsAsync(
+                        _targetPath!, 
+                        selections, 
+                        selectedMode,
+                        cleanLog, 
+                        cts.Token,
+                        null);
+                }
 
                 var elapsed = DateTime.Now - startTime;
 

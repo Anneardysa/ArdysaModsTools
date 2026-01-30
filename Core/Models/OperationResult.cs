@@ -16,6 +16,7 @@
  */
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ArdysaModsTools.Core.Models
 {
@@ -43,6 +44,18 @@ namespace ArdysaModsTools.Core.Models
         /// <summary>Number of items that succeeded (for batch operations).</summary>
         public int SuccessCount { get; init; }
 
+        /// <summary>
+        /// If true, the operation failed because of unresolved conflicts
+        /// that need user intervention. Check Conflicts property for details.
+        /// </summary>
+        public bool RequiresConflictResolution { get; init; }
+
+        /// <summary>
+        /// List of conflicts that require user resolution.
+        /// Populated when RequiresConflictResolution is true.
+        /// </summary>
+        public IReadOnlyList<ModConflict>? Conflicts { get; init; }
+
         #region Static Factory Methods
 
         /// <summary>Create a successful result.</summary>
@@ -64,6 +77,16 @@ namespace ArdysaModsTools.Core.Models
         /// <summary>Create a failed batch result with failed items.</summary>
         public static OperationResult Fail(string message, List<(string name, string reason)> failedItems) => 
             new() { Success = false, Message = message, FailedItems = failedItems };
+
+        /// <summary>Create a result indicating conflicts need user resolution.</summary>
+        public static OperationResult NeedsConflictResolution(IEnumerable<ModConflict> conflicts, string? message = null) =>
+            new()
+            {
+                Success = false,
+                RequiresConflictResolution = true,
+                Conflicts = conflicts.ToList().AsReadOnly(),
+                Message = message ?? "Critical conflicts require user resolution."
+            };
 
         #endregion
     }

@@ -52,6 +52,13 @@ namespace ArdysaModsTools.Core.DependencyInjection
             services.AddTransient<IFileTransactionFactory, FileTransactionFactory>();
             
             // ═══════════════════════════════════════════════════════════════
+            // CONFLICT RESOLUTION SERVICES
+            // ═══════════════════════════════════════════════════════════════
+            services.AddSingleton<IConflictDetector, Services.Conflict.ConflictDetector>();
+            services.AddSingleton<IConflictResolver, Services.Conflict.ConflictResolver>();
+            services.AddSingleton<IModPriorityService, Services.Conflict.ModPriorityService>();
+            
+            // ═══════════════════════════════════════════════════════════════
             // HERO SERVICES
             // ═══════════════════════════════════════════════════════════════
             services.AddTransient<IHeroGenerationService, HeroGenerationService>();

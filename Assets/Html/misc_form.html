@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
    <head>
       <meta charset="UTF-8" />
@@ -696,9 +696,8 @@
          function loadOptions(optionsJson) {
             options = typeof optionsJson === "string" ? JSON.parse(optionsJson) : optionsJson;
 
-            document.getElementById(
-               "optionsCount"
-            ).textContent = `${options.length} options available`;
+            document.getElementById("optionsCount").textContent =
+               `${options.length} options available`;
 
             // Hide loading overlay immediately and render
             hideCachingOverlay();
@@ -890,7 +889,7 @@
             document.getElementById("alertTitle").textContent = title;
             document.getElementById("alertMessage").textContent = message;
             ["Success", "Warning", "Info", "Error"].forEach((t) =>
-               document.getElementById(`alertIcon${t}`).classList.add("hidden")
+               document.getElementById(`alertIcon${t}`).classList.add("hidden"),
             );
             const iconMap = {
                success: "Success",
@@ -910,7 +909,7 @@
                   warning: "bg-orange-500/20",
                   error: "bg-red-500/20",
                   info: "bg-amt-accent/20",
-               }[type] || "bg-amt-accent/20"
+               }[type] || "bg-amt-accent/20",
             );
             document.getElementById("alertModal").classList.remove("hidden");
          }

@@ -32,6 +32,7 @@ namespace ArdysaModsTools
         private RoundedButton generateButton;
         private RoundedButton LoadPreset;
         private RoundedButton SavePreset;
+        private RoundedButton PrioritySettings;
 
         // Separator
         private System.Windows.Forms.Panel Separator;
@@ -67,6 +68,7 @@ namespace ArdysaModsTools
             generateButton = new RoundedButton();
             LoadPreset = new RoundedButton();
             SavePreset = new RoundedButton();
+            PrioritySettings = new RoundedButton();
             Separator = new Panel();
             ScrollContainer = new Panel();
             RowsFlow = new FlowLayoutPanel();
@@ -134,6 +136,7 @@ namespace ArdysaModsTools
             ActionButtonsFlow.Controls.Add(generateButton);
             ActionButtonsFlow.Controls.Add(LoadPreset);
             ActionButtonsFlow.Controls.Add(SavePreset);
+            ActionButtonsFlow.Controls.Add(PrioritySettings);
             ActionButtonsFlow.Dock = DockStyle.Right;
             ActionButtonsFlow.FlowDirection = FlowDirection.RightToLeft;
             ActionButtonsFlow.Location = new Point(584, 0);
@@ -205,6 +208,27 @@ namespace ArdysaModsTools
             SavePreset.TabIndex = 2;
             SavePreset.Text = "Save";
             SavePreset.UseVisualStyleBackColor = false;
+            // 
+            // PrioritySettings
+            // 
+            PrioritySettings.BackColor = Color.FromArgb(30, 30, 30);
+            PrioritySettings.BorderColor = Color.FromArgb(51, 51, 51);
+            PrioritySettings.BorderRadius = 0;
+            PrioritySettings.FlatAppearance.BorderSize = 0;
+            PrioritySettings.FlatStyle = FlatStyle.Flat;
+            PrioritySettings.Font = new Font("JetBrains Mono", 9F);
+            PrioritySettings.ForeColor = Color.FromArgb(150, 150, 150);
+            PrioritySettings.HighlightColor = Color.White;
+            PrioritySettings.Highlighted = false;
+            PrioritySettings.HoverBackColor = Color.White;
+            PrioritySettings.HoverForeColor = Color.Black;
+            PrioritySettings.Location = new Point(6, 7);
+            PrioritySettings.Margin = new Padding(6, 3, 6, 3);
+            PrioritySettings.Name = "PrioritySettings";
+            PrioritySettings.Size = new Size(36, 36);
+            PrioritySettings.TabIndex = 3;
+            PrioritySettings.Text = "⚙";
+            PrioritySettings.UseVisualStyleBackColor = false;
             // 
             // Separator
             // 
