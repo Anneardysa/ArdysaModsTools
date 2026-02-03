@@ -77,9 +77,10 @@ namespace ArdysaModsTools.Helpers
             }
             catch (Exception ex)
             {
-                // Conservative behavior retained, but log the reason.
+                // Log the error but don't block the user - false positives are worse than false negatives
+                // If we can't enumerate processes, it's likely a permissions issue, not Dota running
                 ArdysaModsTools.Core.Services.FallbackLogger.Log($"ProcessChecker.IsProcessRunning failed for '{name}': {ex.Message}");
-                return true; // keep conservative default
+                return false; // Don't block user on process enumeration failures
             }
         }
 

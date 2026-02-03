@@ -17,9 +17,12 @@
 using Moq;
 using NUnit.Framework;
 using System.Windows.Forms;
+using Microsoft.Extensions.DependencyInjection;
 using ArdysaModsTools.UI.Interfaces;
 using ArdysaModsTools.UI.Presenters;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Interfaces;
+using ArdysaModsTools.Core.DependencyInjection;
 
 namespace ArdysaModsTools.Tests.Presenters
 {
@@ -32,6 +35,7 @@ namespace ArdysaModsTools.Tests.Presenters
     public class MainFormPresenterTests
     {
         private Mock<IMainFormView> _viewMock = null!;
+        private Mock<IConfigService> _configMock = null!;
         private List<string> _logMessages = null!;
         private RichTextBox _testConsole = null!;
         private Logger _logger = null!;
@@ -40,11 +44,27 @@ namespace ArdysaModsTools.Tests.Presenters
         public void Setup()
         {
             _viewMock = new Mock<IMainFormView>();
+            _configMock = new Mock<IConfigService>();
             _logMessages = new List<string>();
 
             // Create a real RichTextBox for the Logger
             _testConsole = new RichTextBox();
             _logger = new Logger(_testConsole);
+
+            // Setup default config behavior
+            _configMock.Setup(c => c.GetLastTargetPath()).Returns((string?)null);
+            _configMock.Setup(c => c.GetValue(It.IsAny<string>(), It.IsAny<bool>())).Returns(false);
+
+            // Initialize ServiceLocator with mock services
+            var services = new ServiceCollection();
+            services.AddSingleton(_configMock.Object);
+            var serviceProvider = services.BuildServiceProvider();
+            
+            // Only initialize if not already initialized (prevents issues with parallel test runs)
+            if (!ServiceLocator.IsInitialized)
+            {
+                ServiceLocator.Initialize(serviceProvider);
+            }
 
             // Setup default view behavior
             _viewMock.Setup(v => v.Log(It.IsAny<string>()))
@@ -60,6 +80,9 @@ namespace ArdysaModsTools.Tests.Presenters
         public void TearDown()
         {
             _testConsole?.Dispose();
+            
+            // Dispose ServiceLocator to clean up for next test
+            ServiceLocator.Dispose();
         }
 
         #region Constructor Tests
