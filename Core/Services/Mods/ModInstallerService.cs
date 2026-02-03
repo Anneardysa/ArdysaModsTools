@@ -770,6 +770,20 @@ namespace ArdysaModsTools.Core.Services
                         _logger?.Log("[PATCH] Game config updated successfully.");
                         
                         transaction.Commit();
+                        
+                        // Save current Dota 2 version to version.json so status check knows patch is current
+                        try
+                        {
+                            var versionService = new DotaVersionService(_logger);
+                            await versionService.SavePatchedVersionJsonAsync(targetPath).ConfigureAwait(false);
+                            _logger?.Log("[PATCH] Version info saved.");
+                        }
+                        catch (Exception ex)
+                        {
+                            // Non-fatal - log but don't fail the patch
+                            _logger?.Log($"[PATCH] Warning: Failed to save version info: {ex.Message}");
+                        }
+                        
                         _logger?.Log("[PATCH] Patch completed successfully!");
                         return PatchResult.Success;
                     }

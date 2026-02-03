@@ -1162,20 +1162,21 @@ namespace ArdysaModsTools.UI.Presenters
             switch (freshStatus.Status)
             {
                 case ModStatus.NeedUpdate:
+                    // Show styled dialog asking user to patch
+                    if (_view.ShowPatchRequiredDialog(freshStatus.Description))
+                    {
+                        await ExecutePatchAsync();
+                    }
+                    break;
+
                 case ModStatus.Ready:
                     // Show options menu
                     _view.ShowPatchMenu();
                     break;
 
                 case ModStatus.Disabled:
-                    // Offer to enable
-                    var result = _view.ShowMessageBox(
-                        "Mods are currently disabled. Would you like to enable them?",
-                        "Enable Mods",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Question);
-
-                    if (result == DialogResult.Yes)
+                    // Show styled dialog asking user to enable/patch
+                    if (_view.ShowPatchRequiredDialog("Mods are currently disabled.\n\nClick 'Patch Now' to enable them."))
                     {
                         await ExecutePatchAsync();
                     }
