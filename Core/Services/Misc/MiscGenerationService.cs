@@ -20,6 +20,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Interfaces;
@@ -87,7 +88,8 @@ namespace ArdysaModsTools.Core.Services
                     return Fail("Missing required tools (HLExtract.exe / vpk.exe).", log);
 
                 // Create temp directories
-                string tempRoot = Path.Combine(Path.GetTempPath(), $"ArdysaMods_{Guid.NewGuid():N}");
+                // Use safe temp path for non-ASCII username compatibility
+                string tempRoot = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), $"ArdysaMods_{Guid.NewGuid():N}");
                 string extractDir = Path.Combine(tempRoot, "extract");
                 string buildDir = Path.Combine(tempRoot, "build");
                 Directory.CreateDirectory(extractDir);

@@ -98,6 +98,15 @@ namespace ArdysaModsTools.UI.Interfaces
         DialogResult ShowMessageBox(string message, string title, MessageBoxButtons buttons, MessageBoxIcon icon);
 
         /// <summary>
+        /// Shows a modern styled message dialog.
+        /// </summary>
+        /// <param name="title">Dialog title</param>
+        /// <param name="message">Message content</param>
+        /// <param name="type">Message type (Success, Warning, Error, Info)</param>
+        /// <returns>User's response</returns>
+        DialogResult ShowStyledMessage(string title, string message, Forms.StyledMessageType type);
+
+        /// <summary>
         /// Shows a folder selection dialog.
         /// </summary>
         /// <param name="title">Dialog title</param>
@@ -214,15 +223,19 @@ namespace ArdysaModsTools.UI.Interfaces
         /// <summary>
         /// Shows the hero gallery and returns the generation result.
         /// </summary>
-        /// <returns>Tuple of (DialogResult, GenerationResult)</returns>
         (DialogResult Result, ModGenerationResult? GenerationResult) ShowHeroGallery();
 
+        /// <summary>
+        /// Shows the classic hero selector (fallback) and returns the generation result.
+        /// </summary>
+        (DialogResult Result, ModGenerationResult? GenerationResult) ShowClassicHeroSelector();
+        
         /// <summary>
         /// Shows the miscellaneous form and returns the generation result.
         /// </summary>
         /// <param name="targetPath">Current target path</param>
-        /// <returns>Generation result, or null if cancelled</returns>
-        ModGenerationResult? ShowMiscForm(string? targetPath);
+        /// <returns>Dialog result and generation result</returns>
+        (DialogResult Result, ModGenerationResult? GenerationResult) ShowMiscForm(string? targetPath);
 
         /// <summary>
         /// Shows the status details form.
@@ -252,6 +265,12 @@ namespace ArdysaModsTools.UI.Interfaces
         /// </summary>
         /// <param name="statusInfo">Status information</param>
         void UpdateButtonsForStatus(ModStatusInfo statusInfo);
+
+        /// <summary>
+        /// Updates UI to show that a Dota 2 patch was detected.
+        /// Sets status text and highlights patch button.
+        /// </summary>
+        void SetPatchDetectedStatus();
 
         #endregion
 

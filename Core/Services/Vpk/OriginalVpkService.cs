@@ -21,6 +21,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Helpers;
+using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Services.Config;
@@ -61,7 +62,8 @@ namespace ArdysaModsTools.Core.Services
         {
             _httpClient = httpClient ?? HttpClientProvider.Client;
             _extractor = extractor ?? new VpkExtractorService(logger);
-            _cacheRoot = Path.Combine(Path.GetTempPath(), "ArdysaSelectHero", "cache", "original");
+            // Use safe temp path for non-ASCII username compatibility
+            _cacheRoot = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero", "cache", "original");
             Directory.CreateDirectory(_cacheRoot);
             _logger = logger;
         }

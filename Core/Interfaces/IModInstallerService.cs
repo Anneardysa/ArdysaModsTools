@@ -77,6 +77,12 @@ namespace ArdysaModsTools.Core.Interfaces
             string dotaPath,
             Action<string>? statusCallback = null,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Sets the logger for the service.
+        /// Useful when the correct logger (e.g. UI logger) is only available after service construction.
+        /// </summary>
+        void SetLogger(IAppLogger logger);
     }
 }
 

@@ -21,10 +21,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.DependencyInjection;
+using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Update;
+using System.Net.Http;
 using ArdysaModsTools.UI.Interfaces;
 
 namespace ArdysaModsTools.UI.Presenters
@@ -44,8 +47,12 @@ namespace ArdysaModsTools.UI.Presenters
         private readonly ModInstallerService _modInstaller;
         private readonly DetectionService _detection;
         private readonly StatusService _status;
-        private readonly MainConfigService _config;
+        private readonly IConfigService _config;
         private readonly Dota2Monitor _dotaMonitor;
+        private readonly DotaVersionService _versionService;
+        
+        private bool _patchDialogDismissedByUser;
+        private DotaPatchWatcherService? _patchWatcher;
 
         private string? _targetPath;
         private CancellationTokenSource? _operationCts;
@@ -55,6 +62,17 @@ namespace ArdysaModsTools.UI.Presenters
         private const string RequiredModFilePath = DotaPaths.ModsVpk;
 
         #endregion
+
+        #region Public Properties
+
+        /// <summary>
+        /// Gets whether an operation is currently running.
+        /// </summary>
+        public bool IsOperationRunning => _ongoingOperationTask != null;
+
+        #endregion
+
+
 
         #region Constructor & Initialization
 
@@ -77,7 +95,8 @@ namespace ArdysaModsTools.UI.Presenters
             _modInstaller = new ModInstallerService(_logger);
             _detection = new DetectionService(_logger);
             _status = new StatusService(_logger);
-            _config = new MainConfigService();
+            _config = ServiceLocator.GetRequired<IConfigService>();
+            _versionService = new DotaVersionService(_logger);
 
             _dotaMonitor = new Dota2Monitor();
             _dotaMonitor.OnDota2StateChanged += OnDotaStateChanged;
@@ -102,6 +121,7 @@ namespace ArdysaModsTools.UI.Presenters
                 if (!string.IsNullOrEmpty(_targetPath))
                 {
                     await CheckModsStatusAsync();
+                    await StartPatchWatcherAsync(_targetPath);
                     _view.EnableAllButtons();
                 }
                 else
@@ -122,6 +142,7 @@ namespace ArdysaModsTools.UI.Presenters
             if (!string.IsNullOrEmpty(last) && Directory.Exists(last))
             {
                 _targetPath = last;
+                _view.TargetPath = last;
             }
             else if (!string.IsNullOrEmpty(last))
             {
@@ -146,8 +167,11 @@ namespace ArdysaModsTools.UI.Presenters
                 if (!string.IsNullOrEmpty(detectedPath))
                 {
                     _targetPath = detectedPath;
+                    _view.TargetPath = detectedPath;
                     _config.SetLastTargetPath(_targetPath);
                     await CheckModsStatusAsync();
+                    await StartPatchWatcherAsync(_targetPath);
+                    await ShowInstallDialogIfNeededAsync();
                     _view.EnableAllButtons();
                 }
                 else
@@ -175,9 +199,12 @@ namespace ArdysaModsTools.UI.Presenters
                 if (!string.IsNullOrEmpty(selectedPath))
                 {
                     _targetPath = selectedPath;
+                    _view.TargetPath = selectedPath;
                     _config.SetLastTargetPath(_targetPath);
                     _logger.Log($"Dota 2 path set: {_targetPath}");
                     await CheckModsStatusAsync();
+                    await StartPatchWatcherAsync(_targetPath);
+                    await ShowInstallDialogIfNeededAsync();
                     _view.EnableAllButtons();
                 }
                 else
@@ -220,13 +247,46 @@ namespace ArdysaModsTools.UI.Presenters
             }
 
             // Auto install
+            
+            // Limit check to "CheckForNewerModsPackAsync" to match MainForm logic
+            try
+            {
+                var (hasNewer, hasLocalInstall) = await _modInstaller.CheckForNewerModsPackAsync(_targetPath);
+                
+                if (hasNewer && hasLocalInstall)
+                {
+                    // Show dialog for update
+                    var result = _view.ShowMessageBox(
+                        "A newer ModsPack is available!\n\nDownload and install the update?",
+                        "Update Available",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Information
+                    );
+                    
+                    if (result != DialogResult.Yes)
+                    {
+                        // User chose NOT to update
+                        // In MainForm this just returned, effectively cancelling the install if it was an "Update" intent?
+                        // Or maybe it proceeds with existing? 
+                        // MainForm logic: "if (result != DialogResult.Yes) return;"
+                        // So we cancel.
+                        return false; 
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Update check failed: {ex.Message}");
+                // Proceed anyway as fallback
+            }
+
             return await RunAutoInstallAsync();
         }
 
         private async Task<bool> RunAutoInstallAsync()
         {
-            var cts = StartOperation();
-            var token = cts.Token;
+            // Lock UI
+            StartOperation();
             var appPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule!.FileName)!;
 
             bool success = false;
@@ -234,54 +294,26 @@ namespace ArdysaModsTools.UI.Presenters
 
             try
             {
-                await _view.ShowProgressOverlayAsync();
-                await _view.UpdateProgressAsync(0, "Initializing...");
-
-                // Create progress reporter
-                var speedTracker = new Stopwatch();
-                long lastBytes = 0;
-                double lastSpeed = 0;
-                speedTracker.Start();
-
-                Action<long, long> byteCallback = async (downloaded, total) =>
+                var result = await _view.RunWithProgressOverlayAsync("Initializing...", async (ctx) =>
                 {
-                    double elapsed = speedTracker.Elapsed.TotalSeconds;
-                    if (elapsed >= 0.5)
-                    {
-                        long deltaBytes = downloaded - lastBytes;
-                        lastSpeed = deltaBytes / elapsed / (1024 * 1024);
-                        lastBytes = downloaded;
-                        speedTracker.Restart();
-                    }
+                    // Run installation using context tokens and progress
+                    var (opSuccess, opIsUpToDate) = await _modInstaller.InstallModsAsync(
+                        _targetPath!, appPath, ctx.Progress, ctx.Token, force: false, speedProgress: ctx.Speed
+                    ).ConfigureAwait(false);
 
-                    string speedText = lastSpeed > 0 ? $" @ {lastSpeed:F1} MB/s" : "";
-                    string text = total > 0
-                        ? $"{downloaded / (1024 * 1024)} / {total / (1024 * 1024)} MB{speedText}"
-                        : $"{downloaded / (1024 * 1024)} MB{speedText}";
+                    success = opSuccess;
+                    isUpToDate = opIsUpToDate;
 
-                    _view.InvokeOnUIThread(async () =>
-                        await _view.UpdateProgressAsync(-1, "Downloading...", text));
-                };
-
-                var progress = new Progress<int>(async percent =>
-                {
-                    await _view.UpdateProgressAsync(Math.Clamp(percent, 0, 100), "Installing...");
+                    return opSuccess 
+                        ? OperationResult.Ok() 
+                        : OperationResult.Fail("Installation failed");
                 });
 
-                // Run installation
-                _ongoingOperationTask = Task.Run(async () =>
+                if (!result.Success)
                 {
-                    return await _modInstaller.InstallModsAsync(
-                        _targetPath!, appPath, progress, token, force: false, speedProgress: null
-                    ).ConfigureAwait(false);
-                }, token);
-
-                (success, isUpToDate) = await _ongoingOperationTask;
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.Log("Installation cancelled.");
-                success = false;
+                    // Service already logs detailed failure - just set flag
+                    success = false;
+                }
             }
             catch (Exception ex)
             {
@@ -290,8 +322,6 @@ namespace ArdysaModsTools.UI.Presenters
             }
             finally
             {
-                _view.HideProgressOverlay();
-                _ongoingOperationTask = null;
                 EndOperation();
             }
 
@@ -318,55 +348,67 @@ namespace ArdysaModsTools.UI.Presenters
             else if (success)
             {
                 await CheckModsStatusAsync();
-                _view.ShowMessageBox("Installation complete!", "Success",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                _view.ShowStyledMessage(
+                    "Installation Complete",
+                    "ModsPack installed successfully!",
+                    Forms.StyledMessageType.Success);
+                
+                // Check if patch is required after install
+                await ShowPatchRequiredIfNeededAsync();
             }
             else
             {
-                _view.ShowMessageBox("Installation failed. Check the log for details.",
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _view.ShowStyledMessage(
+                    "Installation Failed",
+                    "Installation failed. Check the console for details.",
+                    Forms.StyledMessageType.Error);
             }
         }
 
         private async Task ReinstallAsync(string appPath)
         {
-            var cts = StartOperation();
-            var token = cts.Token;
-
+            StartOperation();
+            
             try
             {
-                await _view.ShowProgressOverlayAsync();
-
-                var progress = new Progress<int>(async percent =>
+                var result = await _view.RunWithProgressOverlayAsync("Reinstalling ModsPack...", async (ctx) =>
                 {
-                    await _view.UpdateProgressAsync(Math.Clamp(percent, 0, 100), "Reinstalling...");
+                    var (opSuccess, _) = await _modInstaller.InstallModsAsync(
+                        _targetPath!, appPath, ctx.Progress, ctx.Token, force: true, speedProgress: ctx.Speed
+                    ).ConfigureAwait(false);
+
+                    return opSuccess 
+                        ? OperationResult.Ok() 
+                        : OperationResult.Fail("Reinstallation failed");
                 });
 
-                var (success, _) = await Task.Run(async () =>
-                {
-                    return await _modInstaller.InstallModsAsync(
-                        _targetPath!, appPath, progress, token, force: true, speedProgress: null
-                    ).ConfigureAwait(false);
-                }, token);
-
-                if (success)
+                if (result.Success)
                 {
                     await CheckModsStatusAsync();
-                    _view.ShowMessageBox("Reinstallation complete!", "Success",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _view.ShowStyledMessage(
+                        "Reinstallation Complete",
+                        "ModsPack reinstalled successfully!",
+                        Forms.StyledMessageType.Success);
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.Log("Reinstallation cancelled.");
+                else
+                {
+                    // Service already logs detailed failure
+                    _view.ShowStyledMessage(
+                        "Reinstallation Failed",
+                        "Reinstallation failed. Check the console for details.",
+                        Forms.StyledMessageType.Error);
+                }
             }
             catch (Exception ex)
             {
                 _logger.Log($"Reinstallation error: {ex.Message}");
+                _view.ShowStyledMessage(
+                    "Reinstallation Error",
+                    $"Error: {ex.Message}",
+                    Forms.StyledMessageType.Error);
             }
             finally
             {
-                _view.HideProgressOverlay();
                 EndOperation();
             }
         }
@@ -380,19 +422,24 @@ namespace ArdysaModsTools.UI.Presenters
             var fileName = Path.GetFileName(vpkPath);
             if (!fileName.Equals("pak01_dir.vpk", StringComparison.OrdinalIgnoreCase))
             {
-                _view.ShowMessageBox("Please select pak01_dir.vpk", "Invalid File",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _view.ShowStyledMessage(
+                    "Invalid File",
+                    "Please select pak01_dir.vpk",
+                    Forms.StyledMessageType.Warning);
                 return false;
             }
 
             var (isValid, errorMessage) = await _modInstaller.ValidateVpkAsync(vpkPath);
             if (!isValid)
             {
-                _view.ShowMessageBox("VPK is invalid, please contact developer.",
-                    "Invalid VPK", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                _view.ShowStyledMessage(
+                    "Invalid VPK",
+                    "ModsPack Error.\nPlease contact developer if this is unexpected.",
+                    Forms.StyledMessageType.Error);
                 return false;
             }
 
+            // Confirmation dialog - using standard MessageBox for Yes/No is acceptable
             var confirmResult = _view.ShowMessageBox(
                 $"Install VPK:\n{fileName}\n\nContinue?",
                 "Confirm Install",
@@ -402,36 +449,50 @@ namespace ArdysaModsTools.UI.Presenters
             if (confirmResult != DialogResult.Yes)
                 return false;
 
-            var cts = StartOperation();
-            var token = cts.Token;
+            StartOperation();
             bool success = false;
 
             try
             {
-                var progress = new Progress<int>(async percent =>
+                var result = await _view.RunWithProgressOverlayAsync("Installing ModsPack...", async (ctx) =>
                 {
-                    await _view.UpdateProgressAsync(Math.Clamp(percent, 0, 100), "Installing...");
+                    var opSuccess = await _modInstaller.ManualInstallModsAsync(
+                        _targetPath!, vpkPath, ctx.Progress, ctx.Token, speedProgress: ctx.Speed
+                    ).ConfigureAwait(false);
+
+                    if (opSuccess) success = true;
+
+                    return opSuccess 
+                        ? OperationResult.Ok() 
+                        : OperationResult.Fail("Installation failed");
                 });
 
-                success = await Task.Run(async () =>
-                {
-                    return await _modInstaller.ManualInstallModsAsync(
-                        _targetPath!, vpkPath, progress, token, speedProgress: null
-                    ).ConfigureAwait(false);
-                }, token);
-
-                if (success)
+                if (result.Success)
                 {
                     await CheckModsStatusAsync();
+                    _view.ShowStyledMessage(
+                        "Installation Complete",
+                        "ModsPack installed successfully! Your mods are now ready.",
+                        Forms.StyledMessageType.Success);
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.Log("Manual installation cancelled.");
+                else
+                {
+                    _logger.Log(result.Message ?? "Installation failed");
+                    _view.ShowStyledMessage(
+                        "Installation Failed",
+                        "Installation failed. Check the console for details.",
+                        Forms.StyledMessageType.Error);
+                    success = false;
+                }
             }
             catch (Exception ex)
             {
-                _logger.Log($"Manual installation error: {ex.Message}");
+                _logger.Log($"Error installing VPK: {ex.Message}");
+                _view.ShowStyledMessage(
+                    "Installation Error",
+                    $"Error: {ex.Message}",
+                    Forms.StyledMessageType.Error);
+                success = false;
             }
             finally
             {
@@ -647,7 +708,7 @@ namespace ArdysaModsTools.UI.Presenters
 
         #region Status & Utilities
 
-        private async Task CheckModsStatusAsync()
+        private async Task CheckModsStatusAsync(bool force = false)
         {
             if (string.IsNullOrEmpty(_targetPath))
             {
@@ -657,8 +718,21 @@ namespace ArdysaModsTools.UI.Presenters
 
             try
             {
-                // Get detailed status from enhanced StatusService
-                var statusInfo = await _status.GetDetailedStatusAsync(_targetPath);
+                ModStatusInfo statusInfo;
+                if (force)
+                {
+                    statusInfo = await _status.ForceRefreshAsync(_targetPath);
+                }
+                else
+                {
+                    statusInfo = await _status.GetDetailedStatusAsync(_targetPath);
+                }
+
+                // Check for duplicates to avoid log spam
+                bool isSameStatus = _currentStatus != null && 
+                                   _currentStatus.Status == statusInfo.Status && 
+                                   _currentStatus.Description == statusInfo.Description;
+
                 _currentStatus = statusInfo; // Store for ShowStatusDetails
                 
                 _view.InvokeOnUIThread(() =>
@@ -666,8 +740,11 @@ namespace ArdysaModsTools.UI.Presenters
                     // Use detailed status update if available
                     _view.SetModsStatusDetailed(statusInfo);
                     
-                    // Log status change
-                    _logger.Log($"[STATUS] {statusInfo.StatusText}: {statusInfo.Description}");
+                    // Log status change only if changed or forced
+                    if (!isSameStatus || force)
+                    {
+                        _logger.Log($"[STATUS] {statusInfo.StatusText}: {statusInfo.Description}");
+                    }
                     
                     // Auto-enable/disable buttons based on status
                     if (statusInfo.Status == ModStatus.Error)
@@ -770,6 +847,98 @@ namespace ArdysaModsTools.UI.Presenters
 
         #endregion
 
+        #region Dota Patch Watcher
+
+        /// <summary>
+        /// Starts monitoring for Dota 2 updates.
+        /// Will skip if already watching the same path.
+        /// </summary>
+        public async Task StartPatchWatcherAsync(string dotaPath)
+        {
+            try
+            {
+                // Skip if already watching
+                if (_patchWatcher != null && _patchWatcher.IsWatching)
+                {
+                    return;
+                }
+
+                // Dispose existing watcher if any
+                _patchWatcher?.Dispose();
+
+                // Create new watcher
+                _patchWatcher = new DotaPatchWatcherService(_logger);
+                _patchWatcher.OnPatchDetected += OnPatchDetected;
+
+                await _patchWatcher.StartWatchingAsync(dotaPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"[PatchWatcher] Failed to start: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Called when Dota 2 patch is detected by the watcher.
+        /// Shows notification and updates UI.
+        /// </summary>
+        private void OnPatchDetected(PatchDetectedEventArgs args)
+        {
+            try
+            {
+                _logger.Log($"[PatchWatcher] Dota 2 update detected: {args.ChangeSummary}");
+
+                // Show notification
+                ShowPatchDetectedNotification(args);
+
+                // Update UI via view interface
+                _view.SetPatchDetectedStatus();
+
+                // Refresh status to get accurate state
+                _ = CheckModsStatusAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"[PatchWatcher] Error handling patch: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Shows notification for detected patch.
+        /// Logs to console and plays system sound.
+        /// </summary>
+        private void ShowPatchDetectedNotification(PatchDetectedEventArgs args)
+        {
+            try
+            {
+                _logger.Log("═══════════════════════════════════════════");
+                _logger.Log("🎮 DOTA 2 UPDATE DETECTED!");
+                _logger.Log(args.RequiresRepatch 
+                    ? "Action Required: Click 'Patch Update' to fix your mods." 
+                    : "Your mods may need re-patching.");
+                _logger.Log($"New Version: {args.NewVersion}");
+                _logger.Log("═══════════════════════════════════════════");
+                
+                // Play system notification sound
+                System.Media.SystemSounds.Exclamation.Play();
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"[PatchWatcher] Notification failed: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Stops the patch watcher and cleans up resources.
+        /// </summary>
+        public void StopPatchWatcher()
+        {
+            _patchWatcher?.Dispose();
+            _patchWatcher = null;
+        }
+
+        #endregion
+
         #region Operation Management
 
         private CancellationTokenSource StartOperation()
@@ -816,10 +985,6 @@ namespace ArdysaModsTools.UI.Presenters
             catch { }
         }
 
-        /// <summary>
-        /// Gets whether an operation is currently running.
-        /// </summary>
-        public bool IsOperationRunning => _ongoingOperationTask != null;
 
         /// <summary>
         /// Gets the current target path.
@@ -835,150 +1000,9 @@ namespace ArdysaModsTools.UI.Presenters
 
         #endregion
 
-        #region Hero Gallery
 
-        /// <summary>
-        /// Flag to track if user dismissed patch dialog with "Later".
-        /// </summary>
-        private bool _patchDialogDismissedByUser;
 
-        /// <summary>
-        /// Opens the hero gallery with proper validation and beta warning.
-        /// </summary>
-        public async Task OpenHeroGalleryAsync()
-        {
-            if (string.IsNullOrEmpty(_targetPath))
-            {
-                return;
-            }
 
-            // Check GitHub access before opening form
-            var hasAccess = await CheckHeroesJsonAccessAsync();
-            if (!hasAccess)
-            {
-                _view.ShowMessageBox(
-                    "Unable to access this feature.\n\n" +
-                    "Please check your internet connection and try again.\n" +
-                    "The Select Hero feature requires online access to load hero data.",
-                    "Connection Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                _logger.Log("Connection to server failed.");
-                return;
-            }
-
-            // Show beta warning dialog
-            var betaResult = _view.ShowMessageBox(
-                "[BETA VERSION] - Skin Selector\n\n" +
-                "This feature is currently in beta. Not all hero sets are available yet.\n\n" +
-                "More hero sets will be added soon!\n\n" +
-                "IMPORTANT:\n" +
-                "Using this feature will remove your ModsPack.\n" +
-                "Custom sets are built independently and are NOT linked to the standard ModsPack.\n\n" +
-                "Do you want to continue?",
-                "Beta Feature Warning",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning);
-
-            if (betaResult != DialogResult.Yes)
-            {
-                return;
-            }
-
-            // Show hero gallery and get result
-            var (dialogResult, generationResult) = _view.ShowHeroGallery();
-
-            // Log generation result to console
-            if (generationResult != null)
-            {
-                LogGenerationResult(generationResult);
-            }
-
-            // Always refresh status after hero gallery closes
-            await RefreshStatusAfterModOperationAsync();
-
-            // If generation was successful, check if patching needed
-            if (dialogResult == DialogResult.OK)
-            {
-                await ShowPatchRequiredIfNeededAsync("Custom ModsPack installed successfully!");
-            }
-        }
-
-        /// <summary>
-        /// Checks if heroes.json is accessible from GitHub/CDN.
-        /// </summary>
-        private async Task<bool> CheckHeroesJsonAccessAsync()
-        {
-            string heroesJsonUrl = Core.Services.Config.EnvironmentConfig.BuildRawUrl("Assets/heroes.json");
-            try
-            {
-                using var client = new System.Net.Http.HttpClient();
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                using var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, heroesJsonUrl);
-                using var response = await client.SendAsync(request, cts.Token);
-                return response.IsSuccessStatusCode;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        #endregion
-
-        #region Miscellaneous Form
-
-        /// <summary>
-        /// Opens the miscellaneous form for additional mod options.
-        /// </summary>
-        public async Task OpenMiscFormAsync()
-        {
-            var generationResult = _view.ShowMiscForm(_targetPath);
-
-            // Log generation result to MainForm console
-            if (generationResult != null)
-            {
-                LogGenerationResult(generationResult);
-            }
-
-            // Always refresh status after MiscForm closes
-            await RefreshStatusAfterModOperationAsync();
-        }
-
-        /// <summary>
-        /// Logs the result of a mod generation operation to the console.
-        /// </summary>
-        private void LogGenerationResult(ModGenerationResult result)
-        {
-            if (result.Success)
-            {
-                switch (result.Type)
-                {
-                    case GenerationType.Miscellaneous:
-                        string modeText = result.MiscMode == MiscGenerationMode.GenerateOnly
-                            ? "Clean Generate"
-                            : "Add to Current";
-                        _logger.Log($"[MISC] Generation complete ({modeText}) - {result.OptionsCount} option(s) in {result.Duration.TotalSeconds:F1}s");
-                        break;
-
-                    case GenerationType.SkinSelector:
-                        _logger.Log($"[SKIN] Generation complete - {result.Details ?? $"{result.OptionsCount} hero(es)"} in {result.Duration.TotalSeconds:F1}s");
-                        break;
-
-                    default:
-                        _logger.Log($"[GEN] Generation complete - {result.OptionsCount} item(s) in {result.Duration.TotalSeconds:F1}s");
-                        break;
-                }
-            }
-            else
-            {
-                string typePrefix = result.Type == GenerationType.Miscellaneous ? "[MISC]" :
-                                   result.Type == GenerationType.SkinSelector ? "[SKIN]" : "[GEN]";
-                _logger.Log($"{typePrefix} Generation failed: {result.ErrorMessage ?? "Unknown error"}");
-            }
-        }
-
-        #endregion
 
         #region Post-Install Dialogs
 
@@ -1046,28 +1070,8 @@ namespace ArdysaModsTools.UI.Presenters
             }
         }
 
-        /// <summary>
-        /// Refreshes mod status after any mod generation/modification operation.
-        /// </summary>
-        public async Task RefreshStatusAfterModOperationAsync()
-        {
-            if (string.IsNullOrEmpty(_targetPath)) return;
 
-            _logger.Log("Refreshing mod status...");
-            _view.ShowCheckingState();
 
-            try
-            {
-                // Force a fresh status check (clears cache)
-                var freshStatus = await _status.ForceRefreshAsync(_targetPath);
-                _view.SetModsStatusDetailed(freshStatus);
-                _logger.Log($"Status refreshed: {freshStatus.StatusText}");
-            }
-            catch (Exception ex)
-            {
-                _logger.Log($"Status refresh failed: {ex.Message}");
-            }
-        }
 
         /// <summary>
         /// Executes the patch update operation.
@@ -1099,28 +1103,25 @@ namespace ArdysaModsTools.UI.Presenters
                         // Refresh status
                         await CheckModsStatusAsync();
 
-                        _view.ShowMessageBox(
-                            "Patch applied successfully! Your mods are now ready.",
+                        _view.ShowStyledMessage(
                             "Patch Complete",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
+                            "Patch applied successfully! Your mods are now ready.",
+                            Forms.StyledMessageType.Success);
                         break;
 
                     case PatchResult.AlreadyPatched:
                         await CheckModsStatusAsync();
-                        _view.ShowMessageBox(
-                            "Already patched! No action needed.",
+                        _view.ShowStyledMessage(
                             "Already Up To Date",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Information);
+                            "Already patched! No action needed.",
+                            Forms.StyledMessageType.Info);
                         break;
 
                     case PatchResult.Failed:
-                        _view.ShowMessageBox(
-                            "Patch failed. Check the console for details.",
+                        _view.ShowStyledMessage(
                             "Patch Failed",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Error);
+                            "Patch failed. Check the console for details.",
+                            Forms.StyledMessageType.Error);
                         break;
 
                     case PatchResult.Cancelled:
@@ -1221,6 +1222,382 @@ namespace ArdysaModsTools.UI.Presenters
 
         #endregion
 
+
+        /// <summary>
+        /// Verifies mod files integrity.
+        /// </summary>
+        public async Task VerifyModFilesAsync()
+        {
+            if (string.IsNullOrEmpty(_targetPath))
+            {
+                 _view.ShowMessageBox("Please detect Dota 2 path first.", "Path Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                 return;
+            }
+
+            _logger.Log("[VERIFY] Starting file verification...");
+
+            var issues = new System.Collections.Generic.List<string>();
+            int checksPassed = 0;
+            const int totalChecks = 4;
+
+            // Check 1: Mod Package (VPK)
+            string vpkPath = Path.Combine(_targetPath, DotaPaths.ModsVpk); 
+            if (File.Exists(vpkPath))
+            {
+                checksPassed++;
+                _logger.Log("[VERIFY] ✓ Mod Package exists");
+            }
+            else
+            {
+                issues.Add("Mod Package not installed");
+            }
+
+            // Check 2: Dota Version Match
+            var (versionMatches, currentVer, patchedVer) = await _versionService.ComparePatchedVersionAsync(_targetPath);
+            if (versionMatches)
+            {
+                checksPassed++;
+                _logger.Log($"[VERIFY] ✓ Version match: {currentVer}");
+            }
+            else
+            {
+                if (patchedVer == "Not patched yet")
+                {
+                    issues.Add("Never patched - run Patch Update first");
+                }
+                else
+                {
+                    issues.Add($"Dota updated: {currentVer} (patched: {patchedVer})");
+                }
+                _logger.Log($"[VERIFY] ✗ Version mismatch: current={currentVer}, patched={patchedVer}");
+            }
+
+            // Check 3: Game Compatibility (signatures)
+            string sigPath = Path.Combine(_targetPath, "game/bin/win64/dota.signatures"); 
+            
+            if (File.Exists(sigPath))
+            {
+                checksPassed++;
+                _logger.Log("[VERIFY] ✓ Game compatibility verified");
+            }
+            else
+            {
+                issues.Add("Game compatibility issue detected");
+            }
+
+            // Check 4: Mod Integration (gameinfo + signatures format)
+            string giPath = Path.Combine(_targetPath, "game/dota/gameinfo_branchspecific.gi");
+            if (File.Exists(giPath) && File.Exists(sigPath))
+            {
+                var giContent = await File.ReadAllTextAsync(giPath);
+                var sigContent = await File.ReadAllTextAsync(sigPath);
+                
+                bool hasGameInfoMarker = giContent.Contains("_Ardysa", StringComparison.OrdinalIgnoreCase);
+                bool hasCorrectSigFormat = sigContent.Contains(
+                    ModConstants.ModPatchLine,
+                    StringComparison.Ordinal);
+                
+                if (hasGameInfoMarker && hasCorrectSigFormat)
+                {
+                    checksPassed++;
+                    _logger.Log("[VERIFY] ✓ Mod integration active");
+                }
+                else if (hasGameInfoMarker && !hasCorrectSigFormat)
+                {
+                    issues.Add("Mod integration format invalid - run Patch Update");
+                    _logger.Log("[VERIFY] ✗ Mod integration format invalid");
+                }
+                else
+                {
+                    issues.Add("Mod integration not active");
+                }
+            }
+            else
+            {
+                issues.Add("Core game file missing");
+            }
+
+            // Show results
+            if (checksPassed == totalChecks)
+            {
+                _logger.Log("[VERIFY] All files verified successfully!");
+                _view.ShowMessageBox(
+                    $"✅ Verification Complete\n\n" +
+                    $"All {totalChecks} checks passed!\n\n" +
+                    $"• Mod Package: OK\n" +
+                    $"• Dota Version: OK\n" +
+                    $"• Game Compatibility: OK\n" +
+                    $"• Mod Integration: OK\n\n" +
+                    $"Your mods are properly installed.",
+                    "Verification Passed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            else
+            {
+                _logger.Log($"[VERIFY] Issues found: {string.Join(", ", issues)}");
+                
+                var message = $"⚠️ Verification Found Issues\n\n" +
+                    $"Passed: {checksPassed}/{totalChecks} checks\n\n" +
+                    $"Issues:\n• " + string.Join("\n• ", issues) + "\n\n" +
+                    $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                    $"Recommended Actions:\n" +
+                    $"1. Run 'Patch Update' from the menu\n" +
+                    $"2. Verify Dota 2 game files in Steam:\n" +
+                    $"   Steam → Dota 2 → Properties → Verify\n" +
+                    $"3. Contact developer if issue persists";
+
+                _view.ShowMessageBox(
+                    message,
+                    "Verification Issues",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+
+            // Refresh status indicator
+            await CheckModsStatusAsync();
+        }
+
+        #region UI Commands
+        
+
+        /// <summary>
+        /// Handles the Patcher button click.
+        /// Refreshes status and decides whether to prompt for update or show menu.
+        /// </summary>
+        public async Task HandlePatcherClickAsync()
+        {
+            if (string.IsNullOrEmpty(_targetPath)) return;
+
+            _view.ShowCheckingState();
+            // Force refresh status
+            await CheckModsStatusAsync();
+            
+            if (_currentStatus?.Status == ModStatus.NeedUpdate)
+            {
+                 var result = _view.ShowMessageBox(
+                    $"Mods Status: {_currentStatus.StatusText}\n\nDo you want to run the Patch Update now?",
+                    "Update Available",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (result == DialogResult.Yes)
+                {
+                    await ExecutePatchAsync();
+                }
+            }
+            else if (_currentStatus?.Status == ModStatus.NotInstalled)
+            {
+                 _view.ShowMessageBox(
+                    "Please install mods first using the 'Skin Selector' or 'Miscellaneous' buttons.",
+                    "Mods Not Installed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            else
+            {
+                // Default: show menu
+                _view.ShowPatchMenu();
+            }
+        }
+
+        /// <summary>
+        /// Opens the Miscellaneous options form.
+        /// </summary>
+        public async Task OpenMiscellaneousAsync()
+        {
+            if (string.IsNullOrEmpty(_targetPath)) return;
+
+            // Show Misc Form and get result
+            var (result, generationResult) = _view.ShowMiscForm(_targetPath);
+            
+            if (generationResult != null)
+            {
+                LogGenerationResult(generationResult);
+            }
+
+            // Refresh status if valid result
+            // Refresh status if valid result
+            if (result == DialogResult.OK)
+            {
+                await CheckModsStatusAsync(force: true);
+                
+                 // If generation was successful, check if patching needed
+                if (generationResult != null && generationResult.Success)
+                {
+                    // Delay slightly to let status settle
+                    await Task.Delay(500);
+                    await ShowPatchRequiredIfNeededAsync("Custom ModsPack (Misc) installed successfully!");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Opens the Hero Selection gallery.
+        /// </summary>
+        public async Task OpenHeroSelectionAsync()
+        {
+             // If app not ready, ignore (defensive)
+            if (string.IsNullOrEmpty(_targetPath))
+            {
+                return;
+            }
+
+            // Check GitHub access before opening form
+            var hasAccess = await CheckHeroesJsonAccessAsync();
+            if (!hasAccess)
+            {
+                _view.ShowMessageBox(
+                    "Unable to access this feature.\n\n" +
+                    "Please check your internet connection and try again.\n" +
+                    "The Select Hero feature requires online access to load hero data.",
+                    "Connection Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning
+                );
+                _logger.Log("Connection to server failed.");
+                return;
+            }
+
+            // Show beta warning dialog
+            var betaResult = _view.ShowMessageBox(
+                "[BETA VERSION] - Skin Selector\n\n" +
+                "This feature is currently in beta. Not all hero sets are available yet.\n\n" +
+                "More hero sets will be added soon!\n\n" +
+                "IMPORTANT:\n" +
+                "Using this feature will remove your ModsPack.\n" +
+                "Custom sets are built independently and are NOT linked to the standard ModsPack.\n\n" +
+                "Do you want to continue?",
+                "Beta Feature Warning",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            );
+
+            if (betaResult != DialogResult.Yes)
+            {
+                return;
+            }
+
+            // Try modern WebView2 gallery first, fallback to classic if it fails
+            DialogResult dialogResult;
+            ModGenerationResult? generationResult = null;
+            
+            var (res, gen) = _view.ShowHeroGallery();
+            dialogResult = res;
+            generationResult = gen;
+            
+            // If WebView2 failed (Abort), fallback to classic SelectHero
+            if (dialogResult == DialogResult.Abort)
+            {
+                _logger.Log("WebView2 failed, falling back to classic SelectHero...");
+                var (resClassic, genClassic) = _view.ShowClassicHeroSelector();
+                dialogResult = resClassic;
+                generationResult = genClassic;
+            }
+            
+            // Log generation result
+            if (generationResult != null)
+            {
+                LogGenerationResult(generationResult);
+            }
+            
+            // Always refresh status after hero gallery closes (force refresh)
+            await CheckModsStatusAsync(force: true);
+            
+            // If generation was successful, check if patching needed
+            if (dialogResult == DialogResult.OK)
+            {
+                await Task.Delay(500);
+                
+                // If NOT NeedUpdate (e.g. just replaced files without requiring patch), show success
+                if (_currentStatus?.Status == ModStatus.Ready)
+                {
+                     _view.ShowMessageBox("Custom ModsPack installed successfully!", 
+                        "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    await ShowPatchRequiredIfNeededAsync("Custom ModsPack installed successfully!");
+                }
+            }
+        }
+
+        private async Task<bool> CheckHeroesJsonAccessAsync()
+        {
+            // Use EnvironmentConfig from Core
+            string heroesJsonUrl = EnvironmentConfig.BuildRawUrl("Assets/heroes.json");
+            try
+            {
+                using var client = new HttpClient();
+                client.DefaultRequestHeaders.Add("User-Agent", "ArdysaModsTools");
+                
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using var request = new HttpRequestMessage(HttpMethod.Head, heroesJsonUrl);
+                using var response = await client.SendAsync(request, cts.Token);
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        
+        private void LogGenerationResult(ModGenerationResult result)
+        {
+            if (result.Success)
+            {
+                _logger.Log($"[GEN] Generation successful: {result.Details ?? "Mod generation completed."}");
+                _logger.Log($"[GEN] Total items: {result.OptionsCount}");
+                _logger.Log($"[GEN] Time taken: {result.Duration.TotalSeconds:F2}s");
+            }
+            else
+            {
+                _logger.Log($"[GEN] Generation failed: {result.ErrorMessage ?? "Unknown error"}");
+            }
+        }
+
+        private async Task ShowPatchRequiredIfNeededAsync()
+        {
+            if (_currentStatus.Status == ModStatus.NeedUpdate || _currentStatus.Status == ModStatus.Disabled)
+            {
+                var shouldPatch = _view.ShowPatchRequiredDialog(
+                    "Operation complete! But a patch is required for the mods to work correctly.");
+
+                if (shouldPatch)
+                {
+                    await UpdatePatcherAsync();
+                }
+            }
+        }
+
+        #endregion
+
+        #region Shutdown & Disposal
+
+        /// <summary>
+        /// Gracefully shuts down the presenter and cancels ongoing operations.
+        /// Returns a task that completes when the ongoing operation (if any) has finished.
+        /// </summary>
+        public async Task ShutdownAsync()
+        {
+            // Signal cancellation
+            _operationCts?.Cancel();
+            
+            // Wait for ongoing operation to complete (with timeout)
+            if (_ongoingOperationTask != null)
+            {
+                try
+                {
+                    await Task.WhenAny(_ongoingOperationTask, Task.Delay(5000));
+                }
+                catch { /* Ignore errors during shutdown */ }
+            }
+
+            Dispose();
+        }
+
+        #endregion
+
         #region IDisposable
 
         /// <summary>
@@ -1231,6 +1608,7 @@ namespace ArdysaModsTools.UI.Presenters
             if (_disposed)
                 return;
 
+            StopPatchWatcher();
             _dotaMonitor?.Stop();
             _operationCts?.Cancel();
             _operationCts?.Dispose();

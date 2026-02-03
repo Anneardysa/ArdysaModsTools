@@ -92,3 +92,4 @@ COMMIT_GUIDE.md
 # PERSONAL/INTERNAL DOCUMENTATION
 docs/samples/
 *.trx
+/docs/adr

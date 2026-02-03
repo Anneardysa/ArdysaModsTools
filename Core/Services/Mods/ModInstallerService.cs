@@ -59,7 +59,7 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public sealed class ModInstallerService : IModInstallerService
     {
-        private readonly IAppLogger? _logger;
+        private IAppLogger? _logger;
         private readonly HttpClient _httpClient;
 
         // GameInfo URLs - loaded from environment configuration
@@ -86,6 +86,11 @@ namespace ArdysaModsTools.Core.Services
                     _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ArdysaModsTools/1.0");
             }
             catch { /* non fatal */ }
+        }
+
+        public void SetLogger(IAppLogger logger)
+        {
+            _logger = logger;
         }
 
         /// <summary>
@@ -671,7 +676,23 @@ namespace ArdysaModsTools.Core.Services
                 
                 if (!File.Exists(signaturesPath))
                 {
-                    _logger?.Log("[PATCH] Error: Core file missing.");
+                    _logger?.Log($"[PATCH] Error: Core file missing at: {signaturesPath}");
+                    
+                    // Diagnostic: Check if we are even in the right folder (is dota.exe there?)
+                    string activeDir = Path.GetDirectoryName(signaturesPath) ?? "";
+                    string dotaExe = Path.Combine(activeDir, "dota.exe");
+                    
+                    if (File.Exists(dotaExe))
+                    {
+                        _logger?.Log("[PATCH] Diagnostic: dota.exe exists, but core is missing.");
+                        _logger?.Log("[PATCH] Suggestion: Please verify integrity of game files in Steam.");
+                    }
+                    else
+                    {
+                        _logger?.Log($"[PATCH] Diagnostic: dota.exe also missing at {activeDir}.");
+                        _logger?.Log("[PATCH] Suggestion: The detected Dota 2 path may be incorrect.");
+                    }
+                    
                     return PatchResult.Failed;
                 }
 
@@ -953,7 +974,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch
             {
-                _logger?.Log("Installation failed.");
+                // Don't log here - caller (presenter) handles failure logging
                 return false;
             }
         }

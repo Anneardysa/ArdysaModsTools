@@ -80,6 +80,11 @@ namespace ArdysaModsTools.Core.Services
 
         public void Log(string message)
         {
+            // Filter out noisy technical messages
+            if (message.Contains("dota.signatures", StringComparison.OrdinalIgnoreCase) ||
+                message.Contains("gameinfo_branchspecific", StringComparison.OrdinalIgnoreCase))
+                return;
+
             if (_terminal != null)
                 LogToTerminal(message);
             else if (_richTextBox != null)
@@ -270,7 +275,7 @@ namespace ArdysaModsTools.Core.Services
                 lower.Contains("invalid"))
                 return CyberRed;
 
-            // Warning - Orange
+            // Warning/Status - Orange
             if (lower.Contains("warning") ||
                 lower.Contains("skipped") ||
                 lower.Contains("missing") ||
@@ -278,7 +283,8 @@ namespace ArdysaModsTools.Core.Services
                 lower.Contains("cancelled") ||
                 lower.Contains("already") ||
                 lower.Contains("please") ||
-                lower.Contains("close"))
+                lower.Contains("close") ||
+                lower.Contains("[status]"))
                 return CyberOrange;
 
             // Progress - Cyan

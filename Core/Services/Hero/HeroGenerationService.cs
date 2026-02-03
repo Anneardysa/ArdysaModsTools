@@ -21,6 +21,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Helpers;
@@ -135,8 +136,8 @@ namespace ArdysaModsTools.Core.Services
                 string modsDir = Path.Combine(targetPath, "game", "_ArdysaMods");
                 Directory.CreateDirectory(modsDir);
 
-                // Create temp work folder
-                string tempRoot = Path.Combine(Path.GetTempPath(), $"ArdysaHero_{Guid.NewGuid():N}");
+                // Create temp work folder - use safe path for non-ASCII username compatibility
+                string tempRoot = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), $"ArdysaHero_{Guid.NewGuid():N}");
                 string buildDir = Path.Combine(tempRoot, "build");
                 Directory.CreateDirectory(buildDir);
 
@@ -410,12 +411,14 @@ namespace ArdysaModsTools.Core.Services
                             Directory.Delete(tempRoot, true);
                         
                         // Cleanup ArdysaSelectHero folder
-                        var selectHeroTemp = Path.Combine(Path.GetTempPath(), "ArdysaSelectHero");
+                        // Cleanup ArdysaSelectHero folder
+                        var selectHeroTemp = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero");
                         if (Directory.Exists(selectHeroTemp))
                             Directory.Delete(selectHeroTemp, true);
                         
                         // Cleanup hero set cache folder (individual hero downloads)
-                        var setsCache = Path.Combine(Path.GetTempPath(), "ArdysaSelectHero", "cache", "sets");
+                        // Cleanup hero set cache folder (individual hero downloads)
+                        var setsCache = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero", "cache", "sets");
                         if (Directory.Exists(setsCache))
                             Directory.Delete(setsCache, true);
                         

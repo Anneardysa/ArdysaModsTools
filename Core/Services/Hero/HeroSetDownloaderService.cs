@@ -73,7 +73,8 @@ namespace ArdysaModsTools.Core.Services
         public HeroSetDownloaderService(string? baseFolder = null, HttpClient? httpClient = null, IAppLogger? logger = null)
         {
             var bf = string.IsNullOrWhiteSpace(baseFolder) 
-                ? Path.Combine(Path.GetTempPath(), "ArdysaSelectHero")
+                // Use safe temp path for non-ASCII username compatibility
+                ? Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero")
                 : baseFolder!;
             _cacheRoot = Path.Combine(bf, "cache", "sets");
             Directory.CreateDirectory(_cacheRoot);
@@ -144,7 +145,8 @@ namespace ArdysaModsTools.Core.Services
             ct.ThrowIfCancellationRequested();
 
             // Extract to Windows temp folder under ArdysaSelectHero
-            var selectHeroTemp = Path.Combine(Path.GetTempPath(), "ArdysaSelectHero", "HeroSets");
+            // Extract to safe temp folder for compatibility with Chinese usernames
+            var selectHeroTemp = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero", "HeroSets");
             Directory.CreateDirectory(selectHeroTemp);
             
             var zipNameWithoutExt = Path.GetFileNameWithoutExtension(finalZipName);

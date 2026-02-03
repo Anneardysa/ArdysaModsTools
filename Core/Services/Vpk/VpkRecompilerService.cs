@@ -155,6 +155,26 @@ namespace ArdysaModsTools.Core.Services
             }
             _logger?.Log($"  buildDir exists: {Directory.Exists(buildDir)}");
 
+            // Delete any existing output VPK to prevent stale file detection issues
+            string parentDir = Path.GetDirectoryName(extractDir) ?? "";
+            string expectedVpkName = Path.GetFileName(extractDir) + ".vpk";
+            string expectedVpkPath = Path.Combine(parentDir, expectedVpkName);
+            
+            if (File.Exists(expectedVpkPath))
+            {
+                _logger?.Log($"  Deleting existing VPK: {expectedVpkPath}");
+                try
+                {
+                    File.Delete(expectedVpkPath);
+                }
+                catch (Exception ex)
+                {
+                    log($"[Recompile] Warning: Could not delete existing VPK: {ex.Message}");
+                    _logger?.Log($"  Warning: Could not delete existing VPK: {ex.Message}");
+                    // Continue anyway - vpk.exe might overwrite it
+                }
+            }
+
             var psi = new ProcessStartInfo
             {
                 FileName = vpkToolPath,
@@ -275,12 +295,11 @@ namespace ArdysaModsTools.Core.Services
             await Task.Delay(PostProcessDelayMs, ct).ConfigureAwait(false);
 
             // Search for output VPK file
-            string? newVpk = await FindOutputVpkAsync(extractDir, buildDir, tempRoot, startTime, ct).ConfigureAwait(false);
+            string? newVpk = await FindOutputVpkAsync(extractDir, buildDir, tempRoot, startTime, log, ct).ConfigureAwait(false);
 
             if (newVpk == null)
             {
                 log("[Recompile] Failed — no output VPK found.");
-                _logger?.Log($"No VPK output found. Searched: {buildDir}, {extractDir}, {tempRoot}");
                 return null;
             }
 
@@ -303,12 +322,45 @@ namespace ArdysaModsTools.Core.Services
 
         /// <summary>
         /// Searches for the newly created VPK file in expected directories.
+        /// vpk.exe creates output at: {parentDir}/{inputFolderName}.vpk
         /// </summary>
         private async Task<string?> FindOutputVpkAsync(string extractDir, string buildDir, 
-            string tempRoot, DateTime startTime, CancellationToken ct)
+            string tempRoot, DateTime startTime, Action<string> log, CancellationToken ct)
         {
             string parentDir = Path.GetDirectoryName(extractDir) ?? tempRoot;
-            string[] searchDirs = { buildDir, extractDir, parentDir, tempRoot };
+            
+            // vpk.exe creates output as: {parentDir}/{inputFolderName}.vpk
+            string expectedVpkName = Path.GetFileName(extractDir) + ".vpk";
+            string expectedVpkPath = Path.Combine(parentDir, expectedVpkName);
+            
+            log($"[VPK-Search] Expected: {expectedVpkPath}");
+            _logger?.Log($"  Start time: {startTime:O}");
+
+            // First, check for expected output directly (most reliable method)
+            // vpk.exe overwrites existing files, so check LastWriteTime not CreationTime
+            if (File.Exists(expectedVpkPath))
+            {
+                var vpkWriteTime = File.GetLastWriteTimeUtc(expectedVpkPath);
+                var timeDiff = (DateTime.UtcNow - vpkWriteTime).TotalSeconds;
+                log($"[VPK-Search] Found VPK, age: {timeDiff:F1}s");
+                
+                if (vpkWriteTime >= startTime.AddSeconds(-5))
+                {
+                    log($"[VPK-Search] VPK valid, using: {Path.GetFileName(expectedVpkPath)}");
+                    return expectedVpkPath;
+                }
+                else
+                {
+                    log($"[VPK-Search] VPK too old (created {timeDiff:F0}s ago)");
+                }
+            }
+            else
+            {
+                log($"[VPK-Search] Expected VPK not found at: {expectedVpkPath}");
+            }
+
+            // Fallback: Search in multiple directories
+            string[] searchDirs = { buildDir, parentDir, extractDir, tempRoot };
 
             for (int i = 0; i < VpkSearchMaxRetries; i++)
             {
@@ -318,13 +370,16 @@ namespace ArdysaModsTools.Core.Services
                 {
                     try
                     {
+                        // Use LastWriteTimeUtc - when vpk.exe overwrites existing VPK,
+                        // only LastWriteTime is updated, not CreationTime
                         var found = Directory.GetFiles(dir, "*.vpk", SearchOption.TopDirectoryOnly)
-                            .Where(f => File.GetCreationTimeUtc(f) >= startTime.AddSeconds(-2))
-                            .OrderByDescending(File.GetCreationTimeUtc)
+                            .Where(f => File.GetLastWriteTimeUtc(f) >= startTime.AddSeconds(-5))
+                            .OrderByDescending(File.GetLastWriteTimeUtc)
                             .FirstOrDefault();
                         
                         if (found != null)
                         {
+                            log($"[VPK-Search] Found: {found}");
                             return found;
                         }
                     }
@@ -332,6 +387,33 @@ namespace ArdysaModsTools.Core.Services
                 }
 
                 await Task.Delay(VpkSearchIntervalMs, ct).ConfigureAwait(false);
+            }
+
+            // Log detailed diagnostics on failure
+            log($"[VPK-Search] FAILED after {VpkSearchMaxRetries} retries");
+            foreach (var dir in searchDirs)
+            {
+                if (Directory.Exists(dir))
+                {
+                    try
+                    {
+                        var vpkFiles = Directory.GetFiles(dir, "*.vpk", SearchOption.TopDirectoryOnly);
+                        if (vpkFiles.Length > 0)
+                        {
+                            log($"[VPK-Search] {Path.GetFileName(dir)}/: {vpkFiles.Length} VPK(s)");
+                            foreach (var f in vpkFiles.Take(3))
+                            {
+                                var writeTime = File.GetLastWriteTimeUtc(f);
+                                var age = (DateTime.UtcNow - writeTime).TotalSeconds;
+                                log($"[VPK-Search]   {Path.GetFileName(f)} ({age:F0}s old)");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        log($"[VPK-Search] Error reading {dir}: {ex.Message}");
+                    }
+                }
             }
 
             return null;

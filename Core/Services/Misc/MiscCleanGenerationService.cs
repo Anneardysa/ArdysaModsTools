@@ -20,6 +20,7 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Services.Config;
@@ -89,10 +90,13 @@ namespace ArdysaModsTools.Core.Services
                 string vpkToolPath = Path.Combine(baseDir, "vpk.exe");
 
                 if (!File.Exists(vpkToolPath))
-                    return Fail("vpk.exe not found.", log);
+                    return Fail("VPK tool not found. Please ensure vpk.exe is in the application directory.", log);
 
-                // Create temp work folder
-                string tempRoot = Path.Combine(Path.GetTempPath(), $"ArdysaMisc_{Guid.NewGuid():N}");
+                string modsDir = Path.Combine(targetPath, "game", "_ArdysaMods");
+                Directory.CreateDirectory(modsDir);
+
+                // Use safe temp path for non-ASCII username compatibility
+                string tempRoot = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), $"ArdysaMisc_{Guid.NewGuid():N}");
                 string buildDir = Path.Combine(tempRoot, "build");
                 Directory.CreateDirectory(buildDir);
 
@@ -211,12 +215,13 @@ namespace ArdysaModsTools.Core.Services
                     await Task.Run(() => Directory.Delete(tempRoot, true)).ConfigureAwait(false);
 
                 // Cleanup ArdysaSelectHero temp folder (used by OriginalVpkService)
-                var selectHeroTemp = Path.Combine(Path.GetTempPath(), "ArdysaSelectHero");
+                // Use safe temp path for non-ASCII username compatibility
+                var selectHeroTemp = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero");
                 if (Directory.Exists(selectHeroTemp))
                     await Task.Run(() => Directory.Delete(selectHeroTemp, true)).ConfigureAwait(false);
 
                 // Cleanup Original cache zip_contents folder (now in TEMP)
-                var originalCache = Path.Combine(Path.GetTempPath(), "ArdysaSelectHero", "cache", "original", "zip_contents");
+                var originalCache = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero", "cache", "original", "zip_contents");
                 if (Directory.Exists(originalCache))
                     await Task.Run(() => Directory.Delete(originalCache, true)).ConfigureAwait(false);
             }

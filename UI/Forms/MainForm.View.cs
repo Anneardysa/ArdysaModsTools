@@ -116,6 +116,20 @@ namespace ArdysaModsTools
         }
 
         /// <summary>
+        /// Shows a modern styled message dialog.
+        /// </summary>
+        public DialogResult ShowStyledMessage(string title, string message, StyledMessageType type)
+        {
+            if (InvokeRequired)
+            {
+                return (DialogResult)Invoke(new Func<DialogResult>(() => 
+                    ShowStyledMessage(title, message, type)));
+            }
+            using var dialog = new StyledMessageDialog(title, message, type);
+            return dialog.ShowDialog(this);
+        }
+
+        /// <summary>
         /// Shows a folder selection dialog.
         /// </summary>
         public string? ShowFolderDialog(string title)
@@ -359,32 +373,60 @@ namespace ArdysaModsTools
             return (result, heroForm.GenerationResult);
         }
 
-        /// <summary>
-        /// Shows the miscellaneous form and returns the generation result.
-        /// </summary>
-        public ModGenerationResult? ShowMiscForm(string? targetPath)
+        public (DialogResult Result, ModGenerationResult? GenerationResult) ShowClassicHeroSelector()
         {
             if (InvokeRequired)
             {
-                return (ModGenerationResult?)Invoke(
-                    new Func<ModGenerationResult?>(() => ShowMiscForm(targetPath)));
+                return ((DialogResult, ModGenerationResult?))Invoke(
+                    new Func<(DialogResult, ModGenerationResult?)>(ShowClassicHeroSelector));
             }
 
-            // Use WebView version if available
+            using var classic = new UI.Forms.SelectHero();
+            classic.StartPosition = FormStartPosition.CenterParent;
+            var result = classic.ShowDialog(this);
+            return (result, classic.GenerationResult);
+        }
+
+        /// <summary>
+        /// Shows the miscellaneous form and returns the generation result.
+        /// </summary>
+        public (DialogResult Result, ModGenerationResult? GenerationResult) ShowMiscForm(string? targetPath)
+        {
+            if (InvokeRequired)
+            {
+                return ((DialogResult, ModGenerationResult?))Invoke(
+                    new Func<string?, (DialogResult, ModGenerationResult?)>(ShowMiscForm), targetPath);
+            }
+
+            if (string.IsNullOrEmpty(targetPath)) return (DialogResult.Cancel, null);
+
+            // Try WebView2 version first
             try
             {
-                using var miscForm = new MiscFormWebView(targetPath, _logger.Log, DisableAllButtons, EnableAllButtons);
+                using var miscForm = new ArdysaModsTools.UI.Forms.MiscFormWebView(
+                    targetPath, 
+                    _logger.Log, 
+                    DisableAllButtons, 
+                    EnableAllButtons);
+                
                 miscForm.StartPosition = FormStartPosition.CenterParent;
-                miscForm.ShowDialog(this);
-                return miscForm.GenerationResult;
+                var result = miscForm.ShowDialog(this);
+                return (result, miscForm.GenerationResult);
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback to regular form
-                using var miscForm = new MiscForm(targetPath, _logger.Log, DisableAllButtons, EnableAllButtons);
+                _logger.Log($"WebView2 MiscForm failed: {ex.Message}. Using fallback.");
+                
+                // Fallback to classic
+                using var miscForm = new ArdysaModsTools.MiscForm(
+                    targetPath, 
+                    _logger.Log, 
+                    DisableAllButtons, 
+                    EnableAllButtons);
+                    
                 miscForm.StartPosition = FormStartPosition.CenterParent;
-                miscForm.ShowDialog(this);
-                return miscForm.GenerationResult;
+                var result = miscForm.ShowDialog(this);
+                return (result, miscForm.GenerationResult);
             }
         }
 
