@@ -25,6 +25,7 @@ namespace ArdysaModsTools.Core.Services.FileTransactions
         private readonly string? _operationName;
         private bool _committed;
         private bool _rolledBack;
+        private int _executedCount;  // Track how many operations were actually executed
 
         /// <inheritdoc/>
         public int OperationCount => _operations.Count;
@@ -65,6 +66,7 @@ namespace ArdysaModsTools.Core.Services.FileTransactions
                 {
                     ProgressChanged?.Invoke(i + 1, _operations.Count);
                     await _operations[i].ExecuteAsync(ct).ConfigureAwait(false);
+                    _executedCount = i + 1;  // Track that this operation was executed
                 }
                 catch (OperationCanceledException)
                 {
@@ -89,8 +91,15 @@ namespace ArdysaModsTools.Core.Services.FileTransactions
 
             var prefix = string.IsNullOrEmpty(_operationName) ? "" : $"[{_operationName}] ";
 
-            // Rollback in reverse order
-            for (int i = _operations.Count - 1; i >= 0; i--)
+            // Only rollback operations that were ACTUALLY EXECUTED (not just added)
+            if (_executedCount == 0)
+            {
+                _logger?.Log($"{prefix}No operations were executed, nothing to rollback.");
+                return;
+            }
+
+            // Rollback in reverse order, only executed operations
+            for (int i = _executedCount - 1; i >= 0; i--)
             {
                 try
                 {
@@ -102,7 +111,7 @@ namespace ArdysaModsTools.Core.Services.FileTransactions
                 }
             }
             
-            _logger?.Log($"{prefix}Rollback completed for {_operations.Count} operations.");
+            _logger?.Log($"{prefix}Rollback completed for {_executedCount} operations.");
         }
 
         /// <inheritdoc/>

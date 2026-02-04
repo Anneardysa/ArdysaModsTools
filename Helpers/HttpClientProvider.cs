@@ -34,7 +34,10 @@ namespace ArdysaModsTools.Helpers
             {
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
                 SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
-                // Other handler config if needed
+                // Inherit system proxy settings (like browsers do)
+                UseProxy = true,
+                Proxy = WebRequest.GetSystemWebProxy(),
+                DefaultProxyCredentials = CredentialCache.DefaultCredentials,
             };
 
             var c = new HttpClient(handler, disposeHandler: true)

@@ -62,16 +62,26 @@ namespace ArdysaModsTools.Core.Services
         private IAppLogger? _logger;
         private readonly HttpClient _httpClient;
 
-        // GameInfo URLs - loaded from environment configuration
+        // GameInfo URLs - multiple CDN sources with fallback
         private static string[] GameInfoUrls => new[]
         {
-            EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific.gi")
+            // R2 CDN (primary, fastest)
+            $"{CdnConfig.R2BaseUrl}/remote/gameinfo_branchspecific.gi",
+            // jsDelivr CDN (fallback 1)
+            EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific.gi"),
+            // Raw GitHub (fallback 2, slowest but most reliable)
+            $"{EnvironmentConfig.RawGitHubBase}/remote/gameinfo_branchspecific.gi"
         };
         
         // Disable GameInfo URLs - original/clean version to restore when disabling mods
         private static string[] DisableGameInfoUrls => new[]
         {
-            EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific_disable.gi")
+            // R2 CDN (primary, fastest)
+            $"{CdnConfig.R2BaseUrl}/remote/gameinfo_branchspecific_disable.gi",
+            // jsDelivr CDN (fallback 1)
+            EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific_disable.gi"),
+            // Raw GitHub (fallback 2)
+            $"{EnvironmentConfig.RawGitHubBase}/remote/gameinfo_branchspecific_disable.gi"
         };
 
         private const string RequiredModFilePath = DotaPaths.ModsVpk;
@@ -221,41 +231,64 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
+        // ModsPack hash URLs - multiple CDN sources with fallback
+        private static string[] ModsPackHashUrls => new[]
+        {
+            // R2 CDN (primary, fastest) - upload ModsPack.hash to R2
+            $"{CdnConfig.R2BaseUrl}/remote/ModsPack.hash",
+            // jsDelivr CDN (fallback 1)
+            EnvironmentConfig.BuildRawUrl("remote/ModsPack.hash"),
+            // Raw GitHub (fallback 2)
+            $"{EnvironmentConfig.RawGitHubBase}/remote/ModsPack.hash"
+        };
+
         private async Task<string?> DownloadRemoteHashAsync(CancellationToken ct = default)
         {
-            string url = EnvironmentConfig.BuildRawUrl("remote/ModsPack.hash");
-            try
+            Exception? lastError = null;
+            int urlIndex = 0;
+            
+            foreach (var url in ModsPackHashUrls)
             {
-                // Use retry logic for transient network failures
-                return await RetryHelper.ExecuteAsync(
-                    async () =>
+                urlIndex++;
+                try
+                {
+                    // Log which source we're trying (helps debug slow networks)
+                    if (urlIndex > 1)
+                        _logger?.Log($"Trying hash fallback source {urlIndex}/{ModsPackHashUrls.Length}...");
+                    
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts.CancelAfter(TimeSpan.FromSeconds(60)); // 60s timeout per URL
+                    
+                    var res = await _httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
+                    
+                    if (!res.IsSuccessStatusCode)
                     {
-                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                        cts.CancelAfter(TimeSpan.FromSeconds(10));
-                        var res = await _httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
-                        
-                        if (!res.IsSuccessStatusCode)
-                        {
-                            if (RetryHelper.IsTransientStatusCode(res.StatusCode))
-                                throw new HttpRequestException($"Server returned {res.StatusCode}");
-                            
-                            _logger?.Log($"DownloadRemoteHashAsync failed: {res.StatusCode}");
-                            return null;
-                        }
+                        // Try next URL
+                        FallbackLogger.Log($"DownloadRemoteHashAsync failed for {url}: {res.StatusCode}");
+                        continue;
+                    }
 
-                        string text = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                        return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
-                    },
-                    maxAttempts: 3,
-                    onRetry: (attempt, ex) => _logger?.Log($"Retry {attempt}/3: {ex.Message}"),
-                    ct: ct).ConfigureAwait(false);
+                    string text = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        return text.Trim();
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw; // Re-throw if user cancelled
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    FallbackLogger.Log($"DownloadRemoteHashAsync exception for {url}: {ex.Message}");
+                    // Continue to next URL
+                }
             }
-            catch (Exception ex)
-            {
-                _logger?.Log($"Failed to fetch remote ModsPack hash: {ex.Message}");
-                FallbackLogger.Log($"DownloadRemoteHashAsync exception for {url}: {ex.Message}");
-                return null;
-            }
+            
+            if (lastError != null)
+                _logger?.Log($"Failed to fetch remote ModsPack hash: {lastError.Message}");
+            return null;
         }
 
         private static string ComputeSHA256(string filePath)
@@ -272,12 +305,18 @@ namespace ArdysaModsTools.Core.Services
         private async Task<byte[]?> DownloadGameInfoAsync(string[] urls, CancellationToken ct = default)
         {
             Exception? lastError = null;
+            int urlIndex = 0;
             foreach (var url in urls)
             {
+                urlIndex++;
                 try
                 {
+                    // Log which source we're trying (helps debug slow networks)
+                    if (urlIndex > 1)
+                        _logger?.Log($"[PATCH] Trying fallback source {urlIndex}/{urls.Length}...");
+                    
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    cts.CancelAfter(TimeSpan.FromSeconds(15));
+                    cts.CancelAfter(TimeSpan.FromSeconds(60)); // 60s timeout per URL
                     var data = await _httpClient.GetByteArrayAsync(url, cts.Token).ConfigureAwait(false);
                     if (data != null && data.Length > 0)
                     {
@@ -292,6 +331,7 @@ namespace ArdysaModsTools.Core.Services
                 {
                     lastError = ex;
                     FallbackLogger.Log($"DownloadGameInfoAsync failed for {url}: {ex.Message}");
+                    // Continue to next URL
                 }
             }
             
@@ -751,7 +791,7 @@ namespace ArdysaModsTools.Core.Services
                         // Use MoveOperation for atomic replacement
                         transaction.AddOperation(new MoveOperation(tmpSig, signaturesPath));
 
-                        _logger?.Log("[PATCH] Core files patched successfully.");
+                        _logger?.Log("[PATCH] Core files prepared for patching.");
 
                         ct.ThrowIfCancellationRequested();
 
@@ -777,7 +817,7 @@ namespace ArdysaModsTools.Core.Services
                         // Execute all queued operations
                         await transaction.ExecuteAsync(ct).ConfigureAwait(false);
                         
-                        _logger?.Log("[PATCH] Game config updated successfully.");
+                        _logger?.Log("[PATCH] All file operations completed successfully.");
                         
                         transaction.Commit();
                         

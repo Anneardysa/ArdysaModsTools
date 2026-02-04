@@ -162,8 +162,7 @@ namespace ArdysaModsTools.Core.Services.Update
                 return updateInfo;
             }
 
-            // Fallback to GitHub API
-            _logger.Log("R2 manifest unavailable, falling back to GitHub API");
+            // Fallback to GitHub API (this is normal if R2 is slow or unreachable)
             return await GetUpdateFromGitHubAsync();
         }
 
@@ -243,7 +242,7 @@ namespace ArdysaModsTools.Core.Services.Update
             }
             catch (OperationCanceledException)
             {
-                _logger.Log("R2 manifest request timed out, using GitHub API fallback");
+                // R2 was slow, will use GitHub API instead (this is normal)
                 return null;
             }
             catch (Exception ex)
