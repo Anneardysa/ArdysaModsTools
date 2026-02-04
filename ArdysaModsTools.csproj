@@ -28,10 +28,10 @@
   <!-- APPLICATION METADATA                           -->
   <!-- ============================================== -->
   <PropertyGroup>
-    <Version>2.1.8-beta</Version>
+    <Version>2.1.8.2073-beta</Version>
     <AssemblyVersion>2.1.8.2073</AssemblyVersion>
     <FileVersion>2.1.8.2073</FileVersion>
-    <InformationalVersion>2.1.8-beta</InformationalVersion>
+    <InformationalVersion>2.1.8.2073-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
     <Authors>Ardysa</Authors>
