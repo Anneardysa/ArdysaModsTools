@@ -29,8 +29,8 @@
   <!-- ============================================== -->
   <PropertyGroup>
     <Version>2.1.8-beta</Version>
-    <AssemblyVersion>2.1.8.2072</AssemblyVersion>
-    <FileVersion>2.1.8.2072</FileVersion>
+    <AssemblyVersion>2.1.8.2073</AssemblyVersion>
+    <FileVersion>2.1.8.2073</FileVersion>
     <InformationalVersion>2.1.8-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
@@ -191,6 +191,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Html\misc_form.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\settings_form.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\patch_required.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
 

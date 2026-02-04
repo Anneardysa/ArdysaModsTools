@@ -65,6 +65,7 @@ namespace ArdysaModsTools
             imageContainer = new RoundedPanel();
             imagePictureBox = new PictureBox();
             headerPanel = new Panel();
+            btnSettings = new Label();
             btnMinimize = new Label();
             btnClose = new Label();
             components = new System.ComponentModel.Container();
@@ -502,6 +503,7 @@ namespace ArdysaModsTools
             // headerPanel
             // 
             headerPanel.BackColor = Color.Transparent;
+            headerPanel.Controls.Add(btnSettings);
             headerPanel.Controls.Add(btnMinimize);
             headerPanel.Controls.Add(btnClose);
             headerPanel.Location = new Point(192, 0);
@@ -527,6 +529,22 @@ namespace ArdysaModsTools
             btnMinimize.Click += BtnMinimize_Click;
             btnMinimize.MouseEnter += BtnMinimize_MouseEnter;
             btnMinimize.MouseLeave += BtnMinimize_MouseLeave;
+            // 
+            // btnSettings
+            // 
+            btnSettings.BackColor = Color.Transparent;
+            btnSettings.Cursor = Cursors.Hand;
+            btnSettings.Font = new Font("Segoe UI", 12F);
+            btnSettings.ForeColor = Color.FromArgb(68, 68, 68);
+            btnSettings.Location = new Point(542, 6);
+            btnSettings.Name = "btnSettings";
+            btnSettings.Size = new Size(29, 29);
+            btnSettings.TabIndex = 3;
+            btnSettings.Text = "⚙";
+            btnSettings.TextAlign = ContentAlignment.MiddleCenter;
+            btnSettings.Click += BtnSettings_Click;
+            btnSettings.MouseEnter += BtnSettings_MouseEnter;
+            btnSettings.MouseLeave += BtnSettings_MouseLeave;
             // 
             // btnClose
             // 
@@ -616,6 +634,7 @@ namespace ArdysaModsTools
         private Label btnMinimize;
         private Label btnClose;
         private PictureBox pictureBox1;
+        private Label btnSettings;
         private NotifyIcon trayIcon;
     }
 }

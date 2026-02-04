@@ -190,11 +190,11 @@ namespace ArdysaModsTools.UI.Forms
                 
                 await RestoreSelectionsAsync();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                MessageBox.Show($"Failed to initialize: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                // Fallback to classic form
-                this.DialogResult = DialogResult.Cancel;
+                // Signal caller to use classic fallback - don't show error here
+                // (caller in MainForm.View.cs handles the fallback transition)
+                this.DialogResult = DialogResult.Abort;
                 this.Close();
             }
         }

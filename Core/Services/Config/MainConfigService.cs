@@ -101,6 +101,24 @@ namespace ArdysaModsTools.Core.Services.Config
             _isDirty = true;
         }
 
+        // Config keys for common settings
+        private const string KeyMinimizeToTray = "MinimizeToTray";
+        private const string KeyShowNotifications = "ShowNotifications";
+
+        /// <inheritdoc />
+        public bool MinimizeToTray
+        {
+            get => GetValue(KeyMinimizeToTray, false);
+            set { SetValue(KeyMinimizeToTray, value); Save(); }
+        }
+
+        /// <inheritdoc />
+        public bool ShowNotifications
+        {
+            get => GetValue(KeyShowNotifications, true);
+            set { SetValue(KeyShowNotifications, value); Save(); }
+        }
+
         /// <inheritdoc />
         public void Save()
         {

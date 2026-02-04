@@ -203,8 +203,7 @@ namespace ArdysaModsTools.UI.Forms
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"WebView2 init failed: {ex.Message}");
-                MessageBox.Show($"Failed to initialize WebView2: {ex.Message}\n\nFalling back to classic view.",
-                    "WebView2 Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                // Signal caller to use classic fallback - caller handles the transition
                 this.DialogResult = DialogResult.Abort;
                 this.Close();
             }

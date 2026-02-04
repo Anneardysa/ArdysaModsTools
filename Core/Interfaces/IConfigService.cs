@@ -51,6 +51,16 @@ namespace ArdysaModsTools.Core.Interfaces
         void SetValue<T>(string key, T value);
 
         /// <summary>
+        /// Gets or sets whether to minimize to system tray instead of taskbar.
+        /// </summary>
+        bool MinimizeToTray { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to show Windows notifications.
+        /// </summary>
+        bool ShowNotifications { get; set; }
+
+        /// <summary>
         /// Saves all pending configuration changes.
         /// </summary>
         void Save();

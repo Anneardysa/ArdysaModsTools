@@ -26,7 +26,9 @@ using ArdysaModsTools.UI.Styles;
 using ArdysaModsTools.UI.Helpers;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Cdn;
+using ArdysaModsTools.Core.Services.App;
 using ArdysaModsTools.UI.Forms;
+using ArdysaModsTools.UI.Services;
 using System;
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
@@ -70,6 +72,11 @@ namespace ArdysaModsTools
         // Presenter for MVP pattern
         private readonly UI.Presenters.MainFormPresenter _presenter;
         private bool _modFileWarningLogged; // Prevent duplicate logging
+        
+        // Tray and Settings Services
+        private TrayService? _trayService;
+        private readonly AppLifecycleService _lifecycleService;
+        private readonly CacheCleaningService _cacheService;
 
         /// <summary>
         /// Default constructor that uses ServiceLocator for backward compatibility.
@@ -148,6 +155,22 @@ namespace ArdysaModsTools
             _dotaMonitor = new Dota2Monitor();
             _dotaMonitor.OnDota2StateChanged += DotaStateChanged;
             _dotaMonitor.Start();
+
+            // Initialize services for Settings
+            _lifecycleService = new AppLifecycleService();
+            _cacheService = new CacheCleaningService();
+
+            // Initialize TrayService (after presenter so we can pass configService)
+            try
+            {
+                _trayService = new TrayService(this, _configService, this.Icon);
+                _trayService.SupportClicked += (s, e) => PaypalPictureBox_Click(s, e);
+                this.Resize += (s, e) => _trayService?.HandleFormResize();
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"TrayService init failed: {ex.Message}");
+            }
 
             httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
             httpClient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate");
@@ -347,6 +370,9 @@ namespace ArdysaModsTools
 
                 // Show Support Dialog on startup
                 ShowSupportDialogOnStartup();
+                
+                // Show donation reminder notification (always on startup)
+                _trayService?.ShowDonationReminder();
             }
             catch (Exception ex)
             {
@@ -1133,6 +1159,52 @@ namespace ArdysaModsTools
         private void BtnMinimize_MouseLeave(object? sender, EventArgs e)
         {
             btnMinimize.ForeColor = Color.FromArgb(68, 68, 68);
+        }
+
+        // Settings button
+        private void BtnSettings_Click(object? sender, EventArgs e)
+        {
+            OpenSettingsDialog();
+        }
+
+        private void BtnSettings_MouseEnter(object? sender, EventArgs e)
+        {
+            if (sender is Label lbl) lbl.ForeColor = Color.FromArgb(0, 200, 150);
+        }
+
+        private void BtnSettings_MouseLeave(object? sender, EventArgs e)
+        {
+            if (sender is Label lbl) lbl.ForeColor = Color.FromArgb(68, 68, 68);
+        }
+
+        /// <summary>
+        /// Opens the Settings dialog.
+        /// </summary>
+        private void OpenSettingsDialog()
+        {
+            try
+            {
+                var updaterService = _presenter.GetUpdaterService();
+                if (updaterService == null)
+                {
+                    _logger.Log("UpdaterService not available for Settings.");
+                    return;
+                }
+
+                using var settingsForm = new SettingsFormWebView(
+                    _configService,
+                    _lifecycleService,
+                    _cacheService,
+                    updaterService,
+                    _trayService
+                );
+
+                settingsForm.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Failed to open Settings: {ex.Message}");
+            }
         }
 
         #endregion

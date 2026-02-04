@@ -334,6 +334,16 @@ namespace ArdysaModsTools.Core.Services
                 return (false, false);
             }
 
+            // Early validation: Check if Dota 2 is actually installed at this path
+            string dota2ExePath = Path.Combine(targetPath, DotaPaths.Dota2Exe);
+            if (!File.Exists(dota2ExePath))
+            {
+                _logger?.Log("Error: Dota 2 installation not found at the selected path.");
+                _logger?.Log($"Expected dota2.exe at: {dota2ExePath}");
+                _logger?.Log("Please click 'Auto Detect' or 'Manual Detect' to select the correct Dota 2 folder.");
+                return (false, false);
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
 
             string tempRoot = Path.Combine(Path.GetTempPath(), $"ArdysaMods_Installer_{Guid.NewGuid()}");
@@ -678,18 +688,18 @@ namespace ArdysaModsTools.Core.Services
                 {
                     _logger?.Log($"[PATCH] Error: Core file missing at: {signaturesPath}");
                     
-                    // Diagnostic: Check if we are even in the right folder (is dota.exe there?)
+                    // Diagnostic: Check if we are even in the right folder (is dota2.exe there?)
                     string activeDir = Path.GetDirectoryName(signaturesPath) ?? "";
-                    string dotaExe = Path.Combine(activeDir, "dota.exe");
+                    string dotaExe = Path.Combine(activeDir, "dota2.exe");
                     
                     if (File.Exists(dotaExe))
                     {
-                        _logger?.Log("[PATCH] Diagnostic: dota.exe exists, but core is missing.");
+                        _logger?.Log("[PATCH] Diagnostic: dota2.exe exists, but core file is missing.");
                         _logger?.Log("[PATCH] Suggestion: Please verify integrity of game files in Steam.");
                     }
                     else
                     {
-                        _logger?.Log($"[PATCH] Diagnostic: dota.exe also missing at {activeDir}.");
+                        _logger?.Log($"[PATCH] Diagnostic: dota2.exe also missing at {activeDir}.");
                         _logger?.Log("[PATCH] Suggestion: The detected Dota 2 path may be incorrect.");
                     }
                     
@@ -854,6 +864,16 @@ namespace ArdysaModsTools.Core.Services
                 return false;
             }
 
+            // Early validation: Check if Dota 2 is actually installed at this path
+            string dota2ExePath = Path.Combine(targetPath, DotaPaths.Dota2Exe);
+            if (!File.Exists(dota2ExePath))
+            {
+                _logger?.Log("Error: Dota 2 installation not found at the selected path.");
+                _logger?.Log($"Expected dota2.exe at: {dota2ExePath}");
+                _logger?.Log("Please click 'Auto Detect' or 'Manual Detect' to select the correct Dota 2 folder.");
+                return false;
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
 
             try
@@ -916,6 +936,8 @@ namespace ArdysaModsTools.Core.Services
                 if (!File.Exists(signaturesPath))
                 {
                     _logger?.Log("Error: Missing game core file.");
+                    _logger?.Log("This file is part of Dota 2's core installation.");
+                    _logger?.Log("Please verify integrity of game files in Steam: Right-click Dota 2 > Properties > Local Files > Verify integrity.");
                     return false;
                 }
 

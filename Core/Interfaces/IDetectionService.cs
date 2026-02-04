@@ -34,6 +34,14 @@ namespace ArdysaModsTools.Core.Interfaces
         /// </summary>
         /// <returns>The selected path, or null if cancelled or invalid.</returns>
         string? ManualDetect();
+
+        /// <summary>
+        /// Validates if the given path is a valid Dota 2 installation.
+        /// Checks for the existence of dota2.exe at the expected location.
+        /// </summary>
+        /// <param name="path">The path to validate (should be "dota 2 beta" folder)</param>
+        /// <returns>True if the path contains a valid Dota 2 installation</returns>
+        bool ValidateDotaPath(string? path);
     }
 }
 

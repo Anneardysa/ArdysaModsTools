@@ -161,6 +161,28 @@ namespace ArdysaModsTools.Core.Services
             return null;
         }
 
+        /// <summary>
+        /// Validates if the given path is a valid Dota 2 installation.
+        /// Checks for the existence of dota2.exe at the expected location.
+        /// </summary>
+        /// <param name="path">The path to validate (should be "dota 2 beta" folder)</param>
+        /// <returns>True if the path contains a valid Dota 2 installation</returns>
+        public bool ValidateDotaPath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return false;
+
+            try
+            {
+                string dota2Exe = Path.Combine(path, "game", "bin", "win64", "dota2.exe");
+                return File.Exists(dota2Exe);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private string? RunRegQuery(string key, string args)
         {
             using Process process = new Process

@@ -70,6 +70,11 @@ namespace ArdysaModsTools.UI.Presenters
         /// </summary>
         public bool IsOperationRunning => _ongoingOperationTask != null;
 
+        /// <summary>
+        /// Gets the UpdaterService instance for use by other components (e.g., Settings).
+        /// </summary>
+        public UpdaterService GetUpdaterService() => _updater;
+
         #endregion
 
 
@@ -139,14 +144,20 @@ namespace ArdysaModsTools.UI.Presenters
         private void LoadLastTargetPath()
         {
             var last = _config.GetLastTargetPath();
-            if (!string.IsNullOrEmpty(last) && Directory.Exists(last))
+            if (!string.IsNullOrEmpty(last))
             {
-                _targetPath = last;
-                _view.TargetPath = last;
-            }
-            else if (!string.IsNullOrEmpty(last))
-            {
-                _config.SetLastTargetPath(null);
+                // Validate the path has dota2.exe, not just that the directory exists
+                if (_detection.ValidateDotaPath(last))
+                {
+                    _targetPath = last;
+                    _view.TargetPath = last;
+                }
+                else
+                {
+                    // Directory might exist but dota2.exe is missing (game was moved/uninstalled)
+                    _logger.Log($"Saved path is no longer valid (dota2.exe not found): {last}");
+                    _config.SetLastTargetPath(null);
+                }
             }
         }
 
@@ -415,7 +426,7 @@ namespace ArdysaModsTools.UI.Presenters
 
         private async Task<bool> HandleManualInstallAsync()
         {
-            var vpkPath = _view.ShowFileDialog("Select VPK File", "VPK Files (*.vpk)|*.vpk");
+            var vpkPath =  _view.ShowFileDialog("Select VPK File", "VPK Files (*.vpk)|*.vpk");
             if (string.IsNullOrEmpty(vpkPath))
                 return false;
 

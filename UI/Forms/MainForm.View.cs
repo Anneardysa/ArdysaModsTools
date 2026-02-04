@@ -297,6 +297,7 @@ namespace ArdysaModsTools
 
         /// <summary>
         /// Shows the patch required dialog after installation.
+        /// Uses WebView2 for modern UI, falls back to native WinForms if WebView2 fails.
         /// </summary>
         public bool ShowPatchRequiredDialog(string message)
         {
@@ -305,9 +306,22 @@ namespace ArdysaModsTools
                 return (bool)Invoke(new Func<bool>(() => ShowPatchRequiredDialog(message)));
             }
 
-            using var dialog = new PatchRequiredDialog(message);
-            dialog.StartPosition = FormStartPosition.CenterParent;
-            return dialog.ShowDialog(this) == DialogResult.OK;
+            // Try WebView2 first (modern UI)
+            try
+            {
+                using var dialog = new PatchRequiredDialogWebView(message);
+                dialog.ShowDialog(this);
+                return dialog.ShouldPatch;
+            }
+            catch (Exception ex)
+            {
+                // WebView2 failed - use native WinForms fallback
+                _logger.Log($"WebView2 PatchRequiredDialog failed: {ex.Message}. Using native fallback.");
+                
+                using var fallbackDialog = new PatchRequiredDialog(message);
+                fallbackDialog.ShowDialog(this);
+                return fallbackDialog.ShouldPatch;
+            }
         }
 
         /// <summary>
@@ -389,6 +403,7 @@ namespace ArdysaModsTools
 
         /// <summary>
         /// Shows the miscellaneous form and returns the generation result.
+        /// Uses WebView2 version first, falls back to classic WinForms if WebView2 fails.
         /// </summary>
         public (DialogResult Result, ModGenerationResult? GenerationResult) ShowMiscForm(string? targetPath)
         {
@@ -401,33 +416,32 @@ namespace ArdysaModsTools
             if (string.IsNullOrEmpty(targetPath)) return (DialogResult.Cancel, null);
 
             // Try WebView2 version first
-            try
+            using var webViewForm = new ArdysaModsTools.UI.Forms.MiscFormWebView(
+                targetPath, 
+                _logger.Log, 
+                DisableAllButtons, 
+                EnableAllButtons);
+            
+            webViewForm.StartPosition = FormStartPosition.CenterParent;
+            var result = webViewForm.ShowDialog(this);
+            
+            // If WebView2 initialization failed (Abort), fall back to classic WinForms
+            if (result == DialogResult.Abort)
             {
-                using var miscForm = new ArdysaModsTools.UI.Forms.MiscFormWebView(
-                    targetPath, 
-                    _logger.Log, 
-                    DisableAllButtons, 
-                    EnableAllButtons);
+                _logger.Log("WebView2 MiscForm failed to initialize. Using classic fallback.");
                 
-                miscForm.StartPosition = FormStartPosition.CenterParent;
-                var result = miscForm.ShowDialog(this);
-                return (result, miscForm.GenerationResult);
-            }
-            catch (Exception ex)
-            {
-                _logger.Log($"WebView2 MiscForm failed: {ex.Message}. Using fallback.");
-                
-                // Fallback to classic
-                using var miscForm = new ArdysaModsTools.MiscForm(
+                using var classicForm = new ArdysaModsTools.MiscForm(
                     targetPath, 
                     _logger.Log, 
                     DisableAllButtons, 
                     EnableAllButtons);
                     
-                miscForm.StartPosition = FormStartPosition.CenterParent;
-                var result = miscForm.ShowDialog(this);
-                return (result, miscForm.GenerationResult);
+                classicForm.StartPosition = FormStartPosition.CenterParent;
+                var classicResult = classicForm.ShowDialog(this);
+                return (classicResult, classicForm.GenerationResult);
             }
+            
+            return (result, webViewForm.GenerationResult);
         }
 
         /// <summary>

@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Patch Required - AMT 2.0</title>
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         :root {
+            --bg-dark: #000000;
+            --bg-card: #141414;
+            --border-color: #333333;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --text-muted: #666666;
+            --accent-orange: #ffb432;
+            --accent-orange-light: #ffc860;
+         }
+
+         body {
+            font-family: "JetBrains Mono", "Consolas", monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            border: 1px solid var(--accent-orange);
+         }
+
+         .container {
+            width: 100%;
+            max-width: 460px;
+            padding: 32px;
+            text-align: center;
+         }
+
+         /* Badge */
+         .badge {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--accent-orange);
+            color: var(--accent-orange);
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 24px;
+         }
+
+         /* Title */
+         .title {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            letter-spacing: 0.5px;
+         }
+
+         /* Icon */
+         .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            animation: pulse 2s ease-in-out infinite;
+         }
+
+         @keyframes pulse {
+            0%,
+            100% {
+               opacity: 1;
+               transform: scale(1);
+            }
+            50% {
+               opacity: 0.8;
+               transform: scale(1.05);
+            }
+         }
+
+         /* Message */
+         .message {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 32px;
+         }
+
+         .message .highlight {
+            color: var(--accent-orange);
+            font-weight: bold;
+         }
+
+         /* Buttons */
+         .buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+         }
+
+         .btn {
+            padding: 14px 28px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid;
+         }
+
+         .btn-primary {
+            background: var(--accent-orange);
+            border-color: var(--accent-orange);
+            color: black;
+         }
+
+         .btn-primary:hover {
+            background: var(--accent-orange-light);
+            border-color: var(--accent-orange-light);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 180, 50, 0.3);
+         }
+
+         .btn-secondary {
+            background: transparent;
+            border-color: var(--border-color);
+            color: var(--text-muted);
+         }
+
+         .btn-secondary:hover {
+            background: var(--bg-card);
+            border-color: var(--text-muted);
+            color: var(--text-secondary);
+         }
+
+         /* Draggable Header */
+         .drag-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            cursor: move;
+            -webkit-app-region: drag;
+         }
+      </style>
+   </head>
+   <body>
+      <div class="drag-area" onmousedown="startDrag()"></div>
+
+      <div class="container">
+         <div class="badge">[ ATTENTION ]</div>
+
+         <div class="icon">⚠️</div>
+
+         <div class="title">PATCH UPDATE REQUIRED</div>
+
+         <div class="message" id="messageText">
+            <span class="highlight">ModsPack installed successfully!</span>
+            <br /><br />
+            However, Dota 2 files need to be patched for mods to work.
+            <br />
+            Click <span class="highlight">'Patch Now'</span> to complete the installation.
+         </div>
+
+         <div class="buttons">
+            <button class="btn btn-primary" onclick="patchNow()">PATCH NOW</button>
+            <button class="btn btn-secondary" onclick="later()">LATER</button>
+         </div>
+      </div>
+
+      <script>
+         function setMessage(successMessage) {
+            document.getElementById("messageText").innerHTML =
+               `<span class="highlight">${successMessage}</span>
+                <br><br>
+                However, Dota 2 files need to be patched for mods to work.
+                <br>
+                Click <span class="highlight">'Patch Now'</span> to complete the installation.`;
+         }
+
+         function patchNow() {
+            sendMessage({ type: "patchNow" });
+         }
+
+         function later() {
+            sendMessage({ type: "later" });
+         }
+
+         function startDrag() {
+            sendMessage({ type: "startDrag" });
+         }
+
+         function sendMessage(data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(data);
+            }
+         }
+      </script>
+   </body>
+</html>
