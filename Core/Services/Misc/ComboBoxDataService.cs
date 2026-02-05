@@ -115,6 +115,12 @@ namespace ArdysaModsTools.Core.Services
             "Default Dire Tower", "Declaration of the Divine Shadow", "Grasp of the Elder Gods",
             "Guardians of the Lost Path", "Stoneclaw Scavengers", "The Gaze of Scree'Auk"
         };
+
+        public static List<string> GetEffectOptions() => new()
+        {
+            "Disable Effect", "Aghanim", "Nemestice", "Quarteros Curios",
+            "TI 2015", "TI 2016", "TI 2017", "TI 2018", "TI 2019", "TI 2021", "TI 2022"
+        };
     }
 }
 

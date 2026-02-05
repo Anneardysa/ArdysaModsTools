@@ -399,9 +399,34 @@ FallbackLogger.Log($"UnhandledException: {ex}");
 
 ## Configuration Services
 
-| Service               | Purpose            | Storage Location                        |
-| --------------------- | ------------------ | --------------------------------------- |
-| `ConfigService`       | General app config | `game/_ArdysaMods/_temp/config.json`    |
-| `UserSettingsService` | User preferences   | `game/_ArdysaMods/_temp/settings.json`  |
-| `FavoritesStore`      | Favorite heroes    | `game/_ArdysaMods/_temp/favorites.json` |
-| `MainConfigService`   | Window state       | `game/_ArdysaMods/_temp/main.json`      |
+| Service               | Purpose            | Storage Location                           |
+| --------------------- | ------------------ | ------------------------------------------ |
+| `ConfigService`       | General app config | `game/_ArdysaMods/_temp/config.json`       |
+| `UserSettingsService` | User preferences   | `game/_ArdysaMods/_temp/settings.json`     |
+| `FavoritesStore`      | Favorite heroes    | `%AppData%/ArdysaModsTools/favorites.json` |
+| `MainConfigService`   | Window state       | `game/_ArdysaMods/_temp/main.json`         |
+| `CdnConfig`           | CDN URL management | Static class with multi-CDN fallback       |
+
+---
+
+## CDN Services
+
+### CdnConfig
+
+**File:** `Core/Constants/CdnConfig.cs`
+
+Manages multi-CDN fallback for asset delivery:
+
+| Priority | CDN           | Base URL                                        |
+| -------- | ------------- | ----------------------------------------------- |
+| 1        | Cloudflare R2 | `https://cdn.ardysamods.my.id`                  |
+| 2        | jsDelivr      | `https://cdn.jsdelivr.net/gh/.../ModsPack@main` |
+| 3        | GitHub Raw    | `https://raw.githubusercontent.com/...`         |
+
+```csharp
+// Get all CDN URLs in priority order
+string[] cdns = CdnConfig.GetCdnBaseUrls();
+
+// Build asset URL
+string url = CdnConfig.BuildUrl("Assets/heroes.json");
+```

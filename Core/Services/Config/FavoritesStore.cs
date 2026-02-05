@@ -18,8 +18,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using ArdysaModsTools.Core.DependencyInjection;
-using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -30,29 +28,11 @@ namespace ArdysaModsTools.Core.Services
         private const string FileName = "favorites.json";
 
         /// <summary>
-        /// Gets the storage folder path inside the Dota 2 game directory.
-        /// Falls back to AppData if no target path is configured.
+        /// Gets the storage folder path in AppData.
+        /// Uses a consistent location to avoid dependency on game path or ServiceLocator.
         /// </summary>
         private static string GetStorageFolder()
         {
-            try
-            {
-                var configService = ServiceLocator.Get<IConfigService>();
-                var targetPath = configService?.GetLastTargetPath();
-                
-                if (!string.IsNullOrWhiteSpace(targetPath))
-                {
-                    var folder = Path.Combine(targetPath, "game", "_ArdysaMods", "_temp");
-                    Directory.CreateDirectory(folder);
-                    return folder;
-                }
-            }
-            catch
-            {
-                // Fall through to default
-            }
-            
-            // Fallback to AppData
             var appDataFolder = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), 
                 "ArdysaModsTools");

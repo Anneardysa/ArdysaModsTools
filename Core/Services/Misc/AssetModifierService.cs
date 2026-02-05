@@ -144,6 +144,9 @@ namespace ArdysaModsTools.Core.Services
             await Task.Delay(200, ct).ConfigureAwait(false);
             
             await ApplyAtkModifierAsync(vpkPath, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false);
+            await Task.Delay(200, ct).ConfigureAwait(false);
+            
+            await ApplyEffectModAsync(vpkPath, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false);
 
             // Write modified content back
             await File.WriteAllTextAsync(itemsGamePath, content, ct).ConfigureAwait(false);
@@ -334,6 +337,33 @@ namespace ArdysaModsTools.Core.Services
             else
             {
                 await DownloadAndExtractRarAsync(url, extractDir, category, "Attack Modifier", log, ct, null, speedProgress).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ApplyEffectModAsync(string vpkPath, string extractDir,
+            Dictionary<string, string> selections, Action<string> log, CancellationToken ct,
+            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
+        {
+            const string category = "Effect";
+            
+            // Cleanup previous effect files
+            await CleanupCategoryFilesAsync(category, extractDir, ct).ConfigureAwait(false);
+
+            if (!selections.TryGetValue(category, out var selEffect) || string.IsNullOrEmpty(selEffect))
+                return;
+
+            var rawUrl = ModConfigurationData.GetUrl(category, selEffect);
+            var url = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
+            if (string.IsNullOrEmpty(url))
+                return;
+
+            if (selEffect == "Disable Effect")
+            {
+                log("Disabling Effect...");
+            }
+            else
+            {
+                await DownloadAndExtractRarAsync(url, extractDir, category, "Battle Effect", log, ct, null, speedProgress).ConfigureAwait(false);
             }
         }
 

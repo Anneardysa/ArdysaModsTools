@@ -11,9 +11,13 @@ graph TB
     subgraph Forms["Forms"]
         MF[MainForm]
         SH[SelectHero]
+        HGF[HeroGalleryForm\nWebView2]
         MiscF[MiscForm]
         PO[ProgressOverlay]
-        SDF[StatusDetailsForm]
+    end
+
+    subgraph Factories["Factories"]
+        MFF[MainFormFactory]
     end
 
     subgraph Presenters["Presenters (MVP)"]
@@ -29,18 +33,17 @@ graph TB
     end
 
     subgraph Interfaces["View Interfaces"]
+        IMFF[IMainFormFactory]
         IMFV[IMainFormView]
         ISHV[ISelectHeroView]
     end
 
+    MFF .-> IMFF
+    MFF --> MF
     MF .-> IMFV
     SH .-> ISHV
     MF --> MFP
     SH --> SHP
-    MF --> RB
-    MF --> RP
-    SH --> MSB
-    MF --> RT
 ```
 
 ---
@@ -77,6 +80,38 @@ Main application window — hub for all mod operations.
 
 ---
 
+### HeroGalleryForm (WebView2)
+
+**File:** `UI/Forms/HeroGalleryForm.cs`
+
+Modern hero selection using WebView2 with Tailwind CSS UI.
+
+#### Features
+
+- **WebView2 Rendering** — Modern HTML/CSS/JS interface
+- **Tailwind CSS** — Consistent styling with dark theme
+- **Hero Grid** — Card-based hero selection
+- **Set Previews** — Thumbnail gallery for each hero
+- **C# ↔ JS Interop** — Message passing for actions
+
+#### C# → JavaScript
+
+```csharp
+await _webView.CoreWebView2.ExecuteScriptAsync($"loadHeroes({jsonData})");
+await _webView.CoreWebView2.ExecuteScriptAsync($"setVersion('{version}')");
+```
+
+#### JavaScript → C#
+
+```javascript
+// From hero_gallery.html
+window.chrome.webview.postMessage({ type: "generate", data: selections });
+window.chrome.webview.postMessage({ type: "close" });
+window.chrome.webview.postMessage({ type: "startDrag" });
+```
+
+---
+
 ### SelectHero
 
 **File:** `UI/Forms/SelectHero.cs`
@@ -85,11 +120,11 @@ Hero selection grid for custom set generation.
 
 #### Features
 
--  **Collapsible Accordion** — One hero expanded at a time
--  **Set Thumbnails** — Visual preview of available sets
--  **Favorites** — Star system for quick access
--  **Search & Filter** — By name and primary attribute
--  **Presets** — Save/load selection configurations
+- **Collapsible Accordion** — One hero expanded at a time
+- **Set Thumbnails** — Visual preview of available sets
+- **Favorites** — Star system for quick access
+- **Search & Filter** — By name and primary attribute
+- **Presets** — Save/load selection configurations
 
 #### UI Layout
 
@@ -129,9 +164,9 @@ Miscellaneous mod selection with categories.
 
 #### Categories
 
--  **Environment** — Weather, terrain, water
--  **Audio & Visual** — Music, announcer, effects
--  **UI** — HUD, minimap, cursors
+- **Environment** — Weather, terrain, water
+- **Audio & Visual** — Music, announcer, effects
+- **UI** — HUD, minimap, cursors
 
 #### Key Methods
 
@@ -152,10 +187,10 @@ WebView2-based animated progress display.
 
 #### Features
 
--  HTML/CSS animations
--  Real-time progress bar
--  Stage text updates
--  Cancel support
+- HTML/CSS animations
+- Real-time progress bar
+- Stage text updates
+- Cancel support
 
 #### Usage
 
@@ -180,12 +215,12 @@ Detailed mod status information dialog.
 
 Displays:
 
--  Current status with icon
--  Version information
--  Installation timestamp
--  Gameinfo patch status
--  Signature status
--  Recommended action
+- Current status with icon
+- Version information
+- Installation timestamp
+- Gameinfo patch status
+- Signature status
+- Recommended action
 
 ---
 
@@ -250,10 +285,10 @@ Styled search input control.
 
 #### Features
 
--  Placeholder text
--  Clear button (X)
--  Search icon
--  Real-time `TextChanged` event
+- Placeholder text
+- Clear button (X)
+- Search icon
+- Real-time `TextChanged` event
 
 ---
 
@@ -265,10 +300,10 @@ Terminal-style log display.
 
 #### Features
 
--  Monospace font (JetBrains Mono)
--  Auto-scroll
--  Color-coded output
--  Copy to clipboard
+- Monospace font (JetBrains Mono)
+- Auto-scroll
+- Color-coded output
+- Copy to clipboard
 
 ---
 
@@ -299,10 +334,10 @@ Business logic for MainForm.
 
 #### Responsibilities
 
--  Dota 2 detection coordination
--  Install/disable orchestration
--  Status management
--  Update checking
+- Dota 2 detection coordination
+- Install/disable orchestration
+- Status management
+- Update checking
 
 #### Key Methods
 
@@ -323,10 +358,10 @@ Business logic for SelectHero form.
 
 #### Responsibilities
 
--  Hero data loading from JSON
--  Generation pipeline coordination
--  Preset management
--  Selection state persistence
+- Hero data loading from JSON
+- Generation pipeline coordination
+- Preset management
+- Selection state persistence
 
 ---
 
@@ -425,7 +460,7 @@ public static class FontHelper
 
 Composite controls for complex UI:
 
--  Hero row widget (accordion item)
--  Misc option widget
--  Thumbnail tile
--  Collapsible sections
+- Hero row widget (accordion item)
+- Misc option widget
+- Thumbnail tile
+- Collapsible sections

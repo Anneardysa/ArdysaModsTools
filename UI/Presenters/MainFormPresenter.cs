@@ -58,6 +58,7 @@ namespace ArdysaModsTools.UI.Presenters
         private CancellationTokenSource? _operationCts;
         private Task<(bool Success, bool IsUpToDate)>? _ongoingOperationTask;
         private bool _disposed;
+        private ModStatusInfo? _currentStatus;
 
         private const string RequiredModFilePath = DotaPaths.ModsVpk;
 
@@ -86,10 +87,12 @@ namespace ArdysaModsTools.UI.Presenters
         /// </summary>
         /// <param name="view">The view to control</param>
         /// <param name="logger">Logger instance for UI logging</param>
-        public MainFormPresenter(IMainFormView view, Logger logger)
+        /// <param name="configService">Configuration service for app settings</param>
+        public MainFormPresenter(IMainFormView view, Logger logger, IConfigService configService)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _config = configService ?? throw new ArgumentNullException(nameof(configService));
 
             _updater = new UpdaterService(_logger);
             _updater.OnVersionChanged += version =>
@@ -100,7 +103,6 @@ namespace ArdysaModsTools.UI.Presenters
             _modInstaller = new ModInstallerService(_logger);
             _detection = new DetectionService(_logger);
             _status = new StatusService(_logger);
-            _config = ServiceLocator.GetRequired<IConfigService>();
             _versionService = new DotaVersionService(_logger);
 
             _dotaMonitor = new Dota2Monitor();
@@ -633,7 +635,8 @@ namespace ArdysaModsTools.UI.Presenters
         }
 
         /// <summary>
-        /// Clears all files and subdirectories in the Windows temp folder (%temp%).
+        /// Clears only ArdysaModsTools-specific temp files and folders.
+        /// Does NOT delete other temp files to prevent data loss.
         /// </summary>
         private void ClearTempFolder()
         {
@@ -641,19 +644,27 @@ namespace ArdysaModsTools.UI.Presenters
             {
                 string tempPath = Path.GetTempPath();
 
-                // Delete files
-                foreach (var file in Directory.GetFiles(tempPath))
+                // Only delete app-specific folders (Ardysa*)
+                foreach (var dir in Directory.GetDirectories(tempPath, "Ardysa*"))
+                {
+                    try 
+                    { 
+                        Directory.Delete(dir, true);
+                        _logger.Log($"Cleaned up: {Path.GetFileName(dir)}");
+                    } 
+                    catch { /* ignore locked files */ }
+                }
+
+                // Also clean any app-specific temp files
+                foreach (var file in Directory.GetFiles(tempPath, "Ardysa*"))
                 {
                     try { File.Delete(file); } catch { }
                 }
-
-                // Delete subdirectories
-                foreach (var dir in Directory.GetDirectories(tempPath))
-                {
-                    try { Directory.Delete(dir, true); } catch { }
-                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                _logger.Log($"Failed to clean temp folder: {ex.Message}");
+            }
         }
 
         #endregion
@@ -1230,8 +1241,6 @@ namespace ArdysaModsTools.UI.Presenters
             _view.ShowStatusDetails(_currentStatus, ExecutePatchAsync);
         }
 
-        private ModStatusInfo? _currentStatus;
-
         #endregion
 
 
@@ -1536,22 +1545,42 @@ namespace ArdysaModsTools.UI.Presenters
 
         private async Task<bool> CheckHeroesJsonAccessAsync()
         {
-            // Use EnvironmentConfig from Core
-            string heroesJsonUrl = EnvironmentConfig.BuildRawUrl("Assets/heroes.json");
-            try
+            var client = ArdysaModsTools.Helpers.HttpClientProvider.Client;
+            
+            // Use CdnConfig priority order: R2 → jsDelivr → GitHub Raw
+            var cdnBases = CdnConfig.GetCdnBaseUrls();
+            
+            foreach (var baseUrl in cdnBases)
             {
-                using var client = new HttpClient();
-                client.DefaultRequestHeaders.Add("User-Agent", "ArdysaModsTools");
-                
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                using var request = new HttpRequestMessage(HttpMethod.Head, heroesJsonUrl);
-                using var response = await client.SendAsync(request, cts.Token);
-                return response.IsSuccessStatusCode;
+                var url = $"{baseUrl.TrimEnd('/')}/Assets/heroes.json";
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    using var request = new HttpRequestMessage(HttpMethod.Head, url);
+                    using var response = await client.SendAsync(request, cts.Token);
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return true;
+                    }
+                    
+                    _logger.Log($"[NET] Server returned {(int)response.StatusCode} for {url}");
+                }
+                catch (TaskCanceledException)
+                {
+                    _logger.Log($"[NET] Timeout connecting to: {url}");
+                }
+                catch (HttpRequestException ex)
+                {
+                    _logger.Log($"[NET] Connection failed: {ex.Message}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"[NET] Error: {ex.GetType().Name} - {ex.Message}");
+                }
             }
-            catch
-            {
-                return false;
-            }
+            
+            return false;
         }
         
         private void LogGenerationResult(ModGenerationResult result)
@@ -1568,19 +1597,8 @@ namespace ArdysaModsTools.UI.Presenters
             }
         }
 
-        private async Task ShowPatchRequiredIfNeededAsync()
-        {
-            if (_currentStatus.Status == ModStatus.NeedUpdate || _currentStatus.Status == ModStatus.Disabled)
-            {
-                var shouldPatch = _view.ShowPatchRequiredDialog(
-                    "Operation complete! But a patch is required for the mods to work correctly.");
-
-                if (shouldPatch)
-                {
-                    await UpdatePatcherAsync();
-                }
-            }
-        }
+        // NOTE: Use public ShowPatchRequiredIfNeededAsync(string, bool) method instead
+        // This private overload was removed to avoid code duplication
 
         #endregion
 

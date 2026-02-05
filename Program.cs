@@ -60,7 +60,12 @@ namespace ArdysaModsTools
             var services = new ServiceCollection();
             services.AddArdysaServices();
             var serviceProvider = services.BuildServiceProvider();
+            
+            // Initialize ServiceLocator for backward compatibility with tests
+            // TODO: Remove once all tests use proper DI
+#pragma warning disable CS0618 // Intentional: needed for test compatibility
             ServiceLocator.Initialize(serviceProvider);
+#pragma warning restore CS0618
 
             // ═══════════════════════════════════════════════════════════════
             // GLOBAL EXCEPTION HANDLING
@@ -84,7 +89,9 @@ namespace ArdysaModsTools
             Application.ApplicationExit += (s, e) =>
             {
                 SecurityManager.Shutdown();
+#pragma warning disable CS0618 // Intentional: cleanup for ServiceLocator
                 ServiceLocator.Dispose();
+#pragma warning restore CS0618
             };
 
             Application.EnableVisualStyles();
@@ -130,9 +137,9 @@ namespace ArdysaModsTools
                     return; // Exit immediately
                 }
 
-                // Use classic WinForms MainForm
-                // Note: WebView2 dashboard (MainFormWebView) requires more integration work
-                Application.Run(new MainForm());
+                // Use factory pattern for proper DI (avoids obsolete constructor warning)
+                var mainFormFactory = serviceProvider.GetRequiredService<UI.Factories.IMainFormFactory>();
+                Application.Run(mainFormFactory.Create());
             }
         }
     }

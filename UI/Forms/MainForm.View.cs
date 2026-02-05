@@ -297,7 +297,7 @@ namespace ArdysaModsTools
 
         /// <summary>
         /// Shows the patch required dialog after installation.
-        /// Uses WebView2 for modern UI, falls back to native WinForms if WebView2 fails.
+        /// Uses native WinForms dialog for maximum reliability.
         /// </summary>
         public bool ShowPatchRequiredDialog(string message)
         {
@@ -306,22 +306,10 @@ namespace ArdysaModsTools
                 return (bool)Invoke(new Func<bool>(() => ShowPatchRequiredDialog(message)));
             }
 
-            // Try WebView2 first (modern UI)
-            try
-            {
-                using var dialog = new PatchRequiredDialogWebView(message);
-                dialog.ShowDialog(this);
-                return dialog.ShouldPatch;
-            }
-            catch (Exception ex)
-            {
-                // WebView2 failed - use native WinForms fallback
-                _logger.Log($"WebView2 PatchRequiredDialog failed: {ex.Message}. Using native fallback.");
-                
-                using var fallbackDialog = new PatchRequiredDialog(message);
-                fallbackDialog.ShowDialog(this);
-                return fallbackDialog.ShouldPatch;
-            }
+            using var dialog = new PatchRequiredDialog(message);
+            dialog.StartPosition = FormStartPosition.CenterParent;
+            dialog.ShowDialog(this);
+            return dialog.ShouldPatch;
         }
 
         /// <summary>
@@ -381,7 +369,7 @@ namespace ArdysaModsTools
                     new Func<(DialogResult, ModGenerationResult?)>(ShowHeroGallery));
             }
 
-            using var heroForm = new HeroGalleryForm();
+            using var heroForm = new HeroGalleryForm(_configService);
             heroForm.StartPosition = FormStartPosition.CenterParent;
             var result = heroForm.ShowDialog(this);
             return (result, heroForm.GenerationResult);
@@ -395,7 +383,7 @@ namespace ArdysaModsTools
                     new Func<(DialogResult, ModGenerationResult?)>(ShowClassicHeroSelector));
             }
 
-            using var classic = new UI.Forms.SelectHero();
+            using var classic = new UI.Forms.SelectHero(_configService);
             classic.StartPosition = FormStartPosition.CenterParent;
             var result = classic.ShowDialog(this);
             return (result, classic.GenerationResult);
@@ -447,7 +435,7 @@ namespace ArdysaModsTools
         /// <summary>
         /// Shows the status details form.
         /// </summary>
-        public void ShowStatusDetails(ModStatusInfo status, Func<Task> patchAction)
+        public async void ShowStatusDetails(ModStatusInfo status, Func<Task> patchAction)
         {
             if (InvokeRequired)
             {
@@ -464,12 +452,14 @@ namespace ArdysaModsTools
             {
                 try
                 {
-                    // GetVersionInfoAsync is async, but we're in a sync context here
-                    // Use the sync-over-async pattern carefully
-                    var task = _versionService.GetVersionInfoAsync(targetPath);
-                    if (task.Wait(1000)) // Wait max 1 second
+                    // Use Task.Run to avoid deadlock on UI thread
+                    var timeoutTask = Task.Delay(1000);
+                    var versionTask = Task.Run(() => _versionService.GetVersionInfoAsync(targetPath));
+                    
+                    if (await Task.WhenAny(versionTask, timeoutTask).ConfigureAwait(false) == versionTask 
+                        && versionTask.IsCompletedSuccessfully)
                     {
-                        versionInfo = task.Result;
+                        versionInfo = await versionTask.ConfigureAwait(false);
                     }
                 }
                 catch

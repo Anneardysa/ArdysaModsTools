@@ -47,6 +47,7 @@ namespace ArdysaModsTools.Core.Data
                 "River" => "River",
                 "RadiantTower" => "RadiantTower",
                 "DireTower" => "DireTower",
+                "Effect" => "Effect",
                 _ => category
             };
 
@@ -71,6 +72,7 @@ namespace ArdysaModsTools.Core.Data
         public static Dictionary<string, string> River => GetDictionary("River");
         public static Dictionary<string, string> RadiantTower => GetDictionary("RadiantTower");
         public static Dictionary<string, string> DireTower => GetDictionary("DireTower");
+        public static Dictionary<string, string> Effect => GetDictionary("Effect");
 
         /// <summary>
         /// Builds a dictionary from remote config for a specific option.

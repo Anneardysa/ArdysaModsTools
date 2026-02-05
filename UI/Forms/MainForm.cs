@@ -31,12 +31,9 @@ using ArdysaModsTools.UI.Forms;
 using ArdysaModsTools.UI.Services;
 using System;
 using System.Diagnostics;
-using System.Drawing.Drawing2D;
 using System.IO;
-using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -53,10 +50,6 @@ namespace ArdysaModsTools
         [DllImport("gdi32.dll")]
         private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int cx, int cy);
 
-        private static readonly HttpClient httpClient = new HttpClient(new HttpClientHandler
-        {
-            AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
-        });
 
 
         // Services - obtained via DI
@@ -146,7 +139,7 @@ namespace ArdysaModsTools
             _modInstaller.SetLogger(_logger);
 
             // PRESENTER INITIALIZATION (MVP Pattern)
-            _presenter = new UI.Presenters.MainFormPresenter(this, _logger);
+            _presenter = new UI.Presenters.MainFormPresenter(this, _logger, _configService);
 
             _status = statusService as StatusService 
                 ?? new StatusService(_logger);
@@ -172,10 +165,6 @@ namespace ArdysaModsTools
                 _logger.Log($"TrayService init failed: {ex.Message}");
             }
 
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-            httpClient.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate");
-            httpClient.Timeout = TimeSpan.FromMinutes(10);
-            ServicePointManager.DefaultConnectionLimit = 10;
 
             // ═══════════════════════════════════════════════════════════════
             // ICON LOADING - Direct file loading (most reliable)
@@ -183,19 +172,23 @@ namespace ArdysaModsTools
             Icon? appIcon = null;
             try
             {
-                // Primary: Absolute path (for development)
-                string devPath = @"D:\Projects\AMT2.0\Assets\Icons\AppIcon.ico";
-                if (File.Exists(devPath))
+                // Primary: Relative path (for deployment)
+                string relPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Icons", "AppIcon.ico");
+                if (File.Exists(relPath))
                 {
-                    appIcon = new Icon(devPath);
+                    appIcon = new Icon(relPath);
                 }
                 else
                 {
-                    // Fallback: Relative path (for deployment)
-                    string relPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Icons", "AppIcon.ico");
-                    if (File.Exists(relPath))
+                    // Fallback: Dev path from environment variable (for development only)
+                    string? devAssetsPath = Environment.GetEnvironmentVariable("AMT_DEV_ASSETS_PATH");
+                    if (!string.IsNullOrEmpty(devAssetsPath))
                     {
-                        appIcon = new Icon(relPath);
+                        string devPath = Path.Combine(devAssetsPath, "Icons", "AppIcon.ico");
+                        if (File.Exists(devPath))
+                        {
+                            appIcon = new Icon(devPath);
+                        }
                     }
                 }
                 
@@ -324,26 +317,7 @@ namespace ArdysaModsTools
                 // Presenter Initialization (MVP)
                 await _presenter.InitializeAsync();
                 
-                /*
-                var last = _configService.GetLastTargetPath();
-                if (!string.IsNullOrEmpty(last))
-                {
-                    if (Directory.Exists(last))
-                    {
-                        targetPath = last;
-                        // Don't start watcher here - will start on first user interaction
-                        // This prevents duplicate logging when user clicks Auto-Detect
-                        EnableAllButtons();
-                    }
-                    else
-                    {
-                        _configService.SetLastTargetPath(null);
-                    }
-                }
 
-                await _updater.CheckForUpdatesAsync();
-                await UpdateVersionLabelAsync();
-                */
 
                 // Initialize smart CDN selector (tests CDN speeds in background)
                 _ = SmartCdnSelector.Instance.InitializeAsync();
@@ -420,28 +394,7 @@ namespace ArdysaModsTools
             await _presenter.OpenMiscellaneousAsync();
         }
 
-        /// <summary>
-        /// Adjusts Install and Disable button sizes when Cancel visibility changes
-        /// </summary>
-        private void UpdateActionButtonLayout(bool showCancel)
 
-        {
-            const int startX = 216;
-            const int buttonY = 252;
-            const int buttonHeight = 50;
-            const int totalWidth = 600;
-            const int spacing = 12;
-
-            // Always 2 buttons: Install, Disable (50/50 split)
-            int buttonWidth = (totalWidth - spacing) / 2;
-            installButton.Location = new Point(startX, buttonY);
-            installButton.Size = new Size(buttonWidth, buttonHeight);
-            installButton.Visible = true;
-
-            disableButton.Location = new Point(startX + buttonWidth + spacing, buttonY);
-            disableButton.Size = new Size(buttonWidth, buttonHeight);
-            disableButton.Visible = true;
-        }
 
         public void DisableAllButtons()
         {
@@ -600,64 +553,13 @@ namespace ArdysaModsTools
         private async void AutoDetectButton_Click(object? sender, EventArgs e)
         {
             await _presenter.AutoDetectAsync();
-            /* 
-            DisableAllButtons();
-            // Progress handled by overlay
 
-            string? detectedPath = await _detection.AutoDetectAsync();
-            if (!string.IsNullOrEmpty(detectedPath))
-            {
-                targetPath = detectedPath;
-                _configService.SetLastTargetPath(targetPath);
-                await CheckModsStatus();
-                await StartPatchWatcherAsync(targetPath);
-                EnableAllButtons();
-                
-                // Show install dialog if mods are not installed
-                await ShowInstallDialogIfNeeded();
-                
-                // Show patch dialog if mods need update (detection found outdated patch)
-                // But only if user hasn't dismissed it with "Later" already
-                await ShowPatchRequiredIfNeededAsync("Dota 2 path detected successfully!", fromDetection: true);
-                return;
-            }
-            */
         }
 
         private async void ManualDetectButton_Click(object? sender, EventArgs e)
         {
             await _presenter.ManualDetectAsync();
-            /*
-            DisableAllButtons();
 
-            string? selectedPath = _detection.ManualDetect();
-            if (!string.IsNullOrEmpty(selectedPath))
-            {
-                targetPath = selectedPath;
-                _configService.SetLastTargetPath(targetPath);
-                _logger.Log($"Dota 2 path set: {targetPath}");
-                await CheckModsStatus();
-                await StartPatchWatcherAsync(targetPath);
-                EnableAllButtons();
-                
-                // Show install dialog if mods are not installed
-                await ShowInstallDialogIfNeeded();
-            }
-            else
-            {
-                // User cancelled - restore buttons based on current state
-                if (!string.IsNullOrEmpty(targetPath))
-                {
-                    // Already have a valid path, restore all buttons
-                    EnableAllButtons();
-                }
-                else
-                {
-                    // No path yet, only enable detection buttons
-                    EnableDetectionButtonsOnly();
-                }
-            }
-            */
         }
 
         // Install button flow — updated to use tuple result
@@ -679,29 +581,7 @@ namespace ArdysaModsTools
             await _presenter.DisableWithOptionsAsync();
         }
 
-        /// <summary>
-        /// Clears all files and subdirectories in the Windows temp folder (%temp%).
-        /// </summary>
-        private void ClearTempFolder()
-        {
-            try
-            {
-                string tempPath = Path.GetTempPath();
 
-                // Delete files
-                foreach (var file in Directory.GetFiles(tempPath))
-                {
-                    try { File.Delete(file); } catch { }
-                }
-
-                // Delete subdirectories
-                foreach (var dir in Directory.GetDirectories(tempPath))
-                {
-                    try { Directory.Delete(dir, true); } catch { }
-                }
-            }
-            catch { }
-        }
 
         #region Patch Update Menu
 
@@ -986,9 +866,7 @@ namespace ArdysaModsTools
 
         #endregion
 
-        private void label1_Click(object sender, EventArgs e) { }
-        private void label2_Click(object sender, EventArgs e) { }
-        private void button1_Click(object sender, EventArgs e) { }
+
         
         /// <summary>
         /// Handles click on the refresh icon to manually refresh mod status.
@@ -1009,10 +887,7 @@ namespace ArdysaModsTools
         }
         
         // progressBar removed - using ProgressOverlay
-        private void mainConsoleBox_TextChanged(object sender, EventArgs e)
-        {
 
-        }
 
         private async void Btn_OpenSelectHero_Click(object? sender, EventArgs e)
         {
@@ -1066,9 +941,7 @@ namespace ArdysaModsTools
             return result;
         }
 
-        private void imageContainer_Click(object sender, EventArgs e)
-        {
-        }
+
 
         #region Custom Borderless Window
 
@@ -1209,15 +1082,7 @@ namespace ArdysaModsTools
 
         #endregion
 
-        private void sidebarPanel_Paint(object sender, PaintEventArgs e)
-        {
 
-        }
-
-        private void pictureBox1_Click(object sender, EventArgs e)
-        {
-
-        }
 
 
     }

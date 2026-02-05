@@ -21,6 +21,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using ArdysaModsTools.UI.Controls;
 using ArdysaModsTools.UI;
+using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.UI.Controls.Widgets
 {
@@ -267,8 +268,7 @@ namespace ArdysaModsTools.UI.Controls.Widgets
                 System.Diagnostics.Debug.WriteLine($"TileCard: Loading thumbnail from {url}");
 #endif
                 
-                using var client = new HttpClient();
-                client.Timeout = TimeSpan.FromSeconds(15);
+                var client = HttpClientProvider.Client;
                 var bytes = await client.GetByteArrayAsync(url).ConfigureAwait(false);
 
 #if DEBUG

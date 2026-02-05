@@ -28,7 +28,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using ZstdSharp.Unsafe;
+
 
 namespace ArdysaModsTools.UI.Forms
 {
@@ -62,6 +62,7 @@ namespace ArdysaModsTools.UI.Forms
 
         // HeroService instance (loads heroes.json robustly)
         private readonly HeroService _heroService;
+        private readonly IConfigService _configService;
         private DateTime _generationStartTime;
         private int _heroCount;
 
@@ -70,8 +71,10 @@ namespace ArdysaModsTools.UI.Forms
         /// </summary>
         public ModGenerationResult? GenerationResult { get; private set; }
 
-        public SelectHero()
+        public SelectHero(IConfigService configService)
         {
+            _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+            
             InitializeComponent();
 
             if (System.Diagnostics.Debugger.IsAttached) ShowHeroesJsonStatus();
@@ -88,15 +91,7 @@ namespace ArdysaModsTools.UI.Forms
             KeyPreview = true;
             KeyDown += SelectHero_KeyDown;
 
-            WireButtonsAndLabels();
-
-            // Populate after shown so sizes are final
-            Shown += SelectHero_Shown;
-
-            // if form resized, update row widths
-            this.Resize += (s, e) => UpdateRowWidths();
-            this.ScrollContainer.Resize += (s, e) => UpdateRowWidths();
-
+            // Initialize UI behavior and layout handlers (consolidated to avoid duplicate wiring)
             InitializeUiBehavior();
             InitializeLayoutHandlers();
 
@@ -495,9 +490,8 @@ namespace ArdysaModsTools.UI.Forms
                 return;
             }
 
-            // Get target path from DI container
-            var configService = ServiceLocator.GetRequired<IConfigService>();
-            var targetPath = configService.GetLastTargetPath();
+            // Get target path from injected config service
+            var targetPath = _configService.GetLastTargetPath();
             if (string.IsNullOrWhiteSpace(targetPath))
             {
                 MessageBox.Show("No Dota 2 path set. Please set it in the main window first.");
@@ -1217,8 +1211,7 @@ namespace ArdysaModsTools.UI.Forms
         private string GetSettingsPath()
         {
             // Try to use Dota 2 game folder
-            var configService = ServiceLocator.GetRequired<IConfigService>();
-            var targetPath = configService.GetLastTargetPath();
+            var targetPath = _configService.GetLastTargetPath();
             
             if (!string.IsNullOrWhiteSpace(targetPath))
             {

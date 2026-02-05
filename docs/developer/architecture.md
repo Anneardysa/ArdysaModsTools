@@ -314,7 +314,7 @@ graph TB
 
 ## Dependency Injection
 
-Services are wired via `ServiceCollectionExtensions.cs`:
+Services are wired via `ServiceCollectionExtensions.cs` and resolved through constructor injection:
 
 ```csharp
 public static class ServiceCollectionExtensions
@@ -322,14 +322,16 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddArdysaServices(this IServiceCollection services)
     {
         // Infrastructure
-        services.AddSingleton<ILogger, Logger>();
+        services.AddSingleton<ILogger, ProxyLogger>();
         services.AddSingleton<IStatusService, StatusService>();
-        services.AddSingleton<ConfigService>();
+        services.AddSingleton<IConfigService, ConfigService>();
 
         // Core Services
-        services.AddTransient<ModInstallerService>();
-        services.AddTransient<HeroGenerationService>();
-        services.AddTransient<MiscGenerationService>();
+        services.AddTransient<IModInstallerService, ModInstallerService>();
+        services.AddTransient<IDetectionService, DetectionService>();
+
+        // Factory Pattern for WinForms
+        services.AddSingleton<IMainFormFactory, MainFormFactory>();
 
         // VPK Services
         services.AddTransient<IVpkExtractor, VpkExtractorService>();
@@ -338,6 +340,25 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+}
+```
+
+### MainForm Factory Pattern
+
+WinForms cannot use constructor injection directly with `Application.Run()`. The factory pattern bridges DI with WinForms:
+
+```csharp
+// In Program.cs
+var mainFormFactory = serviceProvider.GetRequiredService<IMainFormFactory>();
+Application.Run(mainFormFactory.Create());
+
+// MainFormFactory.cs
+public MainForm Create()
+{
+    var configService = _serviceProvider.GetRequiredService<IConfigService>();
+    var detectionService = _serviceProvider.GetRequiredService<IDetectionService>();
+    // ... resolve all dependencies
+    return new MainForm(configService, detectionService, ...);
 }
 ```
 
@@ -375,12 +396,38 @@ graph TB
 
 ## Configuration Management
 
-| Service               | Storage                                 | Purpose            |
-| --------------------- | --------------------------------------- | ------------------ |
-| `ConfigService`       | `game/_ArdysaMods/_temp/config.json`    | General app config |
-| `UserSettingsService` | `game/_ArdysaMods/_temp/settings.json`  | User preferences   |
-| `FavoritesStore`      | `game/_ArdysaMods/_temp/favorites.json` | Favorite heroes    |
-| `MainConfigService`   | `game/_ArdysaMods/_temp/main.json`      | Window state       |
+| Service               | Storage                                    | Purpose            |
+| --------------------- | ------------------------------------------ | ------------------ |
+| `ConfigService`       | `game/_ArdysaMods/_temp/config.json`       | General app config |
+| `UserSettingsService` | `game/_ArdysaMods/_temp/settings.json`     | User preferences   |
+| `FavoritesStore`      | `%AppData%/ArdysaModsTools/favorites.json` | Favorite heroes    |
+| `MainConfigService`   | `game/_ArdysaMods/_temp/main.json`         | Window state       |
+
+---
+
+## CDN Configuration
+
+Assets are served via multi-CDN with automatic fallback:
+
+| Priority | CDN               | Base URL                                               | Purpose           |
+| -------- | ----------------- | ------------------------------------------------------ | ----------------- |
+| 1        | **Cloudflare R2** | `https://cdn.ardysamods.my.id`                         | Primary (fastest) |
+| 2        | jsDelivr          | `https://cdn.jsdelivr.net/gh/Anneardysa/ModsPack@main` | Fallback 1        |
+| 3        | GitHub Raw        | `https://raw.githubusercontent.com/...`                | Fallback 2        |
+
+**Configuration in `CdnConfig.cs`:**
+
+```csharp
+public static class CdnConfig
+{
+    public const string R2BaseUrl = "https://cdn.ardysamods.my.id";
+    public static bool IsR2Enabled { get; set; } = true;
+
+    public static string[] GetCdnBaseUrls() => IsR2Enabled
+        ? new[] { R2BaseUrl, JsDelivrBaseUrl, GitHubRawBaseUrl }
+        : new[] { JsDelivrBaseUrl, GitHubRawBaseUrl };
+}
+```
 
 ---
 

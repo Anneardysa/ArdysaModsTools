@@ -8,23 +8,20 @@ Welcome to the AMT 2.0 documentation hub. Find everything you need to use or con
 
 ### 👥 For Users
 
-Start here if you want to use AMT 2.0:
-
-| Guide                                       | Description                                       |
-| ------------------------------------------- | ------------------------------------------------- |
-| **[Main README](../README.md)**             | Complete project overview, features, installation |
-| **[Quick Start](user/GETTING_STARTED.txt)** | Get up and running in 5 minutes                   |
-| **[User Guide](USER_GUIDE.md)**             | Detailed usage walkthrough                        |
+| Guide                                  | Description                                       |
+| -------------------------------------- | ------------------------------------------------- |
+| **[Main README](../README.md)**        | Complete project overview, features, installation |
+| **[Quick Start](user/QUICK_START.md)** | Get up and running in 5 minutes                   |
+| **[User Guide](user/USER_GUIDE.md)**   | Detailed usage walkthrough                        |
 
 ### 👨‍💻 For Developers
 
-Contributing or understanding the codebase:
-
-| Guide                                   | Description                    |
-| --------------------------------------- | ------------------------------ |
-| **[Contributing](dev/CONTRIBUTING.md)** | How to contribute code         |
-| **[Security Policy](dev/SECURITY.md)**  | Report vulnerabilities         |
-| **[Developer Docs](developer/)**        | Architecture and API reference |
+| Guide                                             | Description                    |
+| ------------------------------------------------- | ------------------------------ |
+| **[Development Setup](developer/development.md)** | Environment, building, testing |
+| **[Architecture](developer/architecture.md)**     | System design, DI, MVP pattern |
+| **[Services API](developer/api/services.md)**     | Core service reference         |
+| **[Contributing](dev/CONTRIBUTING.md)**           | How to contribute code         |
 
 ---
 
@@ -32,23 +29,46 @@ Contributing or understanding the codebase:
 
 ```
 docs/
-├── README.md              ← You are here
+├── README.md                  ← You are here
+├── TROUBLESHOOTING.md         ← Common issues & solutions
 │
-├── user/                  ← End-user guides
-│   ├── GETTING_STARTED.txt
+├── user/                      ← End-user guides
 │   ├── QUICK_START.md
 │   └── USER_GUIDE.md
 │
-├── dev/                   ← Contributor guidelines
+├── dev/                       ← Contributor guidelines
 │   ├── CONTRIBUTING.md
 │   └── SECURITY.md
 │
-└── developer/             ← Technical documentation
-    ├── README.md
-    ├── architecture.md
-    ├── development.md
-    └── api/
+├── developer/                 ← Technical documentation
+│   ├── architecture.md        ← System design, DI, CDN
+│   ├── development.md         ← Setup & building
+│   └── api/
+│       ├── services.md        ← Service reference
+│       ├── models.md          ← Data models
+│       └── ui-components.md   ← Forms & presenters
+│
+└── adr/                       ← Architecture Decision Records
+    ├── 0001-refactor-mainform-mvp.md
+    ├── 0002-complete-di-migration-factory-pattern.md
+    └── 0003-multi-cdn-strategy-r2-primary.md
 ```
+
+### 🆘 Need Help?
+
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** — Common issues and solutions
+- **[Changelog](../CHANGELOG.md)** — What's new in each version
+
+---
+
+## 🔑 Key Concepts
+
+| Concept                  | Description                                      |
+| ------------------------ | ------------------------------------------------ |
+| **MVP Pattern**          | UI uses Model-View-Presenter for testability     |
+| **DI + Factory Pattern** | `IMainFormFactory` bridges DI with WinForms      |
+| **Multi-CDN Fallback**   | R2 → jsDelivr → GitHub Raw for asset reliability |
+| **OperationResult**      | Service returns instead of throwing exceptions   |
 
 ---
 
@@ -56,7 +76,7 @@ docs/
 
 - 📦 [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases)
 - 🐛 [Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
-- 💬 [Discussions](https://github.com/Anneardysa/ArdysaModsTools/discussions)
+- 💬 [Discord](https://discord.gg/ardysa)
 
 ---
 

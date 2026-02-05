@@ -43,7 +43,7 @@ namespace ArdysaModsTools.UI.Forms
             Text = "Patch Required";
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterParent;
-            Size = new Size(500, 280);
+            Size = new Size(500, 340);
             BackColor = Color.Black;
             ShowInTaskbar = false;
             KeyPreview = true;
@@ -79,6 +79,20 @@ namespace ArdysaModsTools.UI.Forms
             };
             mainContainer.Controls.Add(badgeLabel);
 
+            // Warning icon - centered
+            var warningIcon = new Label
+            {
+                Text = "⚠",
+                Font = new Font("Segoe UI Symbol", 36f),
+                ForeColor = Color.FromArgb(255, 180, 50),
+                AutoSize = false,
+                Size = new Size(80, 60),
+                Location = new Point((Width - 80) / 2, 55),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            mainContainer.Controls.Add(warningIcon);
+
             // Title - centered
             var titleLabel = new Label
             {
@@ -87,7 +101,7 @@ namespace ArdysaModsTools.UI.Forms
                 ForeColor = Color.White,
                 AutoSize = false,
                 Size = new Size(Width - 60, 32),
-                Location = new Point(30, 60),
+                Location = new Point(30, 120),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
@@ -96,19 +110,19 @@ namespace ArdysaModsTools.UI.Forms
             // Description - centered (uses successMessage parameter)
             var descLabel = new Label
             {
-                Text = $"{successMessage}\n\nHowever, Dota 2 files need to be patched for mods to work.\nClick 'Patch Now' to complete the installation.",
+                Text = $"{successMessage}\n\nHowever, Dota 2 files need to be patched for mods to work.",
                 Font = new Font("JetBrains Mono", 9f),
                 ForeColor = Color.FromArgb(170, 170, 170),
                 AutoSize = false,
-                Size = new Size(Width - 60, 70),
-                Location = new Point(30, 100),
+                Size = new Size(Width - 60, 60),
+                Location = new Point(30, 160),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
             mainContainer.Controls.Add(descLabel);
 
             // Buttons container
-            int buttonY = 185;
+            int buttonY = 245;
             int buttonWidth = 140;
             int buttonSpacing = 20;
             int buttonsStartX = (Width - (buttonWidth * 2 + buttonSpacing)) / 2;

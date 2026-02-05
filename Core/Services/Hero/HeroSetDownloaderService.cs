@@ -356,9 +356,10 @@ namespace ArdysaModsTools.Core.Services
             }
             
             // All CDNs failed
+            var errorMessage = lastException?.Message ?? "All CDNs unreachable";
             var dlEx = new DownloadException(ErrorCodes.DL_NETWORK_ERROR,
-                $"Download failed from all CDNs: {lastException?.Message ?? "Unknown error"}", 
-                lastException, 
+                $"Download failed from all CDNs: {errorMessage}", 
+                lastException ?? new InvalidOperationException("No CDN sources available"), 
                 url);
             log($"Download failed: {dlEx.Message}");
             _logger?.Log($"[{dlEx.ErrorCode}] All CDNs failed for: {url}");

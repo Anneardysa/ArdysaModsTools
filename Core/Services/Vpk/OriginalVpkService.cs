@@ -25,7 +25,6 @@ using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Services.Config;
-using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
 {

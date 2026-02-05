@@ -50,6 +50,7 @@ namespace ArdysaModsTools.UI.Forms
         private Dictionary<string, int> _selections = new(); // heroId -> setIndex
         private HashSet<string> _favorites = new(StringComparer.OrdinalIgnoreCase);
         private readonly HeroService _heroService;
+        private readonly IConfigService _configService;
         private DateTime _generationStartTime;
         private int _heroCount;
 
@@ -75,8 +76,10 @@ namespace ArdysaModsTools.UI.Forms
             WriteIndented = false
         };
 
-        public HeroGalleryForm()
+        public HeroGalleryForm(IConfigService configService)
         {
+            _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+            
             InitializeComponent();
             SetupForm();
 
@@ -744,9 +747,8 @@ namespace ArdysaModsTools.UI.Forms
                     return;
                 }
 
-                // Get target path
-                var configService = ServiceLocator.GetRequired<IConfigService>();
-                var targetPath = configService.GetLastTargetPath();
+                // Get target path from injected config service
+                var targetPath = _configService.GetLastTargetPath();
                 if (string.IsNullOrWhiteSpace(targetPath))
                 {
                     MessageBox.Show("No Dota 2 path set. Please set it in the main window first.",
@@ -945,8 +947,8 @@ namespace ArdysaModsTools.UI.Forms
         /// </summary>
         private string GetSettingsPath()
         {
-            var configService = ServiceLocator.Get<IConfigService>();
-            var dotaPath = configService?.GetLastTargetPath();
+            // Use injected config service
+            var dotaPath = _configService.GetLastTargetPath();
 
             if (!string.IsNullOrEmpty(dotaPath))
             {

@@ -110,7 +110,6 @@ namespace ArdysaModsTools
             sidebarPanel.Name = "sidebarPanel";
             sidebarPanel.Size = new Size(192, 600);
             sidebarPanel.TabIndex = 0;
-            sidebarPanel.Paint += sidebarPanel_Paint;
             // 
             // pictureBox1
             // 
@@ -122,7 +121,6 @@ namespace ArdysaModsTools
             pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
             pictureBox1.TabIndex = 51;
             pictureBox1.TabStop = false;
-            pictureBox1.Click += pictureBox1_Click;
             // 
             // lblDetectSection
             // 
@@ -350,7 +348,6 @@ namespace ArdysaModsTools
             versionLabel.TabIndex = 17;
             versionLabel.Text = "Checking...";
             versionLabel.TextAlign = ContentAlignment.MiddleCenter;
-            versionLabel.Click += label2_Click;
             // 
             // installButton
             // 
@@ -446,7 +443,6 @@ namespace ArdysaModsTools
             label1.Size = new Size(84, 16);
             label1.TabIndex = 14;
             label1.Text = ". / CONSOLE";
-            label1.Click += label1_Click;
             // 
             // label3
             // 
