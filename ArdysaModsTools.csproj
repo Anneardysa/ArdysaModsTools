@@ -31,7 +31,7 @@
     <Version>2.1.11-beta</Version>
     <AssemblyVersion>2.1.11.2080</AssemblyVersion>
     <FileVersion>2.1.11.2080</FileVersion>
-    <InformationalVersion>2.1.10-beta</InformationalVersion>
+    <InformationalVersion>2.1.11-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
     <Authors>Ardysa</Authors>
