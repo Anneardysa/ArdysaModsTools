@@ -119,7 +119,7 @@ namespace ArdysaModsTools.Core.Services
         public static List<string> GetEffectOptions() => new()
         {
             "Disable Effect", "Aghanim", "Nemestice", "Quarteros Curios",
-            "TI 2015", "TI 2016", "TI 2017", "TI 2018", "TI 2019", "TI 2021", "TI 2022"
+            "TI 2016", "TI 2017", "TI 2018", "TI 2019", "TI 2021", "TI 2022"
         };
     }
 }
