@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] (Build 2079)
+
+### 🚀 Added
+
+- **Misc**: Added "Battle Effect" asset category with 10 TI-themed effects (Aghanim, Nemestice, TI 2015-2022).
+
+### 🛠️ Changed
+
+- **CDN**: Switched to Cloudflare R2 CDN (`cdn.ardysamods.my.id`) as primary content source for faster updates.
+
+### 🐛 Fixed
+
+- **Assets**: Fixed caching overlay display and asset loading flow for miscellaneous options.
+- **UI**: Fixed thumbnail URL generation for "Battle Effect" and other misc categories.
+- **Scripts**: Updated `patch_models.py` to handle double URLs and CDN fallback for `heroes.json`.
+- **Tests**: Fixed `MainFormPresenterTests` missing `configService` constructor parameter.
+
 ## [2.1.10-beta] (Build 2078) - 2026-02-04
 
 ### 🚀 Features & Architecture

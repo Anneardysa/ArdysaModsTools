@@ -162,11 +162,16 @@ namespace ArdysaModsTools.Core.Services.Config
             $"https://cdn.jsdelivr.net/gh/{GitHubOwner}/{GitHubModsRepo}@{GitHubBranch}";
         
         /// <summary>
-        /// Get the best content base URL.
-        /// Uses jsDelivr CDN when enabled (default), otherwise falls back to raw GitHub.
+        /// Base URL for Cloudflare R2 CDN (primary, fastest).
         /// </summary>
-        public static string ContentBase =>
-            UseJsDelivrCdn ? JsDelivrBase : RawGitHubBase;
+        public static string R2CdnBase =>
+            Environment.GetEnvironmentVariable("R2_CDN_BASE") ?? "https://cdn.ardysamods.my.id";
+        
+        /// <summary>
+        /// Get the best content base URL.
+        /// Priority: R2 CDN (primary) -> jsDelivr CDN -> raw GitHub (fallback).
+        /// </summary>
+        public static string ContentBase => R2CdnBase;
         
         /// <summary>
         /// Base URL for GitHub downloads.

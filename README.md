@@ -1,6 +1,6 @@
 <div align="center">
 
-![Version](https://img.shields.io/badge/Version-2.1.7--beta-00d4ff?style=for-the-badge&logo=v)
+![Version](https://img.shields.io/badge/Version-2.1.10--beta-00d4ff?style=for-the-badge&logo=v)
 ![Build](https://img.shields.io/badge/Build-Passing-brightgreen?style=for-the-badge&logo=github)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)

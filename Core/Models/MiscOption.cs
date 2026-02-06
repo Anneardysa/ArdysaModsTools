@@ -53,10 +53,22 @@ namespace ArdysaModsTools.Core.Models
         public string? ThumbnailUrlPattern { get; set; }
 
         /// <summary>
+        /// Per-choice thumbnail URLs (derived from asset URLs when available).
+        /// Takes precedence over ThumbnailUrlPattern.
+        /// </summary>
+        public Dictionary<string, string> ChoiceThumbnails { get; set; } = new();
+
+        /// <summary>
         /// Get thumbnail URL for a specific choice.
+        /// Priority: ChoiceThumbnails (derived from zip URL) -> ThumbnailUrlPattern (legacy)
         /// </summary>
         public string? GetThumbnailUrl(string choice)
         {
+            // First check if we have a derived thumbnail URL for this choice
+            if (ChoiceThumbnails.TryGetValue(choice, out var thumbUrl))
+                return thumbUrl;
+            
+            // Fall back to pattern-based URL
             if (string.IsNullOrEmpty(ThumbnailUrlPattern)) return null;
             
             // Convert choice to URL-safe format (lowercase, replace spaces with underscores)

@@ -93,7 +93,7 @@ namespace ArdysaModsTools.Tests.Presenters
             // Arrange, Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
             {
-                new MainFormPresenter(null!, _logger);
+                new MainFormPresenter(null!, _logger, _configMock.Object);
             });
         }
 
@@ -103,7 +103,7 @@ namespace ArdysaModsTools.Tests.Presenters
             // Arrange, Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
             {
-                new MainFormPresenter(_viewMock.Object, null!);
+                new MainFormPresenter(_viewMock.Object, null!, _configMock.Object);
             });
         }
 
@@ -111,7 +111,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void Constructor_WithValidArguments_CreatesInstance()
         {
             // Arrange & Act
-            var presenter = new MainFormPresenter(_viewMock.Object, _logger);
+            var presenter = new MainFormPresenter(_viewMock.Object, _logger, _configMock.Object);
 
             // Assert
             Assert.That(presenter, Is.Not.Null);
@@ -126,7 +126,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void TargetPath_Initially_IsAccessible()
         {
             // Arrange
-            var presenter = new MainFormPresenter(_viewMock.Object, _logger);
+            var presenter = new MainFormPresenter(_viewMock.Object, _logger, _configMock.Object);
 
             // Act & Assert
             // Note: TargetPath will be loaded from config if available
@@ -140,7 +140,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void IsOperationRunning_Initially_IsFalse()
         {
             // Arrange
-            var presenter = new MainFormPresenter(_viewMock.Object, _logger);
+            var presenter = new MainFormPresenter(_viewMock.Object, _logger, _configMock.Object);
 
             // Act & Assert
             Assert.That(presenter.IsOperationRunning, Is.False);
@@ -156,7 +156,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void CancelOperation_WhenNoOperation_DoesNotThrow()
         {
             // Arrange
-            var presenter = new MainFormPresenter(_viewMock.Object, _logger);
+            var presenter = new MainFormPresenter(_viewMock.Object, _logger, _configMock.Object);
 
             // Act & Assert
             Assert.DoesNotThrow(() => presenter.CancelOperation());
@@ -172,7 +172,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void Dispose_CanBeCalledMultipleTimes()
         {
             // Arrange
-            var presenter = new MainFormPresenter(_viewMock.Object, _logger);
+            var presenter = new MainFormPresenter(_viewMock.Object, _logger, _configMock.Object);
 
             // Act & Assert
             Assert.DoesNotThrow(() =>
@@ -190,7 +190,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public async Task AutoDetectAsync_DisablesButtonsDuringOperation()
         {
             // Arrange
-            var presenter = new MainFormPresenter(_viewMock.Object, _logger);
+            var presenter = new MainFormPresenter(_viewMock.Object, _logger, _configMock.Object);
 
             // Act
             await presenter.AutoDetectAsync();

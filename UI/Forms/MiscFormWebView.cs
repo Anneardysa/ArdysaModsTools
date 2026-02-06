@@ -182,11 +182,18 @@ namespace ArdysaModsTools.UI.Forms
                     .InformationalVersion ?? "unknown";
                 await ExecuteScriptAsync($"setVersion('{version}')");
 
-                // Load options
+                // Show loading overlay FIRST (before any content loads)
+                await ExecuteScriptAsync("showCachingOverlay()");
+                
+                // Load and preload thumbnails (while overlay is visible)
+                await MiscCategoryService.PreloadConfigAsync();
+                await PreloadMiscThumbnailsAsync();
+                
+                // NOW load and render options (after thumbnails are ready)
                 await LoadOptionsAsync();
                 
-                // Preload thumbnails with HTML overlay (same UI pattern as Skin Selector)
-                await PreloadMiscThumbnailsAsync();
+                // Hide overlay and show gallery
+                await ExecuteScriptAsync("hideCachingOverlay()");
                 
                 await RestoreSelectionsAsync();
             }
@@ -209,12 +216,8 @@ namespace ArdysaModsTools.UI.Forms
 
         private async Task LoadOptionsAsync()
         {
-            await AppendConsoleAsync("Loading configuration...");
-            
             try
             {
-                await MiscCategoryService.PreloadConfigAsync();
-                await AppendConsoleAsync("Configuration loaded.");
 
                 var options = MiscCategoryService.GetAllOptions();
                 var optionsData = options.Select(o => new
@@ -245,8 +248,8 @@ namespace ArdysaModsTools.UI.Forms
         }
 
         /// <summary>
-        /// Preload all misc option thumbnails using AssetCacheService with HTML overlay progress.
-        /// Two-phase: 1) Check freshness of cached items, 2) Download missing items.
+        /// Preloads all misc thumbnails with proper UI feedback.
+        /// Phases: Checking → Downloading → Processing
         /// </summary>
         private async Task PreloadMiscThumbnailsAsync()
         {
@@ -269,36 +272,25 @@ namespace ArdysaModsTools.UI.Forms
 
             if (allUrls.Count == 0)
             {
-                await ExecuteScriptAsync("hideCachingOverlay()");
                 return;
             }
-
-            // Separate cached vs not cached
-            var cached = allUrls.Where(u => cacheService.IsCached(u)).ToList();
-            var notCached = allUrls.Where(u => !cacheService.IsCached(u)).ToList();
-
-            // If nothing to do, hide quickly
-            if (cached.Count == 0 && notCached.Count == 0)
-            {
-                await ExecuteScriptAsync("hideCachingOverlay()");
-                return;
-            }
-
-            // Show caching overlay
-            await ExecuteScriptAsync("showCachingOverlay()");
 
             try
             {
+                // Separate cached vs not cached
+                var cached = allUrls.Where(u => cacheService.IsCached(u)).ToList();
+                var notCached = allUrls.Where(u => !cacheService.IsCached(u)).ToList();
+                
                 int refreshed = 0, downloaded = 0;
 
-                // Phase 1: Check freshness of cached items (quick HEAD requests)
+                // Phase 1: Check freshness of cached items
                 if (cached.Count > 0)
                 {
-                    await ExecuteScriptAsync($"document.getElementById('cachingStatus').textContent = 'Checking for updates...'");
+                    await UpdateCachingStatusAsync("Checking for updates...", 0, cached.Count);
                     
                     var refreshProgress = new Progress<(int current, int total, string url)>(async p =>
                     {
-                        try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
+                        try { await UpdateCachingProgressAsync(p.current, p.total); }
                         catch { }
                     });
 
@@ -311,12 +303,11 @@ namespace ArdysaModsTools.UI.Forms
                 // Phase 2: Download missing items
                 if (notCached.Count > 0)
                 {
-                    await ExecuteScriptAsync($"document.getElementById('cachingStatus').textContent = 'Downloading thumbnails...'");
-                    await ExecuteScriptAsync($"updateCachingProgress(0, {notCached.Count})");
+                    await UpdateCachingStatusAsync("Downloading thumbnails...", 0, notCached.Count);
 
                     var downloadProgress = new Progress<(int current, int total, string url)>(async p =>
                     {
-                        try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
+                        try { await UpdateCachingProgressAsync(p.current, p.total); }
                         catch { }
                     });
 
@@ -326,14 +317,41 @@ namespace ArdysaModsTools.UI.Forms
                     System.Diagnostics.Debug.WriteLine($"[MiscForm] Downloaded {downloaded} new assets");
                 }
 
+                // Phase 3: Processing (brief transition before showing gallery)
+                var totalProcessed = refreshed + downloaded;
+                if (totalProcessed > 0)
+                {
+                    await UpdateCachingStatusAsync("Processing thumbnails...", totalProcessed, totalProcessed);
+                    await Task.Delay(200); // Brief pause for smooth transition
+                }
+
                 System.Diagnostics.Debug.WriteLine($"[MiscForm] Total: {refreshed} refreshed, {downloaded} downloaded, {cached.Count - refreshed} fresh from cache");
             }
             finally
             {
-                // Hide overlay with small delay for smooth transition
-                await Task.Delay(300);
-                await ExecuteScriptAsync("hideCachingOverlay()");
+                // Brief delay for smooth transition
+                await Task.Delay(150);
             }
+        }
+
+        /// <summary>
+        /// Updates the caching overlay status text and resets progress.
+        /// </summary>
+        private async Task UpdateCachingStatusAsync(string status, int current, int total)
+        {
+            var escapedStatus = EscapeJs(status);
+            await ExecuteScriptAsync($@"
+                document.getElementById('cachingStatus').textContent = '{escapedStatus}';
+                updateCachingProgress({current}, {total});
+            ");
+        }
+
+        /// <summary>
+        /// Updates only the caching progress bar and counts.
+        /// </summary>
+        private async Task UpdateCachingProgressAsync(int current, int total)
+        {
+            await ExecuteScriptAsync($"updateCachingProgress({current}, {total})");
         }
 
         private async Task AppendConsoleAsync(string message)

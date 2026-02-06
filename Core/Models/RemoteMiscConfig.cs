@@ -53,6 +53,12 @@ namespace ArdysaModsTools.Core.Models
         [JsonPropertyName("thumbnailFolder")]
         public string ThumbnailFolder { get; set; } = "";
 
+        /// <summary>
+        /// File extension for thumbnails (default: webp). Do not include the dot.
+        /// </summary>
+        [JsonPropertyName("thumbnailExtension")]
+        public string ThumbnailExtension { get; set; } = "webp";
+
         [JsonPropertyName("choices")]
         public List<RemoteMiscChoice> Choices { get; set; } = new();
 
