@@ -256,7 +256,7 @@
          /* Action Buttons */
          .action-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 16px;
          }
 
@@ -527,24 +527,6 @@
                   </span>
                   <span class="action-btn-text">Check Updates</span>
                </button>
-               <button class="action-btn" id="btnClearCache" onclick="clearCache()">
-                  <span class="action-btn-icon">
-                     <svg viewBox="0 0 24 24">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path
-                           d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                        />
-                        <line x1="10" y1="11" x2="10" y2="17" />
-                        <line x1="14" y1="11" x2="14" y2="17" />
-                     </svg>
-                  </span>
-                  <span class="action-btn-text">Clear Cache</span>
-               </button>
-            </div>
-            <div class="cache-info">
-               <span class="cache-text"
-                  >Cache Size: <span class="cache-value" id="cacheValue">Calculating...</span></span
-               >
             </div>
          </div>
       </div>
@@ -579,10 +561,6 @@
             document.getElementById("versionLabel").textContent = "v" + version;
          }
 
-         function setCacheSize(size) {
-            document.getElementById("cacheValue").textContent = size;
-         }
-
          function updateToggles() {
             document.getElementById("toggleStartup").classList.toggle("active", settings.startup);
             document.getElementById("toggleTray").classList.toggle("active", settings.tray);
@@ -605,21 +583,12 @@
             sendMessage({ type: "checkUpdates" });
          }
 
-         function clearCache() {
-            const btn = document.getElementById("btnClearCache");
-            btn.innerHTML = '<span class="spinner"></span>';
-            btn.disabled = true;
-            sendMessage({ type: "clearCache" });
-         }
-
          function resetButton(buttonId, iconHtml, text) {
             const btn = document.getElementById(buttonId);
-            if (buttonId === "btnCheckUpdates") {
+            if (btn) {
                btn.innerHTML = `<span class="action-btn-icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.83 1.04 6.5 2.72"/><polyline points="21 3 21 9 15 9"/></svg></span><span class="action-btn-text">${text}</span>`;
-            } else if (buttonId === "btnClearCache") {
-               btn.innerHTML = `<span class="action-btn-icon"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span><span class="action-btn-text">${text}</span>`;
+               btn.disabled = false;
             }
-            btn.disabled = false;
          }
 
          function showToast(message, type = "success") {

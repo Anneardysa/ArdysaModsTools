@@ -66,4 +66,3 @@ namespace ArdysaModsTools.Core.Interfaces
         void Save();
     }
 }
-

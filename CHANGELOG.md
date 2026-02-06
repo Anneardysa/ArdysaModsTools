@@ -7,18 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] (Build 2079)
+## [Unreleased] (Build 2080)
 
 ### 🚀 Added
 
 - **Misc**: Added "Battle Effect" asset category with 10 TI-themed effects (Aghanim, Nemestice, TI 2015-2022).
+- **Helpers**: Added async versions of file wait/copy methods (`WaitForFileReadyAsync`, `SafeCopyFileWithRetriesAsync`) to prevent UI thread blocking.
 
 ### 🛠️ Changed
 
 - **CDN**: Switched to Cloudflare R2 CDN (`cdn.ardysamods.my.id`) as primary content source for faster updates.
+- **Settings**: Removed Clear Cache button and Cache Size display for cleaner UI.
+- **Logging**: Added diagnostic logging to empty catch blocks in `MiscFormWebView` for better debugging visibility.
 
 ### 🐛 Fixed
 
+- **Settings**: Fixed X button not closing the settings form properly.
 - **Assets**: Fixed caching overlay display and asset loading flow for miscellaneous options.
 - **UI**: Fixed thumbnail URL generation for "Battle Effect" and other misc categories.
 - **Scripts**: Updated `patch_models.py` to handle double URLs and CDN fallback for `heroes.json`.

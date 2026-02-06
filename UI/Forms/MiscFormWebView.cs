@@ -291,13 +291,11 @@ namespace ArdysaModsTools.UI.Forms
                     var refreshProgress = new Progress<(int current, int total, string url)>(async p =>
                     {
                         try { await UpdateCachingProgressAsync(p.current, p.total); }
-                        catch { }
+                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"RefreshProgress callback failed: {ex.Message}"); }
                     });
 
                     var refreshResult = await cacheService.RefreshStaleAssetsAsync(cached, refreshProgress);
                     refreshed = refreshResult.refreshed;
-                    
-                    System.Diagnostics.Debug.WriteLine($"[MiscForm] Refreshed {refreshed} stale assets");
                 }
 
                 // Phase 2: Download missing items
@@ -308,13 +306,11 @@ namespace ArdysaModsTools.UI.Forms
                     var downloadProgress = new Progress<(int current, int total, string url)>(async p =>
                     {
                         try { await UpdateCachingProgressAsync(p.current, p.total); }
-                        catch { }
+                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"DownloadProgress callback failed: {ex.Message}"); }
                     });
 
                     var downloadResult = await cacheService.PreloadAssetsWithProgressAsync(notCached, downloadProgress);
                     downloaded = downloadResult.downloaded;
-                    
-                    System.Diagnostics.Debug.WriteLine($"[MiscForm] Downloaded {downloaded} new assets");
                 }
 
                 // Phase 3: Processing (brief transition before showing gallery)
@@ -324,8 +320,6 @@ namespace ArdysaModsTools.UI.Forms
                     await UpdateCachingStatusAsync("Processing thumbnails...", totalProcessed, totalProcessed);
                     await Task.Delay(200); // Brief pause for smooth transition
                 }
-
-                System.Diagnostics.Debug.WriteLine($"[MiscForm] Total: {refreshed} refreshed, {downloaded} downloaded, {cached.Count - refreshed} fresh from cache");
             }
             finally
             {
@@ -416,9 +410,9 @@ namespace ArdysaModsTools.UI.Forms
                         break;
                 }
             }
-            catch (Exception ex)
+            catch
             {
-                System.Diagnostics.Debug.WriteLine($"WebMessage error: {ex.Message}");
+                // Silently ignore WebMessage parsing errors
             }
         }
 
@@ -713,7 +707,10 @@ namespace ArdysaModsTools.UI.Forms
                 var json = JsonSerializer.Serialize(_selections, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(settingsPath, json);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"SaveSelectionsAsync failed: {ex.Message}");
+            }
         }
 
         private async Task RestoreSelectionsAsync()
@@ -734,7 +731,10 @@ namespace ArdysaModsTools.UI.Forms
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"RestoreSelectionsAsync failed: {ex.Message}");
+            }
         }
 
         private static string GetSettingsPath()

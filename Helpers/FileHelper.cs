@@ -52,6 +52,36 @@ namespace ArdysaModsTools.Helpers
         }
 
         /// <summary>
+        /// Async version: Poll until the file can be opened for read/write without throwing an IOException.
+        /// Returns true when file becomes available, false if timeout reached.
+        /// Uses Task.Delay for non-blocking waits.
+        /// </summary>
+        public static async Task<bool> WaitForFileReadyAsync(string path, TimeSpan timeout, TimeSpan pollInterval, CancellationToken ct = default)
+        {
+            var sw = Stopwatch.StartNew();
+            while (sw.Elapsed < timeout)
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    using (var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                    {
+                        return true;
+                    }
+                }
+                catch (IOException)
+                {
+                    await Task.Delay(pollInterval, ct).ConfigureAwait(false);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    await Task.Delay(pollInterval, ct).ConfigureAwait(false);
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Copies src file to a unique filename inside destFolder with retries.
         /// Returns destination path on success or throws on failure.
         /// </summary>
@@ -92,6 +122,55 @@ namespace ArdysaModsTools.Helpers
             }
 
             // Last resort - attempt overwrite copy (may throw)
+            dest = Path.Combine(destFolder, $"{Guid.NewGuid():N}_{Path.GetFileName(src)}");
+            File.Copy(src, dest, overwrite: true);
+            return dest;
+        }
+
+        /// <summary>
+        /// Async version: Copies src file to a unique filename inside destFolder with retries.
+        /// Returns destination path on success or throws on failure.
+        /// Uses Task.Delay for non-blocking waits.
+        /// </summary>
+        public static async Task<string> SafeCopyFileWithRetriesAsync(string src, string destFolder, int maxRetries = 6, int baseDelayMs = 150, CancellationToken ct = default)
+        {
+            if (!File.Exists(src)) throw new FileNotFoundException("Source file not found", src);
+            if (!Directory.Exists(destFolder)) Directory.CreateDirectory(destFolder);
+
+            string dest;
+            for (int attempt = 0; attempt < maxRetries; attempt++)
+            {
+                ct.ThrowIfCancellationRequested();
+                dest = Path.Combine(destFolder, $"{Guid.NewGuid():N}_{Path.GetFileName(src)}");
+                try
+                {
+                    // wait for source to be ready
+                    await WaitForFileReadyAsync(src, TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(100), ct).ConfigureAwait(false);
+
+                    await using (var inFs = new FileStream(src, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 81920, useAsync: true))
+                    await using (var outFs = new FileStream(dest, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true))
+                    {
+                        await inFs.CopyToAsync(outFs, ct).ConfigureAwait(false);
+                    }
+
+                    // check dest
+                    if (await WaitForFileReadyAsync(dest, TimeSpan.FromSeconds(3), TimeSpan.FromMilliseconds(50), ct).ConfigureAwait(false))
+                        return dest;
+                }
+                catch (IOException)
+                {
+                    await Task.Delay(baseDelayMs * (attempt + 1), ct).ConfigureAwait(false);
+                    continue;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    await Task.Delay(baseDelayMs * (attempt + 1), ct).ConfigureAwait(false);
+                    continue;
+                }
+            }
+
+            // Last resort - attempt overwrite copy (may throw)
+            ct.ThrowIfCancellationRequested();
             dest = Path.Combine(destFolder, $"{Guid.NewGuid():N}_{Path.GetFileName(src)}");
             File.Copy(src, dest, overwrite: true);
             return dest;

@@ -228,9 +228,9 @@ namespace ArdysaModsTools.Core.Services.App
         }
 
         /// <summary>
-        /// Gets the total size of cache files in bytes.
-        /// Only counts ArdysaModsTools-specific cache folders that CAN be deleted.
-        /// Protected folders (like WebView2) are excluded from this count.
+        /// Gets the total size of all cache files in bytes.
+        /// Includes protected folders (like WebView2) since users want to see total disk usage.
+        /// Protected folders are only excluded from DELETION, not from size calculation.
         /// </summary>
         public long GetCacheSizeBytes()
         {
@@ -242,10 +242,8 @@ namespace ArdysaModsTools.Core.Services.App
 
                 foreach (var folder in cacheFolders)
                 {
-                    // Skip protected folders - they won't be deleted so don't count them
-                    if (folder.IsProtected)
-                        continue;
-                        
+                    // Count ALL folders for display - users want to see total disk usage
+                    // Protected folders are only excluded from deletion, not from size calculation
                     if (Directory.Exists(folder.Path))
                     {
                         totalSize += GetDirectorySizeQuick(folder.Path);

@@ -29,8 +29,8 @@
   <!-- ============================================== -->
   <PropertyGroup>
     <Version>2.1.10-beta</Version>
-    <AssemblyVersion>2.1.10.2079</AssemblyVersion>
-    <FileVersion>2.1.10.2079</FileVersion>
+    <AssemblyVersion>2.1.10.2080</AssemblyVersion>
+    <FileVersion>2.1.10.2080</FileVersion>
     <InformationalVersion>2.1.10-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
@@ -150,7 +150,9 @@
   <!-- ============================================== -->
   <ItemGroup>
     <!-- App Icon -->
-    <Content Include="Assets\Icons\AppIcon.ico" />
+    <Content Include="Assets\Icons\AppIcon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <EmbeddedResource Include="Assets\Icons\AppIcon.ico" />
 
     <!-- Icons -->

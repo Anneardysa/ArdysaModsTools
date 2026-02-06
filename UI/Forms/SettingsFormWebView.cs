@@ -159,15 +159,23 @@ namespace ArdysaModsTools.UI.Forms
 
                 // Load current settings
                 await LoadSettingsAsync();
-
-                // Calculate cache size
-                await UpdateCacheSizeAsync();
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to initialize Settings: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 this.Close();
             }
+        }
+
+        /// <summary>
+        /// Ensures form closes properly even if called from WebView context.
+        /// </summary>
+        private void SafeClose()
+        {
+            if (this.InvokeRequired)
+                this.BeginInvoke(new Action(() => this.Close()));
+            else
+                this.Close();
         }
 
         private async Task ExecuteScriptAsync(string script)
@@ -191,33 +199,7 @@ namespace ArdysaModsTools.UI.Forms
             await ExecuteScriptAsync($"initSettings({json})");
         }
 
-        private async Task UpdateCacheSizeAsync()
-        {
-            try
-            {
-                // Run synchronous call on background thread
-                long size = await Task.Run(() => _cacheService.GetCacheSizeBytes());
-                string sizeText = FormatBytes(size);
-                await ExecuteScriptAsync($"setCacheSize('{sizeText}')");
-            }
-            catch
-            {
-                await ExecuteScriptAsync("setCacheSize('Unknown')");
-            }
-        }
 
-        private static string FormatBytes(long bytes)
-        {
-            string[] sizes = { "B", "KB", "MB", "GB" };
-            int order = 0;
-            double len = bytes;
-            while (len >= 1024 && order < sizes.Length - 1)
-            {
-                order++;
-                len /= 1024;
-            }
-            return $"{len:0.##} {sizes[order]}";
-        }
 
         private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
@@ -236,12 +218,8 @@ namespace ArdysaModsTools.UI.Forms
                         await HandleCheckUpdates();
                         break;
 
-                    case "clearCache":
-                        await HandleClearCache();
-                        break;
-
                     case "close":
-                        this.Close();
+                        SafeClose();
                         break;
 
                     case "startDrag":
@@ -310,25 +288,6 @@ namespace ArdysaModsTools.UI.Forms
             finally
             {
                 await ExecuteScriptAsync("resetButton('btnCheckUpdates', '🔄', 'Check Updates')");
-            }
-        }
-
-        private async Task HandleClearCache()
-        {
-            try
-            {
-                var result = await _cacheService.ClearAllCacheAsync();
-                string message = $"Cleared {result.FilesDeleted} files ({FormatBytes(result.BytesFreed)})";
-                await ExecuteScriptAsync($"showToast('{message}', 'success')");
-                await UpdateCacheSizeAsync();
-            }
-            catch (Exception ex)
-            {
-                await ExecuteScriptAsync($"showToast('Cache clear failed: {EscapeJs(ex.Message)}', 'error')");
-            }
-            finally
-            {
-                await ExecuteScriptAsync("resetButton('btnClearCache', '🗑️', 'Clear Cache')");
             }
         }
 
