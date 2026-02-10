@@ -61,11 +61,8 @@ namespace ArdysaModsTools
             services.AddArdysaServices();
             var serviceProvider = services.BuildServiceProvider();
             
-            // Initialize ServiceLocator for backward compatibility with tests
-            // TODO: Remove once all tests use proper DI
-#pragma warning disable CS0618 // Intentional: needed for test compatibility
-            ServiceLocator.Initialize(serviceProvider);
-#pragma warning restore CS0618
+            // NOTE: ServiceLocator has been removed. All DI now uses constructor injection.
+            // MainForm is created via IMainFormFactory.Create() which handles DI properly.
 
             // ═══════════════════════════════════════════════════════════════
             // GLOBAL EXCEPTION HANDLING
@@ -89,9 +86,6 @@ namespace ArdysaModsTools
             Application.ApplicationExit += (s, e) =>
             {
                 SecurityManager.Shutdown();
-#pragma warning disable CS0618 // Intentional: cleanup for ServiceLocator
-                ServiceLocator.Dispose();
-#pragma warning restore CS0618
             };
 
             Application.EnableVisualStyles();

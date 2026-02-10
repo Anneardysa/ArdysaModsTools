@@ -325,26 +325,55 @@ end;
 
 function IsDotNet8DesktopInstalled(): Boolean;
 var
-  Output: AnsiString;
-  ExitCode: Integer;
-  TempFile: String;
+  SubKeyName: String;
+  I: Integer;
+  Names: TArrayOfString;
 begin
   Result := False;
-  TempFile := ExpandConstant('{tmp}\dotnet_check.txt');
   
-  if Exec('cmd.exe', '/c dotnet --list-runtimes > "' + TempFile + '" 2>&1', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then
+  // Check .NET 8 Desktop Runtime via registry (more reliable than CLI)
+  // Location: HKLM\SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App
+  if RegGetSubkeyNames(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App', Names) then
   begin
-    if ExitCode = 0 then
+    for I := 0 to GetArrayLength(Names) - 1 do
     begin
-      if LoadStringFromFile(TempFile, Output) then
+      SubKeyName := Names[I];
+      // Check if version starts with '8.'
+      if Pos('8.', SubKeyName) = 1 then
       begin
-        if Pos('Microsoft.WindowsDesktop.App 8.', String(Output)) > 0 then
-          Result := True;
+        Result := True;
+        Exit;
       end;
     end;
   end;
   
-  DeleteFile(TempFile);
+  // Fallback: Check ARM64 path (for ARM devices)
+  if RegGetSubkeyNames(HKLM, 'SOFTWARE\dotnet\Setup\InstalledVersions\arm64\sharedfx\Microsoft.WindowsDesktop.App', Names) then
+  begin
+    for I := 0 to GetArrayLength(Names) - 1 do
+    begin
+      SubKeyName := Names[I];
+      if Pos('8.', SubKeyName) = 1 then
+      begin
+        Result := True;
+        Exit;
+      end;
+    end;
+  end;
+  
+  // Fallback: Check x86 path (for 32-bit runtime on 64-bit OS)
+  if RegGetSubkeyNames(HKLM, 'SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x86\sharedfx\Microsoft.WindowsDesktop.App', Names) then
+  begin
+    for I := 0 to GetArrayLength(Names) - 1 do
+    begin
+      SubKeyName := Names[I];
+      if Pos('8.', SubKeyName) = 1 then
+      begin
+        Result := True;
+        Exit;
+      end;
+    end;
+  end;
 end;
 
 // ============================================================================

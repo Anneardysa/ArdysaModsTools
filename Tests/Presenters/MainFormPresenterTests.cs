@@ -17,12 +17,11 @@
 using Moq;
 using NUnit.Framework;
 using System.Windows.Forms;
-using Microsoft.Extensions.DependencyInjection;
 using ArdysaModsTools.UI.Interfaces;
 using ArdysaModsTools.UI.Presenters;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Interfaces;
-using ArdysaModsTools.Core.DependencyInjection;
+using ArdysaModsTools.Tests.Helpers;
 
 namespace ArdysaModsTools.Tests.Presenters
 {
@@ -34,55 +33,28 @@ namespace ArdysaModsTools.Tests.Presenters
     [Apartment(ApartmentState.STA)]
     public class MainFormPresenterTests
     {
+        private TestServiceFactory _factory = null!;
         private Mock<IMainFormView> _viewMock = null!;
         private Mock<IConfigService> _configMock = null!;
         private List<string> _logMessages = null!;
-        private RichTextBox _testConsole = null!;
         private Logger _logger = null!;
 
         [SetUp]
         public void Setup()
         {
-            _viewMock = new Mock<IMainFormView>();
-            _configMock = new Mock<IConfigService>();
-            _logMessages = new List<string>();
-
-            // Create a real RichTextBox for the Logger
-            _testConsole = new RichTextBox();
-            _logger = new Logger(_testConsole);
-
-            // Setup default config behavior
-            _configMock.Setup(c => c.GetLastTargetPath()).Returns((string?)null);
-            _configMock.Setup(c => c.GetValue(It.IsAny<string>(), It.IsAny<bool>())).Returns(false);
-
-            // Initialize ServiceLocator with mock services
-            var services = new ServiceCollection();
-            services.AddSingleton(_configMock.Object);
-            var serviceProvider = services.BuildServiceProvider();
-            
-            // Only initialize if not already initialized (prevents issues with parallel test runs)
-            if (!ServiceLocator.IsInitialized)
-            {
-                ServiceLocator.Initialize(serviceProvider);
-            }
-
-            // Setup default view behavior
-            _viewMock.Setup(v => v.Log(It.IsAny<string>()))
-                .Callback<string>(msg => _logMessages.Add(msg));
-
-            _viewMock.Setup(v => v.InvokeOnUIThread(It.IsAny<Action>()))
-                .Callback<Action>(action => action());
-
-            _viewMock.Setup(v => v.IsVisible).Returns(true);
+            // Use TestServiceFactory for clean test setup without ServiceLocator
+            _factory = new TestServiceFactory();
+            _viewMock = _factory.ViewMock;
+            _configMock = _factory.ConfigMock;
+            _logMessages = _factory.LogMessages;
+            _logger = _factory.Logger;
         }
 
         [TearDown]
         public void TearDown()
         {
-            _testConsole?.Dispose();
-            
-            // Dispose ServiceLocator to clean up for next test
-            ServiceLocator.Dispose();
+            // Clean up via factory disposal
+            _factory?.Dispose();
         }
 
         #region Constructor Tests

@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.11-beta] (Build 2082) - 2026-02-10
+
+### ♻️ Refactoring
+
+- **Architecture**: Decomposed `MainFormPresenter` into 3 specialized presenters for SRP (`ADR-0004`):
+   - `ModOperationsPresenter` - install, reinstall, disable operations
+   - `PatchPresenter` - patch updates, verification, watcher
+   - `NavigationPresenter` - hero selection, miscellaneous forms
+- **DI**: Created specialized registration methods (`AddCoreServices()`, `AddConflictServices()`, `AddHeroServices()`, `AddLoggingServices()`, `AddPresenters()`, `AddUIFactories()`).
+- **Tests**: Added `TestServiceFactory` helper for cleaner test setup without ServiceLocator.
+
+### 🐛 Fixed
+
+- **Installer**: Switched `.NET 8` Desktop Runtime detection from CLI-based (`dotnet --list-runtimes`) to registry-based check for improved reliability across system configurations.
+
+### 📝 Documentation
+
+- **ADR**: Rewrote all existing ADRs (0001–0004) to full MADR format with Problem Statement, Decision Drivers, and Alternatives Considered.
+- **ADR**: Added 3 new Architecture Decision Records:
+   - `ADR-0005` - WebView2 Hybrid UI strategy
+   - `ADR-0006` - Automated Patch Watcher system
+   - `ADR-0007` - Security & Anti-Tamper architecture
+- **ADR**: Created ADR index (`README.md`) and standardized `TEMPLATE.md` based on MADR format.
+
+### 🗑️ Removed
+
+- **Legacy**: Completely removed `ServiceLocator.cs` from production and test code.
+- **MainForm**: Replaced obsolete default constructor with `NotSupportedException`.
+
+### 🧪 Testing
+
+- Added 26 new unit tests for specialized presenters (total: 269 tests).
+
+---
+
 ## [2.1.11-beta] (Build 2080)
 
 ### 🚀 Added

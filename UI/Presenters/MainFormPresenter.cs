@@ -51,6 +51,11 @@ namespace ArdysaModsTools.UI.Presenters
         private readonly Dota2Monitor _dotaMonitor;
         private readonly DotaVersionService _versionService;
         
+        // Composed presenters for delegation (SRP)
+        private readonly IModOperationsPresenter _modOperations;
+        private readonly IPatchPresenter _patchPresenter;
+        private readonly INavigationPresenter _navigationPresenter;
+        
         private bool _patchDialogDismissedByUser;
         private DotaPatchWatcherService? _patchWatcher;
 
@@ -109,8 +114,33 @@ namespace ArdysaModsTools.UI.Presenters
             _dotaMonitor.OnDota2StateChanged += OnDotaStateChanged;
             _dotaMonitor.Start();
 
+            // Initialize composed presenters for delegation
+            _modOperations = new ModOperationsPresenter(_view, _logger);
+            _patchPresenter = new PatchPresenter(_view, _logger);
+            _navigationPresenter = new NavigationPresenter(_view, _logger);
+            
+            // Wire up presenter events for coordination
+            WireUpPresenterEvents();
+
             // Load last target path
             LoadLastTargetPath();
+        }
+        
+        /// <summary>
+        /// Wires up events between composed presenters for coordination.
+        /// </summary>
+        private void WireUpPresenterEvents()
+        {
+            // ModOperations events - only status refresh, patch is handled by MainFormPresenter
+            _modOperations.StatusRefreshRequested += async () => await RefreshStatusAsync();
+            
+            // PatchPresenter events  
+            _patchPresenter.StatusRefreshRequested += async () => await RefreshStatusAsync();
+            _patchPresenter.PatchDetected += () => _patchDialogDismissedByUser = false;
+            
+            // NavigationPresenter events
+            _navigationPresenter.StatusRefreshRequested += async () => await RefreshStatusAsync();
+            _navigationPresenter.PatchRequested += async () => await ExecutePatchAsync();
         }
 
         /// <summary>
@@ -153,6 +183,7 @@ namespace ArdysaModsTools.UI.Presenters
                 {
                     _targetPath = last;
                     _view.TargetPath = last;
+                    SyncTargetPath(last);
                 }
                 else
                 {
@@ -161,6 +192,25 @@ namespace ArdysaModsTools.UI.Presenters
                     _config.SetLastTargetPath(null);
                 }
             }
+        }
+        
+        /// <summary>
+        /// Syncs the target path to all composed presenters.
+        /// </summary>
+        private void SyncTargetPath(string? path)
+        {
+            _modOperations.TargetPath = path;
+            _patchPresenter.TargetPath = path;
+            _navigationPresenter.TargetPath = path;
+        }
+        
+        /// <summary>
+        /// Syncs the current status info to presenters that need it.
+        /// </summary>
+        private void SyncCurrentStatus(ModStatusInfo? status)
+        {
+            _currentStatus = status;
+            _navigationPresenter.CurrentStatus = status;
         }
 
         #endregion
@@ -181,6 +231,7 @@ namespace ArdysaModsTools.UI.Presenters
                 {
                     _targetPath = detectedPath;
                     _view.TargetPath = detectedPath;
+                    SyncTargetPath(detectedPath);
                     _config.SetLastTargetPath(_targetPath);
                     await CheckModsStatusAsync();
                     await StartPatchWatcherAsync(_targetPath);
@@ -213,6 +264,7 @@ namespace ArdysaModsTools.UI.Presenters
                 {
                     _targetPath = selectedPath;
                     _view.TargetPath = selectedPath;
+                    SyncTargetPath(selectedPath);
                     _config.SetLastTargetPath(_targetPath);
                     _logger.Log($"Dota 2 path set: {_targetPath}");
                     await CheckModsStatusAsync();

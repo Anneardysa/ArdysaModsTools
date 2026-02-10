@@ -24,20 +24,32 @@ namespace ArdysaModsTools.Core.DependencyInjection
 {
     /// <summary>
     /// Extension methods for configuring dependency injection.
+    /// Provides specialized registration methods for each service category.
     /// </summary>
     public static class ServiceCollectionExtensions
     {
         /// <summary>
         /// Adds all ArdysaModsTools services to the DI container.
+        /// This is the main entry point for service registration.
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <returns>The service collection for chaining.</returns>
         public static IServiceCollection AddArdysaServices(this IServiceCollection services)
         {
-            // ═══════════════════════════════════════════════════════════════
-            // CORE SERVICES
-            // ═══════════════════════════════════════════════════════════════
-            
+            return services
+                .AddCoreServices()
+                .AddConflictServices()
+                .AddHeroServices()
+                .AddLoggingServices()
+                .AddPresenters()
+                .AddUIFactories();
+        }
+
+        /// <summary>
+        /// Adds core mod installation and detection services.
+        /// </summary>
+        public static IServiceCollection AddCoreServices(this IServiceCollection services)
+        {
             // Mod Installation
             services.AddTransient<IModInstallerService, ModInstallerService>();
             services.AddTransient<IStatusService, StatusService>();
@@ -51,29 +63,59 @@ namespace ArdysaModsTools.Core.DependencyInjection
             // File Transactions (transient - each user gets new factory)
             services.AddTransient<IFileTransactionFactory, FileTransactionFactory>();
             
-            // ═══════════════════════════════════════════════════════════════
-            // CONFLICT RESOLUTION SERVICES
-            // ═══════════════════════════════════════════════════════════════
+            return services;
+        }
+
+        /// <summary>
+        /// Adds conflict detection and resolution services.
+        /// </summary>
+        public static IServiceCollection AddConflictServices(this IServiceCollection services)
+        {
             services.AddSingleton<IConflictDetector, Services.Conflict.ConflictDetector>();
             services.AddSingleton<IConflictResolver, Services.Conflict.ConflictResolver>();
             services.AddSingleton<IModPriorityService, Services.Conflict.ModPriorityService>();
             
-            // ═══════════════════════════════════════════════════════════════
-            // HERO SERVICES
-            // ═══════════════════════════════════════════════════════════════
+            return services;
+        }
+
+        /// <summary>
+        /// Adds hero selection and generation services.
+        /// </summary>
+        public static IServiceCollection AddHeroServices(this IServiceCollection services)
+        {
             services.AddTransient<IHeroGenerationService, HeroGenerationService>();
             
-            // ═══════════════════════════════════════════════════════════════
-            // LOGGING
-            // NullLogger is registered as default. UI can replace this with
-            // a real Logger instance after the form is initialized.
-            // ═══════════════════════════════════════════════════════════════
+            return services;
+        }
+
+        /// <summary>
+        /// Adds logging services.
+        /// NullLogger is registered as default. UI can replace with real Logger.
+        /// </summary>
+        public static IServiceCollection AddLoggingServices(this IServiceCollection services)
+        {
             services.AddSingleton<IAppLogger>(NullLogger.Instance);
             
-            // ═══════════════════════════════════════════════════════════════
-            // UI FACTORIES
-            // Factory pattern for WinForms that can't use constructor injection
-            // ═══════════════════════════════════════════════════════════════
+            return services;
+        }
+
+        /// <summary>
+        /// Adds specialized UI presenters extracted from MainFormPresenter for SRP.
+        /// </summary>
+        public static IServiceCollection AddPresenters(this IServiceCollection services)
+        {
+            services.AddTransient<IModOperationsPresenter, UI.Presenters.ModOperationsPresenter>();
+            services.AddTransient<IPatchPresenter, UI.Presenters.PatchPresenter>();
+            services.AddTransient<INavigationPresenter, UI.Presenters.NavigationPresenter>();
+            
+            return services;
+        }
+
+        /// <summary>
+        /// Adds UI factories for WinForms that can't use constructor injection.
+        /// </summary>
+        public static IServiceCollection AddUIFactories(this IServiceCollection services)
+        {
             services.AddSingleton<UI.Factories.IMainFormFactory, UI.Factories.MainFormFactory>();
             
             return services;

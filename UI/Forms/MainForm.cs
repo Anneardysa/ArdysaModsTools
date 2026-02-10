@@ -72,16 +72,13 @@ namespace ArdysaModsTools
         private readonly CacheCleaningService _cacheService;
 
         /// <summary>
-        /// Default constructor that uses ServiceLocator for backward compatibility.
-        /// New code should use the DI constructor via MainFormFactory.
+        /// Default constructor is disabled. Use MainFormFactory.Create() for proper DI.
         /// </summary>
-        [Obsolete("Use MainFormFactory.Create() for proper DI. This constructor will be removed in v3.0.")]
-        public MainForm() : this(
-            ServiceLocator.GetRequired<IConfigService>(),
-            ServiceLocator.GetRequired<IDetectionService>(),
-            ServiceLocator.GetRequired<IModInstallerService>(),
-            ServiceLocator.GetRequired<IStatusService>())
+        [Obsolete("Use MainFormFactory.Create() for proper DI. This constructor throws NotSupportedException.", true)]
+        public MainForm()
         {
+            throw new NotSupportedException(
+                "Default constructor is disabled. Use MainFormFactory.Create() to create MainForm with proper dependency injection.");
         }
 
         /// <summary>
