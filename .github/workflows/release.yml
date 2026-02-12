@@ -17,6 +17,7 @@ on:
 
 env:
    DOTNET_VERSION: "8.0.x"
+   DOTNET_RUNTIME_VERSION: "8.0.24"
    PROJECT_NAME: ArdysaModsTools
    PROJECT_FILE: ArdysaModsTools.csproj
 
@@ -36,6 +37,15 @@ jobs:
            uses: actions/setup-dotnet@v4
            with:
               dotnet-version: ${{ env.DOTNET_VERSION }}
+
+         # Cache NuGet packages for faster builds
+         - name: Cache NuGet packages
+           uses: actions/cache@v4
+           with:
+              path: ~/.nuget/packages
+              key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+              restore-keys: |
+                 ${{ runner.os }}-nuget-
 
          - name: Get version from tag
            id: version
@@ -62,18 +72,42 @@ jobs:
                 -p:PublishSingleFile=false `
                 -o publish/installer
 
+         # Download .NET 8 Runtime Installer for bundling into setup
+         - name: Download Bundled Runtime Installer
+           shell: pwsh
+           run: |
+              $runtimeVersion = "${{ env.DOTNET_RUNTIME_VERSION }}"
+              $fileName = "windowsdesktop-runtime-${runtimeVersion}-win-x64.exe"
+              $url = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/${runtimeVersion}/${fileName}"
+              $outputDir = "tools\dotnet"
+              $output = "$outputDir\$fileName"
+
+              # Ensure directory exists
+              New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+
+              # Skip download if already present (e.g., checked into repo)
+              if (Test-Path $output) {
+                  Write-Host "Runtime installer already exists: $output ($('{0:N2}' -f ((Get-Item $output).Length / 1MB)) MB)"
+              } else {
+                  Write-Host "Downloading .NET $runtimeVersion Desktop Runtime..."
+                  $ProgressPreference = 'SilentlyContinue'  # Speeds up Invoke-WebRequest
+                  Invoke-WebRequest -Uri $url -OutFile $output -UseBasicParsing
+                  Write-Host "Downloaded: $output ($('{0:N2}' -f ((Get-Item $output).Length / 1MB)) MB)"
+              }
+
          # Install Inno Setup
          - name: Install Inno Setup
            shell: pwsh
            run: |
-              choco install innosetup -y
+              choco install innosetup -y --no-progress
               echo "C:\Program Files (x86)\Inno Setup 6" >> $env:GITHUB_PATH
 
          - name: Build Installer EXE
            shell: pwsh
            run: |
               # Update version in ISS file
-              $issContent = Get-Content "Build\Installer\${{ env.PROJECT_NAME }}.iss" -Raw
+              $issPath = "Build\Installer\${{ env.PROJECT_NAME }}.iss"
+              $issContent = Get-Content $issPath -Raw
               $displayVersion = "${{ steps.version.outputs.VERSION }}"
 
               # Create numeric version (strip -beta, -alpha, etc. and ensure 4 parts)
@@ -85,23 +119,35 @@ jobs:
               # Replace both versions
               $issContent = $issContent -replace '#define MyAppVersion ".*"', "#define MyAppVersion `"$displayVersion`""
               $issContent = $issContent -replace '#define MyAppVersionNumeric ".*"', "#define MyAppVersionNumeric `"$numericVersion`""
-              Set-Content "Build\Installer\${{ env.PROJECT_NAME }}.iss" $issContent
+              Set-Content $issPath $issContent
+
+              Write-Host "Building installer for v${displayVersion} (numeric: ${numericVersion})..."
 
               # Compile installer
-              iscc "Build\Installer\${{ env.PROJECT_NAME }}.iss"
+              iscc $issPath
+              if ($LASTEXITCODE -ne 0) {
+                  Write-Error "Inno Setup compilation failed with exit code $LASTEXITCODE"
+                  exit $LASTEXITCODE
+              }
 
          - name: Prepare Artifacts
            shell: pwsh
            run: |
               $version = "${{ steps.version.outputs.VERSION }}"
+              $installerName = "${{ env.PROJECT_NAME }}_Setup_$version.exe"
 
               # Create output directory
-              New-Item -ItemType Directory -Path "release" -Force
+              New-Item -ItemType Directory -Path "release" -Force | Out-Null
 
               # Copy installer
-              Copy-Item "Build\Installer\Output\*.exe" "release\${{ env.PROJECT_NAME }}_Setup_$version.exe"
+              Copy-Item "Build\Installer\Output\*.exe" "release\$installerName"
 
-              # List files
+              # Generate SHA256 checksum
+              $hash = (Get-FileHash "release\$installerName" -Algorithm SHA256).Hash
+              "$hash  $installerName" | Out-File "release\SHA256SUMS.txt" -Encoding utf8
+
+              Write-Host "Installer: $installerName"
+              Write-Host "SHA256:    $hash"
               Get-ChildItem "release"
 
          # Upload artifacts (for debugging)
@@ -114,7 +160,7 @@ jobs:
 
          # Create GitHub Release
          - name: Create GitHub Release
-           uses: softprops/action-gh-release@v1
+           uses: softprops/action-gh-release@v2
            if: startsWith(github.ref, 'refs/tags/')
            with:
               name: v${{ steps.version.outputs.VERSION }}
@@ -122,5 +168,22 @@ jobs:
               generate_release_notes: true
               files: |
                  release/${{ env.PROJECT_NAME }}_Setup_${{ steps.version.outputs.VERSION }}.exe
+                 release/SHA256SUMS.txt
            env:
               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+         # Build summary in GitHub Actions UI
+         - name: Build Summary
+           if: always()
+           shell: pwsh
+           run: |
+              $version = "${{ steps.version.outputs.VERSION }}"
+              @"
+              ## 🚀 Build Summary
+              | Item | Value |
+              |------|-------|
+              | **Version** | v${version} |
+              | **Runtime** | .NET ${{ env.DOTNET_VERSION }} (self-contained) |
+              | **Platform** | win-x64 |
+              | **Trigger** | ${{ github.event_name }} |
+              "@ >> $env:GITHUB_STEP_SUMMARY

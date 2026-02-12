@@ -328,19 +328,23 @@ end;
 // ============================================================================
 // .NET 8 DESKTOP RUNTIME CHECK (Registry-based, multi-path)
 // ============================================================================
+// CRITICAL: ArchitecturesInstallIn64BitMode=x64compatible makes this installer
+// run as a 64-bit process. In 64-bit mode, HKLM reads the native 64-bit
+// registry view. But .NET registers its runtimes under the 32-bit view
+// (WOW6432Node). We must use HKLM32 to read from the 32-bit registry.
+//
 // Detection uses RegGetValueNames to enumerate installed runtime versions.
-// .NET stores versions as VALUE NAMES (REG_DWORD), NOT as subkeys.
-// Three registry paths are checked to cover x64, WOW6432Node, and ARM64.
+// .NET stores versions as VALUE NAMES (REG_DWORD 0x1), NOT as subkeys.
 // ============================================================================
 
-function CheckDotNet8InRegistryPath(const RegPath: String): Boolean;
+function CheckDotNet8InRegistry(const RootKey: Integer; const RegPath: String): Boolean;
 var
   Names: TArrayOfString;
   I: Integer;
 begin
   Result := False;
   
-  if RegGetValueNames(HKLM, RegPath, Names) then
+  if RegGetValueNames(RootKey, RegPath, Names) then
   begin
     for I := 0 to GetArrayLength(Names) - 1 do
     begin
@@ -355,25 +359,40 @@ begin
 end;
 
 function IsDotNet8DesktopInstalled(): Boolean;
+var
+  BasePath: String;
 begin
   Result := False;
+  BasePath := 'SOFTWARE\dotnet\Setup\InstalledVersions';
   
-  // Path 1: Native x64 registry path
-  if CheckDotNet8InRegistryPath('SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App') then
+  // Primary: 32-bit registry view, x64 runtime (where .NET actually registers)
+  if CheckDotNet8InRegistry(HKLM32, BasePath + '\x64\sharedfx\Microsoft.WindowsDesktop.App') then
   begin
     Result := True;
     Exit;
   end;
   
-  // Path 2: WOW6432Node x64 path (32-bit process reading 64-bit registry)
-  if CheckDotNet8InRegistryPath('SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App') then
+  // Fallback: 64-bit registry view, x64 runtime (some installs may register here)
+  if CheckDotNet8InRegistry(HKLM, BasePath + '\x64\sharedfx\Microsoft.WindowsDesktop.App') then
   begin
     Result := True;
     Exit;
   end;
   
-  // Path 3: ARM64 path (for ARM devices running x64 emulation)
-  if CheckDotNet8InRegistryPath('SOFTWARE\dotnet\Setup\InstalledVersions\arm64\sharedfx\Microsoft.WindowsDesktop.App') then
+  // Fallback: 32-bit registry view, x86 runtime
+  if CheckDotNet8InRegistry(HKLM32, BasePath + '\x86\sharedfx\Microsoft.WindowsDesktop.App') then
+  begin
+    Result := True;
+    Exit;
+  end;
+  
+  // Fallback: ARM64 runtime (both views)
+  if CheckDotNet8InRegistry(HKLM32, BasePath + '\arm64\sharedfx\Microsoft.WindowsDesktop.App') then
+  begin
+    Result := True;
+    Exit;
+  end;
+  if CheckDotNet8InRegistry(HKLM, BasePath + '\arm64\sharedfx\Microsoft.WindowsDesktop.App') then
   begin
     Result := True;
     Exit;
