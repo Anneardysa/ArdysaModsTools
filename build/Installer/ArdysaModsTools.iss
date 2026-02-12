@@ -6,8 +6,8 @@
 ; ============================================================================
 
 #define MyAppName "ArdysaModsTools"
-#define MyAppVersion "2.0"
-#define MyAppVersionNumeric "2.0.0.0"
+#define MyAppVersion "2.1.12-beta"
+#define MyAppVersionNumeric "2.1.12.0"
 #define MyAppPublisher "Ardysa"
 #define MyAppURL "https://github.com/Anneardysa/ArdysaModsTools"
 #define MyAppExeName "ArdysaModsTools.exe"

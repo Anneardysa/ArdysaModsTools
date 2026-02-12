@@ -32,6 +32,7 @@ bld/
 # Build folder is ignored but Installer subfolder is allowed for Inno Setup script
 [Bb]uild/*
 ![Bb]uild/[Ii]nstaller/
+build/Installer/Output
 publish/
 protected/
 installer_output/
