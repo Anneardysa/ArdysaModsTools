@@ -23,8 +23,10 @@ using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.UI.Interfaces;
+using ArdysaModsTools.UI.Forms;
 
 namespace ArdysaModsTools.UI.Presenters
 {
@@ -87,6 +89,10 @@ namespace ArdysaModsTools.UI.Presenters
         {
             if (string.IsNullOrEmpty(TargetPath)) return;
 
+            // Check remote feature access control
+            if (!await CheckFeatureAccessAsync(FeatureAccessService.MiscellaneousFeature))
+                return;
+
             // Show Misc Form and get result
             var (result, generationResult) = _view.ShowMiscForm(TargetPath);
             
@@ -117,6 +123,10 @@ namespace ArdysaModsTools.UI.Presenters
             {
                 return;
             }
+
+            // Check remote feature access control
+            if (!await CheckFeatureAccessAsync(FeatureAccessService.SkinSelectorFeature))
+                return;
 
             // Check GitHub access before opening form
             var hasAccess = await CheckHeroesJsonAccessAsync();
@@ -187,8 +197,9 @@ namespace ArdysaModsTools.UI.Presenters
                 // If NOT NeedUpdate (e.g. just replaced files without requiring patch), show success
                 if (CurrentStatus?.Status == ModStatus.Ready)
                 {
-                    _view.ShowMessageBox("Custom ModsPack installed successfully!", 
-                        "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    _view.ShowNotification("Success", 
+                        "Custom ModsPack installed successfully!",
+                        System.Windows.Forms.ToolTipIcon.Info, 3000);
                 }
                 else
                 {
@@ -327,6 +338,55 @@ namespace ArdysaModsTools.UI.Presenters
 
             var vpkPath = System.IO.Path.Combine(TargetPath, "game", "_ArdysaMods", "pak01_dir.vpk");
             return System.IO.File.Exists(vpkPath);
+        }
+
+        /// <summary>
+        /// Checks if a feature is accessible via remote R2 config.
+        /// Shows a message and returns false if the feature is disabled.
+        /// Fail-open: returns true if config cannot be fetched.
+        /// </summary>
+        /// <param name="featureName">Feature name constant from FeatureAccessService.</param>
+        /// <returns>True if access is allowed, false if blocked.</returns>
+        private async Task<bool> CheckFeatureAccessAsync(string featureName)
+        {
+            try
+            {
+                // Do NOT use ConfigureAwait(false) here — we need to return to 
+                // the UI thread to safely call _view.ShowMessageBox() below.
+                var config = await FeatureAccessService.GetConfigAsync();
+                var feature = featureName switch
+                {
+                    FeatureAccessService.SkinSelectorFeature => config.SkinSelector,
+                    FeatureAccessService.MiscellaneousFeature => config.Miscellaneous,
+                    _ => new FeatureAccess()
+                };
+
+                if (!feature.Enabled)
+                {
+                    // Map feature constant to friendly display name
+                    var displayName = featureName switch
+                    {
+                        FeatureAccessService.SkinSelectorFeature => "Skin Selector",
+                        FeatureAccessService.MiscellaneousFeature => "Miscellaneous",
+                        _ => featureName
+                    };
+
+                    FeatureUnavailableDialog.Show(
+                        _view as IWin32Window,
+                        displayName,
+                        feature.GetDisplayMessage());
+                    _logger.Log($"[ACCESS] {featureName} is disabled by remote config");
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Fail-open: if access check itself fails, allow the feature
+                _logger.Log($"[ACCESS] Check failed for {featureName}: {ex.Message} — allowing access");
+                return true;
+            }
         }
 
         private void LogGenerationResult(ModGenerationResult result)

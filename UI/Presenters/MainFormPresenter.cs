@@ -29,6 +29,7 @@ using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Update;
 using System.Net.Http;
 using ArdysaModsTools.UI.Interfaces;
+using ArdysaModsTools.UI.Forms;
 
 namespace ArdysaModsTools.UI.Presenters
 {
@@ -903,11 +904,11 @@ namespace ArdysaModsTools.UI.Presenters
                 if (isRunning)
                 {
                     _view.DisableAllButtons();
-                    _view.ShowMessageBox(
-                        "Dota 2 is now running. Operations are disabled while the game is active.",
+                    _view.ShowNotification(
                         "Dota 2 Running",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
+                        "Dota 2 is now running. Operations are disabled while the game is active.",
+                        System.Windows.Forms.ToolTipIcon.Info,
+                        5000);
                 }
                 else
                 {
@@ -1481,6 +1482,26 @@ namespace ArdysaModsTools.UI.Presenters
         {
             if (string.IsNullOrEmpty(_targetPath)) return;
 
+            // Check remote feature access control
+            try
+            {
+                var accessConfig = await FeatureAccessService.GetConfigAsync();
+                if (!accessConfig.Miscellaneous.Enabled)
+                {
+                    FeatureUnavailableDialog.Show(
+                        _view as IWin32Window,
+                        "Miscellaneous",
+                        accessConfig.Miscellaneous.GetDisplayMessage());
+                    _logger.Log($"[ACCESS] Miscellaneous is disabled by remote config");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail-open: if access check fails, allow the feature
+                _logger.Log($"[ACCESS] Check failed for Miscellaneous: {ex.Message} — allowing access");
+            }
+
             // Show Misc Form and get result
             var (result, generationResult) = _view.ShowMiscForm(_targetPath);
             
@@ -1514,6 +1535,26 @@ namespace ArdysaModsTools.UI.Presenters
             if (string.IsNullOrEmpty(_targetPath))
             {
                 return;
+            }
+
+            // Check remote feature access control
+            try
+            {
+                var accessConfig = await FeatureAccessService.GetConfigAsync();
+                if (!accessConfig.SkinSelector.Enabled)
+                {
+                    FeatureUnavailableDialog.Show(
+                        _view as IWin32Window,
+                        "Skin Selector",
+                        accessConfig.SkinSelector.GetDisplayMessage());
+                    _logger.Log($"[ACCESS] SkinSelector is disabled by remote config");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fail-open: if access check fails, allow the feature
+                _logger.Log($"[ACCESS] Check failed for SkinSelector: {ex.Message} — allowing access");
             }
 
             // Check GitHub access before opening form
@@ -1585,8 +1626,9 @@ namespace ArdysaModsTools.UI.Presenters
                 // If NOT NeedUpdate (e.g. just replaced files without requiring patch), show success
                 if (_currentStatus?.Status == ModStatus.Ready)
                 {
-                     _view.ShowMessageBox("Custom ModsPack installed successfully!", 
-                        "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                     _view.ShowNotification("Success", 
+                        "Custom ModsPack installed successfully!",
+                        System.Windows.Forms.ToolTipIcon.Info, 3000);
                 }
                 else
                 {

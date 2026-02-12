@@ -178,6 +178,20 @@ namespace ArdysaModsTools
             return dialog.SelectedMethod != InstallMethod.ManualInstall;
         }
 
+        /// <summary>
+        /// Shows a Windows notification (balloon tip) via the system tray.
+        /// </summary>
+        public void ShowNotification(string title, string message, ToolTipIcon icon = ToolTipIcon.Info, int timeout = 3000)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => ShowNotification(title, message, icon, timeout)));
+                return;
+            }
+
+            _trayService?.ShowNotification(title, message, icon, timeout, forceShow: true);
+        }
+
         #endregion
 
         #region IMainFormView - Progress Overlay

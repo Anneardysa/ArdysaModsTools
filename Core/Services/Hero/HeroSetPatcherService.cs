@@ -19,9 +19,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services
@@ -72,6 +72,7 @@ namespace ArdysaModsTools.Core.Services
     /// <summary>
     /// Focused service for patching items_game.txt based on index.txt blocks.
     /// Single responsibility: Parse KV blocks and patch items_game.txt.
+    /// Delegates all KV text manipulation to <see cref="KeyValuesBlockHelper"/>.
     /// </summary>
     public sealed class HeroSetPatcherService : IHeroSetPatcher
     {
@@ -91,12 +92,18 @@ namespace ArdysaModsTools.Core.Services
             if (string.IsNullOrWhiteSpace(indexFolder) || !Directory.Exists(indexFolder))
                 return null;
 
+            if (string.IsNullOrWhiteSpace(heroId))
+                return null;
+
+            if (itemIds == null || itemIds.Count == 0)
+                return null;
+
             var indexPath = FindIndexFile(indexFolder);
             if (indexPath == null)
                 return null;
 
             var indexText = File.ReadAllText(indexPath, Encoding.UTF8);
-            var blocks = ParseKvBlocks(indexText);
+            var blocks = KeyValuesBlockHelper.ParseKvBlocks(indexText);
 
             // Filter to only requested item IDs and add heroId
             var result = new Dictionary<string, (string block, string heroId)>();
@@ -106,6 +113,20 @@ namespace ArdysaModsTools.Core.Services
                 if (blocks.TryGetValue(idStr, out var block))
                 {
                     result[idStr] = (block, heroId);
+                }
+                else
+                {
+                    _logger?.LogDebug($"[Patcher] index.txt does not contain block for ID {idStr} (hero: {heroId})");
+                }
+            }
+
+            // Warn about blocks in index.txt that weren't requested
+            var requestedIds = new HashSet<string>(itemIds.Select(i => i.ToString()));
+            foreach (var kvp in blocks)
+            {
+                if (!requestedIds.Contains(kvp.Key))
+                {
+                    _logger?.LogDebug($"[Patcher] index.txt contains unrequested block ID {kvp.Key} (hero: {heroId}) — ignored");
                 }
             }
 
@@ -160,13 +181,11 @@ namespace ArdysaModsTools.Core.Services
                 System.Diagnostics.Debug.WriteLine($"[DEBUG] Processing ID {idStr} for {heroId}");
 #endif
 
-                // Extract existing block for validation
-                var existingBlock = ExtractBlockById(original, idStr);
+                // Extract existing block for validation (pass heroId to avoid false matches)
+                var existingBlock = KeyValuesBlockHelper.ExtractBlockById(original, idStr, heroId);
                 if (string.IsNullOrEmpty(existingBlock))
                 {
-#if DEBUG
-                    log($"[DEBUG] ID {idStr} not found in items_game.txt - skipping.");
-#endif
+                    log($"Warning: ID {idStr} not found in items_game.txt for {heroId} — skipping.");
                     failedIds.Add($"{idStr}(not found)");
                     skippedCount++;
                     continue;
@@ -175,32 +194,29 @@ namespace ArdysaModsTools.Core.Services
                 var validation = ValidateBlockMatch(existingBlock, replacementBlock, heroId, idStr);
                 if (!validation.isValid)
                 {
-#if DEBUG
-                    log($"[DEBUG] Block {idStr} validation failed - {validation.error}");
-#endif
+                    log($"Warning: Block {idStr} validation failed — {validation.error}");
                     failedIds.Add($"{idStr}({validation.error})");
                     skippedCount++;
                     continue;
                 }
 
-                var previousLength = original.Length;
-                original = ReplaceIdBlock(original, idStr, replacementBlock, out bool didReplace);
+                // Normalize indentation to match items_game.txt format before replacing
+                var normalizedBlock = NormalizeBlockIndentation(replacementBlock, original);
+                original = KeyValuesBlockHelper.ReplaceIdBlock(original, idStr, normalizedBlock, out bool didReplace, heroId);
                 
                 if (didReplace)
                 {
                     replacedCount++;
 #if DEBUG
                     // Verify the replacement by checking if content changed
-                    var verifyBlock = ExtractBlockById(original, idStr);
+                    var verifyBlock = KeyValuesBlockHelper.ExtractBlockById(original, idStr);
                     bool verified = verifyBlock != null && verifyBlock.Length > 0;
                     System.Diagnostics.Debug.WriteLine($"[DEBUG] ✓ Patched ID {idStr} for {heroId} (verified={verified})");
 #endif
                 }
                 else
                 {
-#if DEBUG
-                    System.Diagnostics.Debug.WriteLine($"[DEBUG] ✗ ReplaceIdBlock returned false for ID {idStr}");
-#endif
+                    log($"Warning: ReplaceIdBlock failed for ID {idStr} ({heroId}).");
                     failedIds.Add($"{idStr}(replace failed)");
                 }
 
@@ -211,13 +227,11 @@ namespace ArdysaModsTools.Core.Services
             // Write patched file
             await File.WriteAllTextAsync(itemsGamePath, original, Encoding.UTF8, ct).ConfigureAwait(false);
 
-#if DEBUG
-            log($"[DEBUG] Patching complete: {replacedCount}/{mergedBlocks.Count} applied, {skippedCount} skipped");
+            log($"Patching complete: {replacedCount}/{mergedBlocks.Count} applied, {skippedCount} skipped.");
             if (failedIds.Count > 0)
             {
-                System.Diagnostics.Debug.WriteLine($"[DEBUG] Failed IDs: {string.Join(", ", failedIds)}");
+                log($"Failed IDs: {string.Join(", ", failedIds)}");
             }
-#endif
 
             return true;
         }
@@ -257,12 +271,12 @@ namespace ArdysaModsTools.Core.Services
             {
                 log($"Found index: {Path.GetFileName(indexPath)}");
                 var indexText = await File.ReadAllTextAsync(indexPath, Encoding.UTF8, ct).ConfigureAwait(false);
-                indexBlocks = ParseKvBlocks(indexText);
+                indexBlocks = KeyValuesBlockHelper.ParseKvBlocks(indexText);
                 log($"Parsed {indexBlocks.Count} blocks from index.");
             }
             else
             {
-                log("Warning: index.txt not found. Will use original blocks."); // ERR_HERO_001: Set has no index.txt file
+                log("Warning: index.txt not found. Will use original blocks.");
                 indexBlocks = new Dictionary<string, string>();
             }
 
@@ -270,7 +284,7 @@ namespace ArdysaModsTools.Core.Services
             var itemsGamePath = FindItemsGame(itemsGameFolder);
             if (itemsGamePath == null)
             {
-                log("Warning: items_game.txt not found in extracted VPK."); // ERR_HERO_002: VPK extraction incomplete
+                log("Warning: items_game.txt not found in extracted VPK.");
                 return true;
             }
 
@@ -290,31 +304,36 @@ namespace ArdysaModsTools.Core.Services
                 // Get replacement block from index.txt
                 if (!indexBlocks.TryGetValue(idStr, out var replacementBlock))
                 {
-                    log($"ID {idStr} not in index.txt - skipping.");
+                    log($"ID {idStr} not in index.txt — skipping.");
                     continue;
                 }
 
-                // Find existing block in items_game.txt for validation
-                var existingBlock = ExtractBlockById(original, idStr);
+                // Find existing block in items_game.txt for validation (pass heroId to avoid false matches)
+                var existingBlock = KeyValuesBlockHelper.ExtractBlockById(original, idStr, heroId);
                 if (string.IsNullOrEmpty(existingBlock))
                 {
-                    log($"Warning: ID {idStr} not found in items_game.txt - skipping."); // ERR_HERO_003: Item ID missing from VPK
+                    log($"Warning: ID {idStr} not found in items_game.txt — skipping.");
                     continue;
                 }
 
                 var validation = ValidateBlockMatch(existingBlock, replacementBlock, heroId, idStr);
                 if (!validation.isValid)
                 {
-                    log($"Warning: Block {idStr} validation failed - {validation.error}"); // ERR_HERO_004: Block prefab/used_by mismatch
+                    log($"Warning: Block {idStr} validation failed — {validation.error}");
                     continue;
                 }
 
-                // Replace the block
-                original = ReplaceIdBlock(original, idStr, replacementBlock, out bool didReplace);
+                // Normalize indentation and replace the block
+                var normalizedBlock = NormalizeBlockIndentation(replacementBlock, original);
+                original = KeyValuesBlockHelper.ReplaceIdBlock(original, idStr, normalizedBlock, out bool didReplace, heroId);
                 if (didReplace)
                 {
                     replacedCount++;
                     log($"Replaced ID {idStr}");
+                }
+                else
+                {
+                    log($"Warning: ReplaceIdBlock failed for ID {idStr}.");
                 }
             }
 
@@ -324,6 +343,8 @@ namespace ArdysaModsTools.Core.Services
             log($"Patching completed: {replacedCount} block(s) applied.");
             return true;
         }
+
+        #region Validation
 
         /// <summary>
         /// Validates that the replacement block matches critical fields.
@@ -373,124 +394,103 @@ namespace ArdysaModsTools.Core.Services
             return (true, string.Empty);
         }
 
+        #endregion
+
+        #region Indentation Normalization
+
         /// <summary>
-        /// Extracts a block by ID from items_game.txt for validation.
-        /// Uses robust quote-aware parsing from ArdysaIdExtractor.
+        /// Normalizes the indentation of a replacement block to match the target file's style.
+        /// Detects whether the target uses tabs or spaces and converts accordingly.
         /// </summary>
-        private static string? ExtractBlockById(string content, string id)
+        private static string NormalizeBlockIndentation(string replacementBlock, string targetContent)
         {
-            if (string.IsNullOrEmpty(content) || string.IsNullOrEmpty(id)) return null;
+            if (string.IsNullOrEmpty(replacementBlock) || string.IsNullOrEmpty(targetContent))
+                return replacementBlock;
 
-            string token = $"\"{id}\"";
-            int searchPos = 0;
-            int attempts = 0;
-            const int MAX_ATTEMPTS = 100000;
+            // Detect target indent style by finding the first indented line
+            bool targetUsesTabs = DetectIndentStyle(targetContent);
+            bool sourceUsesTabs = DetectIndentStyle(replacementBlock);
 
-            while (true)
+            // If both use the same style, no conversion needed
+            if (targetUsesTabs == sourceUsesTabs) return replacementBlock;
+
+            var lines = replacementBlock.Split('\n');
+            var result = new StringBuilder(replacementBlock.Length);
+
+            for (int i = 0; i < lines.Length; i++)
             {
-                if (attempts++ > MAX_ATTEMPTS) break;
-                int pos = content.IndexOf(token, searchPos, StringComparison.Ordinal);
-                if (pos < 0) break;
-
-                int closingQuote = pos + token.Length - 1;
-                int after = SkipWhitespace(content, closingQuote + 1);
-                if (after >= content.Length) { searchPos = pos + 1; continue; }
-                if (content[after] != '{') { searchPos = pos + 1; continue; }
-
-                // Check that this isn't a value (previous non-whitespace shouldn't be a quote)
-                int prev = PrevNonWhitespaceIndex(content, pos - 1);
-                if (prev >= 0 && content[prev] == '"') { searchPos = pos + 1; continue; }
-
-                int blockStart = FindLineStart(content, pos);
-                int blockEndExclusive = ExtractBalancedBlockEnd(content, after);
-                if (blockEndExclusive <= blockStart || blockEndExclusive < 0)
+                var line = lines[i];
+                if (string.IsNullOrWhiteSpace(line))
                 {
-                    searchPos = pos + 1;
+                    if (i < lines.Length - 1) result.Append('\n');
                     continue;
                 }
 
-                string block = content.Substring(blockStart, blockEndExclusive - blockStart);
-                
-                // Verify this looks like an item block
-                if (IsLikelyItemBlock(block)) return block;
-
-                searchPos = pos + 1;
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Balanced block extraction with proper quote/escape handling.
-        /// </summary>
-        private static int ExtractBalancedBlockEnd(string text, int firstBraceIdx)
-        {
-            if (firstBraceIdx < 0 || firstBraceIdx >= text.Length || text[firstBraceIdx] != '{') return -1;
-            int depth = 0;
-            bool inQuote = false;
-            bool escape = false;
-            int n = text.Length;
-
-            for (int i = firstBraceIdx; i < n; i++)
-            {
-                char c = text[i];
-                if (escape) { escape = false; continue; }
-                if (c == '\\') { escape = true; continue; }
-                if (c == '"') { inQuote = !inQuote; continue; }
-                if (inQuote) continue;
-                if (c == '{') depth++;
-                else if (c == '}')
+                // Count leading indent
+                int indent = 0;
+                int j = 0;
+                while (j < line.Length)
                 {
-                    depth--;
-                    if (depth == 0) return i + 1;
+                    if (line[j] == '\t') { indent++; j++; }
+                    else if (line[j] == ' ')
+                    {
+                        // Count spaces and convert to indent levels (assume 4 or 8 spaces per level)
+                        int spaces = 0;
+                        while (j < line.Length && line[j] == ' ') { spaces++; j++; }
+                        indent += Math.Max(1, spaces / 4);
+                    }
+                    else break;
                 }
+
+                string content = line.Substring(j);
+                string indentStr = targetUsesTabs
+                    ? new string('\t', indent)
+                    : new string(' ', indent * 4);
+
+                result.Append(indentStr).Append(content);
+                if (i < lines.Length - 1) result.Append('\n');
             }
 
-            return -1;
+            return result.ToString();
         }
 
         /// <summary>
-        /// Heuristic: is this block likely an item block?
+        /// Detects whether content primarily uses tabs or spaces for indentation.
         /// </summary>
-        private static bool IsLikelyItemBlock(string block)
+        private static bool DetectIndentStyle(string content)
         {
-            if (string.IsNullOrEmpty(block)) return false;
+            int tabLines = 0, spaceLines = 0;
+            int pos = 0;
+            int sampled = 0;
+            const int MAX_SAMPLE = 50;
 
-            string[] markers = new[]
+            while (pos < content.Length && sampled < MAX_SAMPLE)
             {
-                "\"used_by_heroes\"",
-                "\"prefab\"",
-                "\"model_player\"",
-                "\"item_name\"",
-                "\"image_inventory\"",
-                "\"portraits\"",
-                "\"visuals\"",
-                "\"item_slot\"",
-                "\"item_type_name\"",
-                "\"name\""
-            };
+                // Find start of next line
+                if (pos > 0)
+                {
+                    int nl = content.IndexOf('\n', pos);
+                    if (nl < 0) break;
+                    pos = nl + 1;
+                }
+                if (pos >= content.Length) break;
 
-            foreach (var m in markers)
-            {
-                if (block.IndexOf(m, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                char c = content[pos];
+                if (c == '\t') { tabLines++; sampled++; }
+                else if (c == ' ') { spaceLines++; sampled++; }
+                else { pos++; continue; }
+
+                // Skip to end of line
+                int eol = content.IndexOf('\n', pos);
+                pos = eol < 0 ? content.Length : eol + 1;
             }
 
-            return block.Length >= 80;
+            return tabLines >= spaceLines; // true = tabs
         }
 
-        private static int SkipWhitespace(string s, int idx)
-        {
-            int n = s.Length;
-            while (idx < n && char.IsWhiteSpace(s[idx])) idx++;
-            return idx;
-        }
+        #endregion
 
-        private static int PrevNonWhitespaceIndex(string s, int startIdx)
-        {
-            int p = startIdx;
-            while (p >= 0 && char.IsWhiteSpace(s[p])) p--;
-            return p;
-        }
+        #region File Discovery
 
         private static string? FindIndexFile(string folder)
         {
@@ -526,122 +526,6 @@ namespace ArdysaModsTools.Core.Services
             return Directory.EnumerateFiles(folder, "items_game.txt", SearchOption.AllDirectories).FirstOrDefault();
         }
 
-        /// <summary>
-        /// Parses KV blocks from index.txt format: "id" { ... }
-        /// Uses quote-aware parsing for proper brace matching.
-        /// </summary>
-        private static Dictionary<string, string> ParseKvBlocks(string raw)
-        {
-            raw = NormalizeKvText(raw);
-            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            int pos = 0;
-            while (pos < raw.Length)
-            {
-                // Find quoted ID
-                int q1 = raw.IndexOf('"', pos);
-                if (q1 < 0) break;
-                int q2 = raw.IndexOf('"', q1 + 1);
-                if (q2 < 0) break;
-
-                var token = raw.Substring(q1 + 1, q2 - q1 - 1);
-                pos = q2 + 1;
-
-                // Only process numeric IDs
-                if (!Regex.IsMatch(token, @"^\d+$")) continue;
-
-                // Find opening brace
-                int braceStart = SkipWhitespace(raw, pos);
-                if (braceStart >= raw.Length || raw[braceStart] != '{') continue;
-
-                // Find matching closing brace using quote-aware extraction
-                int braceEnd = ExtractBalancedBlockEnd(raw, braceStart);
-                if (braceEnd < 0) continue;
-
-                // Extract full block including the ID line
-                int lineStart = FindLineStart(raw, q1);
-                var block = raw.Substring(lineStart, braceEnd - lineStart);
-                result[token] = block;
-                pos = braceEnd;
-            }
-
-            return result;
-        }
-
-        /// <summary>
-        /// Replaces a block by ID with quote-aware brace matching.
-        /// </summary>
-        private static string ReplaceIdBlock(string original, string id, string replacementBlock, out bool didReplace)
-        {
-            didReplace = false;
-            if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(original)) return original;
-
-            string token = $"\"{id}\"";
-            int searchPos = 0;
-            int attempts = 0;
-            const int MAX_ATTEMPTS = 100000;
-
-            while (true)
-            {
-                if (attempts++ > MAX_ATTEMPTS) break;
-                int pos = original.IndexOf(token, searchPos, StringComparison.Ordinal);
-                if (pos < 0) break;
-
-                int closingQuote = pos + token.Length - 1;
-                int after = SkipWhitespace(original, closingQuote + 1);
-                if (after >= original.Length) { searchPos = pos + 1; continue; }
-                if (original[after] != '{') { searchPos = pos + 1; continue; }
-
-                // Check that this isn't a value (previous non-whitespace shouldn't be a quote)
-                int prev = PrevNonWhitespaceIndex(original, pos - 1);
-                if (prev >= 0 && original[prev] == '"') { searchPos = pos + 1; continue; }
-
-                int blockStart = FindLineStart(original, pos);
-                int blockEndExclusive = ExtractBalancedBlockEnd(original, after);
-                if (blockEndExclusive <= blockStart || blockEndExclusive < 0)
-                {
-                    searchPos = pos + 1;
-                    continue;
-                }
-
-                string existingBlock = original.Substring(blockStart, blockEndExclusive - blockStart);
-                
-                // Verify this looks like an item block before replacing
-                if (!IsLikelyItemBlock(existingBlock))
-                {
-                    searchPos = pos + 1;
-                    continue;
-                }
-
-                // Replace the block
-                var before = original.Substring(0, blockStart);
-                var afterBlock = original.Substring(blockEndExclusive);
-                var rep = replacementBlock.TrimEnd() + Environment.NewLine;
-                original = before + rep + afterBlock;
-                didReplace = true;
-                return original;
-            }
-
-            return original;
-        }
-
-        private static int FindLineStart(string text, int idx)
-        {
-            if (idx <= 0) return 0;
-            for (int i = idx - 1; i >= 0; i--)
-            {
-                if (text[i] == '\n') return i + 1;
-            }
-            return 0;
-        }
-
-        private static string NormalizeKvText(string raw)
-        {
-            if (string.IsNullOrEmpty(raw)) return string.Empty;
-            if (raw[0] == '\uFEFF') raw = raw.Substring(1); // Remove BOM
-            return raw.Replace("\r\n", "\n").Replace('\r', '\n');
-        }
-
+        #endregion
     }
 }
-

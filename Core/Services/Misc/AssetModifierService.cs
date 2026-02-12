@@ -183,7 +183,7 @@ namespace ArdysaModsTools.Core.Services
             }
 
             // Use balanced brace matching for reliable replacement
-            content = KeyValuesBlockHelper.ReplaceIdBlock(content, itemId, replacementBlock, requireItemMarkers: false, out bool didReplace);
+            content = KeyValuesBlockHelper.ReplaceIdBlock(content, itemId, replacementBlock, out bool didReplace, requireItemMarkers: false);
             
             if (didReplace)
             {

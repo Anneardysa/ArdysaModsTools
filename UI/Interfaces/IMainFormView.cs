@@ -127,6 +127,15 @@ namespace ArdysaModsTools.UI.Interfaces
         /// <returns>True if auto-install selected, false if manual, null if cancelled</returns>
         bool? ShowInstallMethodDialog();
 
+        /// <summary>
+        /// Shows a Windows notification (balloon tip) via the system tray.
+        /// </summary>
+        /// <param name="title">Notification title</param>
+        /// <param name="message">Notification message</param>
+        /// <param name="icon">Icon type (default: Info)</param>
+        /// <param name="timeout">Duration in milliseconds (default: 3000)</param>
+        void ShowNotification(string title, string message, ToolTipIcon icon = ToolTipIcon.Info, int timeout = 3000);
+
         #endregion
 
         #region Progress Overlay

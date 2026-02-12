@@ -37,6 +37,15 @@ namespace ArdysaModsTools.Core.Services.Security
         /// <returns>True if all security checks pass.</returns>
         public static bool Initialize(bool exitOnFailure = true)
         {
+            // Diagnostic log helper (same path as Program.cs uses)
+            var logPath = System.IO.Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory, "startup_log.txt");
+            void Log(string msg)
+            {
+                try { System.IO.File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss.fff}] [Security] {msg}\r\n"); }
+                catch { }
+            }
+
             lock (_lock)
             {
                 if (_initialized) return true;
@@ -47,20 +56,24 @@ namespace ArdysaModsTools.Core.Services.Security
                 return true;
 #else
                 // Check for debugger
+                Log("Checking IsBeingDebugged...");
                 if (AntiDebug.IsBeingDebugged())
                 {
+                    Log("FAILED: Debugger detected");
                     if (exitOnFailure)
                     {
-                        // Delay slightly to make debugging harder
                         Thread.Sleep(100);
                         Environment.Exit(1);
                     }
                     return false;
                 }
+                Log("IsBeingDebugged: PASS");
 
                 // Check for debugging tools
+                Log("Checking for debug tools...");
                 if (AntiDebug.CheckForDebugTools())
                 {
+                    Log("FAILED: Debug tool detected");
                     if (exitOnFailure)
                     {
                         Thread.Sleep(100);
@@ -68,10 +81,13 @@ namespace ArdysaModsTools.Core.Services.Security
                     }
                     return false;
                 }
+                Log("Debug tools: PASS");
 
                 // Verify assembly integrity
+                Log("Checking assembly integrity...");
                 if (!IntegrityCheck.VerifyAssembly())
                 {
+                    Log("FAILED: Assembly integrity check failed");
                     if (exitOnFailure)
                     {
                         Thread.Sleep(100);
@@ -79,6 +95,7 @@ namespace ArdysaModsTools.Core.Services.Security
                     }
                     return false;
                 }
+                Log("Assembly integrity: PASS");
 
                 // Hide main thread from debuggers
                 AntiDebug.HideThreadFromDebugger();
@@ -86,11 +103,13 @@ namespace ArdysaModsTools.Core.Services.Security
                 // Start periodic checks (every 10 seconds)
                 AntiDebug.StartPeriodicCheck(10000, () =>
                 {
+                    Log("PERIODIC CHECK: Debugger detected, exiting");
                     // On detection, exit quietly
                     Environment.Exit(1);
                 });
 
                 _initialized = true;
+                Log("All security checks PASSED");
                 return true;
 #endif
             }

@@ -38,102 +38,146 @@ namespace ArdysaModsTools
         [STAThread]
         static void Main()
         {
-            // ═══════════════════════════════════════════════════════════════
-            // ENVIRONMENT CONFIGURATION
-            // Load configuration from .env file (for open-source deployment)
-            // ═══════════════════════════════════════════════════════════════
-            EnvironmentConfig.LoadFromEnvFile();
+            // Diagnostic log path (next to the exe)
+            var startupLogPath = System.IO.Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory, "startup_log.txt");
 
-            // ═══════════════════════════════════════════════════════════════
-            // SECURITY INITIALIZATION (Release builds only)
-            // Checks for debuggers, tampering, and reverse engineering tools
-            // ═══════════════════════════════════════════════════════════════
-            if (!SecurityManager.Initialize(exitOnFailure: true))
+            void Log(string message)
             {
-                return; // Security check failed
+                try { System.IO.File.AppendAllText(startupLogPath, $"[{DateTime.Now:HH:mm:ss.fff}] {message}\r\n"); }
+                catch { /* ignore logging errors */ }
             }
 
-            // ═══════════════════════════════════════════════════════════════
-            // DEPENDENCY INJECTION SETUP
-            // Build service container for clean architecture
-            // ═══════════════════════════════════════════════════════════════
-            var services = new ServiceCollection();
-            services.AddArdysaServices();
-            var serviceProvider = services.BuildServiceProvider();
-            
-            // NOTE: ServiceLocator has been removed. All DI now uses constructor injection.
-            // MainForm is created via IMainFormFactory.Create() which handles DI properly.
+            try
+            {
+                Log("=== ArdysaModsTools startup begin ===");
+                Log($"OS: {Environment.OSVersion}, .NET: {Environment.Version}, 64-bit: {Environment.Is64BitProcess}");
+                Log($"Exe: {Environment.ProcessPath}");
+                Log($"Dir: {AppDomain.CurrentDomain.BaseDirectory}");
 
-            // ═══════════════════════════════════════════════════════════════
-            // GLOBAL EXCEPTION HANDLING
-            // Centralized error handling with user-friendly messages
-            // ═══════════════════════════════════════════════════════════════
-            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-            
-            Application.ThreadException += (s, e) =>
-            {
-                Core.Helpers.GlobalExceptionHandler.Handle(e.Exception, showDialog: true);
-            };
-            AppDomain.CurrentDomain.UnhandledException += (s, e) =>
-            {
-                if (e.ExceptionObject is Exception ex)
+                // ═══════════════════════════════════════════════════════════════
+                // ENVIRONMENT CONFIGURATION
+                // Load configuration from .env file (for open-source deployment)
+                // ═══════════════════════════════════════════════════════════════
+                Log("Loading environment config...");
+                EnvironmentConfig.LoadFromEnvFile();
+                Log("Environment config loaded OK");
+
+                // ═══════════════════════════════════════════════════════════════
+                // SECURITY INITIALIZATION (Release builds only)
+                // Checks for debuggers, tampering, and reverse engineering tools
+                // ═══════════════════════════════════════════════════════════════
+                Log("Security check starting...");
+                if (!SecurityManager.Initialize(exitOnFailure: true))
                 {
-                    Core.Helpers.GlobalExceptionHandler.Handle(ex, showDialog: true);
+                    Log("BLOCKED: Security check failed");
+                    return; // Security check failed
                 }
-            };
+                Log("Security check passed OK");
 
-            // Cleanup on exit
-            Application.ApplicationExit += (s, e) =>
-            {
-                SecurityManager.Shutdown();
-            };
+                // ═══════════════════════════════════════════════════════════════
+                // DEPENDENCY INJECTION SETUP
+                // Build service container for clean architecture
+                // ═══════════════════════════════════════════════════════════════
+                Log("Building DI container...");
+                var services = new ServiceCollection();
+                services.AddArdysaServices();
+                var serviceProvider = services.BuildServiceProvider();
+                Log("DI container built OK");
+                
+                // NOTE: ServiceLocator has been removed. All DI now uses constructor injection.
+                // MainForm is created via IMainFormFactory.Create() which handles DI properly.
 
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
-            // Check for dota2 process before creating any forms
-            const string gameProcessName = "dota2"; // without .exe
-            if (ProcessChecker.IsProcessRunning(gameProcessName))
-            {
-                MessageBox.Show(
-                    "ArdysaModsTools cannot run while dota2.exe is active. Please close Dota 2 and try again.",
-                    "Cannot start — Dota 2 is running",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-
-                return; // exit application
-            }
-
-            // ═══════════════════════════════════════════════════════════════
-            // SINGLE INSTANCE ENFORCEMENT
-            // ═══════════════════════════════════════════════════════════════
-            const string appMutexName = "Global\\ArdysaModsTools_SingleInstance_Mutex";
-            bool createdNew;
-
-            using (var mutex = new System.Threading.Mutex(true, appMutexName, out createdNew))
-            {
-                if (!createdNew)
+                // ═══════════════════════════════════════════════════════════════
+                // GLOBAL EXCEPTION HANDLING
+                // Centralized error handling with user-friendly messages
+                // ═══════════════════════════════════════════════════════════════
+                Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+                
+                Application.ThreadException += (s, e) =>
                 {
-                    // App is already running - find it and bring to front
-                    var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
-                    var existingProcess = System.Diagnostics.Process.GetProcessesByName(currentProcess.ProcessName);
-                    
-                    foreach (var process in existingProcess)
+                    Log($"THREAD EXCEPTION: {e.Exception}");
+                    Core.Helpers.GlobalExceptionHandler.Handle(e.Exception, showDialog: true);
+                };
+                AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+                {
+                    if (e.ExceptionObject is Exception ex)
                     {
-                        if (process.Id != currentProcess.Id && process.MainWindowHandle != IntPtr.Zero)
-                        {
-                            ShowWindow(process.MainWindowHandle, SW_RESTORE);
-                            SetForegroundWindow(process.MainWindowHandle);
-                            break;
-                        }
+                        Log($"UNHANDLED EXCEPTION: {ex}");
+                        Core.Helpers.GlobalExceptionHandler.Handle(ex, showDialog: true);
                     }
+                };
 
-                    return; // Exit immediately
+                // Cleanup on exit
+                Application.ApplicationExit += (s, e) =>
+                {
+                    SecurityManager.Shutdown();
+                };
+
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+
+                // Check for dota2 process before creating any forms
+                const string gameProcessName = "dota2"; // without .exe
+                Log("Checking for Dota 2 process...");
+                if (ProcessChecker.IsProcessRunning(gameProcessName))
+                {
+                    Log("BLOCKED: Dota 2 is running");
+                    MessageBox.Show(
+                        "ArdysaModsTools cannot run while dota2.exe is active. Please close Dota 2 and try again.",
+                        "Cannot start — Dota 2 is running",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    return; // exit application
                 }
+                Log("Dota 2 not running, OK");
 
-                // Use factory pattern for proper DI (avoids obsolete constructor warning)
-                var mainFormFactory = serviceProvider.GetRequiredService<UI.Factories.IMainFormFactory>();
-                Application.Run(mainFormFactory.Create());
+                // ═══════════════════════════════════════════════════════════════
+                // SINGLE INSTANCE ENFORCEMENT
+                // ═══════════════════════════════════════════════════════════════
+                const string appMutexName = "Global\\ArdysaModsTools_SingleInstance_Mutex";
+                bool createdNew;
+
+                Log("Checking single instance mutex...");
+                using (var mutex = new System.Threading.Mutex(true, appMutexName, out createdNew))
+                {
+                    if (!createdNew)
+                    {
+                        Log("BLOCKED: Another instance already running");
+                        // App is already running - find it and bring to front
+                        var currentProcess = System.Diagnostics.Process.GetCurrentProcess();
+                        var existingProcess = System.Diagnostics.Process.GetProcessesByName(currentProcess.ProcessName);
+                        
+                        foreach (var process in existingProcess)
+                        {
+                            if (process.Id != currentProcess.Id && process.MainWindowHandle != IntPtr.Zero)
+                            {
+                                ShowWindow(process.MainWindowHandle, SW_RESTORE);
+                                SetForegroundWindow(process.MainWindowHandle);
+                                break;
+                            }
+                        }
+
+                        return; // Exit immediately
+                    }
+                    Log("Single instance OK, creating main form...");
+
+                    // Use factory pattern for proper DI (avoids obsolete constructor warning)
+                    var mainFormFactory = serviceProvider.GetRequiredService<UI.Factories.IMainFormFactory>();
+                    Log("MainFormFactory resolved, launching Application.Run...");
+                    Application.Run(mainFormFactory.Create());
+                    Log("Application.Run exited normally");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"FATAL CRASH: {ex}");
+                MessageBox.Show(
+                    $"ArdysaModsTools failed to start:\n\n{ex.Message}\n\nPlease send the startup_log.txt file to the developer.",
+                    "Startup Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
     }

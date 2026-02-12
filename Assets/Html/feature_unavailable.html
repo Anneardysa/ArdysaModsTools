@@ -1,0 +1,282 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Feature Unavailable</title>
+      <style>
+         :root {
+            --bg-primary: #000000;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --text-muted: #444444;
+            --border: #333333;
+            --border-light: #222222;
+            --accent-dim: rgba(255, 255, 255, 0.1);
+         }
+
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         body {
+            background: var(--bg-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: "JetBrains Mono", monospace;
+            color: var(--text-primary);
+            overflow: hidden;
+            position: relative;
+            user-select: none;
+         }
+
+         /* Animated Wave Background */
+         .animated-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+            background: var(--bg-primary);
+         }
+
+         .animated-bg::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            opacity: 0.08;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E")
+               repeat-x;
+            background-size: 50% 100%;
+            animation: infiniteWave 20s linear infinite;
+         }
+
+         @keyframes infiniteWave {
+            0% {
+               transform: translateX(0);
+            }
+            100% {
+               transform: translateX(-50%);
+            }
+         }
+
+         /* Corner decorations */
+         .corner-decoration {
+            position: fixed;
+            width: 14px;
+            height: 14px;
+            border-color: var(--border);
+         }
+         .corner-decoration.top-left {
+            top: 10px;
+            left: 10px;
+            border-top: 1px solid;
+            border-left: 1px solid;
+         }
+         .corner-decoration.top-right {
+            top: 10px;
+            right: 10px;
+            border-top: 1px solid;
+            border-right: 1px solid;
+         }
+         .corner-decoration.bottom-left {
+            bottom: 10px;
+            left: 10px;
+            border-bottom: 1px solid;
+            border-left: 1px solid;
+         }
+         .corner-decoration.bottom-right {
+            bottom: 10px;
+            right: 10px;
+            border-bottom: 1px solid;
+            border-right: 1px solid;
+         }
+
+         /* Drag area */
+         .drag-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 32px;
+            cursor: move;
+            -webkit-app-region: drag;
+            z-index: 10;
+         }
+
+         .container {
+            text-align: center;
+            padding: 20px 28px;
+            position: relative;
+            z-index: 1;
+            width: 100%;
+         }
+
+         /* Lock Icon */
+         .icon-container {
+            margin-bottom: 16px;
+         }
+
+         .icon-text {
+            font-size: 32px;
+            line-height: 1;
+         }
+
+         /* Status */
+         .status {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+         }
+
+         .status::before {
+            content: "[ ";
+            color: var(--text-muted);
+         }
+
+         .status::after {
+            content: " ]";
+            color: var(--text-muted);
+         }
+
+         /* Feature Name */
+         .feature-name {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+         }
+
+         .feature-name::before {
+            content: "// ";
+         }
+
+         /* Message Box */
+         .message-box {
+            background: var(--accent-dim);
+            border: 1px solid var(--border-light);
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            text-align: left;
+         }
+
+         .message-text {
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            letter-spacing: 0.3px;
+         }
+
+         /* Button */
+         .btn {
+            padding: 8px 36px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+         }
+
+         .btn:hover {
+            background: var(--text-primary);
+            border-color: var(--text-primary);
+            color: var(--bg-primary);
+         }
+
+         .btn:active {
+            transform: scale(0.98);
+         }
+      </style>
+   </head>
+
+   <body>
+      <div class="animated-bg"></div>
+      <div class="drag-area" onmousedown="startDrag()"></div>
+
+      <!-- Corner decorations -->
+      <div class="corner-decoration top-left"></div>
+      <div class="corner-decoration top-right"></div>
+      <div class="corner-decoration bottom-left"></div>
+      <div class="corner-decoration bottom-right"></div>
+
+      <div class="container">
+         <div class="icon-container">
+            <div class="icon-text">🔒</div>
+         </div>
+
+         <div class="status">Unavailable</div>
+         <div class="feature-name" id="featureName"></div>
+
+         <div class="message-box">
+            <div class="message-text" id="messageText">
+               This feature is temporarily unavailable.<br />
+               Please try again later.
+            </div>
+         </div>
+
+         <button class="btn" onclick="closeDialog()">OK</button>
+      </div>
+
+      <script>
+         function setFeatureName(name) {
+            document.getElementById("featureName").textContent = name;
+         }
+
+         function setMessage(message) {
+            const formatted = message.replace(/\\n/g, "<br>").replace(/\n/g, "<br>");
+            document.getElementById("messageText").innerHTML = formatted;
+         }
+
+         function closeDialog() {
+            sendMessage({ type: "close" });
+         }
+
+         function startDrag() {
+            sendMessage({ type: "startDrag" });
+         }
+
+         function sendMessage(data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(data);
+            }
+         }
+
+         document.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === "Escape") {
+               closeDialog();
+            }
+         });
+      </script>
+   </body>
+</html>

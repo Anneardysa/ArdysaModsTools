@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2083) - 2026-02-12
+
+### 🚀 Added
+
+- **Feature Access Control**: Added remote feature gating system via Cloudflare R2 (`feature_access.json`).
+   - New `FeatureAccessConfig` model with fail-open defaults.
+   - New `FeatureAccessService` with 5-minute cache and graceful error handling.
+   - Skin Selector and Miscellaneous can now be remotely enabled/disabled with custom messages.
+- **UI**: Added `FeatureUnavailableDialog` — WebView2-based dialog matching `progress.html` aesthetic (animated wave, corner decorations, monospace font) with native MessageBox fallback.
+
+### ♻️ Refactoring
+
+- **KV Parsing**: Consolidated three duplicate KeyValues parsing implementations into single source of truth in `KeyValuesBlockHelper`.
+   - Added `heroId` filtering to `ExtractBlockById` and `ReplaceIdBlock` to prevent false matches on short numeric IDs (e.g., ID `"99"` matching in `kill_eater_score_types` instead of `items`).
+   - Enhanced `NormalizeKvText` with smart-quote (`""`→`""`), smart-apostrophe (`''`→`''`), non-breaking space, and zero-width character handling.
+- **HeroSetPatcherService**: Refactored to delegate all KV parsing to `KeyValuesBlockHelper`, removing ~200 lines of duplicate code. Domain logic (validation, indentation normalization, file discovery) preserved.
+
+### 🗑️ Removed
+
+- **Dead Code**: Deleted `GeneratorService.cs` (zero references). Its superior text normalization logic was merged into `KeyValuesBlockHelper.NormalizeKvText`.
+
+### 🧪 Testing
+
+- Added 14 new unit tests for `KeyValuesBlockHelper`: heroId filtering (4), smart-quote normalization (2), zero-width char stripping, non-breaking space handling, BOM removal, `ParseKvBlocks` (3), `ReplaceIdBlock` with heroId (2).
+- Added 16 new unit tests for `FeatureAccessConfig` model and `FeatureAccessService` (total: 285 tests).
+
+---
+
 ## [2.1.11-beta] (Build 2082) - 2026-02-10
 
 ### ♻️ Refactoring

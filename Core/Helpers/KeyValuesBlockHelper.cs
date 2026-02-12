@@ -30,12 +30,16 @@ namespace ArdysaModsTools.Core.Helpers
         /// <summary>
         /// Extracts a block by ID from items_game.txt content.
         /// Uses balanced brace matching with quote-awareness.
+        /// When heroId is provided, skips blocks that don't contain the hero
+        /// to avoid false matches on short numeric IDs (e.g. "99" matching
+        /// in kill_eater_score_types or item_levels before the items section).
         /// </summary>
         /// <param name="content">Full items_game.txt content</param>
         /// <param name="id">Item ID (e.g. "555")</param>
+        /// <param name="heroId">Optional hero ID for disambiguation (e.g. "npc_dota_hero_invoker")</param>
         /// <param name="requireItemMarkers">If true, only return blocks that look like item definitions</param>
         /// <returns>The full block including ID line, or null if not found</returns>
-        public static string? ExtractBlockById(string content, string id, bool requireItemMarkers = true)
+        public static string? ExtractBlockById(string content, string id, string? heroId = null, bool requireItemMarkers = true)
         {
             if (string.IsNullOrEmpty(content) || string.IsNullOrEmpty(id)) return null;
 
@@ -62,8 +66,6 @@ namespace ArdysaModsTools.Core.Helpers
                 // For one-line files, use the ID position directly
                 // For multi-line files, go back to line start
                 int blockStart = FindLineStart(content, pos);
-                // If no newline found (one-line file), blockStart will be 0
-                // In that case, use the position of the ID
                 if (blockStart == 0 && pos > 0 && content.IndexOf('\n', 0, pos) < 0)
                 {
                     blockStart = pos;
@@ -79,9 +81,23 @@ namespace ArdysaModsTools.Core.Helpers
                 string block = content.Substring(blockStart, blockEndExclusive - blockStart);
 
                 // Verify this looks like an item block if required
-                if (!requireItemMarkers || IsLikelyItemBlock(block)) return block;
+                if (requireItemMarkers && !IsLikelyItemBlock(block))
+                {
+                    searchPos = pos + 1;
+                    continue;
+                }
 
-                searchPos = pos + 1;
+                // If heroId is specified, verify the block belongs to this hero.
+                // This prevents false matches on short IDs that appear in
+                // non-item sections (kill_eater_score_types, item_levels, etc.)
+                if (!string.IsNullOrEmpty(heroId) &&
+                    block.IndexOf($"\"{heroId}\"", StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    searchPos = pos + 1;
+                    continue;
+                }
+
+                return block;
             }
 
             return null;
@@ -97,14 +113,16 @@ namespace ArdysaModsTools.Core.Helpers
         /// <returns>Modified content with block replaced</returns>
         public static string ReplaceIdBlock(string content, string id, string replacementBlock, bool requireItemMarkers = true)
         {
-            return ReplaceIdBlock(content, id, replacementBlock, requireItemMarkers, out _);
+            return ReplaceIdBlock(content, id, replacementBlock, out _, null, requireItemMarkers);
         }
 
         /// <summary>
         /// Replaces a block by ID with quote-aware brace matching.
         /// Works with both multi-line and one-line formatted files.
+        /// When heroId is provided, only replaces blocks that contain the hero
+        /// to avoid replacing wrong blocks for short numeric IDs.
         /// </summary>
-        public static string ReplaceIdBlock(string content, string id, string replacementBlock, bool requireItemMarkers, out bool didReplace)
+        public static string ReplaceIdBlock(string content, string id, string replacementBlock, out bool didReplace, string? heroId = null, bool requireItemMarkers = true)
         {
             didReplace = false;
             if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(content)) return content;
@@ -132,8 +150,6 @@ namespace ArdysaModsTools.Core.Helpers
                 // For one-line files, use the ID position directly
                 // For multi-line files, go back to line start
                 int blockStart = FindLineStart(content, pos);
-                // If no newline found (one-line file), blockStart will be 0
-                // In that case, use the position of the ID
                 if (blockStart == 0 && pos > 0 && content.IndexOf('\n', 0, pos) < 0)
                 {
                     blockStart = pos;
@@ -150,6 +166,14 @@ namespace ArdysaModsTools.Core.Helpers
 
                 // Verify this looks like an item block before replacing
                 if (requireItemMarkers && !IsLikelyItemBlock(existingBlock))
+                {
+                    searchPos = pos + 1;
+                    continue;
+                }
+
+                // If heroId is specified, verify the block belongs to this hero
+                if (!string.IsNullOrEmpty(heroId) &&
+                    existingBlock.IndexOf($"\"{heroId}\"", StringComparison.OrdinalIgnoreCase) < 0)
                 {
                     searchPos = pos + 1;
                     continue;
@@ -300,13 +324,33 @@ namespace ArdysaModsTools.Core.Helpers
         }
 
         /// <summary>
-        /// Normalize KV text (remove BOM, normalize line endings).
+        /// Normalize KV text: remove BOM, normalize line endings,
+        /// replace smart quotes/apostrophes, strip non-breaking spaces
+        /// and zero-width characters that can silently corrupt KV parsing.
         /// </summary>
         public static string NormalizeKvText(string raw)
         {
             if (string.IsNullOrEmpty(raw)) return string.Empty;
-            if (raw[0] == '\uFEFF') raw = raw.Substring(1); // Remove BOM
-            return raw.Replace("\r\n", "\n").Replace('\r', '\n');
+
+            // Remove BOM
+            if (raw[0] == '\uFEFF') raw = raw.Substring(1);
+
+            // Normalize line endings
+            raw = raw.Replace("\r\n", "\n").Replace('\r', '\n');
+
+            // Replace smart quotes and apostrophes with ASCII equivalents
+            raw = raw.Replace('\u201C', '"').Replace('\u201D', '"');
+            raw = raw.Replace('\u2018', '\'').Replace('\u2019', '\'');
+
+            // Replace non-breaking spaces with regular spaces
+            raw = raw.Replace('\u00A0', ' ').Replace('\u2007', ' ').Replace('\u202F', ' ');
+
+            // Strip zero-width characters that break parsing
+            char[] zeroWidth = { '\u200B', '\u200C', '\u200D', '\uFEFF', '\u2060' };
+            foreach (var ch in zeroWidth)
+                raw = raw.Replace(ch.ToString(), string.Empty);
+
+            return raw;
         }
 
         /// <summary>

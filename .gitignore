@@ -55,6 +55,7 @@ scripts/*
 scripts/*/*
 !scripts/**/*.iss
 tools/confuserex/
+config/feature_access.json
 
 # CONFIGURATION & SECRETS
 .env
@@ -79,11 +80,6 @@ __pycache__/
 .eggs/
 npm-debug.log*
 
-# AI ASSISTANT TOOLS
-.auto-claude/
-.agent/
-.trains/
-
 # LOCAL DEVELOPER TOOLS
 build.txt
 commit-and-push.ps1
@@ -93,3 +89,8 @@ COMMIT_GUIDE.md
 docs/samples/
 *.trx
 /docs/adr
+
+# AI ASSISTANT TOOLS
+.auto-claude/
+.agent/
+.trains/
