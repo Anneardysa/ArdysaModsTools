@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2084) - 2026-02-12
+
+### 🐛 Fixed
+
+- **Installer**: Removed unnecessary .NET 8 Desktop Runtime check for self-contained builds, fixing a blocking prompt during updates.
+- **Installer**: Bundled .NET 8 Desktop Runtime installer for seamless auto-installation if needed (fallback).
+
+---
+
 ## [2.1.12-beta] (Build 2083) - 2026-02-12
 
 ### 🚀 Added
