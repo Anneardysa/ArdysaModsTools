@@ -17,6 +17,7 @@ on:
 
 env:
    DOTNET_VERSION: "8.0.x"
+   DOTNET_RUNTIME_VERSION: "8.0.24"
    PROJECT_NAME: ArdysaModsTools
    PROJECT_FILE: ArdysaModsTools.csproj
 
@@ -70,6 +71,29 @@ jobs:
                 --self-contained true `
                 -p:PublishSingleFile=false `
                 -o publish/installer
+
+         # Download .NET 8 Runtime Installer for bundling into setup
+         - name: Download Bundled Runtime Installer
+           shell: pwsh
+           run: |
+              $runtimeVersion = "${{ env.DOTNET_RUNTIME_VERSION }}"
+              $fileName = "windowsdesktop-runtime-${runtimeVersion}-win-x64.exe"
+              $url = "https://builds.dotnet.microsoft.com/dotnet/WindowsDesktop/${runtimeVersion}/${fileName}"
+              $outputDir = "tools\dotnet"
+              $output = "$outputDir\$fileName"
+
+              # Ensure directory exists
+              New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+
+              # Skip download if already present (e.g., checked into repo)
+              if (Test-Path $output) {
+                  Write-Host "Runtime installer already exists: $output ($('{0:N2}' -f ((Get-Item $output).Length / 1MB)) MB)"
+              } else {
+                  Write-Host "Downloading .NET $runtimeVersion Desktop Runtime..."
+                  $ProgressPreference = 'SilentlyContinue'  # Speeds up Invoke-WebRequest
+                  Invoke-WebRequest -Uri $url -OutFile $output -UseBasicParsing
+                  Write-Host "Downloaded: $output ($('{0:N2}' -f ((Get-Item $output).Length / 1MB)) MB)"
+              }
 
          # Install Inno Setup
          - name: Install Inno Setup
