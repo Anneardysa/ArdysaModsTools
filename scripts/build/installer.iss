@@ -11,8 +11,8 @@
 #define MyAppPublisher "Ardysa"
 #define MyAppURL "https://github.com/Anneardysa/ArdysaModsTools"
 #define MyAppExeName "ArdysaModsTools.exe"
-#define DotNetDownloadUrl "https://dotnet.microsoft.com/download/dotnet/8.0"
-#define DotNetInstallerExe "windowsdesktop-runtime-8.0.24-win-x64.exe"
+; .NET 8 check REMOVED — app is self-contained (SelfContained=true in .csproj)
+; The .NET 8 Desktop Runtime is bundled with the published application.
 #define WebView2DownloadUrl "https://developer.microsoft.com/en-us/microsoft-edge/webview2/"
 
 [Setup]
@@ -123,10 +123,7 @@ Source: "..\..\tools\hllib\HLLib.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\tools\vpk\vpk.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\tools\vpk\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 
-; ============================================================================
-; .NET 8 DESKTOP RUNTIME (for prerequisite installation)
-; ============================================================================
-Source: "..\..\tools\dotnet\{#DotNetInstallerExe}"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: not IsDotNet8DesktopInstalled
+; .NET 8 Desktop Runtime bundling REMOVED — app is self-contained
 
 ; ============================================================================
 ; WEBVIEW2 RUNTIME (for prerequisite installation)
@@ -326,117 +323,12 @@ begin
 end;
 
 // ============================================================================
-// .NET 8 DESKTOP RUNTIME CHECK (Registry-based, multi-path)
+// .NET 8 DESKTOP RUNTIME CHECK — REMOVED
 // ============================================================================
-// Detection uses RegGetValueNames to enumerate installed runtime versions.
-// .NET stores versions as VALUE NAMES (REG_DWORD), NOT as subkeys.
-// Three registry paths are checked to cover x64, WOW6432Node, and ARM64.
-// ============================================================================
+// The application is published as SELF-CONTAINED (SelfContained=true).
+// The .NET 8 Desktop Runtime is bundled inside the published output.
+// No external runtime check or installation is needed.
 
-function CheckDotNet8InRegistryPath(const RegPath: String): Boolean;
-var
-  Names: TArrayOfString;
-  I: Integer;
-begin
-  Result := False;
-  
-  if RegGetValueNames(HKLM, RegPath, Names) then
-  begin
-    for I := 0 to GetArrayLength(Names) - 1 do
-    begin
-      if Pos('8.', Names[I]) = 1 then
-      begin
-        Log('Found .NET 8 Desktop Runtime: ' + Names[I] + ' at ' + RegPath);
-        Result := True;
-        Exit;
-      end;
-    end;
-  end;
-end;
-
-function IsDotNet8DesktopInstalled(): Boolean;
-begin
-  Result := False;
-  
-  // Path 1: Native x64 registry path
-  if CheckDotNet8InRegistryPath('SOFTWARE\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App') then
-  begin
-    Result := True;
-    Exit;
-  end;
-  
-  // Path 2: WOW6432Node x64 path (32-bit process reading 64-bit registry)
-  if CheckDotNet8InRegistryPath('SOFTWARE\WOW6432Node\dotnet\Setup\InstalledVersions\x64\sharedfx\Microsoft.WindowsDesktop.App') then
-  begin
-    Result := True;
-    Exit;
-  end;
-  
-  // Path 3: ARM64 path (for ARM devices running x64 emulation)
-  if CheckDotNet8InRegistryPath('SOFTWARE\dotnet\Setup\InstalledVersions\arm64\sharedfx\Microsoft.WindowsDesktop.App') then
-  begin
-    Result := True;
-    Exit;
-  end;
-  
-  Log('.NET 8 Desktop Runtime NOT found in any registry path.');
-end;
-
-// ============================================================================
-// .NET 8 DESKTOP RUNTIME INSTALLATION (Bundled silent installer)
-// ============================================================================
-
-function InstallDotNet8Runtime(): Boolean;
-var
-  ResultCode: Integer;
-  InstallerPath: String;
-  ErrorCode: Integer;
-begin
-  Result := False;
-  InstallerPath := ExpandConstant('{tmp}\{#DotNetInstallerExe}');
-  
-  Log('Installing .NET 8 Desktop Runtime from: ' + InstallerPath);
-  
-  if not FileExists(InstallerPath) then
-  begin
-    Log('ERROR: .NET 8 installer not found at: ' + InstallerPath);
-    if MsgBox('.NET 8 Desktop Runtime installer was not found.' + #13#10 + #13#10 +
-              'Would you like to download it manually?', mbConfirmation, MB_YESNO) = IDYES then
-    begin
-      ShellExec('open', '{#DotNetDownloadUrl}', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
-    end;
-    Exit;
-  end;
-  
-  if Exec(InstallerPath, '/install /quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-  begin
-    Log('.NET 8 installer exited with code: ' + IntToStr(ResultCode));
-    // Exit codes: 0 = success, 1641/3010 = success but reboot needed
-    if (ResultCode = 0) or (ResultCode = 1641) or (ResultCode = 3010) then
-    begin
-      Result := True;
-      Log('.NET 8 Desktop Runtime installed successfully.');
-    end
-    else
-    begin
-      Log('ERROR: .NET 8 installation failed with code: ' + IntToStr(ResultCode));
-      if MsgBox('.NET 8 Desktop Runtime installation failed (Error: ' + IntToStr(ResultCode) + ').' + #13#10 + #13#10 +
-                'Would you like to download it manually?', mbConfirmation, MB_YESNO) = IDYES then
-      begin
-        ShellExec('open', '{#DotNetDownloadUrl}', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
-      end;
-    end;
-  end
-  else
-  begin
-    Log('ERROR: Failed to execute .NET 8 installer.');
-    if MsgBox('Could not run .NET 8 Desktop Runtime installer.' + #13#10 + #13#10 +
-              'Would you like to download it manually?', mbConfirmation, MB_YESNO) = IDYES then
-    begin
-      ShellExec('open', '{#DotNetDownloadUrl}', '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
-    end;
-  end;
-end;
 
 // ============================================================================
 // WEBVIEW2 RUNTIME CHECK
@@ -540,23 +432,8 @@ begin
   end;
   
   // ----------------------------------------------------------------
-  // Check & Install .NET 8 Desktop Runtime
+  // .NET 8 Desktop Runtime — SKIPPED (app is self-contained)
   // ----------------------------------------------------------------
-  if not IsDotNet8DesktopInstalled() then
-  begin
-    Log('.NET 8 Desktop Runtime not detected. Attempting bundled installation...');
-    if not InstallDotNet8Runtime() then
-    begin
-      if MsgBox('.NET 8 Desktop Runtime could not be installed.' + #13#10 + #13#10 +
-                'The application may not work correctly without it.' + #13#10 +
-                'Do you want to continue anyway?',
-                mbConfirmation, MB_YESNO) = IDNO then
-      begin
-        Result := False;
-        Exit;
-      end;
-    end;
-  end;
   
   // ----------------------------------------------------------------
   // Check WebView2 Runtime

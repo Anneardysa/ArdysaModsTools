@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2085) - 2026-02-12
+
+### 🚀 Added
+
+- **CI/CD**: Improved release workflow with **NuGet caching**, **SHA256 checksums** for artifacts, and **automatic runtime installer downloading** (only if missing).
+- **CI/CD**: Added build summary to GitHub Actions and upgraded to `action-gh-release@v2`.
+
+### 🐛 Fixed
+
+- **Installer**: Fixed critical regression in .NET 8 detection where running in 64-bit mode caused the installer to miss 32-bit registry keys (`WOW6432Node`). Now explicitly checks `HKLM32`.
+
+---
+
 ## [2.1.12-beta] (Build 2084) - 2026-02-12
 
 ### 🐛 Fixed
