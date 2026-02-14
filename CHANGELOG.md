@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2088)
+
+### 🚀 Features
+
+- **ActiveModsService**: Added unified API to query currently installed mods (Heroes + Misc).
+- **API Documentation**: Added comprehensive developer docs for:
+   - Mod File Structure (`mod-file-structure.md`)
+   - Auto-Patching Configuration (`auto-patching.md`)
+   - Active Mods Querying (`active-mods.md`)
+   - Misc Mods Control (`misc-mods.md`)
+
+---
+
 ## [2.1.12-beta] (Build 2087)
 
 ### 🚀 UI/UX

@@ -12,6 +12,7 @@ graph LR
         MIS[ModInstaller]
         SS[Status]
         DVS[DotaVersion]
+        AMS[ActiveMods]
     end
 
     subgraph "Generation"
@@ -116,6 +117,17 @@ flowchart TD
     F -->|No| G[NeedUpdate]
     F -->|Yes| H[Ready]
 ```
+
+---
+
+### ActiveModsService
+
+**File:** `Core/Services/Mods/ActiveModsService.cs`  
+**Interface:** `IActiveModsService`
+
+Unified read-only query layer for all active mods. Combines `HeroExtractionLog` and `MiscExtractionLog` into a single snapshot.
+
+→ **[Full documentation](active-mods.md)** — interface reference, models, and code examples.
 
 ---
 

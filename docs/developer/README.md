@@ -17,6 +17,10 @@ Detailed technical documentation:
 
 - **[Services API](api/services.md)** - Core service implementations
 - **[Data Models](api/models.md)** - Domain models and DTOs
+- **[Active Mods](api/active-mods.md)** - Query installed/active mods
+- **[Misc Mods](api/misc-mods.md)** - HUD, weather, terrain control
+- **[Auto-Patching](api/auto-patching.md)** - Automatic re-patching after game updates
+- **[Mod File Structure](api/mod-file-structure.md)** - File/folder specs and JSON schemas
 - **[UI Components](api/ui-components.md)** - Forms and presenters
 - **[Utilities](api/helpers.md)** - Helper classes and extensions
 
