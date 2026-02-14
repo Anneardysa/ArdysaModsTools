@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  -->
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
    <head>
       <meta charset="UTF-8" />
@@ -150,6 +150,18 @@
          .status::after {
             content: " ]";
             color: var(--text-muted);
+         }
+
+         /* Substatus - log messages below status */
+         .substatus {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            min-height: 18px;
+            max-width: 500px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
          }
 
          /* Speed Indicators */
@@ -289,6 +301,7 @@
          </div>
 
          <div class="status working" id="status">Preparing</div>
+         <div class="substatus" id="substatus"></div>
 
          <!-- Download progress: 0/120MB or file count -->
          <div class="download-progress" id="downloadProgress" style="display: none">
@@ -331,8 +344,11 @@
             document.getElementById("status").textContent = text;
          }
 
-         // Substatus removed from UI - no-op to prevent errors
-         function updateSubstatus(text) {}
+         // Update substatus text (called from C#)
+         function updateSubstatus(text) {
+            const el = document.getElementById("substatus");
+            if (el) el.textContent = text;
+         }
 
          // Update download speed (called from C#)
          function updateDownloadSpeed(speed) {

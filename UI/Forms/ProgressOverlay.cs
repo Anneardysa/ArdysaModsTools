@@ -437,7 +437,7 @@ body { background: #000; min-height: 100vh; display: flex; flex-direction: colum
 const circumference = 2 * Math.PI * 70;
 function updateProgress(p) { document.getElementById('progressRing').style.strokeDashoffset = circumference - (p/100)*circumference; document.getElementById('percent').textContent = Math.round(p)+'%'; }
 function updateStatus(t) { document.getElementById('status').textContent = t; }
-function updateSubstatus(t) { document.getElementById('substatus').textContent = t; }
+function updateSubstatus(t) { var el = document.getElementById('substatus'); if (el) el.textContent = t; }
 function updateDownloadSpeed(s) { document.getElementById('dlSpeed').textContent = s; }
 function updateWriteSpeed(s) { document.getElementById('writeSpeed').textContent = s; }
 </script>

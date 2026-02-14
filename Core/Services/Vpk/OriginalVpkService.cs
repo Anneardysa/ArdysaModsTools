@@ -258,20 +258,75 @@ namespace ArdysaModsTools.Core.Services
                     int lastPercentReported = 0;
                     var sw = System.Diagnostics.Stopwatch.StartNew();
                     
-                    while ((bytesRead = await progressStream.ReadAsync(buffer, timeoutCts.Token).ConfigureAwait(false)) > 0)
+                    // Stall detection: track time of last received data
+                    var lastActivityTime = DateTime.UtcNow;
+                    var stallWarningShown = false;
+                    var stallTroubleshootShown = false;
+                    
+                    // Background stall monitor — checks every 5s for inactivity
+                    using var stallMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token);
+                    var stallMonitorTask = Task.Run(async () =>
                     {
-                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), timeoutCts.Token).ConfigureAwait(false);
-                        totalRead += bytesRead;
-                        
-                        if (totalBytes > 0)
+                        try
                         {
-                            int percent = (int)(totalRead * 100 / totalBytes);
-                            if (percent >= lastPercentReported + 1) // Report every 1% for smoothness
+                            while (!stallMonitorCts.Token.IsCancellationRequested)
                             {
-                                lastPercentReported = percent;
-                                progress?.Report(percent);
+                                await Task.Delay(5000, stallMonitorCts.Token).ConfigureAwait(false);
+                                
+                                var stalledSeconds = (DateTime.UtcNow - lastActivityTime).TotalSeconds;
+                                
+                                // 30s stall: warn about connection
+                                if (stalledSeconds >= 30 && !stallWarningShown)
+                                {
+                                    stallWarningShown = true;
+                                    log("Download appears stalled — check your internet connection...");
+                                }
+                                // 90s stall: provide troubleshooting steps
+                                else if (stalledSeconds >= 90 && !stallTroubleshootShown)
+                                {
+                                    stallTroubleshootShown = true;
+                                    log("Still no data. Try: disable VPN/firewall, check internet, or press Cancel and retry.");
+                                }
                             }
                         }
+                        catch (OperationCanceledException)
+                        {
+                            // Expected — monitor stopped normally
+                        }
+                    }, stallMonitorCts.Token);
+                    
+                    try
+                    {
+                        while ((bytesRead = await progressStream.ReadAsync(buffer, timeoutCts.Token).ConfigureAwait(false)) > 0)
+                        {
+                            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), timeoutCts.Token).ConfigureAwait(false);
+                            totalRead += bytesRead;
+                            lastActivityTime = DateTime.UtcNow; // Reset stall timer on data received
+                            
+                            // Reset stall warnings on resumed activity
+                            if (stallWarningShown)
+                            {
+                                stallWarningShown = false;
+                                stallTroubleshootShown = false;
+                                log($"Download resumed — {totalRead / 1024.0 / 1024.0:F1} MB received so far");
+                            }
+                            
+                            if (totalBytes > 0)
+                            {
+                                int percent = (int)(totalRead * 100 / totalBytes);
+                                if (percent >= lastPercentReported + 1) // Report every 1% for smoothness
+                                {
+                                    lastPercentReported = percent;
+                                    progress?.Report(percent);
+                                }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        // Stop stall monitor cleanly
+                        stallMonitorCts.Cancel();
+                        try { await stallMonitorTask.ConfigureAwait(false); } catch { }
                     }
                     
                     sw.Stop();

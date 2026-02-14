@@ -150,8 +150,9 @@ namespace ArdysaModsTools.Core.Services
                     stageProgress?.Report((0, "Preparing"));
                     log("Preparing...");
                     string extractDir;
-                    // Create sub-progress for the 0-20% stage
-                    var baseProgress = new Progress<int>(p => stageProgress?.Report((p / 5, "Preparing")));
+                    // Create sub-progress for the 0-20% stage — show download % in status text
+                    var baseProgress = new Progress<int>(p => 
+                        stageProgress?.Report((p / 5, $"Downloading base files ({p}%)")));
                     
                     try
                     {

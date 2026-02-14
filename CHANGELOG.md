@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2087)
+
+### 🚀 UI/UX
+
+- **Progress**: Improved "Preparing" phase feedback in Skin Selector.
+   - Status now shows real-time download percentage (e.g., "Downloading base files (45%)") instead of static "Preparing".
+   - Re-enabled substatus display in `ProgressOverlay` to show detailed log messages (download size, extraction steps).
+
+### 📡 Network
+
+- **Resilience**: Added stall detection to `OriginalVpkService` for base file downloads.
+   - Warns user after 30s of no data ("Download appears stalled").
+   - Suggests troubleshooting steps after 90s.
+   - Auto-resets warning label when download resumes.
+
+---
+
 ## [2.1.12-beta] (Build 2085) - 2026-02-12
 
 ### 🚀 Added
