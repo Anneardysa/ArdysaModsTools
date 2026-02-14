@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - `generate-hero-cosmetics` — Hero set generation
    - `check-mod-status` — Status validation and monitoring
    - `dependency-injection` — DI setup and service registration
+   - `conflict-resolution` — Conflict detection, 6 resolution strategies, priority management with executable code
+   - `custom-mod-integration` — End-to-end custom mod lifecycle including complete music pack install example
+- **Enhanced** `mod-file-structure` SKILL.md with VPK validation API, gameinfo status checking, all 3 JSON schemas with CRUD examples, and error handling patterns.
 - **context7.json**: Enhanced with `$schema`, folder config, exclusions, and coding rules.
 
 ---
