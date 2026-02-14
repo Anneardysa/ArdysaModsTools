@@ -1,4 +1,30 @@
 {
-  "url": "https://context7.com/anneardysa/ardysamodstools",
-  "public_key": "pk_gvh3DH6i6wUKTkZv9YKDc"
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "ArdysaModsTools",
+  "description": "Dota 2 mod manager for hero cosmetics, HUD, weather, and terrain with auto-patching",
+  "folders": [
+    "docs",
+    "Core",
+    "skills"
+  ],
+  "excludeFolders": [
+    "bin",
+    "obj",
+    "Tests/bin",
+    "Tests/obj",
+    ".vs",
+    "packages",
+    "node_modules"
+  ],
+  "excludeFiles": [
+    "*.designer.cs",
+    "*.g.cs"
+  ],
+  "rules": [
+    "Use Microsoft.Extensions.DependencyInjection for all service resolution",
+    "All async methods must accept CancellationToken as last parameter",
+    "Return OperationResult for fallible operations instead of throwing",
+    "Use IAppLogger for all logging, never Console.WriteLine",
+    "Read extraction logs via HeroExtractionLog.Load() and MiscExtractionLog.Load()"
+  ]
 }

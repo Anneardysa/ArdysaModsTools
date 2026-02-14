@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2089)
+
+### 📖 Documentation
+
+- **Context7 Skills**: Added 7 `SKILL.md` files for Context7 indexing:
+   - `install-mods` — Install, update, disable mods
+   - `query-active-mods` — Query active hero/misc mods
+   - `auto-patching` — Detect updates and re-apply patches
+   - `control-misc-mods` — Weather, HUD, terrain control
+   - `mod-file-structure` — File layout and JSON schemas
+   - `generate-hero-cosmetics` — Hero set generation
+   - `check-mod-status` — Status validation and monitoring
+   - `dependency-injection` — DI setup and service registration
+- **context7.json**: Enhanced with `$schema`, folder config, exclusions, and coding rules.
+
+---
+
 ## [2.1.12-beta] (Build 2088)
 
 ### 🚀 Features
