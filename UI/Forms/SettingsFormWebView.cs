@@ -159,6 +159,9 @@ namespace ArdysaModsTools.UI.Forms
 
                 // Load current settings
                 await LoadSettingsAsync();
+
+                // Load cache size
+                await LoadCacheSizeAsync();
             }
             catch (Exception ex)
             {
@@ -169,13 +172,13 @@ namespace ArdysaModsTools.UI.Forms
 
         /// <summary>
         /// Ensures form closes properly even if called from WebView context.
+        /// Always defers via BeginInvoke to avoid disposing the WebView2
+        /// control while its event handler is still executing.
         /// </summary>
         private void SafeClose()
         {
-            if (this.InvokeRequired)
-                this.BeginInvoke(new Action(() => this.Close()));
-            else
-                this.Close();
+            if (this.IsDisposed || !this.IsHandleCreated) return;
+            this.BeginInvoke(new Action(() => this.Close()));
         }
 
         private async Task ExecuteScriptAsync(string script)
@@ -199,6 +202,19 @@ namespace ArdysaModsTools.UI.Forms
             await ExecuteScriptAsync($"initSettings({json})");
         }
 
+        private async Task LoadCacheSizeAsync()
+        {
+            try
+            {
+                long cacheSize = await Task.Run(() => _cacheService.GetCacheSizeBytes());
+                string formatted = CacheCleaningService.FormatBytes(cacheSize);
+                await ExecuteScriptAsync($"setCacheSize('{EscapeJs(formatted)}')");
+            }
+            catch
+            {
+                await ExecuteScriptAsync("setCacheSize('Unknown')");
+            }
+        }
 
 
         private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
@@ -216,6 +232,10 @@ namespace ArdysaModsTools.UI.Forms
 
                     case "checkUpdates":
                         await HandleCheckUpdates();
+                        break;
+
+                    case "clearCache":
+                        await HandleClearCacheAsync();
                         break;
 
                     case "close":
@@ -244,8 +264,18 @@ namespace ArdysaModsTools.UI.Forms
                 switch (key)
                 {
                     case "startup":
-                        _lifecycleService.SetRunOnStartup(value);
-                        await ExecuteScriptAsync($"showToast('Run on startup {(value ? "enabled" : "disabled")}', 'success')");
+                        bool success = _lifecycleService.SetRunOnStartup(value);
+                        if (success)
+                        {
+                            await ExecuteScriptAsync($"showToast('Run on startup {(value ? "enabled" : "disabled")}', 'success')");
+                        }
+                        else
+                        {
+                            // Revert the toggle in the HTML UI
+                            bool actual = _lifecycleService.IsRunOnStartupEnabled;
+                            await ExecuteScriptAsync($"revertSetting('startup', {(actual ? "true" : "false")})");
+                            await ExecuteScriptAsync("showToast('Failed to update startup setting', 'error')");
+                        }
                         break;
 
                     case "tray":
@@ -288,6 +318,32 @@ namespace ArdysaModsTools.UI.Forms
             finally
             {
                 await ExecuteScriptAsync("resetButton('btnCheckUpdates', '🔄', 'Check Updates')");
+            }
+        }
+
+        private async Task HandleClearCacheAsync()
+        {
+            try
+            {
+                var result = await _cacheService.ClearAllCacheAsync();
+                if (result.Success)
+                {
+                    string msg = $"Cache cleared! {CacheCleaningService.FormatBytes(result.BytesFreed)} freed";
+                    await ExecuteScriptAsync($"showToast('{EscapeJs(msg)}', 'success')");
+                    await ExecuteScriptAsync("setCacheSize('0 B')");
+                }
+                else
+                {
+                    await ExecuteScriptAsync($"showToast('Failed to clear cache: {EscapeJs(result.ErrorMessage ?? "Unknown error")}', 'error')");
+                }
+            }
+            catch (Exception ex)
+            {
+                await ExecuteScriptAsync($"showToast('Error: {EscapeJs(ex.Message)}', 'error')");
+            }
+            finally
+            {
+                await ExecuteScriptAsync("resetClearCacheButton()");
             }
         }
 

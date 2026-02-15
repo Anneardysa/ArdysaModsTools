@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2092)
+
+### 🚀 Added
+
+- **Settings**: Added Clear Cache button with trash icon and live cache size display to the WebView2 settings dialog.
+
+### 🐛 Fixed
+
+- **Settings**: Fixed Close/✕ buttons hanging — `SafeClose()` now always defers via `BeginInvoke` to avoid disposing WebView2 mid-event.
+- **Settings**: Fixed Run on Startup toggle silently failing — now checks `SetRunOnStartup` return value and reverts the toggle with error toast on failure.
+
+### 🗑️ Removed
+
+- **Legacy**: Deleted orphaned `SettingsForm.cs` (WinForms) and `SettingsPresenter.cs` (unused MVP presenter wired to dead form).
+
+---
+
 ## [2.1.12-beta] (Build 2091)
 
 ### 📖 Documentation

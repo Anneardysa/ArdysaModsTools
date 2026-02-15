@@ -38,13 +38,29 @@ namespace ArdysaModsTools
         [STAThread]
         static void Main()
         {
-            // Diagnostic log path (next to the exe)
+            // Diagnostic log path (next to the exe).
+            // Overwritten each session — only the most recent startup is kept.
             var startupLogPath = System.IO.Path.Combine(
                 AppDomain.CurrentDomain.BaseDirectory, "startup_log.txt");
+            var logInitialized = false;
 
             void Log(string message)
             {
-                try { System.IO.File.AppendAllText(startupLogPath, $"[{DateTime.Now:HH:mm:ss.fff}] {message}\r\n"); }
+                try
+                {
+                    var line = $"[{DateTime.Now:HH:mm:ss.fff}] {message}\r\n";
+
+                    if (!logInitialized)
+                    {
+                        // First write of this session — overwrite the file
+                        System.IO.File.WriteAllText(startupLogPath, line);
+                        logInitialized = true;
+                    }
+                    else
+                    {
+                        System.IO.File.AppendAllText(startupLogPath, line);
+                    }
+                }
                 catch { /* ignore logging errors */ }
             }
 

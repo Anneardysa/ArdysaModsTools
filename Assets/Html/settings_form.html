@@ -256,7 +256,7 @@
          /* Action Buttons */
          .action-grid {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 16px;
          }
 
@@ -527,6 +527,23 @@
                   </span>
                   <span class="action-btn-text">Check Updates</span>
                </button>
+               <button class="action-btn" id="btnClearCache" onclick="clearCache()">
+                  <span class="action-btn-icon">
+                     <svg viewBox="0 0 24 24">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6" />
+                        <path d="M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                     </svg>
+                  </span>
+                  <span class="action-btn-text">Clear Cache</span>
+               </button>
+            </div>
+            <div class="cache-info" id="cacheInfo">
+               <span class="cache-text"
+                  >Cache Size: <span class="cache-value" id="cacheValue">Calculating...</span></span
+               >
             </div>
          </div>
       </div>
@@ -583,12 +600,38 @@
             sendMessage({ type: "checkUpdates" });
          }
 
+         function clearCache() {
+            const btn = document.getElementById("btnClearCache");
+            btn.innerHTML = '<span class="spinner"></span>';
+            btn.disabled = true;
+            sendMessage({ type: "clearCache" });
+         }
+
          function resetButton(buttonId, iconHtml, text) {
             const btn = document.getElementById(buttonId);
             if (btn) {
                btn.innerHTML = `<span class="action-btn-icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.83 1.04 6.5 2.72"/><polyline points="21 3 21 9 15 9"/></svg></span><span class="action-btn-text">${text}</span>`;
                btn.disabled = false;
             }
+         }
+
+         function resetClearCacheButton() {
+            const btn = document.getElementById("btnClearCache");
+            if (btn) {
+               btn.innerHTML =
+                  '<span class="action-btn-icon"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></span><span class="action-btn-text">Clear Cache</span>';
+               btn.disabled = false;
+            }
+         }
+
+         function setCacheSize(size) {
+            const el = document.getElementById("cacheValue");
+            if (el) el.textContent = size;
+         }
+
+         function revertSetting(key, value) {
+            settings[key] = value;
+            updateToggles();
          }
 
          function showToast(message, type = "success") {
