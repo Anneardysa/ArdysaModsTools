@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2090)
+
+### 🐛 Fixed
+
+- **InstallationDetector**: Fixed critical logic bug where legacy Inno Setup installations were ignored if the new registry key existed but pointed to a different path (e.g., portable move). Now checks both keys independently.
+- **InstallerService**: Implemented atomic extract-then-swap pattern. Installation now extracts to a temporary directory first and only swaps files upon success, preventing broken installs if the process is interrupted.
+- **InstallerUpdateStrategy**: Added PE header validation (MZ bytes) and minimum size check (50KB) for downloaded installers to prevent launching corrupted or truncated files.
+- **App**: Added `Mutex`-based single-instance enforcement to prevent concurrent installations and file locking issues.
+- **App**: Improved global error handler to show more informative error messages with inner exception details.
+- **FontInstaller**: Mapped all 10 JetBrains Mono font variants (Thin, Light, ExtraLight, etc.) to their correct Windows font names.
+- **AnimationHelper**: Fixed animation holding issue where `FillBehavior.HoldEnd` prevented subsequent property changes.
+
+### ♻️ Refactoring
+
+- **Installer**: Made `RegistryHelper` and `ShortcutHelper` context-aware.
+   - **Per-User Installs** (`%LocalAppData%`): Uses `HKCU` registry hive and user-specific Desktop/StartMenu shortcuts.
+   - **System-Wide Installs** (`Program Files`): Uses `HKLM` registry hive and All Users Desktop/StartMenu shortcuts.
+   - **Legacy Support**: `InstallationDetector` and `RegistryHelper` now scan both `HKCU` and `HKLM` hives to correctly detect and clean up any installation type.
+   - **InstallerUpdateStrategy**: Rewrote update strategy for WPF installer — removed legacy Inno Setup batch script (`/VERYSILENT`), now directly launches installer with `--update` flag. Added UAC cancellation handling.
+   - **InstallationDetector**: Replaced `unins000.exe` detection with registry-based detection (`HKLM` uninstall key) and `%LocalAppData%` path check. Supports both new WPF key and legacy Inno Setup `_is1` key suffix for backward compatibility.
+   - **RegistryHelper**: Added legacy `_is1` registry key fallback for detecting old Inno Setup installations in `Program Files`. Automatically cleans up legacy key during migration. Strips `+commitHash` from `DisplayVersion` before writing to registry.
+
+---
+
 ## [2.1.12-beta] (Build 2089)
 
 ### 📖 Documentation

@@ -29,8 +29,8 @@
   <!-- ============================================== -->
   <PropertyGroup>
     <Version>2.1.12-beta</Version>
-    <AssemblyVersion>2.1.12.2089</AssemblyVersion>
-    <FileVersion>2.1.12.2089</FileVersion>
+    <AssemblyVersion>2.1.12.2090</AssemblyVersion>
+    <FileVersion>2.1.12.2090</FileVersion>
     <InformationalVersion>2.1.12-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
@@ -69,6 +69,13 @@
     <Content Remove="Tests\**" />
     <EmbeddedResource Remove="Tests\**" />
     <None Remove="Tests\**" />
+    <!-- Exclude Installer project (separate .csproj, shares root solution dir) -->
+    <Compile Remove="Installer\**" />
+    <Content Remove="Installer\**" />
+    <EmbeddedResource Remove="Installer\**" />
+    <None Remove="Installer\**" />
+    <Page Remove="Installer\**" />
+    <ApplicationDefinition Remove="Installer\**" />
     <!-- Exclude scripts folder from compilation (contains standalone tools) -->
     <Compile Remove="scripts\**\*.cs" />
   </ItemGroup>
@@ -252,47 +259,11 @@
   </ItemGroup>
 
   <!-- ============================================== -->
-  <!-- INNO SETUP INSTALLER (Auto-run on Publish)    -->
+  <!-- INSTALLER BUILD (Custom WPF Installer)         -->
   <!-- ============================================== -->
-  <PropertyGroup>
-    <!-- Common Inno Setup installation paths -->
-    <InnoSetupPath Condition="Exists('$(ProgramFiles)\Inno Setup 6\ISCC.exe')">$(ProgramFiles)\Inno Setup 6\ISCC.exe</InnoSetupPath>
-    <InnoSetupPath Condition="'$(InnoSetupPath)' == '' And Exists('$(ProgramFilesX86)\Inno Setup 6\ISCC.exe')">$(ProgramFilesX86)\Inno Setup 6\ISCC.exe</InnoSetupPath>
-    <InstallerScript>$(MSBuildProjectDirectory)\scripts\build\installer.iss</InstallerScript>
-    <InstallerOutputDir>$(MSBuildProjectDirectory)\installer_output\</InstallerOutputDir>
-  </PropertyGroup>
-
-  <!-- Run Inno Setup after Publish (only when CreateInstaller=true) -->
-  <Target Name="RunInnoSetupAfterPublish" 
-          AfterTargets="Publish" 
-          Condition="'$(CreateInstaller)' == 'true' And Exists('$(InnoSetupPath)') And Exists('$(InstallerScript)')">
-    
-    <Message Importance="high" Text="" />
-    <Message Importance="high" Text="========================================" />
-    <Message Importance="high" Text="  Creating Inno Setup installer..." />
-    <Message Importance="high" Text="========================================" />
-    
-    <!-- Create installer output directory -->
-    <MakeDir Directories="$(InstallerOutputDir)" />
-    
-    <!-- Run Inno Setup compiler -->
-    <Exec Command="&quot;$(InnoSetupPath)&quot; &quot;$(InstallerScript)&quot;" 
-          WorkingDirectory="$(MSBuildProjectDirectory)" />
-    
-    <Message Importance="high" Text="" />
-    <Message Importance="high" Text="========================================" />
-    <Message Importance="high" Text="  BUILD COMPLETE!" />
-    <Message Importance="high" Text="  Published: $(PublishDir)" />
-    <Message Importance="high" Text="  Installer: $(InstallerOutputDir)" />
-    <Message Importance="high" Text="========================================" />
-  </Target>
-
-  <!-- Warning if Inno Setup not found when CreateInstaller=true -->
-  <Target Name="WarnInnoSetupNotFound" 
-          AfterTargets="Publish" 
-          Condition="'$(CreateInstaller)' == 'true' And !Exists('$(InnoSetupPath)')">
-    <Warning Text="Inno Setup not found! Install from https://jrsoftware.org/isdl.php" />
-    <Message Importance="high" Text="[WARNING] Installer not created - Inno Setup not installed" />
-  </Target>
+  <!-- The installer is now built from Installer/ArdysaModsTools.Installer.csproj -->
+  <!-- Use: python scripts/build/build_installer.py -->
+  <!-- Legacy Inno Setup targets removed — see Installer/ project -->
 
 </Project>
+

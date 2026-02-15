@@ -14,103 +14,181 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 using System;
 using System.IO;
 using System.Security.Principal;
 using ArdysaModsTools.Core.Services.Update.Models;
+using Microsoft.Win32;
 
 namespace ArdysaModsTools.Core.Services.Update
 {
     /// <summary>
     /// Detects whether the application was installed via installer or is running as portable.
+    ///
+    /// Detection priority (first match wins):
+    ///   1. Registry — checks both HKCU (per-user) and HKLM (system-wide)
+    ///   2. LocalAppData path — default install location for the WPF installer
+    ///   3. Program Files path — legacy Inno Setup installs
+    ///   4. Fallback → Portable
     /// </summary>
     public static class InstallationDetector
     {
-        private const string UninstallerFileName = "unins000.exe";
-        private const string MarkerFileName = ".installed";
         private const string AppDataFolderName = "ArdysaModsTools";
+
+        // Must match the GUID in Installer\Services\RegistryHelper.cs
+        private const string UninstallGuid = "{B8F9E7A2-4C3D-4F1E-9B2A-7E8D5C1F4A6B}";
+
+        private static readonly string UninstallKeyPath =
+            $@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{UninstallGuid}";
+
+        // Legacy Inno Setup key (has _is1 suffix)
+        private static readonly string LegacyUninstallKeyPath =
+            $@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{UninstallGuid}_is1";
 
         /// <summary>
         /// Detects the installation type of the current application instance.
-        /// Priority: 1) Uninstaller presence, 2) Program Files location
-        /// Marker file is NOT used for detection to avoid false positives.
         /// </summary>
-        /// <returns>The detected installation type.</returns>
         public static InstallationType Detect()
         {
-            string appDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+            var appDir = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
 
-            // Primary check: Inno Setup creates unins000.exe in the app directory
-            // This is the most reliable indicator of an installed version
-            string uninstallerPath = Path.Combine(appDir, UninstallerFileName);
-            if (File.Exists(uninstallerPath))
+            // ─────────────────────────────────────────────────
+            // 1. Registry check — most reliable indicator
+            //    Checks both HKCU (per-user) and HKLM (system-wide)
+            // ─────────────────────────────────────────────────
+            if (IsRegisteredInRegistry(appDir))
+                return InstallationType.Installer;
+
+            // ─────────────────────────────────────────────────
+            // 2. LocalAppData path — WPF installer default location
+            //    %LocalAppData%\ArdysaModsTools
+            // ─────────────────────────────────────────────────
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var expectedInstallerPath = Path.Combine(localAppData, AppDataFolderName);
+
+            if (!string.IsNullOrEmpty(localAppData) &&
+                appDir.StartsWith(expectedInstallerPath, StringComparison.OrdinalIgnoreCase))
             {
                 return InstallationType.Installer;
             }
 
-            // Secondary check: See if running from Program Files
-            // Installed apps typically live in Program Files
-            string? programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-            string? programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            // ─────────────────────────────────────────────────
+            // 3. Program Files — legacy Inno Setup installations
+            // ─────────────────────────────────────────────────
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
 
-            if (!string.IsNullOrEmpty(programFiles) && 
+            if (!string.IsNullOrEmpty(programFiles) &&
                 appDir.StartsWith(programFiles, StringComparison.OrdinalIgnoreCase))
             {
                 return InstallationType.Installer;
             }
 
-            if (!string.IsNullOrEmpty(programFilesX86) && 
+            if (!string.IsNullOrEmpty(programFilesX86) &&
                 appDir.StartsWith(programFilesX86, StringComparison.OrdinalIgnoreCase))
             {
                 return InstallationType.Installer;
             }
 
-            // No installer indicators found - this is a portable installation
-            // Note: We intentionally do NOT check the marker file here because:
-            // - A user might have previously installed the app, then run portable
-            // - The marker file would incorrectly indicate "Installed"
+            // ─────────────────────────────────────────────────
+            // 4. Fallback → Portable
+            // ─────────────────────────────────────────────────
             return InstallationType.Portable;
         }
 
         /// <summary>
-        /// Gets the path to the installation marker file.
+        /// Checks if the application is registered in the Windows registry
+        /// and the registered path matches the current running location.
+        /// Searches both HKCU and HKLM, including legacy _is1 keys.
         /// </summary>
-        public static string GetMarkerFilePath()
+        private static bool IsRegisteredInRegistry(string appDir)
         {
-            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            return Path.Combine(appDataPath, AppDataFolderName, MarkerFileName);
-        }
-
-        /// <summary>
-        /// Creates the installation marker file (called by installer).
-        /// </summary>
-        public static void CreateMarkerFile()
-        {
-            string markerPath = GetMarkerFilePath();
-            string? directory = Path.GetDirectoryName(markerPath);
-            
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            // Check both hives — per-user installs use HKCU, system-wide use HKLM
+            foreach (var hive in new[] { Registry.CurrentUser, Registry.LocalMachine })
             {
-                Directory.CreateDirectory(directory);
+                if (CheckHiveForPath(hive, UninstallKeyPath, appDir))
+                    return true;
+
+                if (CheckHiveForPath(hive, LegacyUninstallKeyPath, appDir))
+                    return true;
             }
 
-            File.WriteAllText(markerPath, $"Installed: {DateTime.UtcNow:O}");
+            return false;
         }
 
         /// <summary>
-        /// Removes the installation marker file (called by uninstaller).
+        /// Checks a single registry hive + key path for a matching InstallLocation.
         /// </summary>
-        public static void RemoveMarkerFile()
+        private static bool CheckHiveForPath(RegistryKey hive, string keyPath, string appDir)
         {
-            string markerPath = GetMarkerFilePath();
-            if (File.Exists(markerPath))
+            try
             {
-                File.Delete(markerPath);
+                using var key = hive.OpenSubKey(keyPath);
+                if (key?.GetValue("InstallLocation") is string registeredPath &&
+                    !string.IsNullOrEmpty(registeredPath))
+                {
+                    registeredPath = registeredPath.TrimEnd(Path.DirectorySeparatorChar);
+                    if (IsPathMatch(appDir, registeredPath))
+                        return true;
+                }
             }
+            catch
+            {
+                // HKLM may fail without admin — continue silently
+            }
+
+            return false;
+        }
+
+        private static bool IsPathMatch(string path1, string path2)
+        {
+            return string.Equals(
+                path1?.TrimEnd('\\'),
+                path2?.TrimEnd('\\'),
+                StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
-        /// Checks if the current process is running with administrator privileges.
+        /// Returns the registered install path from registry, or null if not installed.
+        /// Checks both HKCU and HKLM, including legacy keys.
+        /// </summary>
+        public static string? GetRegisteredInstallPath()
+        {
+            // Check HKCU first (per-user), then HKLM (system-wide)
+            foreach (var hive in new[] { Registry.CurrentUser, Registry.LocalMachine })
+            {
+                try
+                {
+                    // New key
+                    using var key = hive.OpenSubKey(UninstallKeyPath);
+                    if (key?.GetValue("InstallLocation") is string path && !string.IsNullOrEmpty(path))
+                        return path;
+
+                    // Legacy key
+                    using var legacyKey = hive.OpenSubKey(LegacyUninstallKeyPath);
+                    if (legacyKey?.GetValue("InstallLocation") is string legacyPath && !string.IsNullOrEmpty(legacyPath))
+                        return legacyPath;
+                }
+                catch
+                {
+                    // HKLM may fail without admin — continue
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Gets the installation directory of the currently running application.
+        /// </summary>
+        public static string GetInstallPath()
+        {
+            return AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+        }
+
+        /// <summary>
+        /// Checks if the current process has administrator privileges.
         /// </summary>
         public static bool IsRunningAsAdmin()
         {
@@ -127,15 +205,7 @@ namespace ArdysaModsTools.Core.Services.Update
         }
 
         /// <summary>
-        /// Gets the installation directory of the application.
-        /// </summary>
-        public static string GetInstallPath()
-        {
-            return AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
-        }
-
-        /// <summary>
-        /// Gets a user-friendly name for the installation type.
+        /// Gets a user-friendly display name for the installation type.
         /// </summary>
         public static string GetInstallationTypeName(InstallationType type)
         {
@@ -148,4 +218,3 @@ namespace ArdysaModsTools.Core.Services.Update
         }
     }
 }
-

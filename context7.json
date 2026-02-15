@@ -1,5 +1,4 @@
 {
-  "$schema": "https://context7.com/schema/context7.json",
   "projectTitle": "ArdysaModsTools",
   "description": "Dota 2 mod manager for hero cosmetics, HUD, weather, and terrain with auto-patching",
   "folders": [
