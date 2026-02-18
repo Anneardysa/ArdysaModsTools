@@ -439,60 +439,137 @@ namespace ArdysaModsTools.UI.Forms
         }
 
         /// <summary>
-        /// Preload set thumbnails into cache with HTML overlay showing progress.
-        /// Two-phase: 1) Check freshness of cached items, 2) Download missing items.
+        /// Preload set thumbnails into cache with smart overlay logic.
+        /// 
+        /// Three execution paths to avoid showing the overlay on every open:
+        /// 
+        /// 1. ALL CACHED + RECENTLY REFRESHED (within cooldown):
+        ///    Skip entirely — no overlay, no network requests. Instant open.
+        ///    
+        /// 2. ALL CACHED + COOLDOWN EXPIRED:
+        ///    Run freshness check silently in background (no overlay).
+        ///    Only re-downloads if the server has newer versions.
+        ///    
+        /// 3. MISSING THUMBNAILS (not cached):
+        ///    Show overlay with download progress for new items only.
         /// </summary>
         private async Task PreloadThumbnailsAsync(List<HeroModel> heroes)
         {
             var cacheService = AssetCacheService.Instance;
-            var allUrls = new List<string>();
 
-            // Collect all set thumbnail URLs
-            foreach (var hero in heroes)
-            {
-                if (hero.Sets == null) continue;
-                
-                foreach (var kvp in hero.Sets)
-                {
-                    var thumbUrl = kvp.Value?.FirstOrDefault(u =>
-                        u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                        u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
-                        u.EndsWith(".webp", StringComparison.OrdinalIgnoreCase));
-                    
-                    if (!string.IsNullOrEmpty(thumbUrl))
-                        allUrls.Add(thumbUrl);
-                }
-            }
-
+            // ── Step 1: Collect all set thumbnail URLs ──────────────────────
+            var allUrls = CollectThumbnailUrls(heroes);
             if (allUrls.Count == 0)
             {
                 await ExecuteScriptAsync("hideCachingOverlay()");
                 return;
             }
 
-            // Separate cached vs not cached
+            // ── Step 2: Partition into cached vs missing ────────────────────
             var cached = allUrls.Where(u => cacheService.IsCached(u)).ToList();
             var notCached = allUrls.Where(u => !cacheService.IsCached(u)).ToList();
 
-            // If nothing to do, hide quickly
-            if (cached.Count == 0 && notCached.Count == 0)
+            System.Diagnostics.Debug.WriteLine(
+                $"[HeroGallery] Thumbnails: {cached.Count} cached, {notCached.Count} missing");
+
+            // ── Path 1: All cached + recently refreshed → skip entirely ─────
+            if (notCached.Count == 0 && !cacheService.ShouldRefreshAssets(RefreshCooldown))
             {
+                System.Diagnostics.Debug.WriteLine(
+                    "[HeroGallery] All cached, cooldown active — skipping overlay");
                 await ExecuteScriptAsync("hideCachingOverlay()");
                 return;
             }
 
-            // Show caching overlay
-            await ExecuteScriptAsync("showCachingOverlay()");
-            
+            // ── Path 2: All cached + cooldown expired → silent refresh ──────
+            if (notCached.Count == 0)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    "[HeroGallery] All cached, cooldown expired — silent freshness check");
+                await RunSilentRefreshAsync(cacheService, cached);
+                await ExecuteScriptAsync("hideCachingOverlay()");
+                return;
+            }
+
+            // ── Path 3: Missing thumbnails → show overlay for downloads ─────
+            await RunDownloadWithOverlayAsync(cacheService, cached, notCached);
+        }
+
+        /// <summary>
+        /// Cooldown period between batch freshness checks.
+        /// Within this window, subsequent skin selector opens skip the overlay entirely.
+        /// </summary>
+        private static readonly TimeSpan RefreshCooldown = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// Collect all set thumbnail URLs from hero models.
+        /// </summary>
+        private static List<string> CollectThumbnailUrls(List<HeroModel> heroes)
+        {
+            var urls = new List<string>();
+
+            foreach (var hero in heroes)
+            {
+                if (hero.Sets == null) continue;
+
+                foreach (var kvp in hero.Sets)
+                {
+                    var thumbUrl = kvp.Value?.FirstOrDefault(u =>
+                        u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                        u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                        u.EndsWith(".webp", StringComparison.OrdinalIgnoreCase));
+
+                    if (!string.IsNullOrEmpty(thumbUrl))
+                        urls.Add(thumbUrl);
+                }
+            }
+
+            return urls;
+        }
+
+        /// <summary>
+        /// Run freshness check silently in the background (no overlay).
+        /// Called when all assets are cached but the cooldown has expired.
+        /// </summary>
+        private async Task RunSilentRefreshAsync(AssetCacheService cacheService, List<string> cachedUrls)
+        {
             try
             {
-                int refreshed = 0, downloaded = 0;
+                var result = await cacheService.RefreshStaleAssetsAsync(cachedUrls);
+                cacheService.MarkRefreshed();
 
-                // Phase 1: Check freshness of cached items (quick HEAD requests)
-                if (cached.Count > 0)
+                System.Diagnostics.Debug.WriteLine(
+                    $"[HeroGallery] Silent refresh complete: " +
+                    $"{result.refreshed} refreshed, {result.skipped} skipped, {result.failed} failed");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[HeroGallery] Silent refresh error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Download missing thumbnails with visible overlay progress.
+        /// Also runs a freshness check on cached items if the cooldown has expired.
+        /// </summary>
+        private async Task RunDownloadWithOverlayAsync(
+            AssetCacheService cacheService,
+            List<string> cached,
+            List<string> notCached)
+        {
+            await ExecuteScriptAsync("showCachingOverlay()");
+
+            try
+            {
+                int refreshed = 0;
+
+                // Phase 1: Check freshness of cached items (only if cooldown expired)
+                if (cached.Count > 0 && cacheService.ShouldRefreshAssets(RefreshCooldown))
                 {
-                    await ExecuteScriptAsync($"document.getElementById('cachingStatus').textContent = 'Checking for updates...'");
-                    
+                    await ExecuteScriptAsync(
+                        "document.getElementById('cachingStatus').textContent = 'Checking for updates...'");
+
                     var refreshProgress = new Progress<(int current, int total, string url)>(async p =>
                     {
                         try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
@@ -501,29 +578,31 @@ namespace ArdysaModsTools.UI.Forms
 
                     var refreshResult = await cacheService.RefreshStaleAssetsAsync(cached, refreshProgress);
                     refreshed = refreshResult.refreshed;
-                    
-                    System.Diagnostics.Debug.WriteLine($"[HeroGallery] Refreshed {refreshed} stale assets");
+
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[HeroGallery] Refreshed {refreshed} stale assets");
                 }
 
                 // Phase 2: Download missing items
-                if (notCached.Count > 0)
+                await ExecuteScriptAsync(
+                    "document.getElementById('cachingStatus').textContent = 'Downloading thumbnails...'");
+                await ExecuteScriptAsync($"updateCachingProgress(0, {notCached.Count})");
+
+                var downloadProgress = new Progress<(int current, int total, string url)>(async p =>
                 {
-                    await ExecuteScriptAsync($"document.getElementById('cachingStatus').textContent = 'Downloading thumbnails...'");
-                    await ExecuteScriptAsync($"updateCachingProgress(0, {notCached.Count})");
+                    try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
+                    catch { }
+                });
 
-                    var downloadProgress = new Progress<(int current, int total, string url)>(async p =>
-                    {
-                        try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
-                        catch { }
-                    });
+                var downloadResult = await cacheService.PreloadAssetsWithProgressAsync(notCached, downloadProgress);
 
-                    var downloadResult = await cacheService.PreloadAssetsWithProgressAsync(notCached, downloadProgress);
-                    downloaded = downloadResult.downloaded;
-                    
-                    System.Diagnostics.Debug.WriteLine($"[HeroGallery] Downloaded {downloaded} new assets");
-                }
+                // Mark refresh complete after both phases
+                cacheService.MarkRefreshed();
 
-                System.Diagnostics.Debug.WriteLine($"[HeroGallery] Total: {refreshed} refreshed, {downloaded} downloaded, {cached.Count - refreshed} fresh from cache");
+                System.Diagnostics.Debug.WriteLine(
+                    $"[HeroGallery] Download complete: " +
+                    $"{refreshed} refreshed, {downloadResult.downloaded} downloaded, " +
+                    $"{downloadResult.skipped} skipped, {downloadResult.failed} failed");
             }
             finally
             {

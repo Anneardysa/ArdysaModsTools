@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2093)
+
+### 🐛 Fixed
+
+- **Skin Selector**: Fixed progress overlay appearing on every open by implementing a smart cooldown mechanism. Now skips the overlay entirely if thumbnails are cached and recently checked (within 10 mins).
+
+---
+
 ## [2.1.12-beta] (Build 2092)
 
 ### 🚀 Added

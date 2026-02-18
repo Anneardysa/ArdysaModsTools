@@ -68,6 +68,13 @@ namespace ArdysaModsTools.Core.Services.Cache
         private readonly ConcurrentDictionary<string, (byte[] data, DateTime accessed)> _memoryCache = new();
         private const int MaxMemoryCacheItems = 50;
 
+        // Tracks when the last batch freshness check was completed.
+        // Used to implement a cooldown period so the skin selector overlay
+        // doesn't run on every open. Persists across form instances because
+        // AssetCacheService is a singleton.
+        private DateTime _lastBatchRefreshTimeUtc = DateTime.MinValue;
+        private readonly object _refreshTimeLock = new();
+
         #endregion
 
         #region Properties
@@ -372,6 +379,36 @@ namespace ArdysaModsTools.Core.Services.Cache
             }
 
             return (refreshed, skipped, failed);
+        }
+
+        /// <summary>
+        /// Determines whether a batch asset refresh should be performed.
+        /// Returns false if a refresh was completed within the specified cooldown period,
+        /// meaning the assets are considered fresh enough to skip re-checking.
+        /// </summary>
+        /// <param name="cooldown">Minimum time between batch refreshes.</param>
+        /// <returns>True if enough time has elapsed and a refresh should run.</returns>
+        public bool ShouldRefreshAssets(TimeSpan cooldown)
+        {
+            lock (_refreshTimeLock)
+            {
+                return (DateTime.UtcNow - _lastBatchRefreshTimeUtc) > cooldown;
+            }
+        }
+
+        /// <summary>
+        /// Records that a batch refresh has been completed.
+        /// Subsequent calls to <see cref="ShouldRefreshAssets"/> will return false
+        /// until the cooldown period elapses.
+        /// </summary>
+        public void MarkRefreshed()
+        {
+            lock (_refreshTimeLock)
+            {
+                _lastBatchRefreshTimeUtc = DateTime.UtcNow;
+                System.Diagnostics.Debug.WriteLine(
+                    $"[AssetCacheService] Batch refresh marked at {_lastBatchRefreshTimeUtc:HH:mm:ss}");
+            }
         }
 
         /// <summary>
