@@ -409,7 +409,7 @@ namespace ArdysaModsTools.Core.Services
                     string localHash = (await File.ReadAllTextAsync(localHashFile, cancellationToken).ConfigureAwait(false)).Trim();
                     string cleanRemote = remoteHash.Trim();
 
-                    if (localHash == cleanRemote && !force)
+                    if (string.Equals(localHash, cleanRemote, StringComparison.OrdinalIgnoreCase) && !force)
                     {
                         _logger?.Log("ModsPack up to date.");
                         return (true, true); // success but up-to-date
@@ -464,41 +464,60 @@ namespace ArdysaModsTools.Core.Services
                 }
                 else
                 {
-                    using (var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
+                    const int maxRetries = 1;
+                    for (int attempt = 0; attempt <= maxRetries; attempt++)
                     {
-                        if (!response.IsSuccessStatusCode)
+                        try
                         {
-                            _logger?.Log($"Download failed: {response.StatusCode}");
-                            FallbackLogger.Log($"DownloadModsPack failed {response.StatusCode} from {url}");
-                            return (false, false);
-                        }
-
-                        long? total = response.Content.Headers.ContentLength;
-                        using (var netStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
-                        using (var progressStream = new ArdysaModsTools.Core.Helpers.ProgressStream(netStream, speedProgress, total))
-                        using (var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                        {
-                            const int bufferSize = 81920;
-                            var buffer = new byte[bufferSize];
-                            long totalRead = 0;
-                            int bytesRead;
-                            int lastReported = -1;
-
-                            while ((bytesRead = await progressStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0)
+                            using (var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
                             {
-                                await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
-                                totalRead += bytesRead;
-
-                                if (total.HasValue && progress != null)
+                                if (!response.IsSuccessStatusCode)
                                 {
-                                    int pct = (int)(totalRead * 100L / total.Value);
-                                    if (pct != lastReported)
+                                    _logger?.Log($"Download failed: {response.StatusCode}");
+                                    FallbackLogger.Log($"DownloadModsPack failed {response.StatusCode} from {url}");
+                                    return (false, false);
+                                }
+
+                                long? total = response.Content.Headers.ContentLength;
+                                using (var netStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
+                                using (var progressStream = new ArdysaModsTools.Core.Helpers.ProgressStream(netStream, speedProgress, total))
+                                using (var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                                {
+                                    const int bufferSize = 81920;
+                                    var buffer = new byte[bufferSize];
+                                    long totalRead = 0;
+                                    int bytesRead;
+                                    int lastReported = -1;
+
+                                    while ((bytesRead = await progressStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0)
                                     {
-                                        lastReported = pct;
-                                        progress.Report(pct);
+                                        await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
+                                        totalRead += bytesRead;
+
+                                        if (total.HasValue && progress != null)
+                                        {
+                                            int pct = (int)(totalRead * 100L / total.Value);
+                                            if (pct != lastReported)
+                                            {
+                                                lastReported = pct;
+                                                progress.Report(pct);
+                                            }
+                                        }
                                     }
                                 }
                             }
+                            break; // Download succeeded, exit retry loop
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw; // User cancelled — propagate immediately
+                        }
+                        catch (Exception ex) when (attempt < maxRetries && (ex is HttpRequestException || ex is IOException))
+                        {
+                            _logger?.Log($"Download attempt {attempt + 1} failed: {ex.Message}. Retrying...");
+                            statusCallback?.Invoke("Retrying download...");
+                            progress?.Report(0); // Reset progress for retry
+                            await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }

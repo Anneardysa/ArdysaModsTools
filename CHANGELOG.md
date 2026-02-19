@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.13-beta] (Build 2098)
+
+### 🐛 Fixed
+
+- Fixed hash comparison in `ModInstallerService` using case-sensitive `==` — now uses `StringComparison.OrdinalIgnoreCase` for consistent SHA256 hex comparison.
+- Eliminated duplicate network call in `InstallAsync` — redundant `CheckForNewerModsPackAsync` pre-check removed; version check is handled internally by `InstallModsAsync`.
+- Fixed reinstall triggering a double progress overlay when "Reinstall anyway?" was accepted from the up-to-date prompt.
+
+### 🚀 Improved
+
+- Added automatic retry (1 attempt, 2s delay) for HTTP ModsPack downloads on transient `HttpRequestException` / `IOException` failures. Progress resets to 0% on retry with "Retrying download..." status feedback.
+- Wired `statusCallback` through `RunInstallCoreAsync` — status messages ("Downloading...", "Verifying download...", "Retrying download...") now display live in the progress overlay.
+- Unified `RunAutoInstallAsync` and `ReinstallAsync` into a single `RunInstallCoreAsync(bool force)` method, eliminating ~80 lines of duplicate logic and context-aware install/reinstall result messaging.
+
+---
+
 ## [2.1.12-beta] (Build 2097)
 
 ### 🚀 UI/UX

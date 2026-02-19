@@ -109,32 +109,7 @@ namespace ArdysaModsTools.UI.Presenters
                 return await HandleManualInstallAsync();
             }
 
-            // Auto install - check for updates first
-            try
-            {
-                var (hasNewer, hasLocalInstall) = await _modInstaller.CheckForNewerModsPackAsync(TargetPath);
-                
-                if (hasNewer && hasLocalInstall)
-                {
-                    var result = _view.ShowMessageBox(
-                        "A newer ModsPack is available!\n\nDownload and install the update?",
-                        "Update Available",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Information
-                    );
-                    
-                    if (result != DialogResult.Yes)
-                    {
-                        return false;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Log($"Update check failed: {ex.Message}");
-                // Proceed anyway as fallback
-            }
-
+            // Auto install — version check is handled internally by InstallModsAsync
             return await RunAutoInstallAsync();
         }
 
@@ -144,79 +119,40 @@ namespace ArdysaModsTools.UI.Presenters
             if (string.IsNullOrEmpty(TargetPath))
                 return false;
 
-            var appPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule!.FileName)!;
-            
-            StartOperation();
-            bool success = false;
-            
-            try
-            {
-                var result = await _view.RunWithProgressOverlayAsync("Reinstalling ModsPack...", async (ctx) =>
-                {
-                    var (opSuccess, _) = await _modInstaller.InstallModsAsync(
-                        TargetPath!, appPath, ctx.Progress, ctx.Token, force: true, speedProgress: ctx.Speed
-                    ).ConfigureAwait(false);
-
-                    success = opSuccess;
-                    return opSuccess 
-                        ? OperationResult.Ok() 
-                        : OperationResult.Fail("Reinstallation failed");
-                }, showPreview: true);
-
-                if (result.Success)
-                {
-                    await RaiseStatusRefreshAsync();
-                    _view.ShowStyledMessage(
-                        "Reinstallation Complete",
-                        "ModsPack reinstalled successfully!",
-                        Forms.StyledMessageType.Success);
-                }
-                else
-                {
-                    _view.ShowStyledMessage(
-                        "Reinstallation Failed",
-                        "Reinstallation failed. Check the console for details.",
-                        Forms.StyledMessageType.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Log($"Reinstallation error: {ex.Message}");
-                _view.ShowStyledMessage(
-                    "Reinstallation Error",
-                    $"Error: {ex.Message}",
-                    Forms.StyledMessageType.Error);
-            }
-            finally
-            {
-                EndOperation();
-            }
-
-            return success;
+            return await RunInstallCoreAsync(force: true);
         }
 
-        private async Task<bool> RunAutoInstallAsync()
+        private Task<bool> RunAutoInstallAsync() => RunInstallCoreAsync(force: false);
+
+        /// <summary>
+        /// Core install logic shared by auto-install and reinstall.
+        /// Uses a single progress overlay and passes statusCallback for live UI updates.
+        /// </summary>
+        private async Task<bool> RunInstallCoreAsync(bool force)
         {
             StartOperation();
             var appPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule!.FileName)!;
+            var label = force ? "Reinstalling ModsPack..." : "Initializing...";
 
             bool success = false;
             bool isUpToDate = false;
 
             try
             {
-                var result = await _view.RunWithProgressOverlayAsync("Initializing...", async (ctx) =>
+                var result = await _view.RunWithProgressOverlayAsync(label, async (ctx) =>
                 {
                     var (opSuccess, opIsUpToDate) = await _modInstaller.InstallModsAsync(
-                        TargetPath!, appPath, ctx.Progress, ctx.Token, force: false, speedProgress: ctx.Speed
+                        TargetPath!, appPath, ctx.Progress, ctx.Token, force: force,
+                        speedProgress: ctx.Speed,
+                        statusCallback: s => ctx.Status.Report(s)
                     ).ConfigureAwait(false);
 
                     success = opSuccess;
                     isUpToDate = opIsUpToDate;
 
-                    return opSuccess 
-                        ? OperationResult.Ok() 
-                        : OperationResult.Fail("Installation failed");
+                    return opSuccess
+                        ? OperationResult.Ok()
+                        : OperationResult.Fail(force ? "Reinstallation failed" : "Installation failed");
                 }, showPreview: true);
 
                 if (!result.Success)
@@ -226,7 +162,7 @@ namespace ArdysaModsTools.UI.Presenters
             }
             catch (Exception ex)
             {
-                _logger.Log($"Installation error: {ex.Message}");
+                _logger.Log($"{(force ? "Reinstallation" : "Installation")} error: {ex.Message}");
                 success = false;
             }
             finally
@@ -235,13 +171,13 @@ namespace ArdysaModsTools.UI.Presenters
             }
 
             // Handle result
-            await HandleInstallResultAsync(success, isUpToDate, appPath);
+            await HandleInstallResultAsync(success, isUpToDate, force);
             return success;
         }
 
-        private async Task HandleInstallResultAsync(bool success, bool isUpToDate, string appPath)
+        private async Task HandleInstallResultAsync(bool success, bool isUpToDate, bool wasForced)
         {
-            if (isUpToDate)
+            if (isUpToDate && !wasForced)
             {
                 var result = _view.ShowMessageBox(
                     "ModsPack already up to date.\nReinstall anyway?",
@@ -251,22 +187,22 @@ namespace ArdysaModsTools.UI.Presenters
 
                 if (result == DialogResult.Yes)
                 {
-                    await ReinstallAsync();
+                    await RunInstallCoreAsync(force: true);
                 }
             }
             else if (success)
             {
                 await RaiseStatusRefreshAsync();
-                _view.ShowStyledMessage(
-                    "Installation Complete",
-                    "ModsPack installed successfully!",
-                    Forms.StyledMessageType.Success);
+                var title = wasForced ? "Reinstallation Complete" : "Installation Complete";
+                var message = wasForced ? "ModsPack reinstalled successfully!" : "ModsPack installed successfully!";
+                _view.ShowStyledMessage(title, message, Forms.StyledMessageType.Success);
             }
             else
             {
+                var title = wasForced ? "Reinstallation Failed" : "Installation Failed";
                 _view.ShowStyledMessage(
-                    "Installation Failed",
-                    "Installation failed. Check the console for details.",
+                    title,
+                    $"{title}. Check the console for details.",
                     Forms.StyledMessageType.Error);
             }
         }
