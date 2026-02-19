@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2094)
+
+### 🚀 Improved
+
+- **Installer**: Significantly reduced uninstaller size (~140MB -> ~70MB) by separating the payload from the uninstaller executable.
+- **Uninstaller**: Implemented smart mode detection — slim uninstaller now correctly auto-detects "Uninstall" mode when run directly.
+- **Uninstaller**: Enhanced self-deletion reliability with a PID-based wait loop to ensure the process exits fully before file removal.
+- **UI**: Added terminal-retro style `[ OK ]` completion symbols and removed the "Launch" button from the uninstall success screen.
+
+### 🐛 Fixed
+
+- **Registry**: Updated Help, Update, and About URLs to point to the official website `https://ardysamods.my.id`.
+- **Uninstaller**: Fixed "Reinstall" showing instead of "Uninstall" when running the uninstaller directly.
+- **UI**: Fixed version number overflow in Update mode by stacking old/new versions vertically.
+- **Uninstaller**: Fixed race condition where self-deletion failed if the window wasn't closed immediately.
+
+---
+
 ## [2.1.12-beta] (Build 2093)
 
 ### 🐛 Fixed

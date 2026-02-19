@@ -15,14 +15,14 @@
     <!-- MAIN CONTAINER (Rounded, Dark Background)   -->
     <!-- ============================================ -->
     <Border x:Name="MainBorder"
-            CornerRadius="16"
+            CornerRadius="0"
             Background="{StaticResource BgPrimary}"
             BorderBrush="{StaticResource BorderBrush}"
             BorderThickness="1"
             Padding="0"
             RenderTransformOrigin="0.5,0.5">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.6" Color="Black" />
+            <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.8" Color="Black" />
         </Border.Effect>
         <Border.RenderTransform>
             <ScaleTransform ScaleX="1" ScaleY="1" />
@@ -54,7 +54,7 @@
                         <ControlTemplate TargetType="Button">
                             <Border x:Name="CloseBorder"
                                     Background="Transparent"
-                                    CornerRadius="0,16,0,0"
+                                    CornerRadius="0"
                                     Width="40" Height="40"
                                     Cursor="Hand">
                                 <TextBlock Text="✕"
@@ -91,47 +91,131 @@
                 </Grid.RowDefinitions>
 
                 <!-- ======================================== -->
-                <!-- LOGO (Accent colored sparkle)            -->
+                <!-- LOGO (App Icon)                          -->
                 <!-- ======================================== -->
-                <TextBlock Grid.Row="0"
-                           x:Name="LogoText"
-                           Text="✦"
-                           FontSize="64"
-                           Foreground="{StaticResource AccentBrush}"
-                           HorizontalAlignment="Center"
-                           Margin="0,12,0,0"
-                           RenderTransformOrigin="0.5,0.5">
-                    <TextBlock.RenderTransform>
+                <Image Grid.Row="0"
+                       x:Name="LogoImage"
+                       Source="/AppIcon.ico"
+                       Width="88" Height="88"
+                       HorizontalAlignment="Center"
+                       Margin="0,32,0,0"
+                       RenderOptions.BitmapScalingMode="HighQuality"
+                       RenderTransformOrigin="0.5,0.5">
+                    <Image.RenderTransform>
                         <ScaleTransform ScaleX="1" ScaleY="1" />
-                    </TextBlock.RenderTransform>
-                </TextBlock>
+                    </Image.RenderTransform>
+                </Image>
 
                 <!-- ======================================== -->
                 <!-- TITLE + VERSION                          -->
                 <!-- ======================================== -->
-                <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,12,0,0">
+                <StackPanel Grid.Row="1" HorizontalAlignment="Center" Margin="0,16,0,0">
                     <TextBlock Text="ArdysaModsTools"
-                               FontSize="24"
+                               FontSize="22"
                                FontWeight="Bold"
                                FontFamily="{StaticResource PrimaryFont}"
                                Foreground="{StaticResource TextPrimary}"
                                HorizontalAlignment="Center" />
                     <TextBlock x:Name="SubtitleText"
                                Text="Setup"
-                               FontSize="14"
+                               FontSize="12"
                                FontFamily="{StaticResource PrimaryFont}"
                                Foreground="{StaticResource TextSecondary}"
                                HorizontalAlignment="Center"
                                Margin="0,4,0,0" />
                     <!-- Version badge (shown for both fresh install and update) -->
                     <TextBlock x:Name="VersionText"
-                               FontSize="12"
+                               FontSize="11"
                                FontFamily="{StaticResource PrimaryFont}"
-                               Foreground="{StaticResource AccentLightBrush}"
+                               Foreground="{StaticResource TextMuted}"
                                HorizontalAlignment="Center"
                                Margin="0,6,0,0"
                                Visibility="Collapsed" />
                 </StackPanel>
+
+                <!-- ======================================== -->
+                <!-- ANIMATED WAVE DECORATION (minimalist)    -->
+                <!-- ======================================== -->
+                <Canvas Grid.Row="2"
+                        x:Name="WaveCanvas"
+                        ClipToBounds="True"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center"
+                        Height="100"
+                        Margin="0,0,0,0">
+
+                    <!-- Wave 1 — primary, slow drift -->
+                    <Path x:Name="Wave1"
+                          Stroke="{StaticResource TextMuted}"
+                          StrokeThickness="1.2"
+                          Opacity="0.30"
+                          Canvas.Top="30"
+                          Data="M0,25 C50,0 100,50 150,25 C200,0 250,50 300,25 C350,0 400,50 450,25 C500,0 550,50 600,25 C650,0 700,50 750,25 C800,0 850,50 900,25 C950,0 1000,50 1050,25"
+                          RenderTransformOrigin="0,0.5">
+                        <Path.RenderTransform>
+                            <TranslateTransform x:Name="Wave1Translate" X="0" />
+                        </Path.RenderTransform>
+                    </Path>
+
+                    <!-- Wave 2 — secondary, medium speed -->
+                    <Path x:Name="Wave2"
+                          Stroke="{StaticResource TextMuted}"
+                          StrokeThickness="1.0"
+                          Opacity="0.20"
+                          Canvas.Top="42"
+                          Data="M0,20 C45,5 90,35 135,20 C180,5 225,35 270,20 C315,5 360,35 405,20 C450,5 495,35 540,20 C585,5 630,35 675,20 C720,5 765,35 810,20 C855,5 900,35 945,20"
+                          RenderTransformOrigin="0,0.5">
+                        <Path.RenderTransform>
+                            <TranslateTransform x:Name="Wave2Translate" X="0" />
+                        </Path.RenderTransform>
+                    </Path>
+
+                    <!-- Wave 3 — tertiary, slowest drift -->
+                    <Path x:Name="Wave3"
+                          Stroke="{StaticResource TextMuted}"
+                          StrokeThickness="0.8"
+                          Opacity="0.12"
+                          Canvas.Top="55"
+                          Data="M0,18 C60,0 120,36 180,18 C240,0 300,36 360,18 C420,0 480,36 540,18 C600,0 660,36 720,18 C780,0 840,36 900,18 C960,0 1020,36 1080,18 C1140,0 1200,36 1260,18"
+                          RenderTransformOrigin="0,0.5">
+                        <Path.RenderTransform>
+                            <TranslateTransform x:Name="Wave3Translate" X="0" />
+                        </Path.RenderTransform>
+                    </Path>
+
+                    <!-- Continuous wave animation -->
+                    <Canvas.Triggers>
+                        <EventTrigger RoutedEvent="Canvas.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard RepeatBehavior="Forever">
+                                    <!-- Wave 1: slow rightward drift (12s cycle) -->
+                                    <DoubleAnimation
+                                        Storyboard.TargetName="Wave1Translate"
+                                        Storyboard.TargetProperty="X"
+                                        From="-240" To="0"
+                                        Duration="0:0:12"
+                                        RepeatBehavior="Forever" />
+
+                                    <!-- Wave 2: medium leftward drift (8s cycle) -->
+                                    <DoubleAnimation
+                                        Storyboard.TargetName="Wave2Translate"
+                                        Storyboard.TargetProperty="X"
+                                        From="0" To="-270"
+                                        Duration="0:0:8"
+                                        RepeatBehavior="Forever" />
+
+                                    <!-- Wave 3: slowest rightward drift (16s cycle) -->
+                                    <DoubleAnimation
+                                        Storyboard.TargetName="Wave3Translate"
+                                        Storyboard.TargetProperty="X"
+                                        From="-300" To="0"
+                                        Duration="0:0:16"
+                                        RepeatBehavior="Forever" />
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Canvas.Triggers>
+                </Canvas>
 
                 <!-- ======================================== -->
                 <!-- INSTALL BUTTON (visible initially)       -->
@@ -148,7 +232,7 @@
 
                     <TextBlock x:Name="SizeText"
                                Text="~90 MB"
-                               FontSize="12"
+                               FontSize="11"
                                FontFamily="{StaticResource PrimaryFont}"
                                Foreground="{StaticResource TextMuted}"
                                HorizontalAlignment="Center"
@@ -160,7 +244,7 @@
                             Style="{StaticResource AdvancedToggle}"
                             Click="AdvancedToggle_Click"
                             HorizontalAlignment="Center"
-                            Margin="0,8,0,0" />
+                            Margin="0,6,0,0" />
                 </StackPanel>
 
                 <!-- ======================================== -->
@@ -240,8 +324,10 @@
                             HorizontalAlignment="Center">
 
                     <TextBlock x:Name="CompleteIcon"
-                               Text="✓"
-                               FontSize="48"
+                               Text="[ OK ]"
+                               FontSize="24"
+                               FontWeight="Light"
+                               FontFamily="{StaticResource MonoFont}"
                                Foreground="{StaticResource SuccessBrush}"
                                HorizontalAlignment="Center"
                                RenderTransformOrigin="0.5,0.5">
@@ -251,7 +337,7 @@
                     </TextBlock>
 
                     <TextBlock x:Name="CompleteText"
-                               Text="Installation Complete!"
+                               Text="Done"
                                FontSize="16"
                                FontWeight="SemiBold"
                                FontFamily="{StaticResource PrimaryFont}"
@@ -277,8 +363,10 @@
                             HorizontalAlignment="Center"
                             RenderTransformOrigin="0.5,0.5">
 
-                    <TextBlock Text="✕"
-                               FontSize="48"
+                    <TextBlock Text="[ !! ]"
+                               FontSize="24"
+                               FontWeight="Light"
+                               FontFamily="{StaticResource MonoFont}"
                                Foreground="{StaticResource ErrorBrush}"
                                HorizontalAlignment="Center" />
 
@@ -343,66 +431,124 @@
 
                 <!-- Semi-transparent backdrop -->
                 <Border Background="{StaticResource ModalOverlay}"
-                        CornerRadius="16"
+                        CornerRadius="0"
                         MouseLeftButtonDown="LicenseBackdrop_Click" />
 
                 <!-- Modal content card -->
                 <Border Background="{StaticResource BgSecondary}"
-                        CornerRadius="12"
+                        CornerRadius="0"
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="1"
-                        Margin="24,32,24,32"
-                        Padding="20"
+                        Margin="20,24,20,24"
                         VerticalAlignment="Stretch"
                         RenderTransformOrigin="0.5,0.5">
                     <Border.RenderTransform>
                         <ScaleTransform ScaleX="1" ScaleY="1" />
                     </Border.RenderTransform>
                     <Border.Effect>
-                        <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.4" Color="Black" />
+                        <DropShadowEffect BlurRadius="24" ShadowDepth="0" Opacity="0.5" Color="Black" />
                     </Border.Effect>
 
-                    <Grid>
+                    <Grid Margin="20,16,20,16">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />  <!-- Header -->
+                            <RowDefinition Height="Auto" />  <!-- Separator -->
                             <RowDefinition Height="*" />     <!-- Scrollable body -->
-                            <RowDefinition Height="Auto" />  <!-- Close button -->
+                            <RowDefinition Height="Auto" />  <!-- Separator -->
+                            <RowDefinition Height="Auto" />  <!-- Footer button -->
                         </Grid.RowDefinitions>
 
-                        <!-- Modal Header -->
-                        <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                            <TextBlock Text="License Agreement"
-                                       FontSize="18"
-                                       FontWeight="Bold"
-                                       FontFamily="{StaticResource PrimaryFont}"
-                                       Foreground="{StaticResource TextPrimary}" />
-                            <TextBlock Text="GNU General Public License v3.0"
-                                       FontSize="11"
-                                       FontFamily="{StaticResource PrimaryFont}"
-                                       Foreground="{StaticResource TextMuted}"
-                                       Margin="0,4,0,0" />
-                        </StackPanel>
+                        <!-- ── Header: Title + Close X ── -->
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
 
-                        <!-- Scrollable License Text -->
-                        <ScrollViewer Grid.Row="1"
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="License Agreement"
+                                           FontSize="16"
+                                           FontWeight="Bold"
+                                           FontFamily="{StaticResource PrimaryFont}"
+                                           Foreground="{StaticResource TextPrimary}" />
+                                <TextBlock Text="GNU General Public License v3.0"
+                                           FontSize="10"
+                                           FontFamily="{StaticResource PrimaryFont}"
+                                           Foreground="{StaticResource TextMuted}"
+                                           Margin="0,3,0,0" />
+                            </StackPanel>
+
+                            <!-- Close X button -->
+                            <Button Grid.Column="1"
+                                    Content="✕"
+                                    Click="LicenseClose_Click"
+                                    VerticalAlignment="Top"
+                                    Cursor="Hand"
+                                    FontSize="14"
+                                    FontFamily="{StaticResource PrimaryFont}"
+                                    Foreground="{StaticResource TextMuted}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="6,2"
+                                    ToolTip="Close">
+                                <Button.Style>
+                                    <Style TargetType="Button">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border x:Name="XBorder"
+                                                            Background="Transparent"
+                                                            Padding="6,2">
+                                                        <TextBlock Text="{TemplateBinding Content}"
+                                                                   FontSize="{TemplateBinding FontSize}"
+                                                                   FontFamily="{TemplateBinding FontFamily}"
+                                                                   Foreground="{TemplateBinding Foreground}"
+                                                                   x:Name="XText" />
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="XText" Property="Foreground" Value="{StaticResource TextPrimary}" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </Button.Style>
+                            </Button>
+                        </Grid>
+
+                        <!-- ── Top separator ── -->
+                        <Border Grid.Row="1"
+                                Height="1"
+                                Background="{StaticResource BorderBrush}"
+                                Margin="0,0,0,12" />
+
+                        <!-- ── Scrollable License Text ── -->
+                        <ScrollViewer Grid.Row="2"
                                       VerticalScrollBarVisibility="Auto"
                                       HorizontalScrollBarVisibility="Disabled"
-                                      Padding="0,0,8,0">
+                                      Padding="0,0,6,0">
                             <TextBlock x:Name="LicenseText"
                                        TextWrapping="Wrap"
-                                       FontSize="11"
-                                       FontFamily="Consolas, Courier New"
+                                       FontSize="10.5"
+                                       FontFamily="{StaticResource MonoFont}"
                                        Foreground="{StaticResource TextSecondary}"
-                                       LineHeight="18" />
+                                       LineHeight="17" />
                         </ScrollViewer>
 
-                        <!-- Close Button -->
-                        <Button Grid.Row="2"
-                                Content="Close"
+                        <!-- ── Bottom separator ── -->
+                        <Border Grid.Row="3"
+                                Height="1"
+                                Background="{StaticResource BorderBrush}"
+                                Margin="0,12,0,12" />
+
+                        <!-- ── Footer: I Agree button ── -->
+                        <Button Grid.Row="4"
+                                Content="I Agree"
                                 Style="{StaticResource ModalCloseButton}"
                                 Click="LicenseClose_Click"
-                                HorizontalAlignment="Right"
-                                Margin="0,12,0,0" />
+                                HorizontalAlignment="Stretch" />
                     </Grid>
                 </Border>
             </Grid>

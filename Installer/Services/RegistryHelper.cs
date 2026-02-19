@@ -22,7 +22,7 @@ namespace ArdysaModsTools.Installer.Services
         private const string AppName = "ArdysaModsTools";
         private const string AppExe = "ArdysaModsTools.exe";
         private const string Publisher = "Ardysa";
-        private const string AppUrl = "https://github.com/Anneardysa/ArdysaModsTools";
+        private const string AppUrl = "https://ardysamods.my.id";
 
         // Must match the AppId in the original .iss file for upgrade compatibility
         private const string UninstallGuid = "{B8F9E7A2-4C3D-4F1E-9B2A-7E8D5C1F4A6B}";
@@ -111,11 +111,12 @@ namespace ArdysaModsTools.Installer.Services
                 key.SetValue("InstallLocation", installPath);
                 key.SetValue("InstallDate", DateTime.Now.ToString("yyyyMMdd"));
 
-                // Uninstall command
+                // Uninstall command — points to the self-copied uninstaller
+                var uninstallerPath = UninstallService.GetUninstallerPath(installPath);
                 key.SetValue("UninstallString",
-                    $"\"{exePath}\" --uninstall");
+                    $"\"{uninstallerPath}\" --uninstall");
                 key.SetValue("QuietUninstallString",
-                    $"\"{exePath}\" --uninstall --silent");
+                    $"\"{uninstallerPath}\" --uninstall --silent");
 
                 // Metadata
                 key.SetValue("URLInfoAbout", AppUrl);

@@ -49,6 +49,13 @@
   </ItemGroup>
 
   <!-- ============================================== -->
+  <!-- APP ICON (for installer UI logo)               -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <Resource Include="..\Assets\Icons\AppIcon.ico" Link="AppIcon.ico" />
+  </ItemGroup>
+
+  <!-- ============================================== -->
   <!-- WEBVIEW2 BOOTSTRAPPER                          -->
   <!-- ============================================== -->
   <ItemGroup>

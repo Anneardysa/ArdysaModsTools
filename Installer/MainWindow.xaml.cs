@@ -18,12 +18,31 @@ using ArdysaModsTools.Installer.Services;
 namespace ArdysaModsTools.Installer
 {
     /// <summary>
-    /// Main installer window. Orchestrates the installation/update flow
+    /// The installer operates in one of three modes, determined at startup.
+    /// </summary>
+    public enum InstallMode
+    {
+        /// <summary>No existing installation found. Fresh install.</summary>
+        Install,
+
+        /// <summary>Existing installation found with an older version.</summary>
+        Update,
+
+        /// <summary>Existing installation found with the same (or newer) version.</summary>
+        Reinstall,
+
+        /// <summary>User/system requested uninstallation.</summary>
+        Uninstall
+    }
+
+    /// <summary>
+    /// Main installer window. Orchestrates the installation flow
     /// with animated state transitions:
     ///   Install → Progress → Complete/Error
     ///
-    /// Also serves as an updater when invoked with --update or when
-    /// an existing installation is detected.
+    /// Supports three modes: Install, Update, and Reinstall.
+    /// Mode is auto-detected from registry + version comparison,
+    /// or forced via --update / --reinstall CLI flags.
     /// </summary>
     public partial class MainWindow : Window
     {
@@ -39,8 +58,11 @@ namespace ArdysaModsTools.Installer
         /// <summary>Whether the license modal is currently visible.</summary>
         private bool _licenseVisible;
 
-        /// <summary>Whether we're in update mode (existing install detected).</summary>
-        private bool _isUpdateMode;
+        /// <summary>Current installer mode (Install, Update, or Reinstall).</summary>
+        private InstallMode _mode = InstallMode.Install;
+
+        /// <summary>Set to true after uninstall pipeline completes successfully.</summary>
+        private bool _uninstallCompleted;
 
         // License text — loaded once from embedded resource
         private static readonly string LicenseContent = LoadLicenseText();
@@ -52,8 +74,8 @@ namespace ArdysaModsTools.Installer
             _installPath = InstallerService.GetDefaultInstallPath();
             _installer = new InstallerService();
 
-            // Detect update mode
-            DetectUpdateMode();
+            // Detect install mode (Install / Update / Reinstall)
+            DetectInstallMode();
 
             // Initialize UI state
             PathTextBox.Text = _installPath;
@@ -66,14 +88,26 @@ namespace ArdysaModsTools.Installer
                 SizeText.Text = $"~{payloadSize / (1024 * 1024)} MB";
             }
 
-            // Always show the new version being installed
-            if (!_isUpdateMode)
-            {
-                VersionText.Text = $"v{GetNewVersion()}";
-                VersionText.Visibility = Visibility.Visible;
-            }
+            // Apply mode-specific UI
+            ApplyModeUI();
 
             UpdateDiskSpaceText();
+
+            // Wire up window closing for uninstall self-cleanup
+            Closing += Window_Closing;
+        }
+
+        /// <summary>
+        /// Handles window closing. If uninstall completed, schedules
+        /// self-deletion of the uninstaller exe and install directory.
+        /// The deletion waits for this process to fully exit (PID-based loop).
+        /// </summary>
+        private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (_uninstallCompleted)
+            {
+                UninstallService.ScheduleSelfDeletion(_installPath);
+            }
         }
 
         // ================================================================
@@ -81,48 +115,173 @@ namespace ArdysaModsTools.Installer
         // ================================================================
 
         /// <summary>
-        /// Detects if we're running an update (existing installation found).
-        /// Switches UI to update mode with version comparison.
+        /// Detects the install mode using a strict priority chain:
+        ///
+        ///   Priority 1: CLI flags (--uninstall, --reinstall, --update)
+        ///   Priority 2: No embedded payload → Uninstall (slim uninstaller binary)
+        ///   Priority 3: No registry entry → Install (fresh)
+        ///   Priority 4: App exe missing at registered path → Install (fresh)
+        ///   Priority 5: Version + build comparison → Update or Reinstall
+        ///
+        /// The payload check (Priority 2) is the key mechanism that distinguishes
+        /// the slim uninstaller from the full installer. The uninstaller is built
+        /// without payload.zip embedded, so it can never install — only uninstall.
         /// </summary>
-        private void DetectUpdateMode()
+        private void DetectInstallMode()
         {
-            // Check command-line args for --update flag
             var args = Environment.GetCommandLineArgs();
-            var forceUpdate = args.Any(a => a.Equals("--update", StringComparison.OrdinalIgnoreCase));
-
-            // Check registry for existing installation
             var existingPath = RegistryHelper.GetInstalledPath();
 
-            if (existingPath == null && !forceUpdate)
-                return;
-
-            _isUpdateMode = true;
-
-            if (existingPath != null)
-                _installPath = existingPath;
-
-            // Switch UI to update mode
-            InstallButton.Content = "Update Now";
-
-            // Build version comparison string
-            var currentVersion = GetInstalledVersion(existingPath);
-            var newVersion = GetNewVersion();
-
-            if (currentVersion != null)
+            // ── Priority 1: Explicit CLI flags ───────────────
+            if (args.Any(a => a.Equals("--uninstall", StringComparison.OrdinalIgnoreCase)))
             {
-                SubtitleText.Text = $"v{currentVersion}  →  v{newVersion}";
-                VersionText.Text = "A new update is available";
+                _mode = InstallMode.Uninstall;
+                if (existingPath != null) _installPath = existingPath;
+                return;
+            }
+
+            if (args.Any(a => a.Equals("--reinstall", StringComparison.OrdinalIgnoreCase)))
+            {
+                _mode = InstallMode.Reinstall;
+                if (existingPath != null) _installPath = existingPath;
+                return;
+            }
+
+            if (args.Any(a => a.Equals("--update", StringComparison.OrdinalIgnoreCase)))
+            {
+                _mode = InstallMode.Update;
+                if (existingPath != null) _installPath = existingPath;
+                return;
+            }
+
+            // ── Priority 2: No embedded payload → Uninstaller ──
+            // The slim uninstaller has no payload.zip embedded.
+            // If we have no payload, we cannot install — only uninstall.
+            if (!HasEmbeddedPayload())
+            {
+                _mode = InstallMode.Uninstall;
+                if (existingPath != null) _installPath = existingPath;
+                return;
+            }
+
+            // ── Priority 3: No existing installation ─────────
+            if (existingPath == null)
+            {
+                _mode = InstallMode.Install;
+                return;
+            }
+
+            _installPath = existingPath;
+
+            // ── Priority 4: App exe missing at registered path ─
+            var exePath = Path.Combine(existingPath, "ArdysaModsTools.exe");
+            if (!File.Exists(exePath))
+            {
+                _mode = InstallMode.Install;
+                return;
+            }
+
+            // ── Priority 5: Version + build comparison ──────
+            var installedVersion = GetInstalledVersion(existingPath);
+            var installedBuild = GetInstalledBuildNumber(existingPath);
+            var (newVersion, newBuild) = GetNewVersionInfo();
+
+            if (installedVersion != null
+                && installedVersion == newVersion
+                && installedBuild == newBuild)
+            {
+                _mode = InstallMode.Reinstall;
             }
             else
             {
-                SubtitleText.Text = "Update Available";
-                VersionText.Text = $"v{newVersion}";
+                _mode = InstallMode.Update;
             }
+        }
 
-            VersionText.Visibility = Visibility.Visible;
+        /// <summary>
+        /// Checks whether this executable has an embedded payload.zip resource.
+        /// The full installer has it; the slim uninstaller does not.
+        /// This is the definitive way to distinguish installer vs uninstaller.
+        /// </summary>
+        private static bool HasEmbeddedPayload()
+        {
+            return InstallerService.GetEmbeddedPayloadSize() > 0;
+        }
 
-            // Hide advanced options in update mode — path already locked
-            AdvancedToggle.Visibility = Visibility.Collapsed;
+        /// <summary>
+        /// Applies mode-specific UI: button text, subtitle, version badge,
+        /// and advanced panel visibility.
+        /// </summary>
+        private void ApplyModeUI()
+        {
+            var (newVersion, buildNum) = GetNewVersionInfo();
+            var versionDisplay = buildNum > 0
+                ? $"{newVersion} (Build {buildNum})"
+                : newVersion;
+
+            switch (_mode)
+            {
+                case InstallMode.Install:
+                    InstallButton.Content = "Install Now";
+                    SubtitleText.Text = "Setup";
+                    VersionText.Text = $"v{versionDisplay}";
+                    VersionText.Visibility = Visibility.Visible;
+                    // Advanced panel stays visible — path is editable
+                    break;
+
+                case InstallMode.Update:
+                    InstallButton.Content = "Update Now";
+                    var installedVersion = GetInstalledVersion(_installPath);
+                    var installedBuild = GetInstalledBuildNumber(_installPath);
+                    if (installedVersion != null)
+                    {
+                        var oldDisplay = installedBuild > 0
+                            ? $"{installedVersion} (Build {installedBuild})"
+                            : installedVersion;
+                        SubtitleText.Text = $"Update to v{versionDisplay}";
+                        VersionText.Text = $"from v{oldDisplay}";
+                    }
+                    else
+                    {
+                        SubtitleText.Text = "Update Available";
+                        VersionText.Text = $"v{versionDisplay}";
+                    }
+                    VersionText.Visibility = Visibility.Visible;
+                    AdvancedToggle.Visibility = Visibility.Collapsed;
+                    break;
+
+                case InstallMode.Reinstall:
+                    InstallButton.Content = "Reinstall";
+                    SubtitleText.Text = $"Reinstall v{versionDisplay}";
+                    VersionText.Text = "The same version will be reinstalled";
+                    VersionText.Visibility = Visibility.Visible;
+                    AdvancedToggle.Visibility = Visibility.Collapsed;
+                    break;
+
+                case InstallMode.Uninstall:
+                    InstallButton.Content = "Uninstall";
+                    // Show the INSTALLED version (not the exe's own version)
+                    var uninstVersion = GetInstalledVersion(_installPath);
+                    var uninstBuild = GetInstalledBuildNumber(_installPath);
+                    if (uninstVersion != null)
+                    {
+                        var uninstDisplay = uninstBuild > 0
+                            ? $"{uninstVersion} (Build {uninstBuild})"
+                            : uninstVersion;
+                        SubtitleText.Text = "Uninstall";
+                        VersionText.Text = $"v{uninstDisplay} will be removed";
+                    }
+                    else
+                    {
+                        SubtitleText.Text = "Uninstall";
+                        VersionText.Text = "Application will be removed";
+                    }
+                    VersionText.Visibility = Visibility.Visible;
+                    AdvancedToggle.Visibility = Visibility.Collapsed;
+                    SizeText.Visibility = Visibility.Collapsed;
+                    WaveCanvas.Visibility = Visibility.Collapsed;
+                    break;
+            }
         }
 
         /// <summary>
@@ -159,15 +318,48 @@ namespace ArdysaModsTools.Installer
             }
         }
 
-        /// <summary>Read the new version from this assembly's metadata.</summary>
-        private static string GetNewVersion()
+        /// <summary>
+        /// Read the build number from the installed exe's AssemblyVersion.
+        /// The build number is the 4th part (Revision) of the assembly version:
+        /// Major.Minor.Patch.Build → e.g. 2.1.12.2094 → build = 2094
+        /// </summary>
+        private static int GetInstalledBuildNumber(string? installPath)
+        {
+            if (installPath == null) return 0;
+
+            var exePath = Path.Combine(installPath, "ArdysaModsTools.exe");
+            if (!File.Exists(exePath)) return 0;
+
+            try
+            {
+                var versionInfo = FileVersionInfo.GetVersionInfo(exePath);
+                // FilePrivatePart is the 4th component of the file version
+                return versionInfo.FilePrivatePart;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Read the new version and build number from this assembly's metadata.
+        /// Returns (version, buildNumber) where buildNumber is the 4th part of AssemblyVersion.
+        /// </summary>
+        private static (string Version, int Build) GetNewVersionInfo()
         {
             var asm = Assembly.GetExecutingAssembly();
             var attr = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
             var raw = attr?.InformationalVersion
                       ?? asm.GetName().Version?.ToString(3)
                       ?? "Unknown";
-            return CleanVersion(raw);
+            var version = CleanVersion(raw);
+
+            // Extract build number from AssemblyVersion (4th part: Major.Minor.Patch.Build)
+            var asmVersion = asm.GetName().Version;
+            var build = asmVersion?.Revision ?? 0;
+
+            return (version, build);
         }
 
         /// <summary>Load the license text from the LICENSE file or embedded resource.</summary>
@@ -262,6 +454,12 @@ namespace ArdysaModsTools.Installer
 
         private async void InstallButton_Click(object sender, RoutedEventArgs e)
         {
+            if (_mode == InstallMode.Uninstall)
+            {
+                await RunUninstallAsync();
+                return;
+            }
+
             // Read install path from advanced panel
             if (_advancedExpanded && !string.IsNullOrWhiteSpace(PathTextBox.Text))
             {
@@ -399,10 +597,11 @@ namespace ArdysaModsTools.Installer
                 ShortcutHelper.CreateShortcuts(_installPath);
 
                 // Step 6: Register in Add/Remove Programs
+                // (unins000.exe is already in the payload — extracted in step 3)
                 UpdateStatus("Registering application...");
                 RegistryHelper.RegisterApp(_installPath);
 
-                // Step 7: Install fonts
+                // Step 8: Install fonts
                 UpdateStatus("Installing fonts...");
                 FontInstaller.InstallFonts(_installPath);
 
@@ -412,6 +611,45 @@ namespace ArdysaModsTools.Installer
             catch (OperationCanceledException)
             {
                 await ShowInstallAsync(); // User cancelled, go back
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorAsync(ex.Message);
+            }
+        }
+
+        // ================================================================
+        // UNINSTALL PIPELINE
+        // ================================================================
+
+        private async Task RunUninstallAsync()
+        {
+            try
+            {
+                await ShowProgressAsync();
+
+                var uninstaller = new UninstallService();
+                var progress = new Progress<UninstallProgress>(p =>
+                {
+                    AnimationHelper.AnimateProgressBar(InstallProgress, p.Percent, 300);
+                    ProgressPercent.Text = $"{p.Percent}%";
+                    ProgressText.Text = p.Status;
+                });
+
+                await uninstaller.RunUninstallAsync(_installPath, progress, _cts.Token);
+
+                // Mark uninstall as completed — self-deletion happens on window close
+                _uninstallCompleted = true;
+
+                await ShowCompleteAsync();
+
+                // Auto-close after 3 seconds — nothing to launch after uninstall
+                await Task.Delay(3000);
+                Close();
+            }
+            catch (OperationCanceledException)
+            {
+                await ShowInstallAsync();
             }
             catch (Exception ex)
             {
@@ -451,12 +689,49 @@ namespace ArdysaModsTools.Installer
         /// </summary>
         private async Task ShowCompleteAsync()
         {
+            // Start with empty text for typewriter effect
+            var finalText = CompleteIcon.Text;
+            CompleteIcon.Text = "";
+
+            // Hide Launch button for uninstall (no app to launch)
+            if (_mode == InstallMode.Uninstall)
+            {
+                LaunchButton.Visibility = Visibility.Collapsed;
+                CompleteText.Text = "Uninstalled";
+            }
+
             await AnimationHelper.CrossFadeAsync(ProgressPanel, CompletePanel, 400);
 
-            // Bounce the checkmark icon
-            await AnimationHelper.ScaleBounceAsync(CompleteIcon, 500);
+            // Terminal-retro typewriter: type out [ OK ] character by character
+            await Task.Delay(300);
+            await TypewriterAsync(CompleteIcon, finalText, 80);
 
-            StatusText.Text = $"Installed to {_installPath}";
+            var action = _mode switch
+            {
+                InstallMode.Update => "Updated",
+                InstallMode.Reinstall => "Reinstalled",
+                InstallMode.Uninstall => "Uninstalled",
+                _ => "Installed"
+            };
+
+            StatusText.Text = _mode == InstallMode.Uninstall
+                ? $"Uninstalled from {_installPath}"
+                : $"{action} to {_installPath}";
+        }
+
+        /// <summary>
+        /// Terminal-retro typewriter effect: types text character by character
+        /// with a blinking cursor underscore.
+        /// </summary>
+        private static async Task TypewriterAsync(System.Windows.Controls.TextBlock target, string text, int charDelayMs)
+        {
+            for (int i = 0; i <= text.Length; i++)
+            {
+                // Show typed portion + blinking cursor
+                var typed = text[..i];
+                target.Text = i < text.Length ? typed + "_" : typed;
+                await Task.Delay(charDelayMs);
+            }
         }
 
         /// <summary>
