@@ -230,13 +230,88 @@ namespace ArdysaModsTools.UI.Controls.Widgets
             tilesFlow.SuspendLayout();
             tilesFlow.Controls.Clear();
 
-            foreach (var skin in hero.Skins)
+            // Partition skins into Legacy and Custom categories based on zip filename
+            var allSkins = hero.Skins.ToList();
+            var legacySkins = allSkins.Where(s => !IsCustomSet(hero.Sets, s)).ToList();
+            var customSkins = allSkins.Where(s => IsCustomSet(hero.Sets, s)).ToList();
+            bool hasBoth = legacySkins.Count > 0 && customSkins.Count > 0;
+
+            // Legacy section (top)
+            if (legacySkins.Count > 0)
             {
-                var tile = CreateTileForSkin(skin);
-                tilesFlow.Controls.Add(tile);
+                if (hasBoth)
+                    tilesFlow.Controls.Add(CreateCategoryHeader("LEGACY SET", legacySkins.Count, Color.FromArgb(212, 160, 87)));
+
+                foreach (var skin in legacySkins)
+                    tilesFlow.Controls.Add(CreateTileForSkin(skin));
+            }
+
+            // Custom section (bottom)
+            if (customSkins.Count > 0)
+            {
+                if (hasBoth)
+                    tilesFlow.Controls.Add(CreateCategoryHeader("CUSTOM SET", customSkins.Count, Color.FromArgb(167, 139, 250)));
+
+                foreach (var skin in customSkins)
+                    tilesFlow.Controls.Add(CreateTileForSkin(skin));
             }
 
             tilesFlow.ResumeLayout();
+        }
+
+        /// <summary>
+        /// Returns true if the set's archive filename starts with "mix_" (case-insensitive), indicating a custom/mixed set.
+        /// Checks the zip/rar URLs in the set's asset list.
+        /// </summary>
+        private static bool IsCustomSet(Dictionary<string, List<string>>? sets, string skinName)
+        {
+            if (sets == null || string.IsNullOrWhiteSpace(skinName)) return false;
+            if (!sets.TryGetValue(skinName, out var urls) || urls == null || urls.Count == 0) return false;
+
+            // Find the first archive URL and check its filename
+            var archiveUrl = urls.FirstOrDefault(u =>
+                u.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+                u.EndsWith(".rar", StringComparison.OrdinalIgnoreCase) ||
+                u.EndsWith(".zip.001", StringComparison.OrdinalIgnoreCase));
+
+            if (string.IsNullOrEmpty(archiveUrl)) return false;
+
+            try
+            {
+                var fileName = Path.GetFileName(new Uri(archiveUrl).LocalPath);
+                return fileName.StartsWith("mix_", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                var lastSlash = archiveUrl.LastIndexOf('/');
+                if (lastSlash >= 0 && lastSlash < archiveUrl.Length - 1)
+                {
+                    var fileName = archiveUrl.Substring(lastSlash + 1);
+                    return fileName.StartsWith("mix_", StringComparison.OrdinalIgnoreCase);
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Creates a styled category header label for the tiles flow panel.
+        /// </summary>
+        private Label CreateCategoryHeader(string text, int count, Color accentColor)
+        {
+            var label = new Label
+            {
+                Text = $"{text}  ({count})",
+                AutoSize = false,
+                Height = 28,
+                Width = tilesFlow.ClientSize.Width - 24,
+                Font = new Font("JetBrains Mono", 9F, FontStyle.Bold),
+                ForeColor = accentColor,
+                BackColor = Color.Transparent,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(4, 0, 0, 0),
+                Margin = new Padding(8, 8, 8, 2)
+            };
+            return label;
         }
 
         public void SetFavorite(bool isFav)
@@ -309,7 +384,11 @@ namespace ArdysaModsTools.UI.Controls.Widgets
         {
             if (!_isExpanded) return;
 
-            int tileCount = tilesFlow.Controls.Count;
+            int tileCount = tilesFlow.Controls.OfType<TileCard>().Count();
+            // Account for category header labels height
+            int headerHeight = tilesFlow.Controls.OfType<Label>()
+                .Sum(l => l.Height + l.Margin.Vertical);
+
             if (tileCount == 0)
             {
                 tilesFlow.Height = 50;
@@ -361,7 +440,7 @@ namespace ArdysaModsTools.UI.Controls.Widgets
                 
                 int rows = (int)Math.Ceiling(tileCount / (double)columns);
                 int tileRowHeight = optimalTileSize + Theme.TileCaptionHeight + marginV * 2;
-                tilesFlow.Height = rows * tileRowHeight + 20;
+                tilesFlow.Height = rows * tileRowHeight + headerHeight + 20;
 
                 // Update tile sizes to calculated optimal size
                 foreach (var tile in tilesFlow.Controls.OfType<TileCard>())

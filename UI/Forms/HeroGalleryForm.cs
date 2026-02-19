@@ -242,6 +242,7 @@ namespace ArdysaModsTools.UI.Forms
                     {
                         name = kvp.Key,
                         index = idx,
+                        isCustom = IsCustomSet(kvp.Value),
                         thumbnailUrl = kvp.Value?.FirstOrDefault(u => 
                             u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                             u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
@@ -439,6 +440,40 @@ namespace ArdysaModsTools.UI.Forms
         }
 
         /// <summary>
+        /// Determines if a set is a "Custom Set" by checking whether its zip/archive filename starts with "mix_".
+        /// </summary>
+        private static bool IsCustomSet(List<string>? assetUrls)
+        {
+            if (assetUrls == null || assetUrls.Count == 0) return false;
+
+            // Find the first zip/rar URL and check its filename
+            var archiveUrl = assetUrls.FirstOrDefault(u =>
+                u.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+                u.EndsWith(".rar", StringComparison.OrdinalIgnoreCase) ||
+                u.EndsWith(".zip.001", StringComparison.OrdinalIgnoreCase));
+
+            if (string.IsNullOrEmpty(archiveUrl)) return false;
+
+            // Extract filename from URL
+            try
+            {
+                var fileName = Path.GetFileName(new Uri(archiveUrl).LocalPath);
+                return fileName.StartsWith("mix_", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                // Fallback: just check the URL string directly
+                var lastSlash = archiveUrl.LastIndexOf('/');
+                if (lastSlash >= 0 && lastSlash < archiveUrl.Length - 1)
+                {
+                    var fileName = archiveUrl.Substring(lastSlash + 1);
+                    return fileName.StartsWith("mix_", StringComparison.OrdinalIgnoreCase);
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Preload set thumbnails into cache with smart overlay logic.
         /// 
         /// Three execution paths to avoid showing the overlay on every open:
@@ -486,8 +521,23 @@ namespace ArdysaModsTools.UI.Forms
             {
                 System.Diagnostics.Debug.WriteLine(
                     "[HeroGallery] All cached, cooldown expired — silent freshness check");
-                await RunSilentRefreshAsync(cacheService, cached);
+                
+                // Hide overlay FIRST so user can interact immediately
                 await ExecuteScriptAsync("hideCachingOverlay()");
+                
+                // Run freshness check in background (fire-and-forget)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await RunSilentRefreshAsync(cacheService, cached);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[HeroGallery] Background refresh error: {ex.Message}");
+                    }
+                });
                 return;
             }
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2095)
+
+### 🚀 Improved
+
+- Added "Legacy Set" & "Custom Set" categorization
+
+### 🐛 Fixed
+
+- Fixed stuck "Loading Assets 0/0" overlay by moving silent cache validation to background task.
+
 ## [2.1.12-beta] (Build 2094)
 
 ### 🚀 Improved

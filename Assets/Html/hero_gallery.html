@@ -357,6 +357,61 @@
                transform: scale(1);
             }
          }
+
+         /* Set Category Headers */
+         .set-category-section {
+            width: 100%;
+         }
+         .set-category-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 4px 10px 4px;
+            user-select: none;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+         }
+         .set-category-header .category-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+         }
+         .set-category-header .category-count {
+            font-size: 10px;
+            color: #666;
+            margin-left: auto;
+         }
+         .set-category-header.legacy .category-label {
+            color: #d4a057;
+         }
+         .set-category-header.legacy .category-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, rgba(212, 160, 87, 0.3), transparent);
+         }
+         .set-category-header.custom .category-label {
+            color: #a78bfa;
+         }
+         .set-category-header.custom .category-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, rgba(167, 139, 250, 0.3), transparent);
+         }
+         .set-category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 16px;
+         }
+         @media (min-width: 640px) {
+            .set-category-grid {
+               grid-template-columns: repeat(3, 1fr);
+            }
+         }
+         @media (min-width: 768px) {
+            .set-category-grid {
+               grid-template-columns: repeat(4, 1fr);
+            }
+         }
       </style>
    </head>
 
@@ -698,10 +753,10 @@
                   </button>
                </div>
 
-               <!-- Sets grid -->
+               <!-- Sets grid (categorized: Legacy / Custom) -->
                <div
                   id="modalSetsGrid"
-                  class="p-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-[60vh] overflow-y-auto"
+                  class="p-6 flex flex-col gap-2 max-h-[60vh] overflow-y-auto"
                ></div>
 
                <!-- Modal footer -->
@@ -752,7 +807,7 @@
       <!-- Caching Overlay (Loading Assets) -->
       <div
          id="cachingOverlay"
-         class="fixed inset-0 z-[80] bg-amt-bg flex flex-col items-center justify-center"
+         class="hidden fixed inset-0 z-[80] bg-amt-bg flex flex-col items-center justify-center"
       >
          <div class="max-w-md w-full mx-4 text-center">
             <!-- Logo/Icon -->
@@ -1469,6 +1524,34 @@
             modal.classList.remove("hidden");
          }
 
+         function isCustomSet(set) {
+            return set && set.isCustom === true;
+         }
+
+         function renderSetTile(set, idx, hero, currentSelection) {
+            const isSelected = currentSelection === idx;
+            const isFocused = focusedSetIndex === idx;
+            const thumbUrl = set.thumbnailUrl || hero.thumbnail;
+
+            return `
+            <div class="set-tile ${isSelected ? "selected" : ""} ${
+               isFocused ? "focused" : ""
+            } bg-amt-card rounded-xl overflow-hidden border border-amt-border cursor-pointer"
+                 data-set-index="${idx}"
+                 onclick="selectSetFromModal('${currentModalHeroId}', ${idx})">
+               <div class="aspect-square overflow-hidden">
+                  <img src="${thumbUrl}" alt="${set.name}" 
+                       class="w-full h-full object-cover"
+                       onerror="this.src='${hero.thumbnail}'" />
+               </div>
+               <div class="p-3">
+                  <p class="text-sm font-medium truncate">${set.name || `Set ${idx + 1}`}</p>
+                  ${isSelected ? '<p class="text-xs text-amt-accent mt-1">✓ Selected</p>' : ""}
+               </div>
+            </div>
+            `;
+         }
+
          function renderModalSets() {
             const hero = heroes.find((h) => h.id === currentModalHeroId);
             if (!hero) return;
@@ -1476,31 +1559,53 @@
             const currentSelection = selections[currentModalHeroId];
             const setsGrid = document.getElementById("modalSetsGrid");
 
-            setsGrid.innerHTML = hero.sets
-               .map((set, idx) => {
-                  const isSelected = currentSelection === idx;
-                  const isFocused = focusedSetIndex === idx;
-                  const thumbUrl = set.thumbnailUrl || hero.thumbnail;
+            // Partition sets into Legacy and Custom, keeping original indices
+            const legacySets = [];
+            const customSets = [];
+            hero.sets.forEach((set, idx) => {
+               if (isCustomSet(set)) {
+                  customSets.push({ set, idx });
+               } else {
+                  legacySets.push({ set, idx });
+               }
+            });
 
-                  return `
-               <div class="set-tile ${isSelected ? "selected" : ""} ${
-                  isFocused ? "focused" : ""
-               } bg-amt-card rounded-xl overflow-hidden border border-amt-border cursor-pointer"
-                    data-set-index="${idx}"
-                    onclick="selectSetFromModal('${currentModalHeroId}', ${idx})">
-                  <div class="aspect-square overflow-hidden">
-                     <img src="${thumbUrl}" alt="${set.name}" 
-                          class="w-full h-full object-cover"
-                          onerror="this.src='${hero.thumbnail}'" />
-                  </div>
-                  <div class="p-3">
-                     <p class="text-sm font-medium truncate">${set.name || `Set ${idx + 1}`}</p>
-                     ${isSelected ? '<p class="text-xs text-amt-accent mt-1">✓ Selected</p>' : ""}
-                  </div>
-               </div>
-               `;
-               })
-               .join("");
+            const hasBothCategories = legacySets.length > 0 && customSets.length > 0;
+            let html = '';
+
+            // Legacy section (top)
+            if (legacySets.length > 0) {
+               html += '<div class="set-category-section">';
+               if (hasBothCategories) {
+                  html += `
+                  <div class="set-category-header legacy">
+                     <span class="category-label">Legacy Set</span>
+                     <div class="category-line"></div>
+                     <span class="category-count">${legacySets.length}</span>
+                  </div>`;
+               }
+               html += '<div class="set-category-grid">';
+               html += legacySets.map(({ set, idx }) => renderSetTile(set, idx, hero, currentSelection)).join('');
+               html += '</div></div>';
+            }
+
+            // Custom section (bottom)
+            if (customSets.length > 0) {
+               html += '<div class="set-category-section">';
+               if (hasBothCategories) {
+                  html += `
+                  <div class="set-category-header custom">
+                     <span class="category-label">Custom Set</span>
+                     <div class="category-line"></div>
+                     <span class="category-count">${customSets.length}</span>
+                  </div>`;
+               }
+               html += '<div class="set-category-grid">';
+               html += customSets.map(({ set, idx }) => renderSetTile(set, idx, hero, currentSelection)).join('');
+               html += '</div></div>';
+            }
+
+            setsGrid.innerHTML = html;
          }
 
          function navigateHero(direction) {
