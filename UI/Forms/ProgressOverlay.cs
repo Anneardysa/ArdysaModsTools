@@ -17,7 +17,10 @@
 using Microsoft.Web.WebView2.WinForms;
 using Microsoft.Web.WebView2.Core;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Drawing;
@@ -39,7 +42,6 @@ namespace ArdysaModsTools.UI.Forms
         
         // Cancel support - robust state management
         private bool _cancelInProgress;
-        private Controls.RoundedButton? _cancelButton;
         public bool WasCancelled { get; private set; }
         public event EventHandler? CancelRequested;
 
@@ -52,6 +54,20 @@ namespace ArdysaModsTools.UI.Forms
         /// </summary>
         public bool HideDownloadSpeed { get; set; } = false;
 
+        /// <summary>
+        /// When true, shows the ModsPack preview panel alongside the progress.
+        /// Form expands to 1280×720 to accommodate side-by-side layout.
+        /// </summary>
+        public bool ShowPreview { get; set; } = false;
+
+        private static readonly HttpClient _httpClient = new()
+        {
+            Timeout = TimeSpan.FromSeconds(10)
+        };
+
+        private const string GitHubApiUrl =
+            "https://api.github.com/repos/Anneardysa/ArdysaMods/contents/assets/updates";
+
         public ProgressOverlay()
         {
             InitializeComponent();
@@ -60,24 +76,26 @@ namespace ArdysaModsTools.UI.Forms
 
         private void SetupForm()
         {
-            // Form settings - match MainForm size
+            // Form settings
             this.FormBorderStyle = FormBorderStyle.None;
-            this.Size = new Size(840, 600);
             this.BackColor = Color.Black;
             this.ShowInTaskbar = false;
             this.StartPosition = FormStartPosition.CenterScreen;
             
-            // Force center on screen after size is set
-            this.Load += (s, e) => this.CenterToScreen();
+            // Apply size based on preview mode, center on screen
+            this.Load += (s, e) =>
+            {
+                this.Size = ShowPreview ? new Size(1280, 720) : new Size(840, 600);
+                this.CenterToScreen();
+            };
 
             // No rounded corners - matches website's sharp aesthetic
             // this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, 20, 20));
 
-            // WebView2 control with padding
+            // WebView2 panel — uses Dock.Fill so it adapts to Load-time resize
             var webPanel = new Panel
             {
-                Location = new Point(20, 20),
-                Size = new Size(Width - 40, Height - 90),
+                Dock = DockStyle.Fill,
                 BackColor = Color.Transparent
             };
             
@@ -88,24 +106,6 @@ namespace ArdysaModsTools.UI.Forms
             };
             webPanel.Controls.Add(_webView);
             this.Controls.Add(webPanel);
-
-            // Cancel button - black bg, white text, inverts on hover
-            _cancelButton = new Controls.RoundedButton
-            {
-                Text = "[ CANCEL ]",
-                Size = new Size(160, 44),
-                Location = new Point((Width - 160) / 2, Height - 60),
-                BackColor = Color.Black,
-                ForeColor = Color.White,
-                FlatStyle = FlatStyle.Flat,
-                Cursor = Cursors.Hand,
-                Font = new Font("JetBrains Mono", 10F, FontStyle.Bold),
-                BorderRadius = 0,
-                HoverBackColor = Color.White,
-                HoverForeColor = Color.Black
-            };
-            _cancelButton.Click += (s, e) => RequestCancel();
-            this.Controls.Add(_cancelButton);
 
             // ESC to cancel
             this.KeyPreview = true;
@@ -138,14 +138,10 @@ namespace ArdysaModsTools.UI.Forms
             
             _cancelInProgress = true;
             
-            // Visual feedback: update button to show cancelling
-            if (_cancelButton != null)
-            {
-                _cancelButton.Text = "CANCELLING...";
-                _cancelButton.Enabled = false;
-                _cancelButton.BackColor = Color.FromArgb(80, 80, 80);
-                _cancelButton.ForeColor = Color.Gray;
-            }
+            // Visual feedback: update HTML cancel button
+            _ = ExecuteScriptSafeAsync(
+                "var b=document.getElementById('cancelBtn');" +
+                "if(b){b.textContent='CANCELLING...';b.disabled=true;b.style.opacity='0.4';b.style.cursor='default'}");
             
             // Update status to show cancellation in progress
             try { _ = UpdateStatusAsync("Cancelling..."); } catch { }
@@ -194,6 +190,15 @@ namespace ArdysaModsTools.UI.Forms
                 _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
                 _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
 
+                // Wire up WebMessage bridge for HTML cancel button
+                _webView.CoreWebView2.WebMessageReceived += (s, e) =>
+                {
+                    if (e.TryGetWebMessageAsString() == "cancel")
+                    {
+                        RequestCancel();
+                    }
+                };
+
                 // Wait for navigation completion
                 var navigationComplete = new TaskCompletionSource<bool>();
                 
@@ -227,6 +232,12 @@ namespace ArdysaModsTools.UI.Forms
                 {
                     await _webView.CoreWebView2.ExecuteScriptAsync(
                         "document.querySelector('.metrics-container')?.remove()");
+                }
+
+                // Start preview loading in background (fire-and-forget)
+                if (ShowPreview)
+                {
+                    _ = LoadPreviewDataAsync();
                 }
             }
             catch (Exception ex)
@@ -354,6 +365,134 @@ namespace ArdysaModsTools.UI.Forms
                 await _webView.CoreWebView2.ExecuteScriptAsync($"updateFileProgress({current}, {total})");
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Fetch hero preview data from GitHub API and inject into WebView2.
+        /// Runs in background — failures are logged and shown as error state,
+        /// never affecting the progress operation.
+        /// </summary>
+        private async Task LoadPreviewDataAsync()
+        {
+            if (!_initialized || _webView?.CoreWebView2 == null)
+                return;
+
+            try
+            {
+                // Show loading state in preview panel immediately
+                await ExecuteScriptSafeAsync("showPreviewLoading()");
+
+                // Fetch hero list from GitHub API
+                using var request = new HttpRequestMessage(HttpMethod.Get, GitHubApiUrl);
+                request.Headers.Add("User-Agent", "ArdysaModsTools");
+                request.Headers.Add("Accept", "application/vnd.github.v3+json");
+
+                using var response = await _httpClient.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+
+                string json = await response.Content.ReadAsStringAsync();
+                var heroes = ParseHeroListFromGitHubResponse(json);
+
+                if (heroes.Count == 0)
+                {
+                    await ExecuteScriptSafeAsync("showPreviewError('No hero skins found')");
+                    return;
+                }
+
+                // Serialize hero list and inject into WebView2
+                string heroesJson = JsonSerializer.Serialize(heroes);
+                string escapedJson = heroesJson.Replace("\\", "\\\\").Replace("'", "\\'");
+                await ExecuteScriptSafeAsync($"initPreview(JSON.parse('{escapedJson}'))");
+            }
+            catch (HttpRequestException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Preview fetch failed: {ex.Message}");
+                await ExecuteScriptSafeAsync(
+                    $"showPreviewError('Network error: {EscapeForJs(ex.Message)}')");
+            }
+            catch (TaskCanceledException)
+            {
+                System.Diagnostics.Debug.WriteLine("Preview fetch timed out");
+                await ExecuteScriptSafeAsync("showPreviewError('Request timed out')");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Preview error: {ex.Message}");
+                await ExecuteScriptSafeAsync(
+                    $"showPreviewError('Failed to load preview')");
+            }
+        }
+
+        /// <summary>
+        /// Parse GitHub Contents API response into a list of hero entries.
+        /// Extracts .jpg files and converts filenames to display names.
+        /// </summary>
+        private static List<Dictionary<string, string>> ParseHeroListFromGitHubResponse(string json)
+        {
+            var heroes = new List<Dictionary<string, string>>();
+
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                return heroes;
+
+            foreach (var item in doc.RootElement.EnumerateArray())
+            {
+                if (!item.TryGetProperty("name", out var nameEl))
+                    continue;
+
+                string fileName = nameEl.GetString() ?? "";
+                if (!fileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) &&
+                    !fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // Convert filename to display name: "anti_mage.jpg" → "Anti Mage"
+                string heroName = Path.GetFileNameWithoutExtension(fileName)
+                    .Replace("_", " ")
+                    .Replace("-", " ");
+
+                // Title case
+                if (heroName.Length > 0)
+                {
+                    heroName = System.Globalization.CultureInfo.CurrentCulture
+                        .TextInfo.ToTitleCase(heroName.ToLower());
+                }
+
+                heroes.Add(new Dictionary<string, string>
+                {
+                    { "name", heroName },
+                    { "file", fileName }
+                });
+            }
+
+            // Sort alphabetically by name
+            heroes.Sort((a, b) => string.Compare(a["name"], b["name"], StringComparison.OrdinalIgnoreCase));
+            return heroes;
+        }
+
+        /// <summary>
+        /// Execute a JS script on the WebView2, swallowing any errors silently.
+        /// </summary>
+        private async Task ExecuteScriptSafeAsync(string script)
+        {
+            try
+            {
+                if (_webView?.CoreWebView2 != null)
+                    await _webView.CoreWebView2.ExecuteScriptAsync(script);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Escape a string for safe embedding in a JS string literal.
+        /// </summary>
+        private static string EscapeForJs(string value)
+        {
+            return (value ?? "")
+                .Replace("\\", "\\\\")
+                .Replace("'", "\\'")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "");
         }
 
         /// <summary>

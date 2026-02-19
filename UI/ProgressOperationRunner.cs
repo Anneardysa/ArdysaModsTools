@@ -61,19 +61,21 @@ namespace ArdysaModsTools.UI
             string initialStatus,
             Func<ProgressOperationRunnerContext, Task<OperationResult>> operation)
         {
-            return RunAsync(parent, initialStatus, operation, hideDownloadSpeed: false);
+            return RunAsync(parent, initialStatus, operation, hideDownloadSpeed: false, showPreview: false);
         }
 
         public static async Task<OperationResult> RunAsync(
             Form parent,
             string initialStatus,
             Func<ProgressOperationRunnerContext, Task<OperationResult>> operation,
-            bool hideDownloadSpeed)
+            bool hideDownloadSpeed,
+            bool showPreview = false)
         {
             using var cts = new CancellationTokenSource();
             var overlay = new ProgressOverlay
             {
-                HideDownloadSpeed = hideDownloadSpeed
+                HideDownloadSpeed = hideDownloadSpeed,
+                ShowPreview = showPreview
             };
             
             // Show overlay on top of parent

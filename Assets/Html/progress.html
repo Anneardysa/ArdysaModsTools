@@ -32,6 +32,8 @@
             --border-light: #222222;
             --accent: #ffffff;
             --accent-dim: rgba(255, 255, 255, 0.1);
+            --green: #22c55e;
+            --green-dim: rgba(34, 197, 94, 0.15);
          }
 
          * {
@@ -44,7 +46,6 @@
             background: var(--bg-primary);
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             font-family: "JetBrains Mono", monospace;
@@ -53,7 +54,9 @@
             position: relative;
          }
 
-         /* Animated Wave Background */
+         /* ════════════════════════════════════════
+            Animated Wave Background
+            ════════════════════════════════════════ */
          .animated-bg {
             position: fixed;
             inset: 0;
@@ -80,20 +83,53 @@
             0% {
                transform: translateX(0);
             }
-
             100% {
                transform: translateX(-50%);
             }
          }
 
-         .container {
-            text-align: center;
-            padding: 32px;
+         /* ════════════════════════════════════════
+            Main Layout — Side-by-Side
+            ════════════════════════════════════════ */
+         .main-layout {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            width: 100%;
+            height: 100vh;
             position: relative;
             z-index: 1;
          }
 
-         /* Progress Ring Container - larger for 840x600 form */
+         /* Left side: progress */
+         .progress-side {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+            min-width: 0;
+            position: relative;
+         }
+
+         /* Right side: preview (hidden by default) */
+         .preview-side {
+            display: none;
+            width: 520px;
+            flex-shrink: 0;
+            border-left: 1px solid var(--border);
+            flex-direction: column;
+            overflow: hidden;
+         }
+
+         .preview-side.visible {
+            display: flex;
+         }
+
+         /* ════════════════════════════════════════
+            Progress Ring (Left Side)
+            ════════════════════════════════════════ */
          .progress-ring-container {
             position: relative;
             width: 220px;
@@ -132,7 +168,6 @@
             letter-spacing: 3px;
          }
 
-         /* Status Text - larger */
          .status {
             font-size: 14px;
             color: var(--text-secondary);
@@ -140,6 +175,7 @@
             min-height: 26px;
             text-transform: uppercase;
             letter-spacing: 3px;
+            text-align: center;
          }
 
          .status::before {
@@ -152,7 +188,6 @@
             color: var(--text-muted);
          }
 
-         /* Substatus - log messages below status */
          .substatus {
             font-size: 11px;
             color: var(--text-muted);
@@ -162,9 +197,9 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            text-align: center;
          }
 
-         /* Speed Indicators */
          .metrics-container {
             display: flex;
             justify-content: center;
@@ -202,22 +237,22 @@
             font-size: 12px;
             color: var(--text-muted);
             margin-top: 48px;
-            font-family: "JetBrains Mono", monospace;
             text-transform: uppercase;
             letter-spacing: 3px;
+            text-align: center;
          }
 
          .credits::before {
             content: "// ";
          }
 
-         /* Download Progress Display */
          .download-progress {
             font-size: 12px;
             color: var(--text-secondary);
             margin-top: 16px;
             font-weight: bold;
             letter-spacing: 1px;
+            text-align: center;
          }
 
          .download-progress #downloadedSize {
@@ -228,13 +263,11 @@
             color: var(--text-muted);
          }
 
-         /* Pulse Animation */
          @keyframes pulse {
             0%,
             100% {
                opacity: 1;
             }
-
             50% {
                opacity: 0.5;
             }
@@ -244,40 +277,347 @@
             animation: pulse 2s ease-in-out infinite;
          }
 
-         /* Corner decoration */
+         /* Corner Decorations — scoped to progress-side */
          .corner-decoration {
-            position: fixed;
+            position: absolute;
             width: 20px;
             height: 20px;
             border-color: var(--border);
+            z-index: 10;
+            pointer-events: none;
          }
 
-         .corner-decoration.top-left {
-            top: 16px;
-            left: 16px;
-            border-top: 1px solid;
-            border-left: 1px solid;
+         /* ════════════════════════════════════════
+            Preview Panel (Right Side)
+            ════════════════════════════════════════ */
+         .preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 20px 0;
+            flex-shrink: 0;
          }
 
-         .corner-decoration.top-right {
-            top: 16px;
-            right: 16px;
-            border-top: 1px solid;
-            border-right: 1px solid;
+         .preview-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
          }
 
-         .corner-decoration.bottom-left {
-            bottom: 16px;
-            left: 16px;
-            border-bottom: 1px solid;
-            border-left: 1px solid;
+         .preview-title-text {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
          }
 
-         .corner-decoration.bottom-right {
-            bottom: 16px;
-            right: 16px;
-            border-bottom: 1px solid;
-            border-right: 1px solid;
+         .preview-count {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--green-dim);
+            color: var(--green);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            font-weight: 600;
+         }
+
+         /* Search */
+         .preview-search {
+            padding: 12px 20px;
+            flex-shrink: 0;
+         }
+
+         .preview-search-input {
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px 8px 32px;
+            font-family: inherit;
+            font-size: 11px;
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.2s;
+         }
+
+         .preview-search-input:focus {
+            border-color: var(--text-secondary);
+         }
+
+         .preview-search-input::placeholder {
+            color: var(--text-muted);
+         }
+
+         .preview-search-wrapper {
+            position: relative;
+         }
+
+         .preview-search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 14px;
+            height: 14px;
+            color: var(--text-muted);
+         }
+
+         /* Grid */
+         .preview-grid-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding: 4px 20px 20px;
+         }
+
+         .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+         }
+
+         /* Custom scrollbar */
+         .preview-grid-wrapper::-webkit-scrollbar {
+            width: 6px;
+         }
+
+         .preview-grid-wrapper::-webkit-scrollbar-track {
+            background: transparent;
+         }
+
+         .preview-grid-wrapper::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+         }
+
+         .preview-grid-wrapper::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+         }
+
+         /* Hero Card */
+         .hero-preview-card {
+            position: relative;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: default;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            transition: all 0.25s ease;
+         }
+
+         .hero-preview-card:hover {
+            border-color: rgba(34, 197, 94, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+         }
+
+         .hero-preview-card:hover .hero-preview-img {
+            transform: scale(1.05);
+         }
+
+         .hero-preview-img-wrapper {
+            position: relative;
+            height: 110px;
+            overflow: hidden;
+         }
+
+         .hero-preview-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top;
+            transition: transform 0.3s ease;
+         }
+
+         .hero-preview-gradient {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 60%);
+         }
+
+         .hero-preview-name {
+            position: absolute;
+            bottom: 6px;
+            left: 8px;
+            right: 8px;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            text-transform: capitalize;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: 0.5px;
+         }
+
+         /* States */
+         .preview-loading,
+         .preview-error,
+         .preview-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-muted);
+            flex: 1;
+         }
+
+         .preview-loading-dots {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+         }
+
+         .preview-loading-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            animation: loadDot 1.4s ease-in-out infinite;
+         }
+
+         .preview-loading-dot:nth-child(2) {
+            animation-delay: 0.2s;
+         }
+         .preview-loading-dot:nth-child(3) {
+            animation-delay: 0.4s;
+         }
+
+         @keyframes loadDot {
+            0%,
+            80%,
+            100% {
+               opacity: 0.3;
+               transform: scale(0.8);
+            }
+            40% {
+               opacity: 1;
+               transform: scale(1);
+            }
+         }
+
+         .preview-error-icon {
+            width: 32px;
+            height: 32px;
+            margin-bottom: 12px;
+            color: var(--text-muted);
+         }
+
+         .preview-state-text {
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+         }
+
+         .preview-state-sub {
+            font-size: 10px;
+            margin-top: 6px;
+            color: var(--text-muted);
+            opacity: 0.6;
+         }
+
+         /* Skeleton loader */
+         .skeleton-card {
+            border-radius: 6px;
+            overflow: hidden;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+         }
+
+         .skeleton-img {
+            height: 110px;
+            background: linear-gradient(90deg, #111 25%, #1a1a1a 50%, #111 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+         }
+
+         @keyframes shimmer {
+            0% {
+               background-position: 200% 0;
+            }
+            100% {
+               background-position: -200% 0;
+            }
+         }
+
+         /* ════════════════════════════════════════
+            Lightbox
+            ════════════════════════════════════════ */
+         .lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.92);
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+         }
+
+         .lightbox.active {
+            display: flex;
+         }
+
+         .lightbox-content {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+         }
+
+         .lightbox-img {
+            max-width: 100%;
+            max-height: 85vh;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+         }
+
+         .lightbox-name {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: capitalize;
+            letter-spacing: 2px;
+            color: var(--text-secondary);
+         }
+
+         /* ════════════════════════════════════════
+            Cancel Button (bottom center)
+            ════════════════════════════════════════ */
+         .cancel-container {
+            position: absolute;
+            bottom: 12px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            pointer-events: none;
+         }
+
+         .cancel-btn {
+            pointer-events: auto;
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            font-family: "JetBrains Mono", monospace;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 10px 28px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+         }
+
+         .cancel-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.05);
          }
       </style>
    </head>
@@ -285,72 +625,177 @@
    <body>
       <div class="animated-bg"></div>
 
-      <!-- Corner decorations -->
-      <div class="corner-decoration top-left"></div>
-      <div class="corner-decoration top-right"></div>
-      <div class="corner-decoration bottom-left"></div>
-      <div class="corner-decoration bottom-right"></div>
+      <!-- Main Layout -->
+      <div class="main-layout">
+         <!-- Left: Progress -->
+         <div class="progress-side">
+            <!-- Corner decorations (scoped to progress container) -->
+            <div
+               class="corner-decoration"
+               style="top: 16px; left: 16px; border-top: 1px solid; border-left: 1px solid"
+            ></div>
+            <div
+               class="corner-decoration"
+               style="top: 16px; right: 16px; border-top: 1px solid; border-right: 1px solid"
+            ></div>
+            <div
+               class="corner-decoration"
+               style="bottom: 50px; left: 16px; border-bottom: 1px solid; border-left: 1px solid"
+            ></div>
+            <div
+               class="corner-decoration"
+               style="bottom: 50px; right: 16px; border-bottom: 1px solid; border-right: 1px solid"
+            ></div>
+            <div class="progress-ring-container">
+               <svg class="progress-ring" width="220" height="220">
+                  <circle class="progress-ring-bg" cx="110" cy="110" r="100" />
+                  <circle class="progress-ring-fill" id="progressRing" cx="110" cy="110" r="100" />
+               </svg>
+               <div class="percent-text" id="percent">0%</div>
+            </div>
 
-      <div class="container">
-         <div class="progress-ring-container">
-            <svg class="progress-ring" width="220" height="220">
-               <circle class="progress-ring-bg" cx="110" cy="110" r="100" />
-               <circle class="progress-ring-fill" id="progressRing" cx="110" cy="110" r="100" />
-            </svg>
-            <div class="percent-text" id="percent">0%</div>
-         </div>
+            <div class="status working" id="status">Preparing</div>
+            <div class="substatus" id="substatus"></div>
 
-         <div class="status working" id="status">Preparing</div>
-         <div class="substatus" id="substatus"></div>
+            <!-- Download progress: 0/120MB or file count -->
+            <div class="download-progress" id="downloadProgress" style="display: none">
+               <span id="downloadedSize">0</span> / <span id="totalSize">0</span
+               ><span id="progressUnit"> MB</span>
+            </div>
 
-         <!-- Download progress: 0/120MB or file count -->
-         <div class="download-progress" id="downloadProgress" style="display: none">
-            <span id="downloadedSize">0</span> / <span id="totalSize">0</span
-            ><span id="progressUnit"> MB</span>
-         </div>
+            <div class="metrics-container">
+               <div class="metric-item">
+                  <span class="metric-label">DL Speed:</span>
+                  <span class="metric-value" id="dlSpeed">-- MB/S</span>
+               </div>
+            </div>
 
-         <div class="metrics-container">
-            <div class="metric-item">
-               <span class="metric-label">DL Speed:</span>
-               <span class="metric-value" id="dlSpeed">-- MB/S</span>
+            <div class="credits">made with ❤️</div>
+
+            <!-- Cancel Button (scoped to progress container) -->
+            <div class="cancel-container">
+               <button class="cancel-btn" id="cancelBtn" onclick="requestCancel()">
+                  [ CANCEL ]
+               </button>
             </div>
          </div>
 
-         <div class="credits">made with ❤️</div>
+         <!-- Right: Preview Panel (hidden by default) -->
+         <div class="preview-side" id="previewSide">
+            <!-- Header -->
+            <div class="preview-header">
+               <div class="preview-title">
+                  <span class="preview-title-text">ModsPack Preview</span>
+                  <span class="preview-count" id="previewCount">...</span>
+               </div>
+            </div>
+
+            <!-- Search -->
+            <div class="preview-search">
+               <div class="preview-search-wrapper">
+                  <svg
+                     class="preview-search-icon"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                     />
+                  </svg>
+                  <input
+                     type="text"
+                     class="preview-search-input"
+                     id="previewSearch"
+                     placeholder="Search heroes..."
+                  />
+               </div>
+            </div>
+
+            <!-- Grid (scrollable) -->
+            <div class="preview-grid-wrapper" id="previewGridWrapper">
+               <!-- Loading state (shown initially) -->
+               <div class="preview-loading" id="previewLoading">
+                  <div class="preview-loading-dots">
+                     <div class="preview-loading-dot"></div>
+                     <div class="preview-loading-dot"></div>
+                     <div class="preview-loading-dot"></div>
+                  </div>
+                  <div class="preview-state-text">Loading preview</div>
+                  <div class="preview-state-sub">Fetching hero skins from server...</div>
+               </div>
+
+               <!-- Error state (hidden) -->
+               <div class="preview-error" id="previewError" style="display: none">
+                  <svg
+                     class="preview-error-icon"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="1.5"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                     />
+                  </svg>
+                  <div class="preview-state-text">Preview unavailable</div>
+                  <div class="preview-state-sub" id="previewErrorText">
+                     Could not load preview data
+                  </div>
+               </div>
+
+               <!-- Empty search state (hidden) -->
+               <div class="preview-empty" id="previewEmpty" style="display: none">
+                  <div class="preview-state-text">No heroes found</div>
+                  <div class="preview-state-sub">Try a different search term</div>
+               </div>
+
+               <!-- Hero grid (hidden until loaded) -->
+               <div class="preview-grid" id="previewGrid" style="display: none"></div>
+            </div>
+         </div>
+      </div>
+
+      <!-- Lightbox -->
+      <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+         <div class="lightbox-content" onclick="event.stopPropagation()">
+            <img class="lightbox-img" id="lightboxImg" src="" alt="" />
+            <div class="lightbox-name" id="lightboxName"></div>
+         </div>
       </div>
 
       <script>
-         // Progress ring circumference (2 * PI * 100)
+         /* ════════════════════════════════════════
+            Existing Progress Functions (unchanged API)
+            ════════════════════════════════════════ */
          const circumference = 628.32;
 
-         // Update progress (called from C#)
          function updateProgress(percent) {
             const ring = document.getElementById("progressRing");
             const percentText = document.getElementById("percent");
-
             const offset = circumference - (percent / 100) * circumference;
             ring.style.strokeDashoffset = offset;
             percentText.textContent = Math.round(percent) + "%";
-
-            // Reset DL speed and hide progress display when complete
             if (percent >= 100) {
                updateDownloadSpeed("-- MB/S");
                hideDownloadProgress();
             }
          }
 
-         // Update status text (called from C#)
          function updateStatus(text) {
             document.getElementById("status").textContent = text;
          }
 
-         // Update substatus text (called from C#)
          function updateSubstatus(text) {
             const el = document.getElementById("substatus");
             if (el) el.textContent = text;
          }
 
-         // Update download speed (called from C#)
          function updateDownloadSpeed(speed) {
             const el = document.getElementById("dlSpeed");
             el.textContent = speed;
@@ -361,15 +806,12 @@
             }
          }
 
-         // Write speed removed from UI - no-op to prevent errors
          function updateWriteSpeed(speed) {}
 
-         // Update download progress: downloaded/total MB (called from C#)
          function updateDownloadProgress(downloadedMB, totalMB) {
             const container = document.getElementById("downloadProgress");
             const downloadedEl = document.getElementById("downloadedSize");
             const totalEl = document.getElementById("totalSize");
-
             if (totalMB > 0) {
                container.style.display = "block";
                downloadedEl.textContent = downloadedMB.toFixed(1);
@@ -380,7 +822,6 @@
             }
          }
 
-         // Hide download progress (called from C# or when complete)
          function hideDownloadProgress() {
             const container = document.getElementById("downloadProgress");
             const metricsContainer = document.querySelector(".metrics-container");
@@ -388,14 +829,11 @@
             if (metricsContainer) metricsContainer.style.display = "none";
          }
 
-         // Update file progress: current/total files (called from C#)
-         // Reuses the download progress element to show file count
          function updateFileProgress(current, total) {
             const container = document.getElementById("downloadProgress");
             const downloadedEl = document.getElementById("downloadedSize");
             const totalEl = document.getElementById("totalSize");
             const unitEl = document.getElementById("progressUnit");
-
             if (total > 0) {
                container.style.display = "block";
                downloadedEl.textContent = current;
@@ -405,6 +843,156 @@
                container.style.display = "none";
             }
          }
+
+         /* Cancel via WebView2 message bridge */
+         function requestCancel() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage("cancel");
+            }
+         }
+
+         function hideCancel() {
+            const c = document.querySelector(".cancel-container");
+            if (c) c.style.display = "none";
+         }
+
+         /* ════════════════════════════════════════
+            Preview Panel Functions
+            ════════════════════════════════════════ */
+         const IMAGE_BASE_URL =
+            "https://raw.githubusercontent.com/Anneardysa/ArdysaMods/main/assets/updates/";
+
+         let allHeroes = [];
+         let currentFilter = "";
+
+         /**
+          * Initialize preview panel with hero data.
+          * Called from C# after fetching hero list from GitHub API.
+          * @param {Array<{name: string, file: string}>} heroes
+          */
+         function initPreview(heroes) {
+            allHeroes = heroes;
+
+            // Show the preview panel
+            document.getElementById("previewSide").classList.add("visible");
+
+            // Update count
+            document.getElementById("previewCount").textContent = heroes.length + " skins";
+
+            // Hide loading, show grid
+            document.getElementById("previewLoading").style.display = "none";
+            document.getElementById("previewGrid").style.display = "grid";
+
+            // Render
+            renderHeroes(heroes);
+
+            // Wire up search
+            document.getElementById("previewSearch").addEventListener("input", function () {
+               currentFilter = this.value.toLowerCase().trim();
+               filterHeroes();
+            });
+         }
+
+         /**
+          * Show the preview panel in loading state (before data arrives).
+          * Called from C# immediately to show the wider layout.
+          */
+         function showPreviewLoading() {
+            document.getElementById("previewSide").classList.add("visible");
+         }
+
+         /**
+          * Show error state if preview data could not be fetched.
+          * Called from C# on fetch failure.
+          * @param {string} message
+          */
+         function showPreviewError(message) {
+            document.getElementById("previewSide").classList.add("visible");
+            document.getElementById("previewLoading").style.display = "none";
+            document.getElementById("previewGrid").style.display = "none";
+            document.getElementById("previewEmpty").style.display = "none";
+
+            const errorEl = document.getElementById("previewError");
+            errorEl.style.display = "flex";
+            document.getElementById("previewErrorText").textContent =
+               message || "Could not load preview data";
+         }
+
+         function renderHeroes(heroes) {
+            const grid = document.getElementById("previewGrid");
+            grid.innerHTML = "";
+
+            heroes.forEach(function (hero) {
+               const card = document.createElement("div");
+               card.className = "hero-preview-card";
+               card.setAttribute("data-name", hero.name.toLowerCase());
+               card.onclick = function () {
+                  openLightbox(hero);
+               };
+
+               card.innerHTML =
+                  '<div class="hero-preview-img-wrapper">' +
+                  '<img class="hero-preview-img" src="' +
+                  IMAGE_BASE_URL +
+                  hero.file +
+                  '"' +
+                  ' alt="' +
+                  hero.name +
+                  '" loading="lazy"' +
+                  " onerror=\"this.style.display='none'\" />" +
+                  '<div class="hero-preview-gradient"></div>' +
+                  '<div class="hero-preview-name">' +
+                  hero.name +
+                  "</div>" +
+                  "</div>";
+
+               grid.appendChild(card);
+            });
+         }
+
+         function filterHeroes() {
+            if (!currentFilter) {
+               renderHeroes(allHeroes);
+               document.getElementById("previewEmpty").style.display = "none";
+               document.getElementById("previewGrid").style.display = "grid";
+               return;
+            }
+
+            const filtered = allHeroes.filter(function (h) {
+               return h.name.toLowerCase().includes(currentFilter);
+            });
+
+            if (filtered.length === 0) {
+               document.getElementById("previewGrid").style.display = "none";
+               document.getElementById("previewEmpty").style.display = "flex";
+            } else {
+               document.getElementById("previewEmpty").style.display = "none";
+               document.getElementById("previewGrid").style.display = "grid";
+               renderHeroes(filtered);
+            }
+         }
+
+         /* ════════════════════════════════════════
+            Lightbox
+            ════════════════════════════════════════ */
+         function openLightbox(hero) {
+            const img = document.getElementById("lightboxImg");
+            const name = document.getElementById("lightboxName");
+            img.src = IMAGE_BASE_URL + hero.file;
+            img.alt = hero.name;
+            name.textContent = hero.name;
+            document.getElementById("lightbox").classList.add("active");
+         }
+
+         function closeLightbox() {
+            document.getElementById("lightbox").classList.remove("active");
+            document.getElementById("lightboxImg").src = "";
+         }
+
+         // ESC closes lightbox
+         document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") closeLightbox();
+         });
       </script>
    </body>
 </html>

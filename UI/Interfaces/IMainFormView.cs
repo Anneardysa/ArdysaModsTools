@@ -301,11 +301,13 @@ namespace ArdysaModsTools.UI.Interfaces
         /// <param name="initialStatus">Initial status message</param>
         /// <param name="operation">The operation to run</param>
         /// <param name="hideDownloadSpeed">Whether to hide download speed</param>
+        /// <param name="showPreview">Whether to show the ModsPack preview panel</param>
         /// <returns>Operation result</returns>
         Task<OperationResult> RunWithProgressOverlayAsync(
             string initialStatus,
             Func<ProgressContext, Task<OperationResult>> operation,
-            bool hideDownloadSpeed = false);
+            bool hideDownloadSpeed = false,
+            bool showPreview = false);
 
         /// <summary>
         /// Gets the application path (directory where the exe is located).

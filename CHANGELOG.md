@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2097)
+
+### 🚀 UI/UX
+
+- Added **ModsPack Preview Panel** to the progress overlay during auto-install and reinstall operations.
+   - Overlay resizes to 1280×720 with a side-by-side layout: progress ring (left) + hero skin grid (right).
+   - Hero skin images are fetched live from GitHub (`assets/updates`) and displayed in a 3-column scrollable grid with search and lightbox.
+   - Preview loads asynchronously in the background — download progress is never blocked.
+- Moved **cancel button** into the HTML overlay (was hidden behind the Dock.Fill WebView panel in WinForms).
+   - Uses WebView2 `postMessage("cancel")` bridge to fire the C# `RequestCancel()` method.
+   - Shows "CANCELLING..." feedback directly on the HTML button when clicked.
+- Fixed **corner "L" decorations** overlapping the preview panel — changed from `position: fixed` (viewport-wide) to `position: absolute` scoped inside `.progress-side`, so they frame only the progress container.
+
+---
+
 ## [2.1.12-beta] (Build 2096)
 
 ### 🚀 Improved

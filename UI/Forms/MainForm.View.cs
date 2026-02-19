@@ -527,7 +527,8 @@ namespace ArdysaModsTools
         public async Task<OperationResult> RunWithProgressOverlayAsync(
             string initialStatus,
             Func<ProgressContext, Task<OperationResult>> operation,
-            bool hideDownloadSpeed = false)
+            bool hideDownloadSpeed = false,
+            bool showPreview = false)
         {
             // Adapter to convert ProgressContext to ProgressOperationRunnerContext
             return await ProgressOperationRunner.RunAsync(
@@ -544,7 +545,8 @@ namespace ArdysaModsTools
                     };
                     return await operation(progressContext);
                 },
-                hideDownloadSpeed);
+                hideDownloadSpeed,
+                showPreview);
         }
 
         /// <summary>

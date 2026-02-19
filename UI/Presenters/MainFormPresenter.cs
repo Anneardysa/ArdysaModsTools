@@ -373,7 +373,7 @@ namespace ArdysaModsTools.UI.Presenters
                     return opSuccess 
                         ? OperationResult.Ok() 
                         : OperationResult.Fail("Installation failed");
-                });
+                }, showPreview: true);
 
                 if (!result.Success)
                 {
@@ -446,7 +446,7 @@ namespace ArdysaModsTools.UI.Presenters
                     return opSuccess 
                         ? OperationResult.Ok() 
                         : OperationResult.Fail("Reinstallation failed");
-                });
+                }, showPreview: true);
 
                 if (result.Success)
                 {
