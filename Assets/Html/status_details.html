@@ -1,0 +1,602 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Status Details</title>
+      <style>
+         :root {
+            --bg-primary: #000000;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --text-muted: #444444;
+            --border: #333333;
+            --border-light: #222222;
+            --accent-dim: rgba(255, 255, 255, 0.06);
+            --color-green: #66dd66;
+            --color-orange: #ffb464;
+            --color-red: #ff6464;
+            --color-gray: #555555;
+            --color-blue: #6699ff;
+         }
+
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         body {
+            background: var(--bg-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: "JetBrains Mono", monospace;
+            color: var(--text-primary);
+            overflow: hidden;
+            position: relative;
+            user-select: none;
+         }
+
+         /* ── Animated Wave Background ── */
+         .animated-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+            background: var(--bg-primary);
+         }
+
+         .animated-bg::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            opacity: 0.08;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E")
+               repeat-x;
+            background-size: 50% 100%;
+            animation: infiniteWave 20s linear infinite;
+         }
+
+         @keyframes infiniteWave {
+            0% {
+               transform: translateX(0);
+            }
+            100% {
+               transform: translateX(-50%);
+            }
+         }
+
+         /* ── Corner Decorations ── */
+         .corner-decoration {
+            position: fixed;
+            width: 14px;
+            height: 14px;
+            border-color: var(--border);
+         }
+         .corner-decoration.top-left {
+            top: 10px;
+            left: 10px;
+            border-top: 1px solid;
+            border-left: 1px solid;
+         }
+         .corner-decoration.top-right {
+            top: 10px;
+            right: 10px;
+            border-top: 1px solid;
+            border-right: 1px solid;
+         }
+         .corner-decoration.bottom-left {
+            bottom: 10px;
+            left: 10px;
+            border-bottom: 1px solid;
+            border-left: 1px solid;
+         }
+         .corner-decoration.bottom-right {
+            bottom: 10px;
+            right: 10px;
+            border-bottom: 1px solid;
+            border-right: 1px solid;
+         }
+
+         /* ── Drag Area ── */
+         .drag-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 32px;
+            cursor: move;
+            -webkit-app-region: drag;
+            z-index: 10;
+         }
+
+         /* ── Animations ── */
+         @keyframes fadeSlideIn {
+            from {
+               opacity: 0;
+               transform: translateY(10px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+
+         @keyframes pulse {
+            0%,
+            100% {
+               opacity: 1;
+            }
+            50% {
+               opacity: 0.5;
+            }
+         }
+
+         .fade-in {
+            animation: fadeSlideIn 0.4s ease-out both;
+         }
+         .delay-1 {
+            animation-delay: 0.08s;
+         }
+         .delay-2 {
+            animation-delay: 0.16s;
+         }
+         .delay-3 {
+            animation-delay: 0.24s;
+         }
+         .delay-4 {
+            animation-delay: 0.32s;
+         }
+
+         /* ── Container ── */
+         .container {
+            text-align: center;
+            padding: 20px 32px;
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 440px;
+         }
+
+         /* ── Status Icon ── */
+         .icon-container {
+            margin-bottom: 10px;
+            transition: transform 0.3s ease;
+         }
+         .icon-container svg {
+            width: 36px;
+            height: 36px;
+         }
+
+         /* ── Status Badge & Description ── */
+         .status {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: color 0.3s;
+         }
+         .status::before {
+            content: "[ ";
+            color: var(--text-muted);
+         }
+         .status::after {
+            content: " ]";
+            color: var(--text-muted);
+         }
+
+         .description {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+         }
+         .description::before {
+            content: "// ";
+         }
+
+         /* ── Info Sections ── */
+         .info-section {
+            background: var(--accent-dim);
+            border: 1px solid var(--border-light);
+            padding: 14px 18px;
+            margin-bottom: 10px;
+            text-align: left;
+            transition: border-color 0.3s;
+         }
+         .info-section:hover {
+            border-color: var(--border);
+         }
+
+         .section-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+         }
+         .section-label::before {
+            content: "// ";
+         }
+
+         /* ── Version Info ── */
+         .version-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 4px 12px;
+            font-size: 10px;
+         }
+
+         .version-key {
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+         }
+
+         .version-val {
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+            text-align: right;
+         }
+
+         .version-val.highlight {
+            color: var(--text-primary);
+            font-weight: bold;
+         }
+
+         .version-val.mismatch {
+            color: var(--color-orange);
+         }
+
+         /* ── Status Checks ── */
+         .check-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+         }
+         .check-row:last-child {
+            margin-bottom: 0;
+         }
+
+         .check-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition:
+               background 0.3s,
+               box-shadow 0.3s;
+         }
+         .check-dot.green {
+            background: var(--color-green);
+            box-shadow: 0 0 6px rgba(102, 221, 102, 0.4);
+         }
+         .check-dot.orange {
+            background: var(--color-orange);
+            box-shadow: 0 0 6px rgba(255, 180, 100, 0.4);
+         }
+         .check-dot.red {
+            background: var(--color-red);
+            box-shadow: 0 0 6px rgba(255, 100, 100, 0.4);
+         }
+         .check-dot.gray {
+            background: var(--color-gray);
+         }
+
+         .check-label {
+            flex: 1;
+         }
+
+         .check-status {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+         }
+         .check-status.pass {
+            color: var(--color-green);
+         }
+         .check-status.warn {
+            color: var(--color-orange);
+         }
+         .check-status.fail {
+            color: var(--color-red);
+         }
+         .check-status.none {
+            color: var(--color-gray);
+         }
+
+         /* ── Error Block ── */
+         .error-block {
+            background: rgba(255, 100, 100, 0.08);
+            border: 1px solid rgba(255, 100, 100, 0.2);
+            padding: 10px 14px;
+            margin-bottom: 10px;
+            text-align: left;
+            font-size: 10px;
+            color: var(--color-red);
+            letter-spacing: 0.5px;
+            line-height: 1.5;
+            word-break: break-word;
+         }
+         .error-block::before {
+            content: "// error";
+            display: block;
+            font-size: 9px;
+            color: rgba(255, 100, 100, 0.5);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+         }
+
+         /* ── Buttons ── */
+         .btn-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 18px;
+         }
+
+         .btn {
+            padding: 8px 28px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+         }
+         .btn:hover {
+            background: var(--text-primary);
+            border-color: var(--text-primary);
+            color: var(--bg-primary);
+         }
+         .btn:active {
+            transform: scale(0.97);
+         }
+
+         .btn-primary {
+            background: var(--text-primary);
+            border-color: var(--text-primary);
+            color: var(--bg-primary);
+         }
+         .btn-primary:hover {
+            background: transparent;
+            color: var(--text-primary);
+         }
+
+         .hidden {
+            display: none !important;
+         }
+      </style>
+   </head>
+
+   <body>
+      <div class="animated-bg"></div>
+      <div class="drag-area" onmousedown="startDrag()"></div>
+
+      <div class="corner-decoration top-left"></div>
+      <div class="corner-decoration top-right"></div>
+      <div class="corner-decoration bottom-left"></div>
+      <div class="corner-decoration bottom-right"></div>
+
+      <div class="container">
+         <!-- Status Header -->
+         <div class="icon-container fade-in" id="statusIcon"></div>
+         <div class="status fade-in delay-1" id="statusText">Checking</div>
+         <div class="description fade-in delay-1" id="statusDescription">loading status</div>
+
+         <!-- Version Info -->
+         <div class="info-section fade-in delay-2" id="sectionVersion">
+            <div class="section-label">Version Info</div>
+            <div class="version-grid">
+               <span class="version-key">Dota</span>
+               <span class="version-val highlight" id="valDotaVersion">--</span>
+
+               <span class="version-key">Build</span>
+               <span class="version-val" id="valBuildNumber">--</span>
+
+               <span class="version-key">Patched</span>
+               <span class="version-val" id="valPatchedVersion">--</span>
+
+               <span class="version-key" id="keyPatchDate">Last Patch</span>
+               <span class="version-val" id="valPatchDate">--</span>
+            </div>
+         </div>
+
+         <!-- Status Checks -->
+         <div class="info-section fade-in delay-3" id="sectionChecks">
+            <div class="section-label">Diagnostics</div>
+
+            <div class="check-row">
+               <div class="check-dot gray" id="dotDigest"></div>
+               <span class="check-label">Game Patch</span>
+               <span class="check-status none" id="labelDigest">--</span>
+            </div>
+
+            <div class="check-row">
+               <div class="check-dot gray" id="dotGameInfo"></div>
+               <span class="check-label">Mod Integration</span>
+               <span class="check-status none" id="labelGameInfo">--</span>
+            </div>
+
+            <div class="check-row">
+               <div class="check-dot gray" id="dotOverall"></div>
+               <span class="check-label">Overall Status</span>
+               <span class="check-status none" id="labelOverall">--</span>
+            </div>
+         </div>
+
+         <!-- Error Block (hidden by default) -->
+         <div class="error-block fade-in delay-3 hidden" id="errorBlock"></div>
+
+         <!-- Buttons -->
+         <div class="btn-container fade-in delay-4">
+            <button class="btn btn-primary hidden" id="patchBtn" onclick="patchNow()">
+               Apply Patches
+            </button>
+            <button class="btn" onclick="closeDialog()">Close</button>
+         </div>
+      </div>
+
+      <script>
+         /* ── SVG Icons (no emoji) ── */
+         const ICONS = {
+            ready: '<svg viewBox="0 0 24 24" fill="none" stroke="#66dd66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+            needUpdate:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="#ffb464" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+            disabled:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="#6699ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+            error: '<svg viewBox="0 0 24 24" fill="none" stroke="#ff6464" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+            notInstalled:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="#555555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+         };
+
+         /**
+          * Populate the entire dialog from a single data payload.
+          * Called once from C# after WebView2 navigation completes.
+          * @param {Object} data - Combined status + version payload
+          */
+         function populate(data) {
+            // ── Status header ──
+            const status = data.status || "NotInstalled";
+            const iconEl = document.getElementById("statusIcon");
+            const statusEl = document.getElementById("statusText");
+            const descEl = document.getElementById("statusDescription");
+
+            statusEl.textContent = data.statusText || "Unknown";
+            descEl.textContent = data.description || "status unknown";
+            iconEl.innerHTML = ICONS[mapStatusToIcon(status)] || ICONS.notInstalled;
+
+            // ── Patch button visibility ──
+            const patchBtn = document.getElementById("patchBtn");
+            if (data.showPatchBtn) {
+               patchBtn.classList.remove("hidden");
+               if (data.patchBtnText) patchBtn.textContent = data.patchBtnText;
+            } else {
+               patchBtn.classList.add("hidden");
+            }
+
+            // ── Version info ──
+            setVal("valDotaVersion", data.dotaVersion, true);
+            setVal("valBuildNumber", data.buildNumber);
+            setVal("valPatchedVersion", data.patchedVersion, false, data.versionMismatch);
+            setVal("valPatchDate", data.patchDate || "Never");
+
+            // ── Diagnostics ──
+            setCheck("dotDigest", "labelDigest", data.digestOk);
+            setCheck("dotGameInfo", "labelGameInfo", data.gameInfoOk);
+            setCheck("dotOverall", "labelOverall", data.digestOk && data.gameInfoOk);
+
+            // ── Error block ──
+            const errorBlock = document.getElementById("errorBlock");
+            if (data.errorMessage) {
+               errorBlock.textContent = data.errorMessage;
+               errorBlock.classList.remove("hidden");
+            } else {
+               errorBlock.classList.add("hidden");
+            }
+         }
+
+         /** Map status enum string to icon key */
+         function mapStatusToIcon(status) {
+            switch (status) {
+               case "Ready":
+                  return "ready";
+               case "NeedUpdate":
+                  return "needUpdate";
+               case "Disabled":
+                  return "disabled";
+               case "Error":
+                  return "error";
+               case "NotInstalled":
+                  return "notInstalled";
+               default:
+                  return "notInstalled";
+            }
+         }
+
+         /** Helper: set a version-val element */
+         function setVal(id, value, isHighlight, isMismatch) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = value || "--";
+            el.classList.toggle("highlight", !!isHighlight);
+            el.classList.toggle("mismatch", !!isMismatch);
+         }
+
+         /** Helper: set a check-row dot + label */
+         function setCheck(dotId, labelId, isOk) {
+            const dot = document.getElementById(dotId);
+            const label = document.getElementById(labelId);
+            if (!dot || !label) return;
+
+            if (isOk === true) {
+               dot.className = "check-dot green";
+               label.textContent = "OK";
+               label.className = "check-status pass";
+            } else if (isOk === false) {
+               dot.className = "check-dot red";
+               label.textContent = "FAIL";
+               label.className = "check-status fail";
+            } else {
+               dot.className = "check-dot gray";
+               label.textContent = "--";
+               label.className = "check-status none";
+            }
+         }
+
+         /* ── Actions ── */
+         function patchNow() {
+            sendMessage({ type: "patchNow" });
+         }
+         function closeDialog() {
+            sendMessage({ type: "close" });
+         }
+         function startDrag() {
+            sendMessage({ type: "startDrag" });
+         }
+
+         function sendMessage(data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(data);
+            }
+         }
+
+         document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") closeDialog();
+         });
+      </script>
+   </body>
+</html>

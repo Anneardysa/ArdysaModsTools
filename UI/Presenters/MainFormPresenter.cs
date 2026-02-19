@@ -1298,7 +1298,8 @@ namespace ArdysaModsTools.UI.Presenters
 
 
         /// <summary>
-        /// Verifies mod files integrity.
+        /// Verifies mod files integrity via the WebView2 verification dialog.
+        /// Each check animates in real-time. Falls back to MessageBox if WebView2 fails.
         /// </summary>
         public async Task VerifyModFilesAsync()
         {
@@ -1308,127 +1309,15 @@ namespace ArdysaModsTools.UI.Presenters
                  return;
             }
 
-            _logger.Log("[VERIFY] Starting file verification...");
+            _logger.Log("[VERIFY] Opening verification dialog...");
 
-            var issues = new System.Collections.Generic.List<string>();
-            int checksPassed = 0;
-            const int totalChecks = 4;
+            VerifyFilesDialogWebView.Show(
+                _view as System.Windows.Forms.IWin32Window,
+                _targetPath,
+                _versionService,
+                () => _ = ExecutePatchAsync());
 
-            // Check 1: Mod Package (VPK)
-            string vpkPath = Path.Combine(_targetPath, DotaPaths.ModsVpk); 
-            if (File.Exists(vpkPath))
-            {
-                checksPassed++;
-                _logger.Log("[VERIFY] ✓ Mod Package exists");
-            }
-            else
-            {
-                issues.Add("Mod Package not installed");
-            }
-
-            // Check 2: Dota Version Match
-            var (versionMatches, currentVer, patchedVer) = await _versionService.ComparePatchedVersionAsync(_targetPath);
-            if (versionMatches)
-            {
-                checksPassed++;
-                _logger.Log($"[VERIFY] ✓ Version match: {currentVer}");
-            }
-            else
-            {
-                if (patchedVer == "Not patched yet")
-                {
-                    issues.Add("Never patched - run Patch Update first");
-                }
-                else
-                {
-                    issues.Add($"Dota updated: {currentVer} (patched: {patchedVer})");
-                }
-                _logger.Log($"[VERIFY] ✗ Version mismatch: current={currentVer}, patched={patchedVer}");
-            }
-
-            // Check 3: Game Compatibility (signatures)
-            string sigPath = Path.Combine(_targetPath, "game/bin/win64/dota.signatures"); 
-            
-            if (File.Exists(sigPath))
-            {
-                checksPassed++;
-                _logger.Log("[VERIFY] ✓ Game compatibility verified");
-            }
-            else
-            {
-                issues.Add("Game compatibility issue detected");
-            }
-
-            // Check 4: Mod Integration (gameinfo + signatures format)
-            string giPath = Path.Combine(_targetPath, "game/dota/gameinfo_branchspecific.gi");
-            if (File.Exists(giPath) && File.Exists(sigPath))
-            {
-                var giContent = await File.ReadAllTextAsync(giPath);
-                var sigContent = await File.ReadAllTextAsync(sigPath);
-                
-                bool hasGameInfoMarker = giContent.Contains("_Ardysa", StringComparison.OrdinalIgnoreCase);
-                bool hasCorrectSigFormat = sigContent.Contains(
-                    ModConstants.ModPatchLine,
-                    StringComparison.Ordinal);
-                
-                if (hasGameInfoMarker && hasCorrectSigFormat)
-                {
-                    checksPassed++;
-                    _logger.Log("[VERIFY] ✓ Mod integration active");
-                }
-                else if (hasGameInfoMarker && !hasCorrectSigFormat)
-                {
-                    issues.Add("Mod integration format invalid - run Patch Update");
-                    _logger.Log("[VERIFY] ✗ Mod integration format invalid");
-                }
-                else
-                {
-                    issues.Add("Mod integration not active");
-                }
-            }
-            else
-            {
-                issues.Add("Core game file missing");
-            }
-
-            // Show results
-            if (checksPassed == totalChecks)
-            {
-                _logger.Log("[VERIFY] All files verified successfully!");
-                _view.ShowMessageBox(
-                    $"✅ Verification Complete\n\n" +
-                    $"All {totalChecks} checks passed!\n\n" +
-                    $"• Mod Package: OK\n" +
-                    $"• Dota Version: OK\n" +
-                    $"• Game Compatibility: OK\n" +
-                    $"• Mod Integration: OK\n\n" +
-                    $"Your mods are properly installed.",
-                    "Verification Passed",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-            }
-            else
-            {
-                _logger.Log($"[VERIFY] Issues found: {string.Join(", ", issues)}");
-                
-                var message = $"⚠️ Verification Found Issues\n\n" +
-                    $"Passed: {checksPassed}/{totalChecks} checks\n\n" +
-                    $"Issues:\n• " + string.Join("\n• ", issues) + "\n\n" +
-                    $"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
-                    $"Recommended Actions:\n" +
-                    $"1. Run 'Patch Update' from the menu\n" +
-                    $"2. Verify Dota 2 game files in Steam:\n" +
-                    $"   Steam → Dota 2 → Properties → Verify\n" +
-                    $"3. Contact developer if issue persists";
-
-                _view.ShowMessageBox(
-                    message,
-                    "Verification Issues",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-            }
-
-            // Refresh status indicator
+            // Refresh status indicator after verification
             await CheckModsStatusAsync();
         }
 

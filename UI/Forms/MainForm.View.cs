@@ -457,23 +457,20 @@ namespace ArdysaModsTools
                 return;
             }
 
-            // StatusDetailsForm requires ModStatusInfo and DotaVersionInfo
-            // Get version info asynchronously
+            // Get version info asynchronously for the status details dialog
             var versionInfo = new DotaVersionInfo();
             
-            // Try to get cached version info from version service
             if (_versionService != null && !string.IsNullOrEmpty(targetPath))
             {
                 try
                 {
-                    // Use Task.Run to avoid deadlock on UI thread
                     var timeoutTask = Task.Delay(1000);
                     var versionTask = Task.Run(() => _versionService.GetVersionInfoAsync(targetPath));
                     
-                    if (await Task.WhenAny(versionTask, timeoutTask).ConfigureAwait(false) == versionTask 
+                    if (await Task.WhenAny(versionTask, timeoutTask) == versionTask 
                         && versionTask.IsCompletedSuccessfully)
                     {
-                        versionInfo = await versionTask.ConfigureAwait(false);
+                        versionInfo = await versionTask;
                     }
                 }
                 catch
@@ -481,10 +478,9 @@ namespace ArdysaModsTools
                     // Ignore errors, use default version info
                 }
             }
-            
-            using var dialog = new StatusDetailsForm(status, versionInfo, () => patchAction());
-            dialog.StartPosition = FormStartPosition.CenterParent;
-            dialog.ShowDialog(this);
+
+            // WebView2 dialog with WinForms fallback
+            StatusDetailsDialogWebView.Show(this, status, versionInfo, () => patchAction());
         }
 
         #endregion

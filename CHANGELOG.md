@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.12-beta] (Build 2096)
+
+### 🚀 Improved
+
+- Redesigned with WebView2. Now features status-aware diagnostics (no false positive fails when cache is empty), dedicated "Patch Update" action, and "Up to date" labelling.
+- Redesigned as a WebView2 dialog with real-time animated checks, progress bar, and comprehensive 4-step verification logic (VPK, Version, Signature, Integration).
+- Enhanced Dota 2 version detection to read `steam.inf` directly, preventing false "Never patched" errors when `version.json` is missing but mods are active.
+
+### 🐛 Fixed
+
+- Fixed issue where "Game Patch" and "Mod Integration" diagnostics showed "FAIL" even when overall status was "Ready", by using status-aware logic instead of raw cache values.
+
+---
+
 ## [2.1.12-beta] (Build 2095)
 
 ### 🚀 Improved
@@ -21,17 +35,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Improved
 
-- **Installer**: Significantly reduced uninstaller size (~140MB -> ~70MB) by separating the payload from the uninstaller executable.
-- **Uninstaller**: Implemented smart mode detection — slim uninstaller now correctly auto-detects "Uninstall" mode when run directly.
-- **Uninstaller**: Enhanced self-deletion reliability with a PID-based wait loop to ensure the process exits fully before file removal.
-- **UI**: Added terminal-retro style `[ OK ]` completion symbols and removed the "Launch" button from the uninstall success screen.
+- Significantly reduced uninstaller size (~140MB -> ~70MB) by separating the payload from the uninstaller executable.
+- Implemented smart mode detection — slim uninstaller now correctly auto-detects "Uninstall" mode when run directly.
+- Enhanced self-deletion reliability with a PID-based wait loop to ensure the process exits fully before file removal.
+- Added terminal-retro style `[ OK ]` completion symbols and removed the "Launch" button from the uninstall success screen.
 
 ### 🐛 Fixed
 
-- **Registry**: Updated Help, Update, and About URLs to point to the official website `https://ardysamods.my.id`.
-- **Uninstaller**: Fixed "Reinstall" showing instead of "Uninstall" when running the uninstaller directly.
-- **UI**: Fixed version number overflow in Update mode by stacking old/new versions vertically.
-- **Uninstaller**: Fixed race condition where self-deletion failed if the window wasn't closed immediately.
+- Updated Help, Update, and About URLs to point to the official website `https://ardysamods.my.id`.
+- Fixed "Reinstall" showing instead of "Uninstall" when running the uninstaller directly.
+- Fixed version number overflow in Update mode by stacking old/new versions vertically.
+- Fixed race condition where self-deletion failed if the window wasn't closed immediately.
 
 ---
 
@@ -39,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
-- **Skin Selector**: Fixed progress overlay appearing on every open by implementing a smart cooldown mechanism. Now skips the overlay entirely if thumbnails are cached and recently checked (within 10 mins).
+- Fixed progress overlay appearing on every open by implementing a smart cooldown mechanism. Now skips the overlay entirely if thumbnails are cached and recently checked (within 10 mins).
 
 ---
 
@@ -47,16 +61,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Added
 
-- **Settings**: Added Clear Cache button with trash icon and live cache size display to the WebView2 settings dialog.
+- Added Clear Cache button with trash icon and live cache size display to the WebView2 settings dialog.
 
 ### 🐛 Fixed
 
-- **Settings**: Fixed Close/✕ buttons hanging — `SafeClose()` now always defers via `BeginInvoke` to avoid disposing WebView2 mid-event.
-- **Settings**: Fixed Run on Startup toggle silently failing — now checks `SetRunOnStartup` return value and reverts the toggle with error toast on failure.
+- Fixed Close/✕ buttons hanging — `SafeClose()` now always defers via `BeginInvoke` to avoid disposing WebView2 mid-event.
+- Fixed Run on Startup toggle silently failing — now checks `SetRunOnStartup` return value and reverts the toggle with error toast on failure.
 
 ### 🗑️ Removed
 
-- **Legacy**: Deleted orphaned `SettingsForm.cs` (WinForms) and `SettingsPresenter.cs` (unused MVP presenter wired to dead form).
+- Deleted orphaned `SettingsForm.cs` (WinForms) and `SettingsPresenter.cs` (unused MVP presenter wired to dead form).
 
 ---
 
@@ -64,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 📖 Documentation
 
-- **README.md**: Comprehensive rewrite with detailed features table, system requirements, quick start guide, full architecture overview (tech stack, project structure tree, ADR links), developer build instructions, collapsible FAQ, troubleshooting table, and credits section acknowledging Dota 2 SkinChanger community, modders, Valve, and open-source libraries.
+- Comprehensive rewrite with detailed features table, system requirements, quick start guide, full architecture overview (tech stack, project structure tree, ADR links), developer build instructions, collapsible FAQ, troubleshooting table, and credits section acknowledging Dota 2 SkinChanger community, modders, Valve, and open-source libraries.
 
 ---
 
@@ -72,23 +86,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
-- **InstallationDetector**: Fixed critical logic bug where legacy Inno Setup installations were ignored if the new registry key existed but pointed to a different path (e.g., portable move). Now checks both keys independently.
-- **InstallerService**: Implemented atomic extract-then-swap pattern. Installation now extracts to a temporary directory first and only swaps files upon success, preventing broken installs if the process is interrupted.
-- **InstallerUpdateStrategy**: Added PE header validation (MZ bytes) and minimum size check (50KB) for downloaded installers to prevent launching corrupted or truncated files.
-- **App**: Added `Mutex`-based single-instance enforcement to prevent concurrent installations and file locking issues.
-- **App**: Improved global error handler to show more informative error messages with inner exception details.
-- **FontInstaller**: Mapped all 10 JetBrains Mono font variants (Thin, Light, ExtraLight, etc.) to their correct Windows font names.
-- **AnimationHelper**: Fixed animation holding issue where `FillBehavior.HoldEnd` prevented subsequent property changes.
+- Fixed critical logic bug where legacy Inno Setup installations were ignored if the new registry key existed but pointed to a different path (e.g., portable move). Now checks both keys independently.
+- Implemented atomic extract-then-swap pattern. Installation now extracts to a temporary directory first and only swaps files upon success, preventing broken installs if the process is interrupted.
+- Added PE header validation (MZ bytes) and minimum size check (50KB) for downloaded installers to prevent launching corrupted or truncated files.
+- Added `Mutex`-based single-instance enforcement to prevent concurrent installations and file locking issues.
+- Improved global error handler to show more informative error messages with inner exception details.
+- Mapped all 10 JetBrains Mono font variants (Thin, Light, ExtraLight, etc.) to their correct Windows font names.
+- Fixed animation holding issue where `FillBehavior.HoldEnd` prevented subsequent property changes.
 
 ### ♻️ Refactoring
 
-- **Installer**: Made `RegistryHelper` and `ShortcutHelper` context-aware.
-   - **Per-User Installs** (`%LocalAppData%`): Uses `HKCU` registry hive and user-specific Desktop/StartMenu shortcuts.
-   - **System-Wide Installs** (`Program Files`): Uses `HKLM` registry hive and All Users Desktop/StartMenu shortcuts.
-   - **Legacy Support**: `InstallationDetector` and `RegistryHelper` now scan both `HKCU` and `HKLM` hives to correctly detect and clean up any installation type.
-   - **InstallerUpdateStrategy**: Rewrote update strategy for WPF installer — removed legacy Inno Setup batch script (`/VERYSILENT`), now directly launches installer with `--update` flag. Added UAC cancellation handling.
-   - **InstallationDetector**: Replaced `unins000.exe` detection with registry-based detection (`HKLM` uninstall key) and `%LocalAppData%` path check. Supports both new WPF key and legacy Inno Setup `_is1` key suffix for backward compatibility.
-   - **RegistryHelper**: Added legacy `_is1` registry key fallback for detecting old Inno Setup installations in `Program Files`. Automatically cleans up legacy key during migration. Strips `+commitHash` from `DisplayVersion` before writing to registry.
+- Made `RegistryHelper` and `ShortcutHelper` context-aware.
+- `%LocalAppData%` uses `HKCU` registry hive and user-specific Desktop/StartMenu shortcuts.
+- `Program Files` uses `HKLM` registry hive and All Users Desktop/StartMenu shortcuts.
+- `InstallationDetector` and `RegistryHelper` now scan both `HKCU` and `HKLM` hives to correctly detect and clean up any installation type.
+- Rewrote update strategy for WPF installer — removed legacy Inno Setup batch script (`/VERYSILENT`), now directly launches installer with `--update` flag. Added UAC cancellation handling.
+- Replaced `unins000.exe` detection with registry-based detection (`HKLM` uninstall key) and `%LocalAppData%` path check. Supports both new WPF key and legacy Inno Setup `_is1` key suffix for backward compatibility.
+- Added legacy `_is1` registry key fallback for detecting old Inno Setup installations in `Program Files`. Automatically cleans up legacy key during migration. Strips `+commitHash` from `DisplayVersion` before writing to registry.
 
 ---
 
@@ -96,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 📖 Documentation
 
-- **Context7 Skills**: Added 7 `SKILL.md` files for Context7 indexing:
+- Added 7 `SKILL.md` files for Context7 indexing:
    - `install-mods` — Install, update, disable mods
    - `query-active-mods` — Query active hero/misc mods
    - `auto-patching` — Detect updates and re-apply patches
@@ -107,8 +121,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - `dependency-injection` — DI setup and service registration
    - `conflict-resolution` — Conflict detection, 6 resolution strategies, priority management with executable code
    - `custom-mod-integration` — End-to-end custom mod lifecycle including complete music pack install example
-- **Enhanced** `mod-file-structure` SKILL.md with VPK validation API, gameinfo status checking, all 3 JSON schemas with CRUD examples, and error handling patterns.
-- **context7.json**: Enhanced with `$schema`, folder config, exclusions, and coding rules.
+- Enhanced `mod-file-structure` SKILL.md with VPK validation API, gameinfo status checking, all 3 JSON schemas with CRUD examples, and error handling patterns.
+- Enhanced `context7.json` with `$schema`, folder config, exclusions, and coding rules.
 
 ---
 
@@ -116,8 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Features
 
-- **ActiveModsService**: Added unified API to query currently installed mods (Heroes + Misc).
-- **API Documentation**: Added comprehensive developer docs for:
+- Added unified API to query currently installed mods (Heroes + Misc).
+- Added comprehensive developer docs for:
    - Mod File Structure (`mod-file-structure.md`)
    - Auto-Patching Configuration (`auto-patching.md`)
    - Active Mods Querying (`active-mods.md`)
@@ -129,13 +143,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 UI/UX
 
-- **Progress**: Improved "Preparing" phase feedback in Skin Selector.
+- Improved "Preparing" phase feedback in Skin Selector.
    - Status now shows real-time download percentage (e.g., "Downloading base files (45%)") instead of static "Preparing".
    - Re-enabled substatus display in `ProgressOverlay` to show detailed log messages (download size, extraction steps).
 
 ### 📡 Network
 
-- **Resilience**: Added stall detection to `OriginalVpkService` for base file downloads.
+- Added stall detection to `OriginalVpkService` for base file downloads.
    - Warns user after 30s of no data ("Download appears stalled").
    - Suggests troubleshooting steps after 90s.
    - Auto-resets warning label when download resumes.
@@ -146,12 +160,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Added
 
-- **CI/CD**: Improved release workflow with **NuGet caching**, **SHA256 checksums** for artifacts, and **automatic runtime installer downloading** (only if missing).
-- **CI/CD**: Added build summary to GitHub Actions and upgraded to `action-gh-release@v2`.
+- Improved release workflow with NuGet caching, SHA256 checksums for artifacts, and automatic runtime installer downloading (only if missing).
+- Added build summary to GitHub Actions and upgraded to `action-gh-release@v2`.
 
 ### 🐛 Fixed
 
-- **Installer**: Fixed critical regression in .NET 8 detection where running in 64-bit mode caused the installer to miss 32-bit registry keys (`WOW6432Node`). Now explicitly checks `HKLM32`.
+- Fixed critical regression in .NET 8 detection where running in 64-bit mode caused the installer to miss 32-bit registry keys (`WOW6432Node`). Now explicitly checks `HKLM32`.
 
 ---
 
@@ -159,8 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
-- **Installer**: Removed unnecessary .NET 8 Desktop Runtime check for self-contained builds, fixing a blocking prompt during updates.
-- **Installer**: Bundled .NET 8 Desktop Runtime installer for seamless auto-installation if needed (fallback).
+- Removed unnecessary .NET 8 Desktop Runtime check for self-contained builds, fixing a blocking prompt during updates.
+- Bundled .NET 8 Desktop Runtime installer for seamless auto-installation if needed (fallback).
 
 ---
 
@@ -168,22 +182,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Added
 
-- **Feature Access Control**: Added remote feature gating system via Cloudflare R2 (`feature_access.json`).
+- Added remote feature gating system via Cloudflare R2 (`feature_access.json`).
    - New `FeatureAccessConfig` model with fail-open defaults.
    - New `FeatureAccessService` with 5-minute cache and graceful error handling.
    - Skin Selector and Miscellaneous can now be remotely enabled/disabled with custom messages.
-- **UI**: Added `FeatureUnavailableDialog` — WebView2-based dialog matching `progress.html` aesthetic (animated wave, corner decorations, monospace font) with native MessageBox fallback.
+- Added `FeatureUnavailableDialog` — WebView2-based dialog matching `progress.html` aesthetic (animated wave, corner decorations, monospace font) with native MessageBox fallback.
 
 ### ♻️ Refactoring
 
-- **KV Parsing**: Consolidated three duplicate KeyValues parsing implementations into single source of truth in `KeyValuesBlockHelper`.
-   - Added `heroId` filtering to `ExtractBlockById` and `ReplaceIdBlock` to prevent false matches on short numeric IDs (e.g., ID `"99"` matching in `kill_eater_score_types` instead of `items`).
-   - Enhanced `NormalizeKvText` with smart-quote (`""`→`""`), smart-apostrophe (`''`→`''`), non-breaking space, and zero-width character handling.
-- **HeroSetPatcherService**: Refactored to delegate all KV parsing to `KeyValuesBlockHelper`, removing ~200 lines of duplicate code. Domain logic (validation, indentation normalization, file discovery) preserved.
+- Consolidated three duplicate KeyValues parsing implementations into single source of truth in `KeyValuesBlockHelper`.
+- Added `heroId` filtering to `ExtractBlockById` and `ReplaceIdBlock` to prevent false matches on short numeric IDs (e.g., ID `"99"` matching in `kill_eater_score_types` instead of `items`).
+- Enhanced `NormalizeKvText` with smart-quote (`""`→`""`), smart-apostrophe (`''`→`''`), non-breaking space, and zero-width character handling.
+- Refactored to delegate all KV parsing to `KeyValuesBlockHelper`, removing ~200 lines of duplicate code. Domain logic (validation, indentation normalization, file discovery) preserved.
 
 ### 🗑️ Removed
 
-- **Dead Code**: Deleted `GeneratorService.cs` (zero references). Its superior text normalization logic was merged into `KeyValuesBlockHelper.NormalizeKvText`.
+- Deleted `GeneratorService.cs` (zero references). Its superior text normalization logic was merged into `KeyValuesBlockHelper.NormalizeKvText`.
 
 ### 🧪 Testing
 
@@ -196,30 +210,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ♻️ Refactoring
 
-- **Architecture**: Decomposed `MainFormPresenter` into 3 specialized presenters for SRP (`ADR-0004`):
+- Decomposed `MainFormPresenter` into 3 specialized presenters for SRP (`ADR-0004`):
    - `ModOperationsPresenter` - install, reinstall, disable operations
    - `PatchPresenter` - patch updates, verification, watcher
    - `NavigationPresenter` - hero selection, miscellaneous forms
-- **DI**: Created specialized registration methods (`AddCoreServices()`, `AddConflictServices()`, `AddHeroServices()`, `AddLoggingServices()`, `AddPresenters()`, `AddUIFactories()`).
-- **Tests**: Added `TestServiceFactory` helper for cleaner test setup without ServiceLocator.
+- Created specialized registration methods (`AddCoreServices()`, `AddConflictServices()`, `AddHeroServices()`, `AddLoggingServices()`, `AddPresenters()`, `AddUIFactories()`).
+- Added `TestServiceFactory` helper for cleaner test setup without ServiceLocator.
 
 ### 🐛 Fixed
 
-- **Installer**: Switched `.NET 8` Desktop Runtime detection from CLI-based (`dotnet --list-runtimes`) to registry-based check for improved reliability across system configurations.
+- Switched `.NET 8` Desktop Runtime detection from CLI-based (`dotnet --list-runtimes`) to registry-based check for improved reliability across system configurations.
 
 ### 📝 Documentation
 
-- **ADR**: Rewrote all existing ADRs (0001–0004) to full MADR format with Problem Statement, Decision Drivers, and Alternatives Considered.
-- **ADR**: Added 3 new Architecture Decision Records:
+- Rewrote all existing ADRs (0001–0004) to full MADR format with Problem Statement, Decision Drivers, and Alternatives Considered.
+- Added 3 new Architecture Decision Records:
    - `ADR-0005` - WebView2 Hybrid UI strategy
    - `ADR-0006` - Automated Patch Watcher system
    - `ADR-0007` - Security & Anti-Tamper architecture
-- **ADR**: Created ADR index (`README.md`) and standardized `TEMPLATE.md` based on MADR format.
+- Created ADR index (`README.md`) and standardized `TEMPLATE.md` based on MADR format.
 
 ### 🗑️ Removed
 
-- **Legacy**: Completely removed `ServiceLocator.cs` from production and test code.
-- **MainForm**: Replaced obsolete default constructor with `NotSupportedException`.
+- Completely removed `ServiceLocator.cs` from production and test code.
+- Replaced obsolete default constructor with `NotSupportedException`.
 
 ### 🧪 Testing
 
@@ -231,76 +245,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚀 Added
 
-- **Misc**: Added "Battle Effect" asset category with 10 TI-themed effects (Aghanim, Nemestice, TI 2015-2022).
-- **Helpers**: Added async versions of file wait/copy methods (`WaitForFileReadyAsync`, `SafeCopyFileWithRetriesAsync`) to prevent UI thread blocking.
+- Added "Battle Effect" asset category with 10 TI-themed effects (Aghanim, Nemestice, TI 2015-2022).
+- Added async versions of file wait/copy methods (`WaitForFileReadyAsync`, `SafeCopyFileWithRetriesAsync`) to prevent UI thread blocking.
 
 ### 🛠️ Changed
 
-- **CDN**: Switched to Cloudflare R2 CDN (`cdn.ardysamods.my.id`) as primary content source for faster updates.
-- **Settings**: Removed Clear Cache button and Cache Size display for cleaner UI.
-- **Logging**: Added diagnostic logging to empty catch blocks in `MiscFormWebView` for better debugging visibility.
+- Switched to Cloudflare R2 CDN (`cdn.ardysamods.my.id`) as primary content source for faster updates.
+- Removed Clear Cache button and Cache Size display for cleaner UI.
+- Added diagnostic logging to empty catch blocks in `MiscFormWebView` for better debugging visibility.
 
 ### 🐛 Fixed
 
-- **Settings**: Fixed X button not closing the settings form properly.
-- **Assets**: Fixed caching overlay display and asset loading flow for miscellaneous options.
-- **UI**: Fixed thumbnail URL generation for "Battle Effect" and other misc categories.
-- **Scripts**: Updated `patch_models.py` to handle double URLs and CDN fallback for `heroes.json`.
-- **Tests**: Fixed `MainFormPresenterTests` missing `configService` constructor parameter.
+- Fixed X button not closing the settings form properly.
+- Fixed caching overlay display and asset loading flow for miscellaneous options.
+- Fixed thumbnail URL generation for "Battle Effect" and other misc categories.
+- Updated `patch_models.py` to handle double URLs and CDN fallback for `heroes.json`.
+- Fixed `MainFormPresenterTests` missing `configService` constructor parameter.
 
 ## [2.1.10-beta] (Build 2078) - 2026-02-04
 
 ### 🚀 Features & Architecture
 
-- **Architecture**: Implemented `IMainFormFactory` to enable constructor injection in WinForms (`ADR-0002`).
-- **CDN**: Added multi-CDN strategy with **Cloudflare R2** as primary, falling back to jsDelivr and GitHub Raw (`ADR-0003`).
-- **Documentation**: Added comprehensive [Troubleshooting Guide](docs/TROUBLESHOOTING.md) and new Architecture Decision Records.
+- Implemented `IMainFormFactory` to enable constructor injection in WinForms (`ADR-0002`).
+- Added multi-CDN strategy with **Cloudflare R2** as primary, falling back to jsDelivr and GitHub Raw (`ADR-0003`).
+- Added comprehensive [Troubleshooting Guide](docs/TROUBLESHOOTING.md) and new Architecture Decision Records.
 
 ### 🐛 Bug Fixes
 
-- **Network**: Fixed "CONNECTION TO SERVER FAILED" in Skin Selector by implementing R2 support and increasing timeout to 15s.
-- **Safety**: Fixed critical bug in `ClearTempFolder` that could recursively delete files; now targets only application-specific temp data.
-- **UI**: Removed duplicate method in `MainFormPresenter` and fixed logging for connection errors.
+- Fixed "CONNECTION TO SERVER FAILED" in Skin Selector by implementing R2 support and increasing timeout to 15s.
+- Fixed critical bug in `ClearTempFolder` that could recursively delete files; now targets only application-specific temp data.
+- Removed duplicate method in `MainFormPresenter` and fixed logging for connection errors.
 
 ### ♻️ Refactoring
 
-- **DI Migration**: Replaced `ServiceLocator` anti-pattern with proper **Constructor Injection** across `MainForm`, `SelectHero`, and `HeroGalleryForm`.
-- **Config**: Moved `FavoritesStore` persistence to `%AppData%\ArdysaModsTools` to prevent data loss.
-- **Cleanup**: Suppressed obsolete warnings for legacy test compatibility helpers.
+- Replaced `ServiceLocator` anti-pattern with proper **Constructor Injection** across `MainForm`, `SelectHero`, and `HeroGalleryForm`.
+- Moved `FavoritesStore` persistence to `%AppData%\ArdysaModsTools` to prevent data loss.
+- Suppressed obsolete warnings for legacy test compatibility helpers.
 
 ### 🗑️ Removed
 
-- **Legacy**: Removed `ServiceLocator` usage from all production code paths (kept only for unit tests).
+- Removed `ServiceLocator` usage from all production code paths (kept only for unit tests).
 
 ## [2.1.9] - 2026-02-04
 
 ### Changed
 
-- **Performance**: Optimized application startup time by lazy-loading non-critical services.
-- **Dependencies**: Updated internal libraries to improve compatibility with latest Windows updates.
-- **Network**: Refined error messages for network timeouts to be more user-friendly.
+- Optimized application startup time by lazy-loading non-critical services.
+- Updated internal libraries to improve compatibility with latest Windows updates.
+- Refined error messages for network timeouts to be more user-friendly.
 
 ### Fixed
 
-- **UI**: Fixed minor flickering issues in the Hero Gallery grid when resizing the window.
-- **Cleanup**: Resolved edge case where temporary files weren't fully cleared on application exit.
+- Fixed minor flickering issues in the Hero Gallery grid when resizing the window.
+- Resolved edge case where temporary files weren't fully cleared on application exit.
 
 ## [2.1.8] - 2026-02-04
 
 ### Added
 
-- **Logging**: Added detailed logging for VPK extraction steps to aid in debugging.
-- **UI**: Introduced new "Troubleshooting" section in the main documentation.
+- Added detailed logging for VPK extraction steps to aid in debugging.
+- Introduced new "Troubleshooting" section in the main documentation.
 
 ### Changed
 
-- **Performance**: Optimized `sync-to-r2.ps1` script for faster asset uploads.
-- **Rendering**: Enhanced `MiscForm` rendering performance for smoother scrolling.
+- Optimized `sync-to-r2.ps1` script for faster asset uploads.
+- Enhanced `MiscForm` rendering performance for smoother scrolling.
 
 ### Fixed
 
-- **UI**: Fixed layout alignment issues in the Settings form for high-DPI displays.
-- **Memory**: Resolved potential memory leak in image processing when loading large hero sets.
+- Fixed layout alignment issues in the Settings form for high-DPI displays.
+- Resolved potential memory leak in image processing when loading large hero sets.
 
 ## [2.1.7-beta] - 2026-02-03
 
@@ -366,9 +380,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - One-click patching system
 
 ---
-
-[Unreleased]: https://github.com/Anneardysa/ArdysaModsTools/compare/v2.1.7-beta...HEAD
-[2.1.7-beta]: https://github.com/Anneardysa/ArdysaModsTools/compare/v2.1.6...v2.1.7-beta
-[2.1.6]: https://github.com/Anneardysa/ArdysaModsTools/compare/v2.1.0...v2.1.6
-[2.1.0]: https://github.com/Anneardysa/ArdysaModsTools/compare/v2.0.0...v2.1.0
-[2.0.0]: https://github.com/Anneardysa/ArdysaModsTools/releases/tag/v2.0.0

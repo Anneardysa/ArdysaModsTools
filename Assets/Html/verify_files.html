@@ -1,0 +1,607 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Verify Mod Files</title>
+      <style>
+         :root {
+            --bg-primary: #000000;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --text-muted: #444444;
+            --border: #333333;
+            --border-light: #222222;
+            --accent-dim: rgba(255, 255, 255, 0.06);
+            --color-green: #66dd66;
+            --color-orange: #ffb464;
+            --color-red: #ff6464;
+            --color-gray: #555555;
+         }
+
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         body {
+            background: var(--bg-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: "JetBrains Mono", monospace;
+            color: var(--text-primary);
+            overflow: hidden;
+            position: relative;
+            user-select: none;
+         }
+
+         /* ── Animated Wave Background ── */
+         .animated-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+            background: var(--bg-primary);
+         }
+         .animated-bg::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            opacity: 0.08;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E")
+               repeat-x;
+            background-size: 50% 100%;
+            animation: infiniteWave 20s linear infinite;
+         }
+         @keyframes infiniteWave {
+            0% {
+               transform: translateX(0);
+            }
+            100% {
+               transform: translateX(-50%);
+            }
+         }
+
+         /* ── Corner Decorations ── */
+         .corner-decoration {
+            position: fixed;
+            width: 14px;
+            height: 14px;
+            border-color: var(--border);
+         }
+         .corner-decoration.top-left {
+            top: 10px;
+            left: 10px;
+            border-top: 1px solid;
+            border-left: 1px solid;
+         }
+         .corner-decoration.top-right {
+            top: 10px;
+            right: 10px;
+            border-top: 1px solid;
+            border-right: 1px solid;
+         }
+         .corner-decoration.bottom-left {
+            bottom: 10px;
+            left: 10px;
+            border-bottom: 1px solid;
+            border-left: 1px solid;
+         }
+         .corner-decoration.bottom-right {
+            bottom: 10px;
+            right: 10px;
+            border-bottom: 1px solid;
+            border-right: 1px solid;
+         }
+
+         /* ── Drag Area ── */
+         .drag-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 32px;
+            cursor: move;
+            -webkit-app-region: drag;
+            z-index: 10;
+         }
+
+         /* ── Animations ── */
+         @keyframes fadeSlideIn {
+            from {
+               opacity: 0;
+               transform: translateY(8px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+         @keyframes spin {
+            to {
+               transform: rotate(360deg);
+            }
+         }
+         @keyframes pulseGlow {
+            0%,
+            100% {
+               box-shadow: 0 0 4px rgba(255, 255, 255, 0.1);
+            }
+            50% {
+               box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+            }
+         }
+
+         .fade-in {
+            animation: fadeSlideIn 0.35s ease-out both;
+         }
+
+         /* ── Container ── */
+         .container {
+            text-align: center;
+            padding: 24px 32px;
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 460px;
+         }
+
+         /* ── Header ── */
+         .header-icon {
+            margin-bottom: 8px;
+         }
+         .header-icon svg {
+            width: 32px;
+            height: 32px;
+         }
+
+         .title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 4px;
+            transition: color 0.4s;
+         }
+         .title::before {
+            content: "[ ";
+            color: var(--text-muted);
+         }
+         .title::after {
+            content: " ]";
+            color: var(--text-muted);
+         }
+
+         .subtitle {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+         }
+         .subtitle::before {
+            content: "// ";
+         }
+
+         /* ── Progress Bar ── */
+         .progress-container {
+            width: 100%;
+            height: 2px;
+            background: var(--border-light);
+            margin-bottom: 20px;
+            overflow: hidden;
+         }
+         .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--text-secondary);
+            transition:
+               width 0.5s ease,
+               background 0.3s;
+         }
+         .progress-bar.done-ok {
+            background: var(--color-green);
+         }
+         .progress-bar.done-warn {
+            background: var(--color-orange);
+         }
+         .progress-bar.done-fail {
+            background: var(--color-red);
+         }
+
+         /* ── Check Rows ── */
+         .checks-section {
+            text-align: left;
+            margin-bottom: 16px;
+         }
+
+         .check-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: var(--accent-dim);
+            border: 1px solid var(--border-light);
+            margin-bottom: 6px;
+            opacity: 0;
+            transform: translateY(6px);
+            transition:
+               opacity 0.3s,
+               transform 0.3s,
+               border-color 0.3s;
+         }
+         .check-row.visible {
+            opacity: 1;
+            transform: translateY(0);
+         }
+         .check-row.active {
+            border-color: var(--border);
+            animation: pulseGlow 1.5s ease-in-out infinite;
+         }
+         .check-row.pass {
+            border-color: rgba(102, 221, 102, 0.2);
+         }
+         .check-row.fail {
+            border-color: rgba(255, 100, 100, 0.2);
+         }
+
+         /* ── Check Dot ── */
+         .check-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: var(--color-gray);
+            transition:
+               background 0.3s,
+               box-shadow 0.3s;
+         }
+         .check-dot.spinning {
+            background: transparent;
+            border: 2px solid var(--text-muted);
+            border-top-color: var(--text-primary);
+            animation: spin 0.8s linear infinite;
+         }
+         .check-dot.green {
+            background: var(--color-green);
+            box-shadow: 0 0 8px rgba(102, 221, 102, 0.5);
+         }
+         .check-dot.red {
+            background: var(--color-red);
+            box-shadow: 0 0 8px rgba(255, 100, 100, 0.5);
+         }
+
+         /* ── Check Text ── */
+         .check-info {
+            flex: 1;
+            min-width: 0;
+         }
+         .check-name {
+            font-size: 11px;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+         }
+         .check-detail {
+            font-size: 9px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .check-detail.pass-detail {
+            color: rgba(102, 221, 102, 0.6);
+         }
+         .check-detail.fail-detail {
+            color: rgba(255, 100, 100, 0.6);
+         }
+
+         /* ── Check Badge ── */
+         .check-badge {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            flex-shrink: 0;
+         }
+         .check-badge.waiting {
+            color: var(--text-muted);
+         }
+         .check-badge.checking {
+            color: var(--text-secondary);
+         }
+         .check-badge.ok {
+            color: var(--color-green);
+         }
+         .check-badge.failed {
+            color: var(--color-red);
+         }
+
+         /* ── Summary ── */
+         .summary {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            opacity: 0;
+            transition: opacity 0.4s;
+         }
+         .summary.visible {
+            opacity: 1;
+         }
+         .summary.all-pass {
+            color: var(--color-green);
+         }
+         .summary.has-issues {
+            color: var(--color-orange);
+         }
+
+         /* ── Buttons ── */
+         .btn-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+         }
+         .btn {
+            padding: 8px 28px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+         }
+         .btn:hover {
+            background: var(--text-primary);
+            border-color: var(--text-primary);
+            color: var(--bg-primary);
+         }
+         .btn:active {
+            transform: scale(0.97);
+         }
+         .btn-primary {
+            background: var(--text-primary);
+            border-color: var(--text-primary);
+            color: var(--bg-primary);
+         }
+         .btn-primary:hover {
+            background: transparent;
+            color: var(--text-primary);
+         }
+         .hidden {
+            display: none !important;
+         }
+      </style>
+   </head>
+
+   <body>
+      <div class="animated-bg"></div>
+      <div class="drag-area" onmousedown="startDrag()"></div>
+
+      <div class="corner-decoration top-left"></div>
+      <div class="corner-decoration top-right"></div>
+      <div class="corner-decoration bottom-left"></div>
+      <div class="corner-decoration bottom-right"></div>
+
+      <div class="container">
+         <!-- Header -->
+         <div class="header-icon fade-in" id="headerIcon">
+            <svg
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="#888"
+               stroke-width="2"
+               stroke-linecap="round"
+               stroke-linejoin="round"
+            >
+               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+               <polyline points="14 2 14 8 20 8" />
+               <line x1="16" y1="13" x2="8" y2="13" />
+               <line x1="16" y1="17" x2="8" y2="17" />
+               <polyline points="10 9 9 9 8 9" />
+            </svg>
+         </div>
+         <div class="title fade-in" id="titleText">Verifying</div>
+         <div class="subtitle fade-in" id="subtitleText">scanning mod files</div>
+
+         <!-- Progress -->
+         <div class="progress-container fade-in">
+            <div class="progress-bar" id="progressBar"></div>
+         </div>
+
+         <!-- Check Rows -->
+         <div class="checks-section" id="checksContainer">
+            <div class="check-row" id="check-0">
+               <div class="check-dot" id="dot-0"></div>
+               <div class="check-info">
+                  <div class="check-name">Mod Package</div>
+                  <div class="check-detail" id="detail-0">VPK file integrity</div>
+               </div>
+               <span class="check-badge waiting" id="badge-0">WAIT</span>
+            </div>
+
+            <div class="check-row" id="check-1">
+               <div class="check-dot" id="dot-1"></div>
+               <div class="check-info">
+                  <div class="check-name">Dota Version</div>
+                  <div class="check-detail" id="detail-1">Patched version match</div>
+               </div>
+               <span class="check-badge waiting" id="badge-1">WAIT</span>
+            </div>
+
+            <div class="check-row" id="check-2">
+               <div class="check-dot" id="dot-2"></div>
+               <div class="check-info">
+                  <div class="check-name">Game Patch</div>
+                  <div class="check-detail" id="detail-2">Binary compatibility</div>
+               </div>
+               <span class="check-badge waiting" id="badge-2">WAIT</span>
+            </div>
+
+            <div class="check-row" id="check-3">
+               <div class="check-dot" id="dot-3"></div>
+               <div class="check-info">
+                  <div class="check-name">Mod Integration</div>
+                  <div class="check-detail" id="detail-3">GameInfo + signatures</div>
+               </div>
+               <span class="check-badge waiting" id="badge-3">WAIT</span>
+            </div>
+         </div>
+
+         <!-- Summary (hidden until all done) -->
+         <div class="summary" id="summaryText"></div>
+
+         <!-- Buttons -->
+         <div class="btn-container fade-in">
+            <button class="btn btn-primary hidden" id="patchBtn" onclick="requestPatch()">
+               Patch Update
+            </button>
+            <button class="btn" id="closeBtn" onclick="closeDialog()">Close</button>
+         </div>
+      </div>
+
+      <script>
+         const TOTAL_CHECKS = 4;
+         let completedCount = 0;
+
+         const ICONS = {
+            allPass:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="#66dd66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+            hasIssues:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="#ffb464" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+         };
+
+         /**
+          * Called by C# before running a check.
+          * Shows the row and starts the spinner.
+          */
+         function startCheck(index) {
+            const row = document.getElementById(`check-${index}`);
+            const dot = document.getElementById(`dot-${index}`);
+            const badge = document.getElementById(`badge-${index}`);
+            if (!row || !dot || !badge) return;
+
+            row.classList.add("visible", "active");
+            dot.className = "check-dot spinning";
+            badge.textContent = "...";
+            badge.className = "check-badge checking";
+         }
+
+         /**
+          * Called by C# when a check finishes.
+          * @param {number} index - Check index (0-3)
+          * @param {boolean} passed - Whether the check passed
+          * @param {string} detail - Result detail text
+          */
+         function completeCheck(index, passed, detail) {
+            const row = document.getElementById(`check-${index}`);
+            const dot = document.getElementById(`dot-${index}`);
+            const badge = document.getElementById(`badge-${index}`);
+            const detailEl = document.getElementById(`detail-${index}`);
+            if (!row || !dot || !badge) return;
+
+            row.classList.remove("active");
+            row.classList.add(passed ? "pass" : "fail");
+
+            dot.className = `check-dot ${passed ? "green" : "red"}`;
+
+            badge.textContent = passed ? "OK" : "FAIL";
+            badge.className = `check-badge ${passed ? "ok" : "failed"}`;
+
+            if (detailEl && detail) {
+               detailEl.textContent = detail;
+               detailEl.className = `check-detail ${passed ? "pass-detail" : "fail-detail"}`;
+            }
+
+            completedCount++;
+            updateProgress();
+         }
+
+         /**
+          * Called by C# after all checks complete.
+          * @param {number} passed - Number of checks passed
+          * @param {number} total - Total number of checks
+          * @param {boolean} showPatchBtn - Whether to show the Patch Update button
+          */
+         function allDone(passed, total, showPatchBtn) {
+            const icon = document.getElementById("headerIcon");
+            const title = document.getElementById("titleText");
+            const subtitle = document.getElementById("subtitleText");
+            const summary = document.getElementById("summaryText");
+            const patchBtn = document.getElementById("patchBtn");
+            const bar = document.getElementById("progressBar");
+
+            const allPass = passed === total;
+
+            // Update header
+            icon.innerHTML = allPass ? ICONS.allPass : ICONS.hasIssues;
+            title.textContent = allPass ? "All Clear" : "Issues Found";
+            title.style.color = allPass ? "var(--color-green)" : "var(--color-orange)";
+            subtitle.textContent = allPass
+               ? "all files verified successfully"
+               : `${total - passed} issue${total - passed > 1 ? "s" : ""} require attention`;
+
+            // Progress bar final state
+            bar.classList.add(allPass ? "done-ok" : passed > 0 ? "done-warn" : "done-fail");
+
+            // Summary
+            summary.textContent = `${passed}/${total} checks passed`;
+            summary.classList.add("visible", allPass ? "all-pass" : "has-issues");
+
+            // Patch button
+            if (showPatchBtn) {
+               patchBtn.classList.remove("hidden");
+            }
+         }
+
+         /** Update the progress bar width */
+         function updateProgress() {
+            const bar = document.getElementById("progressBar");
+            if (bar) {
+               bar.style.width = `${(completedCount / TOTAL_CHECKS) * 100}%`;
+            }
+         }
+
+         /* ── Actions ── */
+         function requestPatch() {
+            sendMessage({ type: "patchNow" });
+         }
+         function closeDialog() {
+            sendMessage({ type: "close" });
+         }
+         function startDrag() {
+            sendMessage({ type: "startDrag" });
+         }
+
+         function sendMessage(data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(data);
+            }
+         }
+
+         document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") closeDialog();
+         });
+      </script>
+   </body>
+</html>
