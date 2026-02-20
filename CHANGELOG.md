@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.13-beta] (Build 2100)
+
+### 🚀 Added
+
+- Implemented build-aware update system that detects updates even when the version string remains the same (e.g., hotfixes re-uploaded to CDN).
+- Added multi-pattern build extraction from GitHub release notes and titles, supporting specific formats and ranges (e.g., `(Build 2084)`, `builds **2087 → 2098**`).
+- Added robust version parsing logic via new `AppVersion` model to handle comparing semantic versions, pre-release suffixes, and build numbers.
+
+### 🐛 Fixed
+
+- Added notes-based fallback to R2 manifest parsing to gracefully extract build numbers from the `"notes"` field when an explicit `"build"` field is missing.
+
+---
+
 ## [2.1.13-beta] (Build 2099)
 
 ### 🐛 Fixed

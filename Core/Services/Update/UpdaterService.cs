@@ -20,6 +20,7 @@ using System.Drawing;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -66,6 +67,12 @@ namespace ArdysaModsTools.Core.Services.Update
         public string CurrentVersion { get; }
 
         /// <summary>
+        /// The current build number (4th segment of FileVersion).
+        /// Example: For FileVersion "2.1.13.2100", this is 2100.
+        /// </summary>
+        public int CurrentBuildNumber { get; }
+
+        /// <summary>
         /// The detected installation type (Installer or Portable).
         /// </summary>
         public InstallationType InstallationType => _installationType;
@@ -79,6 +86,17 @@ namespace ArdysaModsTools.Core.Services.Update
             var version = Application.ProductVersion;
             CurrentVersion = string.IsNullOrEmpty(version) ? "1.0.0.0" : version;
 
+            // Get build number from FileVersion (4th segment: Major.Minor.Patch.BUILD)
+            try
+            {
+                var fvi = FileVersionInfo.GetVersionInfo(Application.ExecutablePath);
+                CurrentBuildNumber = fvi.FilePrivatePart; // 4th segment of FileVersion
+            }
+            catch
+            {
+                CurrentBuildNumber = 0;
+            }
+
             // Detect installation type and select appropriate strategy
             _installationType = InstallationDetector.Detect();
             _updateStrategy = _installationType switch
@@ -88,7 +106,7 @@ namespace ArdysaModsTools.Core.Services.Update
                 _ => new PortableUpdateStrategy() // Default to portable for safety
             };
 
-            _logger.Log($"Update service initialized. Installation type: {InstallationDetector.GetInstallationTypeName(_installationType)}");
+            _logger.Log($"Update service initialized. Version: {CurrentVersion}, Build: {CurrentBuildNumber}, Type: {InstallationDetector.GetInstallationTypeName(_installationType)}");
         }
 
         /// <summary>
@@ -113,15 +131,21 @@ namespace ArdysaModsTools.Core.Services.Update
 
                 if (updateInfo.IsUpdateAvailable)
                 {
-                    _logger.Log($"Update available: v{CurrentVersion} → v{updateInfo.Version}");
+                    var currentDisplay = new AppVersion(CurrentVersion, CurrentBuildNumber);
+                    var latestDisplay = new AppVersion(updateInfo.Version, updateInfo.BuildNumber);
+                    _logger.Log($"Update available: {currentDisplay} → {latestDisplay}");
                     
                     string installTypeInfo = _installationType == InstallationType.Installer 
                         ? "(will require administrator privileges)" 
                         : "(portable update)";
 
+                    var currentVer = new AppVersion(CurrentVersion, CurrentBuildNumber);
+                    var latestVer = new AppVersion(updateInfo.Version, updateInfo.BuildNumber);
+
                     var result = MessageBox.Show(
-                        $"A new version (v{updateInfo.Version}) is available.\n\n" +
-                        $"Current: v{CurrentVersion}\n" +
+                        $"A new version is available.\n\n" +
+                        $"Current: {currentVer}\n" +
+                        $"Latest:  {latestVer}\n" +
                         $"Update type: {InstallationDetector.GetInstallationTypeName(_installationType)} {installTypeInfo}\n\n" +
                         $"Do you want to update now?",
                         "Update Available",
@@ -139,7 +163,7 @@ namespace ArdysaModsTools.Core.Services.Update
                 }
                 else
                 {
-                    _logger.Log($"Up to date (v{CurrentVersion})");
+                    _logger.Log($"Up to date ({new AppVersion(CurrentVersion, CurrentBuildNumber)})");
                 }
             }
             catch (Exception ex)
@@ -230,14 +254,33 @@ namespace ArdysaModsTools.Core.Services.Update
                 if (releaseInfo.TryGetProperty("notes", out var notesEl) && notesEl.ValueKind == JsonValueKind.String)
                     releaseNotes = notesEl.GetString();
 
+                // Extract build number (optional field — backward compatible)
+                int buildNumber = 0;
+                if (releaseInfo.TryGetProperty("build", out var buildEl))
+                {
+                    if (buildEl.ValueKind == JsonValueKind.Number)
+                        buildNumber = buildEl.GetInt32();
+                    else if (buildEl.ValueKind == JsonValueKind.String &&
+                             int.TryParse(buildEl.GetString(), out int parsed))
+                        buildNumber = parsed;
+                }
+
+                // Fallback: extract build from release notes (handles older manifests)
+                if (buildNumber == 0 && !string.IsNullOrEmpty(releaseNotes))
+                {
+                    buildNumber = AppVersion.ExtractBuildFromText(releaseNotes);
+                }
+
                 return new UpdateInfo
                 {
                     Version = latestVersion,
+                    BuildNumber = buildNumber,
                     CurrentVersion = CurrentVersion,
+                    CurrentBuildNumber = CurrentBuildNumber,
                     MirrorInstallerUrl = mirrorInstaller,
                     MirrorPortableUrl = mirrorPortable,
                     ReleaseNotes = releaseNotes,
-                    IsUpdateAvailable = IsNewerVersion(latestVersion, CurrentVersion)
+                    IsUpdateAvailable = ShouldUpdate(latestVersion, buildNumber)
                 };
             }
             catch (OperationCanceledException)
@@ -361,6 +404,19 @@ namespace ArdysaModsTools.Core.Services.Update
                     portableUrl = legacyPortableUrl;
                 }
 
+                // Extract build number from release name or body
+                int buildNumber = 0;
+                if (root.TryGetProperty("name", out var releaseNameEl) &&
+                    releaseNameEl.ValueKind == JsonValueKind.String)
+                {
+                    buildNumber = AppVersion.ExtractBuildFromText(releaseNameEl.GetString());
+                }
+                // Fallback: try to extract from release notes/body
+                if (buildNumber == 0 && !string.IsNullOrEmpty(releaseNotes))
+                {
+                    buildNumber = AppVersion.ExtractBuildFromText(releaseNotes);
+                }
+
                 // Build mirror URLs if we have filenames
                 string? mirrorInstaller = installerFilename != null 
                     ? CdnConfig.BuildReleaseUrl(latestVersion, installerFilename) 
@@ -372,13 +428,15 @@ namespace ArdysaModsTools.Core.Services.Update
                 return new UpdateInfo
                 {
                     Version = latestVersion,
+                    BuildNumber = buildNumber,
                     CurrentVersion = CurrentVersion,
+                    CurrentBuildNumber = CurrentBuildNumber,
                     InstallerDownloadUrl = installerUrl,
                     PortableDownloadUrl = portableUrl,
                     MirrorInstallerUrl = mirrorInstaller,
                     MirrorPortableUrl = mirrorPortable,
                     ReleaseNotes = releaseNotes,
-                    IsUpdateAvailable = IsNewerVersion(latestVersion, CurrentVersion)
+                    IsUpdateAvailable = ShouldUpdate(latestVersion, buildNumber)
                 };
             }
             catch (Exception ex)
@@ -756,48 +814,20 @@ namespace ArdysaModsTools.Core.Services.Update
         }
 
         /// <summary>
-        /// Compares two version strings to determine if latest is newer than current.
+        /// Determines whether the latest version/build should trigger an update.
+        /// Uses AppVersion for robust comparison:
+        ///   1. Higher semantic version → always update
+        ///   2. Same version, higher build → update (enables hotfix-style updates)
+        ///   3. Same version and build → no update
         /// </summary>
-        private bool IsNewerVersion(string latest, string current)
+        /// <param name="latestVersion">Version string from R2 manifest or GitHub.</param>
+        /// <param name="latestBuild">Build number from R2 manifest or GitHub release.</param>
+        /// <returns>True if an update should be offered.</returns>
+        private bool ShouldUpdate(string latestVersion, int latestBuild)
         {
-            if (string.IsNullOrWhiteSpace(latest))
-                return false;
-
-            string Normalize(string v)
-            {
-                if (v.StartsWith("v", StringComparison.OrdinalIgnoreCase))
-                    v = v.Substring(1);
-                int dash = v.IndexOf('-');
-                if (dash >= 0) v = v.Substring(0, dash);
-                return v;
-            }
-
-            var latestNorm = Normalize(latest);
-            var currentNorm = Normalize(current ?? "0.0.0");
-
-            if (Version.TryParse(latestNorm, out var vLatest) && Version.TryParse(currentNorm, out var vCurrent))
-            {
-                return vLatest > vCurrent;
-            }
-
-            // Fallback: numeric parts comparison
-            try
-            {
-                var lParts = latestNorm.Split('.').Select(p => int.TryParse(p, out var x) ? x : 0).ToArray();
-                var cParts = currentNorm.Split('.').Select(p => int.TryParse(p, out var x) ? x : 0).ToArray();
-                int n = Math.Max(lParts.Length, cParts.Length);
-                
-                for (int i = 0; i < n; i++)
-                {
-                    int ln = i < lParts.Length ? lParts[i] : 0;
-                    int cn = i < cParts.Length ? cParts[i] : 0;
-                    if (ln > cn) return true;
-                    if (ln < cn) return false;
-                }
-            }
-            catch { }
-
-            return false;
+            var current = new AppVersion(CurrentVersion, CurrentBuildNumber);
+            var latest = new AppVersion(latestVersion, latestBuild);
+            return current.ShouldUpdateTo(latest);
         }
     }
 }

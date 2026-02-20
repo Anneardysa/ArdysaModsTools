@@ -52,6 +52,17 @@ namespace ArdysaModsTools.Core.Services.Update.Models
         public string CurrentVersion { get; set; } = string.Empty;
 
         /// <summary>
+        /// Build number of the latest release (4th segment of AssemblyVersion).
+        /// 0 if unknown (backward-compatible with old manifests/releases).
+        /// </summary>
+        public int BuildNumber { get; set; }
+
+        /// <summary>
+        /// Build number of the currently running application.
+        /// </summary>
+        public int CurrentBuildNumber { get; set; }
+
+        /// <summary>
         /// Mirror download URL for installer on R2 CDN (faster for some regions).
         /// </summary>
         public string? MirrorInstallerUrl { get; set; }
