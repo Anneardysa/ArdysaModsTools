@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.13-beta] (Build 2099)
+
+### 🐛 Fixed
+
+- Fixed VPK item patching issue where rich `index.txt` data (e.g., Shadow Fiend arcana) wasn't being applied to `items_game.txt` due to unhandled one-liner formats.
+- Improved `index.txt` discovery to fallback to the zip root when assets are stored in subfolders.
+- Added comprehensive diagnostic logging for block parsing, validation, and replacement steps to aid debugging.
+- Added complete test coverage for deeply nested block parsing, small-to-large block replacements, and double-tab formatting scenarios.
+
+---
+
 ## [2.1.13-beta] (Build 2098)
 
 ### 🐛 Fixed

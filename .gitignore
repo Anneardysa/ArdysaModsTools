@@ -85,6 +85,7 @@ npm-debug.log*
 build.txt
 commit-and-push.ps1
 COMMIT_GUIDE.md
+CHANGELOG_RELEASE.md
 
 # PERSONAL/INTERNAL DOCUMENTATION
 docs/samples/

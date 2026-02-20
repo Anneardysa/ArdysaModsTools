@@ -34,14 +34,16 @@ namespace ArdysaModsTools.Core.Services
         /// <summary>
         /// Parses index.txt and returns blocks with validation info.
         /// </summary>
-        /// <param name="indexFolder">Folder containing index.txt</param>
+        /// <param name="indexFolder">Primary folder containing index.txt</param>
         /// <param name="heroId">Hero ID for validation</param>
         /// <param name="itemIds">Expected item IDs</param>
+        /// <param name="fallbackFolder">Optional fallback folder to search for index.txt (e.g. zip root)</param>
         /// <returns>Dictionary of ID -> block content, or null if not found</returns>
         Dictionary<string, (string block, string heroId)>? ParseIndexFile(
             string indexFolder,
             string heroId,
-            IReadOnlyList<int> itemIds);
+            IReadOnlyList<int> itemIds,
+            string? fallbackFolder = null);
 
         /// <summary>
         /// Patches items_game.txt using pre-merged blocks from multiple heroes.
@@ -87,7 +89,8 @@ namespace ArdysaModsTools.Core.Services
         public Dictionary<string, (string block, string heroId)>? ParseIndexFile(
             string indexFolder,
             string heroId,
-            IReadOnlyList<int> itemIds)
+            IReadOnlyList<int> itemIds,
+            string? fallbackFolder = null)
         {
             if (string.IsNullOrWhiteSpace(indexFolder) || !Directory.Exists(indexFolder))
                 return null;
@@ -99,11 +102,24 @@ namespace ArdysaModsTools.Core.Services
                 return null;
 
             var indexPath = FindIndexFile(indexFolder);
+            
+            // Fallback: search in parent/zip-root folder if not found in content root
+            if (indexPath == null && !string.IsNullOrWhiteSpace(fallbackFolder) && Directory.Exists(fallbackFolder))
+            {
+                _logger?.LogDebug($"[Patcher] index.txt not found in {indexFolder}, trying fallback: {fallbackFolder}");
+                indexPath = FindIndexFile(fallbackFolder);
+            }
+            
             if (indexPath == null)
+            {
+                _logger?.LogDebug($"[Patcher] index.txt not found for hero {heroId}");
                 return null;
+            }
 
+            _logger?.LogDebug($"[Patcher] Found index.txt at: {indexPath}");
             var indexText = File.ReadAllText(indexPath, Encoding.UTF8);
             var blocks = KeyValuesBlockHelper.ParseKvBlocks(indexText);
+            _logger?.LogDebug($"[Patcher] Parsed {blocks.Count} block(s) from index.txt for {heroId}");
 
             // Filter to only requested item IDs and add heroId
             var result = new Dictionary<string, (string block, string heroId)>();
@@ -162,6 +178,13 @@ namespace ArdysaModsTools.Core.Services
             // Read items_game.txt
             var original = await File.ReadAllTextAsync(itemsGamePath, Encoding.UTF8, ct).ConfigureAwait(false);
 
+            // Prettify one-liner format to multi-line for reliable block extraction
+            if (KeyValuesBlockHelper.IsOneLinerFormat(original))
+            {
+                _logger?.LogDebug("[Patcher] items_game.txt is one-liner format — prettifying...");
+                original = KeyValuesBlockHelper.PrettifyKvText(original);
+            }
+
             int replacedCount = 0;
             int skippedCount = 0;
             var failedIds = new List<string>();
@@ -186,6 +209,7 @@ namespace ArdysaModsTools.Core.Services
                 if (string.IsNullOrEmpty(existingBlock))
                 {
                     log($"Warning: ID {idStr} not found in items_game.txt for {heroId} — skipping.");
+                    _logger?.LogDebug($"[Patcher] ExtractBlockById returned null for ID {idStr} (heroId={heroId})");
                     failedIds.Add($"{idStr}(not found)");
                     skippedCount++;
                     continue;
@@ -195,6 +219,7 @@ namespace ArdysaModsTools.Core.Services
                 if (!validation.isValid)
                 {
                     log($"Warning: Block {idStr} validation failed — {validation.error}");
+                    _logger?.LogDebug($"[Patcher] Validation failed for {idStr}: {validation.error}\nExisting block length: {existingBlock.Length}, Replacement block length: {replacementBlock.Length}");
                     failedIds.Add($"{idStr}({validation.error})");
                     skippedCount++;
                     continue;
@@ -292,6 +317,13 @@ namespace ArdysaModsTools.Core.Services
 
             // Read original items_game.txt
             var original = await File.ReadAllTextAsync(itemsGamePath, Encoding.UTF8, ct).ConfigureAwait(false);
+
+            // Prettify one-liner format to multi-line for reliable block extraction
+            if (KeyValuesBlockHelper.IsOneLinerFormat(original))
+            {
+                _logger?.LogDebug("[Patcher] items_game.txt is one-liner format — prettifying...");
+                original = KeyValuesBlockHelper.PrettifyKvText(original);
+            }
             
             int replacedCount = 0;
 

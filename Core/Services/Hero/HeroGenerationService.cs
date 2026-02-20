@@ -266,7 +266,8 @@ namespace ArdysaModsTools.Core.Services
 #endif
 
                             // Parse index.txt and collect blocks for merged patching
-                            var heroBlocks = _patcher.ParseIndexFile(contentRoot, hero.Id, hero.ItemIds);
+                            // Pass setFolder as fallback in case index.txt is at zip root, not in contentRoot
+                            var heroBlocks = _patcher.ParseIndexFile(contentRoot, hero.Id, hero.ItemIds, setFolder);
                             if (heroBlocks != null)
                             {
                                 foreach (var kvp in heroBlocks)

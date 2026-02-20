@@ -361,5 +361,154 @@ namespace ArdysaModsTools.Tests.Helpers
         }
 
         #endregion
+
+        #region Deeply Nested Block Tests
+
+        /// <summary>
+        /// Verify ParseKvBlocks correctly handles deeply nested structures like
+        /// the Shadow Fiend arcana block (portrait_game with cameras sub-block).
+        /// </summary>
+        [Test]
+        public void ParseKvBlocks_DeeplyNestedBlock_ExtractsCorrectly()
+        {
+            var indexContent = @"
+""826""
+{
+	""name""	""Shadow Fiend's Base""
+	""prefab""	""default_item""
+	""item_rarity""	""arcana""
+	""item_slot""	""hero_base""
+	""used_by_heroes""
+	{
+		""npc_dota_hero_nevermore""	""1""
+	}
+	""visuals""
+	{
+		""skip_model_combine""	""1""
+		""asset_modifier""
+		{
+			""type""	""activity""
+			""asset""	""ALL""
+			""modifier""	""arcana""
+		}
+		""asset_modifier""
+		{
+			""type""	""particle""
+			""asset""	""particles/units/heroes/hero_nevermore/nevermore_shadowraze.vpcf""
+			""modifier""	""particles/econ/items/shadow_fiend/sf_fire_arcana/sf_fire_arcana_shadowraze.vpcf""
+		}
+		""asset_modifier""
+		{
+			""type""	""portrait_game""
+			""asset""	""models/heroes/shadow_fiend/shadow_fiend.vmdl""
+			""modifier""
+			{
+				""PortraitLightPosition""	""85.00 9.68 296.06""
+				""cameras""
+				{
+					""default""
+					{
+						""PortraitPosition""	""126.07 -14.40 175.18""
+						""PortraitFOV""	""33""
+					}
+				}
+			}
+		}
+		""asset_modifier0""
+		{
+			""type""	""particle_create""
+			""modifier""	""""
+		}
+	}
+}";
+            var blocks = KeyValuesBlockHelper.ParseKvBlocks(indexContent);
+
+            Assert.That(blocks.Count, Is.EqualTo(1));
+            Assert.That(blocks.ContainsKey("826"), Is.True);
+            Assert.That(blocks["826"], Does.Contain("\"item_rarity\""));
+            Assert.That(blocks["826"], Does.Contain("\"arcana\""));
+            Assert.That(blocks["826"], Does.Contain("\"portrait_game\""));
+            Assert.That(blocks["826"], Does.Contain("\"cameras\""));
+            Assert.That(blocks["826"], Does.Contain("\"PortraitFOV\""));
+            Assert.That(blocks["826"], Does.Contain("\"particle_create\""));
+        }
+
+        /// <summary>
+        /// Verify ReplaceIdBlock correctly replaces a small default block
+        /// with a much larger rich block (arcana-style).
+        /// </summary>
+        [Test]
+        public void ReplaceIdBlock_SmallToLargeBlock_ReplacesCorrectly()
+        {
+            // Default block in items_game.txt (small)
+            var content = @"
+""items""
+{
+	""826""
+	{
+		""name""		""Shadow Fiend's Base""
+		""prefab""		""default_item""
+		""item_slot""		""hero_base""
+		""used_by_heroes""
+		{
+			""npc_dota_hero_nevermore""		""1""
+		}
+		""visuals""
+		{
+			""skip_model_combine""		""0""
+		}
+	}
+}";
+
+            // Rich replacement block (much larger)
+            var replacement = "\t\"826\"\n\t{\n\t\t\"name\"\t\t\"Shadow Fiend's Base\"\n\t\t\"prefab\"\t\t\"default_item\"\n\t\t\"item_rarity\"\t\t\"arcana\"\n\t\t\"item_slot\"\t\t\"hero_base\"\n\t\t\"used_by_heroes\"\n\t\t{\n\t\t\t\"npc_dota_hero_nevermore\"\t\t\"1\"\n\t\t}\n\t\t\"visuals\"\n\t\t{\n\t\t\t\"skip_model_combine\"\t\t\"1\"\n\t\t\t\"asset_modifier\"\n\t\t\t{\n\t\t\t\t\"type\"\t\t\"activity\"\n\t\t\t\t\"asset\"\t\t\"ALL\"\n\t\t\t\t\"modifier\"\t\t\"arcana\"\n\t\t\t}\n\t\t}\n\t}";
+
+            var result = KeyValuesBlockHelper.ReplaceIdBlock(content, "826", replacement, out bool didReplace, "npc_dota_hero_nevermore");
+
+            Assert.That(didReplace, Is.True);
+            Assert.That(result, Does.Contain("\"item_rarity\""));
+            Assert.That(result, Does.Contain("\"arcana\""));
+            Assert.That(result, Does.Contain("\"activity\""));
+            // Default values should be gone
+            Assert.That(result, Does.Not.Contain("\"skip_model_combine\"\t\t\"0\""));
+        }
+
+        /// <summary>
+        /// Verify extraction and replacement works with double-tab format
+        /// (as produced by vkv_formatter.py).
+        /// </summary>
+        [Test]
+        public void ReplaceIdBlock_DoubleTabFormat_ReplacesCorrectly()
+        {
+            // Double-tab format (vkv_formatter.py output)
+            var content = "\"items\"\n{\n\t\t\"826\"\n\t\t{\n\t\t\t\t\"name\" \"Shadow Fiend's Base\"\n\t\t\t\t\"prefab\" \"default_item\"\n\t\t\t\t\"item_slot\" \"hero_base\"\n\t\t\t\t\"used_by_heroes\"\n\t\t\t\t{\n\t\t\t\t\t\t\"npc_dota_hero_nevermore\" \"1\"\n\t\t\t\t}\n\t\t\t\t\"visuals\"\n\t\t\t\t{\n\t\t\t\t\t\t\"skip_model_combine\" \"0\"\n\t\t\t\t}\n\t\t}\n}";
+
+            // Replacement block with rich content
+            var replacement = "\t\t\"826\"\n\t\t{\n\t\t\t\t\"name\" \"Shadow Fiend's Base\"\n\t\t\t\t\"prefab\" \"default_item\"\n\t\t\t\t\"item_rarity\" \"arcana\"\n\t\t\t\t\"used_by_heroes\"\n\t\t\t\t{\n\t\t\t\t\t\t\"npc_dota_hero_nevermore\" \"1\"\n\t\t\t\t}\n\t\t}";
+
+            var result = KeyValuesBlockHelper.ReplaceIdBlock(content, "826", replacement, out bool didReplace, "npc_dota_hero_nevermore");
+
+            Assert.That(didReplace, Is.True);
+            Assert.That(result, Does.Contain("\"item_rarity\""));
+            Assert.That(result, Does.Contain("\"arcana\""));
+            Assert.That(result, Does.Not.Contain("\"skip_model_combine\""));
+        }
+
+        /// <summary>
+        /// Verify ExtractBlockById works with double-tab format.
+        /// </summary>
+        [Test]
+        public void ExtractBlockById_DoubleTabFormat_FindsBlock()
+        {
+            var content = "\"items\"\n{\n\t\t\"826\"\n\t\t{\n\t\t\t\t\"name\" \"Shadow Fiend's Base\"\n\t\t\t\t\"prefab\" \"default_item\"\n\t\t\t\t\"used_by_heroes\"\n\t\t\t\t{\n\t\t\t\t\t\t\"npc_dota_hero_nevermore\" \"1\"\n\t\t\t\t}\n\t\t}\n}";
+
+            var block = KeyValuesBlockHelper.ExtractBlockById(content, "826", "npc_dota_hero_nevermore");
+
+            Assert.That(block, Is.Not.Null);
+            Assert.That(block, Does.Contain("\"Shadow Fiend's Base\""));
+            Assert.That(block, Does.Contain("\"npc_dota_hero_nevermore\""));
+        }
+
+        #endregion
     }
 }
