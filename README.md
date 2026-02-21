@@ -8,7 +8,7 @@
 
 _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one click._
 
-![Version](https://img.shields.io/badge/Version-2.1.13--beta-00d4ff?style=for-the-badge&logo=v)
+![Version](https://img.shields.io/badge/Version-2.1.14--beta-00d4ff?style=for-the-badge&logo=v)
 ![Build](https://img.shields.io/github/actions/workflow/status/Anneardysa/ArdysaModsTools/release.yml?style=for-the-badge&logo=github&label=Build)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
