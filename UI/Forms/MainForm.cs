@@ -743,7 +743,7 @@ namespace ArdysaModsTools
             // Check if Dota 2 is running as admin (matchmaking won't work)
             if (isRunning && ProcessChecker.IsProcessRunningAsAdmin("dota2"))
             {
-                lblDotaWarning.Text = "/// ⚠ DOTA 2 IS RUNNING AS ADMIN - MATCHMAKING WON'T WORK ⚠ ///";
+                lblDotaWarning.Text = "/// ⚠ DOTA 2 RUNNING AS ADMIN — RESTART DOTA WITHOUT ADMIN ⚠ ///";
                 lblDotaWarning.BackColor = Color.FromArgb(200, 60, 60); // Brighter red for admin warning
             }
             else if (isRunning)

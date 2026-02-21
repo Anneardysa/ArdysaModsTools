@@ -150,6 +150,28 @@ namespace ArdysaModsTools
                 Log("Dota 2 not running, OK");
 
                 // ═══════════════════════════════════════════════════════════════
+                // ON-DEMAND ELEVATION (legacy Program Files installs only)
+                // The app runs as asInvoker so Dota 2 files don't get admin ACLs.
+                // But if installed under Program Files (legacy Inno Setup), we
+                // need admin to write there — auto-elevate and restart.
+                // ═══════════════════════════════════════════════════════════════
+                if (!AdminHelper.IsRunningAsAdmin() && AdminHelper.IsInProtectedPath())
+                {
+                    Log("Installed in protected path (Program Files), requesting elevation...");
+                    if (AdminHelper.RestartAsAdmin("Application is installed under Program Files"))
+                    {
+                        Log("Elevated process launched, exiting current instance.");
+                        return; // Exit — the elevated instance takes over
+                    }
+                    else
+                    {
+                        Log("WARNING: User declined elevation. App may have write permission issues.");
+                        // Continue anyway — user explicitly chose not to elevate.
+                        // File operations may fail, but we won't force them.
+                    }
+                }
+
+                // ═══════════════════════════════════════════════════════════════
                 // SINGLE INSTANCE ENFORCEMENT
                 // ═══════════════════════════════════════════════════════════════
                 const string appMutexName = "Global\\ArdysaModsTools_SingleInstance_Mutex";

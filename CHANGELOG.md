@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.1.14-beta] (Build 2101)
+## [2.1.14-beta] (Build 2102)
 
-### 🚀 Added
+### 🐛 Fixed
+
+- Removed `requireAdministrator` requirement from core application to prevent files written by the tool from inheriting admin ownership, which was causing Dota 2 to run in administrator mode and block matchmaking.
+- Added `AdminHelper` utility to handle on-demand elevation only for legacy Program Files installations, maintaining write access backward compatibility.
+
+---
+
+## [2.1.14-beta] (Build 2101)
 
 - Added multi-CDN fallback (R2 → jsDelivr → GitHub Raw) with 30s stall-based failover to `OriginalVpkService` to reliably handle CDN unreachable/blocking states without endless stalls during base file downloads.
 

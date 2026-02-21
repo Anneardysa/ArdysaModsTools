@@ -29,8 +29,8 @@
   <!-- ============================================== -->
   <PropertyGroup>
     <Version>2.1.14-beta</Version>
-    <AssemblyVersion>2.1.14.2101</AssemblyVersion>
-    <FileVersion>2.1.14.2101</FileVersion>
+    <AssemblyVersion>2.1.14.2102</AssemblyVersion>
+    <FileVersion>2.1.14.2102</FileVersion>
     <InformationalVersion>2.1.14-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
