@@ -18,6 +18,7 @@ using System;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Models;
 
@@ -28,13 +29,13 @@ namespace ArdysaModsTools.Helpers
         /// <summary>
         /// Streaming download with progress callback (0..100). Caller should provide HttpClient.
         /// </summary>
-        public static async Task DownloadFileAsync(HttpClient client, string url, string destinationPath, Action<int>? progress = null)
+        public static async Task DownloadFileAsync(HttpClient client, string url, string destinationPath, Action<int>? progress = null, CancellationToken ct = default)
         {
-            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var contentLength = response.Content.Headers.ContentLength;
-            await using var networkStream = await response.Content.ReadAsStreamAsync();
+            await using var networkStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await using var fs = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
 
             byte[] buffer = new byte[81920];
@@ -42,9 +43,9 @@ namespace ArdysaModsTools.Helpers
             int bytesRead;
             int lastReported = -1;
 
-            while ((bytesRead = await networkStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            while ((bytesRead = await networkStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
             {
-                await fs.WriteAsync(buffer, 0, bytesRead);
+                await fs.WriteAsync(buffer, 0, bytesRead, ct).ConfigureAwait(false);
                 totalRead += bytesRead;
 
                 if (contentLength.HasValue)

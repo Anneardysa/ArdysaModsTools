@@ -29,13 +29,20 @@ namespace ArdysaModsTools.Core.Helpers
     public static class GlobalExceptionHandler
     {
         private static IAppLogger? _logger;
+        private static bool _initialized;
 
         /// <summary>
         /// Initializes the global exception handler with a logger.
+        /// Safe to call multiple times — only the first call subscribes to events.
+        /// If Program.cs already wired up its own handlers that delegate to Handle(),
+        /// calling this will only set the logger without adding duplicate subscriptions.
         /// </summary>
-        public static void Initialize(IAppLogger logger)
+        public static void Initialize(IAppLogger logger, bool wireEvents = true)
         {
             _logger = logger;
+            
+            if (_initialized || !wireEvents) return;
+            _initialized = true;
             
             // Wire up global exception handlers
             Application.ThreadException += OnThreadException;

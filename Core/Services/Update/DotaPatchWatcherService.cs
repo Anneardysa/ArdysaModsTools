@@ -156,17 +156,21 @@ namespace ArdysaModsTools.Core.Services.Update
             // Track changes silently, don't log each one
             Interlocked.Increment(ref _pendingChangeCount);
             
-            // Cancel any pending debounce
-            _debounceCts?.Cancel();
-            _debounceCts?.Dispose();
-            _debounceCts = new CancellationTokenSource();
+            // Atomically swap the CTS to prevent race conditions from concurrent
+            // FileSystemWatcher events firing on different thread pool threads
+            var newCts = new CancellationTokenSource();
+            var oldCts = Interlocked.Exchange(ref _debounceCts, newCts);
+            try { oldCts?.Cancel(); } catch { }
+            oldCts?.Dispose();
+            
+            var token = newCts.Token;
             
             // Debounce - wait for file changes to settle
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await Task.Delay(DebounceDelayMs, _debounceCts.Token);
+                    await Task.Delay(DebounceDelayMs, token);
                     int changes = Interlocked.Exchange(ref _pendingChangeCount, 0);
                     if (changes > 0)
                     {

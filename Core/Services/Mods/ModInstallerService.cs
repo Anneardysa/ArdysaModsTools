@@ -63,7 +63,8 @@ namespace ArdysaModsTools.Core.Services
         private readonly HttpClient _httpClient;
 
         // GameInfo URLs - multiple CDN sources with fallback
-        private static string[] GameInfoUrls => new[]
+        // Lazy-cached to avoid re-allocating the array on every access
+        private static readonly Lazy<string[]> _gameInfoUrls = new(() => new[]
         {
             // R2 CDN (primary, fastest)
             $"{CdnConfig.R2BaseUrl}/remote/gameinfo_branchspecific.gi",
@@ -71,10 +72,11 @@ namespace ArdysaModsTools.Core.Services
             EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific.gi"),
             // Raw GitHub (fallback 2, slowest but most reliable)
             $"{EnvironmentConfig.RawGitHubBase}/remote/gameinfo_branchspecific.gi"
-        };
+        });
+        private static string[] GameInfoUrls => _gameInfoUrls.Value;
         
         // Disable GameInfo URLs - original/clean version to restore when disabling mods
-        private static string[] DisableGameInfoUrls => new[]
+        private static readonly Lazy<string[]> _disableGameInfoUrls = new(() => new[]
         {
             // R2 CDN (primary, fastest)
             $"{CdnConfig.R2BaseUrl}/remote/gameinfo_branchspecific_disable.gi",
@@ -82,7 +84,8 @@ namespace ArdysaModsTools.Core.Services
             EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific_disable.gi"),
             // Raw GitHub (fallback 2)
             $"{EnvironmentConfig.RawGitHubBase}/remote/gameinfo_branchspecific_disable.gi"
-        };
+        });
+        private static string[] DisableGameInfoUrls => _disableGameInfoUrls.Value;
 
         private const string RequiredModFilePath = DotaPaths.ModsVpk;
 
@@ -232,7 +235,8 @@ namespace ArdysaModsTools.Core.Services
         }
 
         // ModsPack hash URLs - multiple CDN sources with fallback
-        private static string[] ModsPackHashUrls => new[]
+        // Lazy-cached to avoid re-allocating the array on every access
+        private static readonly Lazy<string[]> _modsPackHashUrls = new(() => new[]
         {
             // R2 CDN (primary, fastest) - upload ModsPack.hash to R2
             $"{CdnConfig.R2BaseUrl}/remote/ModsPack.hash",
@@ -240,7 +244,8 @@ namespace ArdysaModsTools.Core.Services
             EnvironmentConfig.BuildRawUrl("remote/ModsPack.hash"),
             // Raw GitHub (fallback 2)
             $"{EnvironmentConfig.RawGitHubBase}/remote/ModsPack.hash"
-        };
+        });
+        private static string[] ModsPackHashUrls => _modsPackHashUrls.Value;
 
         private async Task<string?> DownloadRemoteHashAsync(CancellationToken ct = default)
         {
@@ -748,8 +753,7 @@ namespace ArdysaModsTools.Core.Services
                     _logger?.Log($"[PATCH] Error: Core file missing at: {signaturesPath}");
                     
                     // Diagnostic: Check if we are even in the right folder (is dota2.exe there?)
-                    string activeDir = Path.GetDirectoryName(signaturesPath) ?? "";
-                    string dotaExe = Path.Combine(activeDir, "dota2.exe");
+                    string dotaExe = Path.Combine(targetPath, DotaPaths.Dota2Exe);
                     
                     if (File.Exists(dotaExe))
                     {
@@ -758,7 +762,7 @@ namespace ArdysaModsTools.Core.Services
                     }
                     else
                     {
-                        _logger?.Log($"[PATCH] Diagnostic: dota2.exe also missing at {activeDir}.");
+                        _logger?.Log($"[PATCH] Diagnostic: dota2.exe also missing at {targetPath}.");
                         _logger?.Log("[PATCH] Suggestion: The detected Dota 2 path may be incorrect.");
                     }
                     
@@ -1045,7 +1049,7 @@ namespace ArdysaModsTools.Core.Services
 
                     var modified = new List<string>(lines[..(digestIndex + 1)])
                     {
-                        @"...\..\..\dota\gameinfo_branchspecific.gi~SHA1:1A9B91FB43FE89AD104B8001282D292EED94584D;CRC:043F604A"
+                        ModConstants.ModPatchLine
                     };
 
                     string tmpSig = signaturesPath + ".tmp";
@@ -1067,9 +1071,9 @@ namespace ArdysaModsTools.Core.Services
                 _logger?.Log("Installation canceled.");
                 return false;
             }
-            catch
+            catch (Exception ex)
             {
-                // Don't log here - caller (presenter) handles failure logging
+                FallbackLogger.Log($"ManualInstallModsAsync unexpected exception: {ex.Message}");
                 return false;
             }
         }

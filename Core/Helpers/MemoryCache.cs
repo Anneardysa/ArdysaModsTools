@@ -30,6 +30,7 @@ namespace ArdysaModsTools.Core.Helpers
     public sealed class MemoryCache<TKey, TValue> : IDisposable where TKey : notnull
     {
         private readonly ConcurrentDictionary<TKey, CacheEntry> _cache = new();
+        private readonly ConcurrentDictionary<TKey, SemaphoreSlim> _locks = new();
         private readonly TimeSpan _defaultExpiration;
         private readonly System.Threading.Timer? _cleanupTimer;
         private bool _disposed;
@@ -73,18 +74,37 @@ namespace ArdysaModsTools.Core.Helpers
 
         /// <summary>
         /// Gets or creates a cached value asynchronously.
+        /// Uses per-key locking to prevent cache stampede — only one caller
+        /// invokes the factory for a given expired key while others wait.
         /// </summary>
         public async Task<TValue> GetOrCreateAsync(TKey key, Func<Task<TValue>> factory, TimeSpan? expiration = null)
         {
+            // Fast path: check without lock
             if (_cache.TryGetValue(key, out var existing) && !existing.IsExpired)
             {
                 return existing.Value;
             }
 
-            var value = await factory().ConfigureAwait(false);
-            var entry = new CacheEntry(value, expiration ?? _defaultExpiration);
-            _cache[key] = entry;
-            return value;
+            // Slow path: acquire per-key lock to prevent stampede
+            var semaphore = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+            await semaphore.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                // Double-check after acquiring lock — another caller may have populated it
+                if (_cache.TryGetValue(key, out existing) && !existing.IsExpired)
+                {
+                    return existing.Value;
+                }
+
+                var value = await factory().ConfigureAwait(false);
+                var entry = new CacheEntry(value, expiration ?? _defaultExpiration);
+                _cache[key] = entry;
+                return value;
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
 
         /// <summary>
@@ -115,6 +135,7 @@ namespace ArdysaModsTools.Core.Helpers
         /// </summary>
         public bool Remove(TKey key)
         {
+            _locks.TryRemove(key, out _);
             return _cache.TryRemove(key, out _);
         }
 
@@ -124,6 +145,7 @@ namespace ArdysaModsTools.Core.Helpers
         public void Clear()
         {
             _cache.Clear();
+            _locks.Clear();
         }
 
         /// <summary>
@@ -136,6 +158,7 @@ namespace ArdysaModsTools.Core.Helpers
                 if (kvp.Value.IsExpired)
                 {
                     _cache.TryRemove(kvp.Key, out _);
+                    _locks.TryRemove(kvp.Key, out _);
                 }
             }
         }
@@ -151,6 +174,11 @@ namespace ArdysaModsTools.Core.Helpers
             _disposed = true;
             _cleanupTimer?.Dispose();
             _cache.Clear();
+            foreach (var semaphore in _locks.Values)
+            {
+                semaphore.Dispose();
+            }
+            _locks.Clear();
         }
 
         private sealed class CacheEntry

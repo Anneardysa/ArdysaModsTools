@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.14-beta] (Build 2104)
+
+### 🐛 Fixed
+
+- Fixed hardcoded SHA1 hash literal to use `ModConstants.ModPatchLine` preventing breakage when hash changes.
+- Fixed silent exception swallowing during manual installation; exceptions are now properly logged via `FallbackLogger`.
+- Fixed inaccurate diagnostic path error pointing to `bin/win64` instead of the Dota game root.
+- Fixed race condition in `OnFileChanged` that triggered `ObjectDisposedException` when rapidly cancelling debounced events.
+- Resolved cache stampede vulnerability in `GetOrCreateAsync` by implementing a per-key `SemaphoreSlim` double-check locking pattern.
+- Added initialization guard (`_initialized`) to prevent duplicate subscription bindings if called alongside `Program.cs`.
+- Added missing `CancellationToken` support to `DownloadFileAsync` for resumable/cancellable streaming downloads.
+
+---
+
 ## [2.1.14-beta] (Build 2103)
 
 ### 🐛 Fixed
