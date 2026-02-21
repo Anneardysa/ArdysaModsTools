@@ -659,45 +659,56 @@ namespace ArdysaModsTools.Core.Services.Update
                         long? totalBytes = response.Content.Headers.ContentLength;
                         byte[] buffer = new byte[81920];
                         int bytesRead;
-                        int lastProgress = 0;
+                        int lastProgress = -1;
                         var sw = Stopwatch.StartNew();
                         long lastBytes = 0;
                         double lastSpeed = 0;
+                        bool needsUiUpdate = false;
 
                         while ((bytesRead = await netStream.ReadAsync(buffer, 0, buffer.Length, cts.Token)) > 0)
                         {
                             await fileStream.WriteAsync(buffer, 0, bytesRead, cts.Token);
                             totalRead += bytesRead;
 
-                            // Calculate speed every ~500ms
+                            // Recalculate speed and flag UI update every ~500ms
                             if (sw.ElapsedMilliseconds >= 500)
                             {
                                 long deltaBytes = totalRead - lastBytes;
-                                lastSpeed = deltaBytes / (sw.ElapsedMilliseconds / 1000.0) / (1024 * 1024); // MB/s
+                                double elapsedSec = sw.ElapsedMilliseconds / 1000.0;
+                                lastSpeed = elapsedSec > 0 ? deltaBytes / elapsedSec / (1024 * 1024) : 0; // MB/s
                                 lastBytes = totalRead;
                                 sw.Restart();
+                                needsUiUpdate = true;
                             }
 
                             if (totalBytes.HasValue)
                             {
                                 int progress = (int)(totalRead * 100L / totalBytes.Value);
+
+                                // Trigger UI update on progress change OR timer tick
                                 if (progress > lastProgress)
                                 {
                                     lastProgress = progress;
-                                    
-                                    // Update overlay on UI thread
-                                    if (overlay.InvokeRequired)
+                                    needsUiUpdate = true;
+                                }
+
+                                if (needsUiUpdate && overlay.InvokeRequired)
+                                {
+                                    needsUiUpdate = false;
+
+                                    // Snapshot values for thread-safe UI update
+                                    int snapProgress = lastProgress;
+                                    double snapMbDown = totalRead / 1024.0 / 1024.0;
+                                    double snapMbTotal = totalBytes.Value / 1024.0 / 1024.0;
+                                    double snapSpeed = lastSpeed;
+
+                                    overlay.BeginInvoke(new Action(async () =>
                                     {
-                                        overlay.BeginInvoke(new Action(async () =>
-                                        {
-                                            await overlay.UpdateProgressAsync(progress);
-                                            
-                                            double mbDownloaded = totalRead / 1024.0 / 1024.0;
-                                            double mbTotal = totalBytes.Value / 1024.0 / 1024.0;
-                                            string speedInfo = lastSpeed > 0 ? $" @ {lastSpeed:F1} MB/s" : "";
-                                            await overlay.UpdateSubstatusAsync($"{mbDownloaded:F1} / {mbTotal:F1} MB{speedInfo}");
-                                        }));
-                                    }
+                                        await overlay.UpdateProgressAsync(snapProgress);
+                                        await overlay.UpdateDownloadProgressAsync(snapMbDown, snapMbTotal);
+                                        await overlay.UpdateDownloadSpeedAsync(
+                                            snapSpeed > 0 ? $"{snapSpeed:F1} MB/S" : "-- MB/S");
+                                    }));
                                 }
                             }
                         }

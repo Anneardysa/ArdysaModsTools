@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.14-beta] (Build 2103)
+
+### 🐛 Fixed
+
+- Fixed download speed display showing "-- MB/S" during app updates by properly triggering UI update events and using a decoupled timer-based refresh.
+
+---
+
 ## [2.1.14-beta] (Build 2102)
 
 ### 🐛 Fixed
