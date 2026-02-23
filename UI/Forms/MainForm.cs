@@ -740,16 +740,10 @@ namespace ArdysaModsTools
 
             lblDotaWarning.Visible = isRunning;
 
-            // Check if Dota 2 is running as admin (matchmaking won't work)
-            if (isRunning && ProcessChecker.IsProcessRunningAsAdmin("dota2"))
-            {
-                lblDotaWarning.Text = "/// ⚠ DOTA 2 RUNNING AS ADMIN — RESTART DOTA WITHOUT ADMIN ⚠ ///";
-                lblDotaWarning.BackColor = Color.FromArgb(200, 60, 60); // Brighter red for admin warning
-            }
-            else if (isRunning)
+            if (isRunning)
             {
                 lblDotaWarning.Text = "/// ⚠ CLOSE DOTA 2 BEFORE MODIFYING ⚠ ///";
-                lblDotaWarning.BackColor = Color.FromArgb(180, 70, 70); // Standard warning color
+                lblDotaWarning.BackColor = Color.FromArgb(180, 70, 70);
             }
 
             // Tray functionality removed - no longer minimize to tray when Dota runs

@@ -71,12 +71,12 @@ namespace ArdysaModsTools.Core.Constants
         /// <summary>
         /// Connection timeout for CDN requests in seconds.
         /// </summary>
-        public const int TimeoutSeconds = 15;
+        public const int TimeoutSeconds = 30;
 
         /// <summary>
         /// Maximum retry attempts per CDN before falling back.
         /// </summary>
-        public const int MaxRetryPerCdn = 1;
+        public const int MaxRetryPerCdn = 2;
 
         #endregion
 

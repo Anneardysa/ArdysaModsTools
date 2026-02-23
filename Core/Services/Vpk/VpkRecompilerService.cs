@@ -333,7 +333,7 @@ namespace ArdysaModsTools.Core.Services
             string expectedVpkName = Path.GetFileName(extractDir) + ".vpk";
             string expectedVpkPath = Path.Combine(parentDir, expectedVpkName);
             
-            log($"[VPK-Search] Expected: {expectedVpkPath}");
+            _logger?.Log($"[VPK-Search] Expected: {expectedVpkPath}");
             _logger?.Log($"  Start time: {startTime:O}");
 
             // First, check for expected output directly (most reliable method)
@@ -342,21 +342,21 @@ namespace ArdysaModsTools.Core.Services
             {
                 var vpkWriteTime = File.GetLastWriteTimeUtc(expectedVpkPath);
                 var timeDiff = (DateTime.UtcNow - vpkWriteTime).TotalSeconds;
-                log($"[VPK-Search] Found VPK, age: {timeDiff:F1}s");
+                _logger?.Log($"[VPK-Search] Found VPK, age: {timeDiff:F1}s");
                 
                 if (vpkWriteTime >= startTime.AddSeconds(-5))
                 {
-                    log($"[VPK-Search] VPK valid, using: {Path.GetFileName(expectedVpkPath)}");
+                    _logger?.Log($"[VPK-Search] VPK valid, using: {Path.GetFileName(expectedVpkPath)}");
                     return expectedVpkPath;
                 }
                 else
                 {
-                    log($"[VPK-Search] VPK too old (created {timeDiff:F0}s ago)");
+                    _logger?.Log($"[VPK-Search] VPK too old (created {timeDiff:F0}s ago)");
                 }
             }
             else
             {
-                log($"[VPK-Search] Expected VPK not found at: {expectedVpkPath}");
+                _logger?.Log($"[VPK-Search] Expected VPK not found at: {expectedVpkPath}");
             }
 
             // Fallback: Search in multiple directories
@@ -379,7 +379,7 @@ namespace ArdysaModsTools.Core.Services
                         
                         if (found != null)
                         {
-                            log($"[VPK-Search] Found: {found}");
+                            _logger?.Log($"[VPK-Search] Found: {found}");
                             return found;
                         }
                     }
@@ -390,7 +390,7 @@ namespace ArdysaModsTools.Core.Services
             }
 
             // Log detailed diagnostics on failure
-            log($"[VPK-Search] FAILED after {VpkSearchMaxRetries} retries");
+            _logger?.Log($"[VPK-Search] FAILED after {VpkSearchMaxRetries} retries");
             foreach (var dir in searchDirs)
             {
                 if (Directory.Exists(dir))
@@ -400,18 +400,18 @@ namespace ArdysaModsTools.Core.Services
                         var vpkFiles = Directory.GetFiles(dir, "*.vpk", SearchOption.TopDirectoryOnly);
                         if (vpkFiles.Length > 0)
                         {
-                            log($"[VPK-Search] {Path.GetFileName(dir)}/: {vpkFiles.Length} VPK(s)");
+                            _logger?.Log($"[VPK-Search] {Path.GetFileName(dir)}/: {vpkFiles.Length} VPK(s)");
                             foreach (var f in vpkFiles.Take(3))
                             {
                                 var writeTime = File.GetLastWriteTimeUtc(f);
                                 var age = (DateTime.UtcNow - writeTime).TotalSeconds;
-                                log($"[VPK-Search]   {Path.GetFileName(f)} ({age:F0}s old)");
+                                _logger?.Log($"[VPK-Search]   {Path.GetFileName(f)} ({age:F0}s old)");
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        log($"[VPK-Search] Error reading {dir}: {ex.Message}");
+                        _logger?.Log($"[VPK-Search] Error reading {dir}: {ex.Message}");
                     }
                 }
             }

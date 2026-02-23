@@ -454,6 +454,58 @@
          </div>
       </div>
 
+      <!-- Style Overlay (appears ON TOP of option modal) -->
+      <div id="styleOverlay" class="hidden fixed inset-0 z-[95] flex items-center justify-center">
+         <div
+            class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onclick="closeStyleOverlay()"
+         ></div>
+         <div
+            class="relative bg-amt-bg border border-amt-border rounded-xl w-full max-w-lg mx-4 shadow-2xl animate-bounce-in"
+         >
+            <!-- Header -->
+            <div class="flex items-center gap-4 px-6 py-4 border-b border-amt-border">
+               <button
+                  onclick="closeStyleOverlay()"
+                  class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+               >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                     ></path>
+                  </svg>
+               </button>
+               <div
+                  id="styleOverlayThumb"
+                  class="w-12 h-12 rounded-lg bg-amt-card border border-amt-border overflow-hidden flex-shrink-0"
+               ></div>
+               <div class="flex-1 min-w-0">
+                  <h3 id="styleOverlayTitle" class="text-lg font-bold text-white truncate"></h3>
+                  <p class="text-xs text-gray-500">Select a style</p>
+               </div>
+            </div>
+
+            <!-- Styles Grid -->
+            <div
+               id="styleOverlayGrid"
+               class="p-6 grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[55vh] overflow-y-auto"
+            ></div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-end px-6 py-4 border-t border-amt-border">
+               <button
+                  onclick="closeStyleOverlay()"
+                  class="px-6 py-2 text-sm font-semibold bg-white text-black rounded-lg hover:bg-gray-200 transition-all"
+               >
+                  Done
+               </button>
+            </div>
+         </div>
+      </div>
+
       <!-- Progress Overlay -->
       <div
          id="progressOverlay"
@@ -826,7 +878,12 @@
 
          function getThumbUrl(opt, choiceId) {
             if (!opt.thumbnailPattern) return null;
-            const safe = choiceId.toLowerCase().replace(/ /g, "_").replace(/-/g, "_");
+            // Mirror C# sanitization: strip non-alphanumeric (except space/hyphen), trim, lowercase, replace spaces
+            const safe = choiceId
+               .replace(/[^\w\s\-]/g, "")
+               .trim()
+               .toLowerCase()
+               .replace(/ /g, "_");
             return opt.thumbnailPattern.replace("{choice}", safe);
          }
 
@@ -1011,12 +1068,21 @@
          }
 
          function closeOptionModal() {
+            closeStyleOverlay(); // Close style overlay if open
             document.getElementById("optionModal").classList.add("hidden");
             document.removeEventListener("keydown", handleModalKeydown);
             currentOptionIndex = -1;
          }
 
          function handleModalKeydown(e) {
+            // If style overlay is open, Escape closes it first
+            if (!document.getElementById("styleOverlay").classList.contains("hidden")) {
+               if (e.key === "Escape") {
+                  closeStyleOverlay();
+                  e.preventDefault();
+               }
+               return; // Block arrow keys while overlay is open
+            }
             if (e.key === "ArrowLeft") {
                navigateOption(-1);
                e.preventDefault();
@@ -1042,27 +1108,33 @@
          }
 
          function showOptionInModal(opt) {
-            const selected = selections[opt.id] || opt.choices?.[0]?.id || "default";
-            const thumbUrl = getThumbUrl(opt, selected);
-            const hasUrl = thumbUrl && thumbUrl.length > 0;
-            const headerLetter = opt.name.charAt(0).toUpperCase();
+            let currentSelection = selections[opt.id] || opt.choices?.[0]?.id || "default";
 
             document.getElementById("modalTitle").textContent = opt.name;
 
-            // Update header thumbnail
+            // Header thumbnail — show the currently selected choice/style
+            const headerThumbUrl = getThumbUrl(opt, currentSelection);
+            const hasUrl = headerThumbUrl && headerThumbUrl.length > 0;
+            const headerLetter = opt.name.charAt(0).toUpperCase();
+
             const modalThumb = document.getElementById("modalThumb");
             if (hasUrl) {
-               modalThumb.innerHTML = `<img id="modalThumbImg" src="${thumbUrl}" alt="" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full flex items-center justify-center text-2xl font-bold text-gray-500\\'>${headerLetter}</div>'">`;
+               modalThumb.innerHTML = `<img id="modalThumbImg" src="${headerThumbUrl}" alt="" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full flex items-center justify-center text-2xl font-bold text-gray-500\\'>${headerLetter}</div>'">`;
             } else {
                modalThumb.innerHTML = `<div class="w-full h-full flex items-center justify-center text-2xl font-bold text-gray-500">${headerLetter}</div>`;
             }
 
-            // Render choices
+            // ALWAYS render base choices (no modalViewMode branching)
             const choicesGrid = document.getElementById("modalChoices");
             choicesGrid.innerHTML = "";
+            let selectedCard = null;
 
             (opt.choices || []).forEach((c) => {
-               const isSelected = c.id === selected;
+               // A base choice is selected if it IS the current selection OR if one of its styles is
+               const isDirectlySelected = c.id === currentSelection;
+               const hasSelectedStyle = c.styles && c.styles.some((s) => s.id === currentSelection);
+               const isSelected = isDirectlySelected || hasSelectedStyle;
+
                const cThumb = getThumbUrl(opt, c.id);
                const cHasUrl = cThumb && cThumb.length > 0;
                const cLetter = c.name.charAt(0).toUpperCase();
@@ -1070,27 +1142,42 @@
                const card = document.createElement("div");
                card.className = `choice-card bg-amt-tile border ${
                   isSelected ? "border-amt-accent selected" : "border-amt-border"
-               } rounded-xl p-2 cursor-pointer`;
-               card.onclick = () => selectChoice(opt.id, c.id);
+               } rounded-xl p-2 cursor-pointer transition-all hover:border-gray-400 relative`;
+               card.onclick = () => selectBaseChoice(opt.id, c);
+
+               // Style badge — high-contrast accent colors
+               const styleBadge =
+                  c.styles && c.styles.length > 0
+                     ? `<div class="absolute -top-2 -right-2 bg-cyan-950 border border-amt-accent rounded-full shadow-lg pointer-events-none px-2 py-0.5 text-[10px] text-amt-accent font-bold tracking-wide uppercase">✦ Styles</div>`
+                     : "";
 
                card.innerHTML = `
-               ${
-                  cHasUrl
-                     ? `<img src="${cThumb}" alt="" class="w-full aspect-square rounded-lg object-cover ${
-                          isSelected ? "border-2 border-amt-accent" : ""
-                       }" onerror="handleImgError(this, '${cLetter}')">`
-                     : `<div class="w-full aspect-square rounded-lg bg-amt-card flex items-center justify-center text-xl font-bold text-gray-500 ${
-                          isSelected ? "border-2 border-amt-accent" : ""
-                       }">${cLetter}</div>`
-               }
-               <div class="text-xs text-center mt-1.5 ${
-                  isSelected ? "text-amt-accent" : "text-gray-400"
-               } truncate">${c.name}</div>
-            `;
+                  ${styleBadge}
+                  ${
+                     cHasUrl
+                        ? `<img src="${cThumb}" alt="" class="w-full aspect-square rounded-lg object-cover ${
+                             isSelected ? "border-2 border-amt-accent" : ""
+                          }" onerror="handleImgError(this, '${cLetter}')">`
+                        : `<div class="w-full aspect-square rounded-lg bg-amt-card flex items-center justify-center text-xl font-bold text-gray-500 ${
+                             isSelected ? "border-2 border-amt-accent" : ""
+                          }">${cLetter}</div>`
+                  }
+                  <div class="text-xs text-center mt-1.5 ${
+                     isSelected ? "text-amt-accent" : "text-gray-400"
+                  } truncate">${c.name}</div>
+               `;
                choicesGrid.appendChild(card);
+               if (isSelected) selectedCard = card;
             });
 
-            // Update arrows visibility
+            // Scroll to selected card (item #1)
+            if (selectedCard) {
+               requestAnimationFrame(() => {
+                  selectedCard.scrollIntoView({ block: "center", behavior: "smooth" });
+               });
+            }
+
+            // Arrows always visible (no modalViewMode gating)
             const showArrows = options.length > 1;
             document.getElementById("prevOptionBtn").style.visibility = showArrows
                ? "visible"
@@ -1100,17 +1187,102 @@
                : "hidden";
          }
 
-         function selectChoice(optId, choiceId) {
-            selections[optId] = choiceId;
+         // --- Style Overlay Functions ---
 
-            // Refresh modal
+         function openStyleOverlay(optId, choiceObj) {
+            const opt = options.find((o) => o.id === optId);
+            if (!opt) return;
+            const currentSelection = selections[optId];
+
+            // Set header
+            document.getElementById("styleOverlayTitle").textContent = choiceObj.name;
+            const cThumb = getThumbUrl(opt, choiceObj.id);
+            const thumbEl = document.getElementById("styleOverlayThumb");
+            const cLetter = choiceObj.name.charAt(0).toUpperCase();
+            if (cThumb) {
+               thumbEl.innerHTML = `<img src="${cThumb}" class="w-full h-full object-cover" onerror="handleImgError(this, '${cLetter}')">`;
+            } else {
+               thumbEl.innerHTML = `<div class="w-full h-full flex items-center justify-center text-lg font-bold text-gray-500">${cLetter}</div>`;
+            }
+
+            // Render style cards
+            const grid = document.getElementById("styleOverlayGrid");
+            grid.innerHTML = "";
+
+            choiceObj.styles.forEach((s) => {
+               const isSelected = s.id === currentSelection;
+               const sThumb = getThumbUrl(opt, s.id);
+               const sHasUrl = sThumb && sThumb.length > 0;
+               const sLetter = s.name.charAt(0).toUpperCase();
+
+               const card = document.createElement("div");
+               card.className = `choice-card bg-amt-tile border ${
+                  isSelected ? "border-amt-accent selected" : "border-amt-border"
+               } rounded-xl p-2 cursor-pointer transition-all hover:border-gray-400`;
+               card.onclick = () => selectStyle(optId, s.id, choiceObj);
+
+               card.innerHTML = `
+                  ${
+                     sHasUrl
+                        ? `<img src="${sThumb}" alt="" class="w-full aspect-square rounded-lg object-cover ${
+                             isSelected ? "border-2 border-amt-accent" : ""
+                          }" onerror="handleImgError(this, '${sLetter}')">`
+                        : `<div class="w-full aspect-square rounded-lg bg-amt-card flex items-center justify-center text-xl font-bold text-gray-500 ${
+                             isSelected ? "border-2 border-amt-accent" : ""
+                          }">${sLetter}</div>`
+                  }
+                  <div class="text-[10px] sm:text-xs text-center mt-1.5 ${
+                     isSelected ? "text-amt-accent" : "text-gray-400"
+                  } leading-tight line-clamp-2" title="${s.name}">${s.name}</div>
+               `;
+               grid.appendChild(card);
+            });
+
+            document.getElementById("styleOverlay").classList.remove("hidden");
+         }
+
+         function closeStyleOverlay() {
+            document.getElementById("styleOverlay").classList.add("hidden");
+         }
+
+         // Called when clicking a parent/base choice tile
+         function selectBaseChoice(optId, choiceObj) {
+            if (choiceObj.styles && choiceObj.styles.length > 0) {
+               // Has styles → open the style overlay ON TOP of the courier modal
+               // If no style is currently selected from this courier, auto-select the first
+               const currentSelection = selections[optId];
+               const hasSelectedStyle = choiceObj.styles.some((s) => s.id === currentSelection);
+               if (!hasSelectedStyle) {
+                  selections[optId] = choiceObj.styles[0].id;
+                  sendMessage("selectionChanged", { optionId: optId, choiceId: selections[optId] });
+               }
+               // Refresh the base modal to highlight this courier
+               const opt = options.find((o) => o.id === optId);
+               if (opt) showOptionInModal(opt);
+               renderOptions();
+               // Then open style overlay
+               openStyleOverlay(optId, choiceObj);
+            } else {
+               // No styles — direct selection
+               selections[optId] = choiceObj.id;
+               sendMessage("selectionChanged", { optionId: optId, choiceId: choiceObj.id });
+               const opt = options.find((o) => o.id === optId);
+               if (opt) showOptionInModal(opt);
+               renderOptions();
+            }
+         }
+
+         // Called when clicking a specific style tile in the overlay
+         function selectStyle(optId, styleId, parentChoiceObj) {
+            selections[optId] = styleId;
+            sendMessage("selectionChanged", { optionId: optId, choiceId: styleId });
+
+            // Refresh the style overlay to update selection highlight
+            if (parentChoiceObj) openStyleOverlay(optId, parentChoiceObj);
+            // Refresh main modal header thumb and grid
             const opt = options.find((o) => o.id === optId);
             if (opt) showOptionInModal(opt);
-
-            // Update grid
             renderOptions();
-
-            sendMessage("selectionChanged", { optionId: optId, choiceId: choiceId });
          }
 
          // Actions

@@ -68,16 +68,44 @@ namespace ArdysaModsTools.Core.Models
         public List<string> GetChoiceNames() => Choices.Select(c => c.Name).ToList();
 
         /// <summary>
-        /// Gets the primary URL for a specific choice by name.
+        /// Gets the primary URL for a specific choice or style by name.
         /// </summary>
-        public string? GetChoiceUrl(string choiceName) =>
-            Choices.FirstOrDefault(c => c.Name == choiceName)?.GetPrimaryUrl();
+        public string? GetChoiceUrl(string choiceName)
+        {
+            foreach (var choice in Choices)
+            {
+                if (choice.Name == choiceName)
+                    return choice.GetPrimaryUrl();
+
+                if (choice.Styles != null)
+                {
+                    var style = choice.Styles.FirstOrDefault(s => s.Name == choiceName);
+                    if (style != null)
+                        return style.GetPrimaryUrl();
+                }
+            }
+            return null;
+        }
 
         /// <summary>
-        /// Gets all URLs for a specific choice by name (for multi-file downloads).
+        /// Gets all URLs for a specific choice or style by name (for multi-file downloads).
         /// </summary>
-        public List<string> GetChoiceUrls(string choiceName) =>
-            Choices.FirstOrDefault(c => c.Name == choiceName)?.GetAllUrls() ?? new List<string>();
+        public List<string> GetChoiceUrls(string choiceName)
+        {
+            foreach (var choice in Choices)
+            {
+                if (choice.Name == choiceName)
+                    return choice.GetAllUrls();
+
+                if (choice.Styles != null)
+                {
+                    var style = choice.Styles.FirstOrDefault(s => s.Name == choiceName);
+                    if (style != null)
+                        return style.GetAllUrls();
+                }
+            }
+            return new List<string>();
+        }
     }
 
     /// <summary>
@@ -102,6 +130,13 @@ namespace ArdysaModsTools.Core.Models
         public List<string>? Urls { get; set; }
 
         /// <summary>
+        /// Sub-styles for this choice (e.g. Courier unlocked styles).
+        /// Sub-styles act recursively just like normal choices with their own name/url.
+        /// </summary>
+        [JsonPropertyName("styles")]
+        public List<RemoteMiscChoice>? Styles { get; set; }
+
+        /// <summary>
         /// Gets all URLs for this choice (works with both url and urls).
         /// </summary>
         public List<string> GetAllUrls()
@@ -110,6 +145,8 @@ namespace ArdysaModsTools.Core.Models
                 return Urls;
             if (!string.IsNullOrEmpty(Url))
                 return new List<string> { Url };
+            if (Styles != null && Styles.Count > 0)
+                return Styles[0].GetAllUrls();
             return new List<string>();
         }
 

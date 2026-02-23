@@ -63,14 +63,31 @@ namespace ArdysaModsTools.Core.Services
                     thumbPattern = $"{cdnThumbnailBase}/{remoteOption.ThumbnailFolder}/{{choice}}.{ext}";
                 }
 
+                var choiceNames = new List<string>();
+                var choiceStyles = new Dictionary<string, List<string>>();
+
+                foreach (var choice in remoteOption.Choices)
+                {
+                    choiceNames.Add(choice.Name);
+
+                    if (choice.Styles != null && choice.Styles.Count > 0)
+                    {
+                        // Style names are passed via ChoiceStyles dictionary, NOT the flat Choices list.
+                        // The WebView bridge (MiscFormWebView.LoadOptionsAsync) nests them under each choice.
+                        var styleNames = choice.Styles.Select(s => s.Name).ToList();
+                        choiceStyles[choice.Name] = styleNames;
+                    }
+                }
+
                 options.Add(new MiscOption
                 {
                     Id = remoteOption.Id,
                     DisplayName = remoteOption.DisplayName,
                     Category = remoteOption.Category,
-                    Choices = remoteOption.GetChoiceNames(),
+                    Choices = choiceNames,
                     ThumbnailUrlPattern = thumbPattern,
-                    ChoiceThumbnails = new Dictionary<string, string>() // Not used - pattern handles all cases
+                    ChoiceThumbnails = new Dictionary<string, string>(), // Not used dynamically
+                    ChoiceStyles = choiceStyles
                 });
             }
 

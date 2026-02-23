@@ -44,6 +44,8 @@ namespace ArdysaModsTools.Core.Services.Cache
         /// </summary>
         public static AssetCacheService Instance => _instance.Value;
 
+        private const string RefreshTimestampFile = ".last_refresh";
+
         private AssetCacheService()
         {
             _cacheDirectory = Path.Combine(
@@ -53,6 +55,7 @@ namespace ArdysaModsTools.Core.Services.Cache
             );
             
             EnsureCacheDirectoryExists();
+            _lastBatchRefreshTimeUtc = LoadPersistedRefreshTime();
         }
 
         #endregion
@@ -184,6 +187,12 @@ namespace ArdysaModsTools.Core.Services.Cache
             if (string.IsNullOrEmpty(url)) return false;
 
             string cacheKey = GetCacheKey(url);
+
+            // If negatively cached in memory (empty array), don't treat as stale for the session
+            // This prevents retrying 404/broken URLs constantly
+            if (_memoryCache.TryGetValue(cacheKey, out var memEntry) && memEntry.data.Length == 0)
+                return false;
+
             string cacheFilePath = GetCacheFilePath(cacheKey);
             
             // Read cached metadata
@@ -406,9 +415,45 @@ namespace ArdysaModsTools.Core.Services.Cache
             lock (_refreshTimeLock)
             {
                 _lastBatchRefreshTimeUtc = DateTime.UtcNow;
+                PersistRefreshTime(_lastBatchRefreshTimeUtc);
                 System.Diagnostics.Debug.WriteLine(
                     $"[AssetCacheService] Batch refresh marked at {_lastBatchRefreshTimeUtc:HH:mm:ss}");
             }
+        }
+
+        /// <summary>
+        /// Loads the last batch refresh time from disk so the cooldown survives app restarts.
+        /// </summary>
+        private DateTime LoadPersistedRefreshTime()
+        {
+            try
+            {
+                var path = Path.Combine(_cacheDirectory, RefreshTimestampFile);
+                if (File.Exists(path))
+                {
+                    var text = File.ReadAllText(path).Trim();
+                    if (DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
+                    {
+                        return parsed;
+                    }
+                }
+            }
+            catch { /* Ignore read errors — will just re-download */ }
+            return DateTime.MinValue;
+        }
+
+        /// <summary>
+        /// Persists the batch refresh time to disk.
+        /// </summary>
+        private void PersistRefreshTime(DateTime utcTime)
+        {
+            try
+            {
+                var path = Path.Combine(_cacheDirectory, RefreshTimestampFile);
+                File.WriteAllText(path, utcTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+            }
+            catch { /* Non-critical — worst case, cooldown won't persist */ }
         }
 
         /// <summary>
@@ -535,6 +580,8 @@ namespace ArdysaModsTools.Core.Services.Cache
                     {
                         System.Diagnostics.Debug.WriteLine(
                             $"[AssetCacheService] CDN fallback failed: {url} -> {cdnResult.ErrorMessage}");
+                        // Negative cache to avoid retrying in same session
+                        AddToMemoryCache(cacheKey, Array.Empty<byte>());
                         return null;
                     }
 
@@ -562,6 +609,8 @@ namespace ArdysaModsTools.Core.Services.Cache
                     {
                         System.Diagnostics.Debug.WriteLine(
                             $"[AssetCacheService] Download failed: {url} -> {response.StatusCode}");
+                        // Negative cache to avoid retrying in same session
+                        AddToMemoryCache(cacheKey, Array.Empty<byte>());
                         return null;
                     }
 
@@ -571,7 +620,11 @@ namespace ArdysaModsTools.Core.Services.Cache
                 }
 
                 if (data.Length == 0)
+                {
+                    // Negative cache empty responses
+                    AddToMemoryCache(cacheKey, Array.Empty<byte>());
                     return null;
+                }
 
                 // Cache to disk with freshness metadata
                 string cacheFilePath = GetCacheFilePath(cacheKey);
@@ -595,6 +648,8 @@ namespace ArdysaModsTools.Core.Services.Cache
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[AssetCacheService] Download error: {url} -> {ex.Message}");
+                // Negative cache on error to prevent constant retrying
+                AddToMemoryCache(cacheKey, Array.Empty<byte>());
                 return null;
             }
         }

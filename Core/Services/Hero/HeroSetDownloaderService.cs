@@ -28,6 +28,7 @@ using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Services.Cdn;
 using SharpCompress.Archives;
 using SharpCompress.Archives.Rar;
 using SharpCompress.Common;
@@ -189,18 +190,24 @@ namespace ArdysaModsTools.Core.Services
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
         {
             // We need to download .001, .002, etc. and merge them into destPath
-            // We will download each part to a temp file, append to destPath, then delete temp file.
-            
-            // Ensure destination is empty
             if (File.Exists(destPath)) File.Delete(destPath);
 
-            // Base URL without the extension part to easily verify pattern
-            // startUrl ends with .001
-            var baseUrl = startUrl.Substring(0, startUrl.Length - 3); // removes "001"
+            // Build CDN URL variants for the base split URL
+            var cdnUrls = GetCdnUrlsInPriorityOrder(startUrl);
+            
+            // Extract the base path (remove ".001" extension) for each CDN variant
+            var cdnBases = new string[cdnUrls.Length];
+            for (int c = 0; c < cdnUrls.Length; c++)
+            {
+                cdnBases[c] = cdnUrls[c].Substring(0, cdnUrls[c].Length - 3); // removes "001"
+            }
+            
+            // CDN affinity: once a CDN succeeds for a part, prefer it for subsequent parts
+            int preferredCdnIndex = 0;
             
             using var destStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None);
 
-            long totalRead = 0; // Total bytes read across all parts
+            long totalRead = 0;
             long lastReportedRead = 0;
             TimeSpan lastReportTime = TimeSpan.Zero;
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -208,70 +215,96 @@ namespace ArdysaModsTools.Core.Services
             for (int i = 1; i <= MaxSplitParts; i++)
             {
                 var partExt = i.ToString("D3"); // 001, 002, 003...
-                var partUrl = baseUrl + partExt;
-                
                 log($"Processing part {i} ({partExt})...");
-
-                // We'll just try to download. If 404, we assume we're done (valid for standard multi-part hosted on sequential URLs)
-                // BUT for the first part (i=1), it MUST exist.
                 
-                try
+                bool partDownloaded = false;
+                
+                // Build ordered CDN list: preferred first, then the rest
+                var orderedIndices = new List<int> { preferredCdnIndex };
+                for (int c = 0; c < cdnBases.Length; c++)
                 {
-                    using var response = await _httpClient.GetAsync(partUrl, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+                    if (c != preferredCdnIndex) orderedIndices.Add(c);
+                }
+
+                foreach (var cdnIdx in orderedIndices)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var partUrl = cdnBases[cdnIdx] + partExt;
+                    var cdnName = GetCdnDisplayName(partUrl);
                     
-                    if (i > 1 && response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    try
                     {
-                        // End of parts
-                        log($"Part {i} not found. Assuming end of split archive.");
-                        break;
-                    }
-                    
-                    response.EnsureSuccessStatusCode();
-
-                    // Read content and write directly to the merge stream
-                    await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                    
-                    var buffer = new byte[81920];
-                    int bytesRead;
-
-                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
-                    {
-                        await destStream.WriteAsync(buffer, 0, bytesRead, ct).ConfigureAwait(false);
-                        totalRead += bytesRead;
-
-                        // Report speed every 500ms
-                        var elapsed = sw.Elapsed - lastReportTime;
-                        if (elapsed.TotalMilliseconds >= 500)
+                        if (cdnIdx != preferredCdnIndex)
+                            log($"Trying {cdnName}...");
+                        
+                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        cts.CancelAfter(TimeSpan.FromSeconds(CdnConfig.TimeoutSeconds));
+                        
+                        using var response = await _httpClient.GetAsync(partUrl, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
+                        
+                        if (i > 1 && response.StatusCode == System.Net.HttpStatusCode.NotFound)
                         {
-                            string speedStr = SpeedCalculator.FormatSpeed(totalRead - lastReportedRead, elapsed.TotalSeconds);
-                            string details = $"{totalRead / 1024 / 1024} MB (part {i})";
-                            speedProgress?.Report(new SpeedMetrics { DownloadSpeed = speedStr, ProgressDetails = details });
-                            
-                            lastReportedRead = totalRead;
-                            lastReportTime = sw.Elapsed;
+                            log($"Part {i} not found. Assuming end of split archive.");
+                            return; // End of parts — all done
                         }
+                        
+                        response.EnsureSuccessStatusCode();
+
+                        await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                        
+                        var buffer = new byte[81920];
+                        int bytesRead;
+
+                        while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
+                        {
+                            await destStream.WriteAsync(buffer, 0, bytesRead, ct).ConfigureAwait(false);
+                            totalRead += bytesRead;
+
+                            var elapsed = sw.Elapsed - lastReportTime;
+                            if (elapsed.TotalMilliseconds >= 500)
+                            {
+                                string speedStr = SpeedCalculator.FormatSpeed(totalRead - lastReportedRead, elapsed.TotalSeconds);
+                                string details = $"{totalRead / 1024 / 1024} MB (part {i})";
+                                speedProgress?.Report(new SpeedMetrics { DownloadSpeed = speedStr, ProgressDetails = details });
+                                
+                                lastReportedRead = totalRead;
+                                lastReportTime = sw.Elapsed;
+                            }
+                        }
+                        
+                        // Success! Set CDN affinity for future parts
+                        preferredCdnIndex = cdnIdx;
+                        partDownloaded = true;
+                        log($"Part {i} merged via {cdnName}.");
+                        break; // Move to next part
                     }
-                    
-                    log($"Part {i} merged.");
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw; // User cancelled
+                    }
+                    catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound && i > 1)
+                    {
+                        log("End of split parts detected.");
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.Log($"Split part {i} failed from {cdnName}: {ex.Message}");
+                        // Try next CDN
+                    }
                 }
-                catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound && i > 1)
-                {
-                    // Double check catch for fail-safe
-                    log("End of split parts detected.");
-                    break;
-                }
-                catch (Exception ex)
+                
+                if (!partDownloaded)
                 {
                     if (i == 1)
                     {
                         throw new DownloadException(ErrorCodes.DL_FILE_NOT_FOUND,
-                            $"Failed to download first part of split zip", ex, startUrl);
+                            $"Failed to download first part of split zip from all CDNs", startUrl);
                     }
                     else
                     {
-                        log($"Warning: stopped at part {i} due to error: {ex.Message}");
-                        break; // Stop and assume we have what we have? Or fail? Usually fail if specific part missing.
-                               // For now let's hope it's just end of file if it's a 404-like error not caught above.
+                        log($"Warning: stopped at part {i} — all CDNs failed.");
+                        break;
                     }
                 }
             }
@@ -284,122 +317,29 @@ namespace ArdysaModsTools.Core.Services
             CancellationToken ct,
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
         {
-            bool downloadComplete = false;
-            string successfulUrl = url;
-            
-            // Get all CDN URLs to try in priority order (R2 → jsDelivr → GitHub Raw)
+            // Build all CDN URLs to try in priority order (R2 → jsDelivr → GitHub Raw)
             var cdnUrls = GetCdnUrlsInPriorityOrder(url);
-            Exception? lastException = null;
             
-            foreach (var cdnUrl in cdnUrls)
+            _logger?.Log($"Starting resumable download: {url} → {destPath}");
+            
+            try
             {
-                ct.ThrowIfCancellationRequested();
-                
-                try
-                {
-                    var cdnName = GetCdnDisplayName(cdnUrl);
-                    log($"Trying {cdnName}...");
-                    _logger?.Log($"Attempting download from: {cdnUrl}");
-                    
-                    await DownloadFromUrlAsync(cdnUrl, destPath, log, ct, speedProgress).ConfigureAwait(false);
-                    
-                    // Success!
-                    downloadComplete = true;
-                    successfulUrl = cdnUrl;
-                    log($"Download completed from {cdnName}.");
-                    _logger?.Log($"Successfully downloaded from {cdnName}: {cdnUrl}");
-                    return;
-                }
-                catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
-                {
-                    // 403 Forbidden - try next CDN (jsDelivr blocks files > 20MB)
-                    log($"CDN blocked (403). Trying next source...");
-                    _logger?.Log($"HTTP 403 from {cdnUrl}, trying next CDN");
-                    lastException = ex;
-                    continue;
-                }
-                catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
-                {
-                    // 404 Not Found - file doesn't exist on this CDN
-                    _logger?.Log($"HTTP 404 from {cdnUrl}, trying next CDN");
-                    lastException = ex;
-                    continue;
-                }
-                catch (TaskCanceledException ex) when (!ct.IsCancellationRequested)
-                {
-                    // Timeout - try next CDN
-                    log($"Request timed out. Trying next source...");
-                    _logger?.Log($"Timeout from {cdnUrl}, trying next CDN");
-                    lastException = ex;
-                    continue;
-                }
-                catch (OperationCanceledException)
-                {
-                    // User cancelled - don't retry
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    // Other error - try next CDN
-                    _logger?.Log($"Error from {cdnUrl}: {ex.Message}");
-                    lastException = ex;
-                    continue;
-                }
-                finally
-                {
-                    // Clean up partial download if not complete
-                    if (!downloadComplete && File.Exists(destPath))
-                    {
-                        try { File.Delete(destPath); } catch { }
-                    }
-                }
+                await ResumableDownloadService.Instance.DownloadAsync(
+                    cdnUrls,
+                    destPath,
+                    log,
+                    progress: null,
+                    speedProgress,
+                    ct
+                ).ConfigureAwait(false);
             }
-            
-            // All CDNs failed
-            var errorMessage = lastException?.Message ?? "All CDNs unreachable";
-            var dlEx = new DownloadException(ErrorCodes.DL_NETWORK_ERROR,
-                $"Download failed from all CDNs: {errorMessage}", 
-                lastException ?? new InvalidOperationException("No CDN sources available"), 
-                url);
-            log($"Download failed: {dlEx.Message}");
-            _logger?.Log($"[{dlEx.ErrorCode}] All CDNs failed for: {url}");
-            throw dlEx;
-        }
-        
-        /// <summary>
-        /// Downloads from a specific URL with retry logic.
-        /// </summary>
-        private async Task DownloadFromUrlAsync(
-            string url,
-            string destPath,
-            Action<string> log,
-            CancellationToken ct,
-            IProgress<SpeedMetrics>? speedProgress = null)
-        {
-            await RetryHelper.ExecuteAsync(async () =>
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct)
-                    .ConfigureAwait(false);
-                
-                response.EnsureSuccessStatusCode();
-                
-                var totalBytes = response.Content.Headers.ContentLength ?? -1;
-                await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                await using var progressStream = new ProgressStream(contentStream, speedProgress, totalBytes > 0 ? totalBytes : null);
-                await using var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true);
-                
-                var buffer = new byte[81920];
-                int bytesRead;
-                
-                while ((bytesRead = await progressStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
-                {
-                    await fileStream.WriteAsync(buffer, 0, bytesRead, ct).ConfigureAwait(false);
-                }
-            },
-            maxAttempts: 2,
-            initialDelayMs: 500,
-            onRetry: (attempt, ex) => log($"Retry {attempt}/2: {ex.Message}"),
-            ct: ct).ConfigureAwait(false);
+                var dlEx = new DownloadException(ErrorCodes.DL_NETWORK_ERROR,
+                    $"Download failed from all CDNs: {ex.Message}", ex, url);
+                _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
+                throw dlEx;
+            }
         }
         
         /// <summary>

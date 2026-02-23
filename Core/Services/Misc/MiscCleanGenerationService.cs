@@ -120,8 +120,9 @@ namespace ArdysaModsTools.Core.Services
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
 
-                    // Note: We pass empty string for vpkPath since we're using extractDir directly
-                    if (!await _modifier.ApplyModificationsAsync(string.Empty, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false))
+                    // The modifier uses vpkPath to determine the dota root directory for extracting couriers/etc.
+                    string dummyVpkPath = Path.Combine(modsDir, "pak01_dir.vpk");
+                    if (!await _modifier.ApplyModificationsAsync(dummyVpkPath, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false))
                         return Fail("Modification failed.", log);
 
                     ct.ThrowIfCancellationRequested();
@@ -133,7 +134,7 @@ namespace ArdysaModsTools.Core.Services
                     log("Building VPK...");
                     var newVpkPath = await _recompiler.RecompileAsync(
                         vpkToolPath, extractDir, buildDir, tempRoot, 
-                        vpkLog => log($"[VPK] {vpkLog}"), // Capture VPK diagnostics
+                        vpkLog => _logger?.Log($"[VPK] {vpkLog}"), // VPK diagnostics → debug log only
                         ct, speedProgress).ConfigureAwait(false);
 
                     if (string.IsNullOrWhiteSpace(newVpkPath))

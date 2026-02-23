@@ -28,6 +28,7 @@ using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Helpers;
@@ -469,61 +470,34 @@ namespace ArdysaModsTools.Core.Services
                 }
                 else
                 {
-                    const int maxRetries = 1;
-                    for (int attempt = 0; attempt <= maxRetries; attempt++)
+                    // Use ResumableDownloadService for robust downloading
+                    // with Range-based resume, stall detection, and progress
+                    try
                     {
-                        try
+                        void logMsg(string msg)
                         {
-                            using (var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
-                            {
-                                if (!response.IsSuccessStatusCode)
-                                {
-                                    _logger?.Log($"Download failed: {response.StatusCode}");
-                                    FallbackLogger.Log($"DownloadModsPack failed {response.StatusCode} from {url}");
-                                    return (false, false);
-                                }
-
-                                long? total = response.Content.Headers.ContentLength;
-                                using (var netStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
-                                using (var progressStream = new ArdysaModsTools.Core.Helpers.ProgressStream(netStream, speedProgress, total))
-                                using (var fileStream = new FileStream(downloadPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                                {
-                                    const int bufferSize = 81920;
-                                    var buffer = new byte[bufferSize];
-                                    long totalRead = 0;
-                                    int bytesRead;
-                                    int lastReported = -1;
-
-                                    while ((bytesRead = await progressStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0)
-                                    {
-                                        await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
-                                        totalRead += bytesRead;
-
-                                        if (total.HasValue && progress != null)
-                                        {
-                                            int pct = (int)(totalRead * 100L / total.Value);
-                                            if (pct != lastReported)
-                                            {
-                                                lastReported = pct;
-                                                progress.Report(pct);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            break; // Download succeeded, exit retry loop
+                            _logger?.Log(msg);
+                            statusCallback?.Invoke(msg);
                         }
-                        catch (OperationCanceledException)
-                        {
-                            throw; // User cancelled — propagate immediately
-                        }
-                        catch (Exception ex) when (attempt < maxRetries && (ex is HttpRequestException || ex is IOException))
-                        {
-                            _logger?.Log($"Download attempt {attempt + 1} failed: {ex.Message}. Retrying...");
-                            statusCallback?.Invoke("Retrying download...");
-                            progress?.Report(0); // Reset progress for retry
-                            await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
-                        }
+
+                        await ResumableDownloadService.Instance.DownloadAsync(
+                            new[] { url },
+                            downloadPath,
+                            logMsg,
+                            progress,
+                            speedProgress,
+                            cancellationToken
+                        ).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.Log($"ModsPack download failed: {ex.Message}");
+                        FallbackLogger.Log($"ModsPack download exception: {ex.Message}");
+                        return (false, false);
                     }
                 }
 

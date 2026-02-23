@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.14-beta] (Build 2105)
+
+### ✨ Added
+
+- Add Courier option in Miscellaneous
+
+### 🚀 Improved
+
+- Replaced `HttpClient` manual retry loops in `HeroSetDownloaderService` and `ModInstallerService` with a centralized `ResumableDownloadService`.
+- Replaced 200+ lines of custom stall detection logic in `OriginalVpkService` with `ResumableDownloadService` integration.
+- Implemented HTTP `Range`-based chunk streaming to support resuming downloads across CDN failovers (R2 → jsDelivr → GitHub) without losing progress.
+- Increased `CdnConfig.TimeoutSeconds` from 15 to 30 and `CdnConfig.MaxRetryPerCdn` from 1 to 2 for better reliability on unstable connections.
+
+### 🐛 Fixed
+
+- Suppressed verbose developer-facing `[VPK-Search]` diagnostics from the UI progress overlay; these are now routed exclusively to the background `FallbackLogger`.
+- Coalesced redundant log entries during Courier and River modification for a cleaner user experience.
+
+---
+
 ## [2.1.14-beta] (Build 2104)
 
 ### 🐛 Fixed

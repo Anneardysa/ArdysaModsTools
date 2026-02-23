@@ -17,6 +17,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -58,11 +59,6 @@ namespace ArdysaModsTools.Core.Services
         /// </summary>
         private const string OriginalZipAssetPath = "Assets/Original.zip";
         
-        /// <summary>
-        /// Seconds of zero data transfer before abandoning a CDN and trying the next.
-        /// Aggressive enough to fail fast, generous enough to tolerate slow starts.
-        /// </summary>
-        private const int StallTimeoutSeconds = 30;
         
         private readonly HttpClient _httpClient;
         private readonly IVpkExtractor _extractor;
@@ -235,10 +231,8 @@ namespace ArdysaModsTools.Core.Services
         // ================================================================
 
         /// <summary>
-        /// Download Original.zip with automatic CDN fallback.
-        /// Tries each CDN in speed-ranked order (via SmartCdnSelector).
-        /// Each CDN gets <see cref="StallTimeoutSeconds"/> to start delivering data;
-        /// if it stalls, we cancel and move to the next CDN.
+        /// Download Original.zip with automatic CDN fallback and resumable Range requests.
+        /// Uses ResumableDownloadService for robust downloading with stall detection.
         /// </summary>
         private async Task DownloadWithCdnFallbackAsync(
             string destPath,
@@ -247,203 +241,22 @@ namespace ArdysaModsTools.Core.Services
             IProgress<SpeedMetrics>? speedProgress = null,
             IProgress<int>? progress = null)
         {
-            // Get CDN URLs ordered by measured speed (fastest first)
+            // Build CDN URL list ordered by speed (via SmartCdnSelector)
             var cdnBaseUrls = SmartCdnSelector.Instance.GetOrderedCdnUrls();
-            int totalCdns = cdnBaseUrls.Length;
-            string? lastError = null;
-
-            for (int i = 0; i < totalCdns; i++)
-            {
-                ct.ThrowIfCancellationRequested();
-
-                string cdnBase = cdnBaseUrls[i];
-                string cdnUrl = $"{cdnBase.TrimEnd('/')}/{OriginalZipAssetPath}";
-                string cdnName = GetCdnDisplayName(cdnBase);
-
-                if (i > 0)
-                {
-                    log($"Trying alternate server ({i + 1}/{totalCdns}): {cdnName}...");
-                    _logger?.Log($"OriginalVpkService: CDN fallback to {cdnName} ({cdnUrl})");
-                    
-                    // Reset progress for new CDN attempt
-                    progress?.Report(0);
-                    speedProgress?.Report(new SpeedMetrics { DownloadSpeed = "-- MB/S" });
-                }
-
-                try
-                {
-                    await DownloadFromSingleCdnAsync(cdnUrl, destPath, log, ct, speedProgress, progress)
-                        .ConfigureAwait(false);
-
-                    // Success — log which CDN worked
-                    _logger?.Log($"OriginalVpkService: Download succeeded from {cdnName}");
-                    return;
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    // User cancelled — propagate immediately, don't try next CDN
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    lastError = ex.Message;
-                    
-                    // Clean up partial download before trying next CDN
-                    try { if (File.Exists(destPath)) File.Delete(destPath); } catch { }
-
-                    // Report failure to SmartCdnSelector for future reordering
-                    SmartCdnSelector.Instance.ReportFailure(cdnBase);
-
-                    _logger?.Log($"OriginalVpkService: {cdnName} failed — {ex.Message}");
-
-                    // If this is the last CDN, don't silently continue
-                    if (i == totalCdns - 1)
-                    {
-                        log($"All servers failed. Last error: {ex.Message}");
-                    }
-                    else
-                    {
-                        log($"Server {cdnName} failed, switching to next...");
-                    }
-                }
-            }
-
-            // All CDNs exhausted
-            _logger?.Log($"OriginalVpkService: All {totalCdns} CDNs failed. Last error: {lastError}");
-            throw new HttpRequestException(
-                $"Failed to download base files from all servers. " +
-                $"Please check your internet connection and try again. ({lastError})");
-        }
-
-        /// <summary>
-        /// Download from a single CDN URL with stall detection.
-        /// Throws <see cref="TimeoutException"/> if no data is received for
-        /// <see cref="StallTimeoutSeconds"/>, causing the caller to try the next CDN.
-        /// </summary>
-        private async Task DownloadFromSingleCdnAsync(
-            string url,
-            string destPath,
-            Action<string> log,
-            CancellationToken ct,
-            IProgress<SpeedMetrics>? speedProgress = null,
-            IProgress<int>? progress = null)
-        {
-            // Overall timeout: 10 minutes per CDN (generous for slow connections)
-            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeoutCts.CancelAfter(TimeSpan.FromMinutes(10));
-
-            using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token)
-                .ConfigureAwait(false);
-
-            // Transient HTTP errors → throw to trigger next CDN
-            if (RetryHelper.IsTransientStatusCode(response.StatusCode))
-                throw new HttpRequestException($"Server returned {(int)response.StatusCode} {response.StatusCode}");
-
-            response.EnsureSuccessStatusCode();
-
-            var totalBytes = response.Content.Headers.ContentLength ?? -1;
-            var totalMb = totalBytes / 1024.0 / 1024.0;
-
-            log($"Downloading base files ({totalMb:F1} MB)...");
-
-            await using var contentStream = await response.Content.ReadAsStreamAsync(timeoutCts.Token).ConfigureAwait(false);
-            await using var progressStream = new ProgressStream(contentStream, speedProgress, totalBytes > 0 ? totalBytes : null);
-            await using var fileStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920);
-
-            var buffer = new byte[81920];
-            long totalRead = 0;
-            int bytesRead;
-            int lastPercentReported = 0;
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-
-            // Stall detection: track time of last received data
-            var lastActivityTime = DateTime.UtcNow;
-            var stallWarningShown = false;
-
-            // Stall monitor: cancels the download if no data for StallTimeoutSeconds
-            // This triggers fallback to the next CDN instead of waiting minutes
-            using var stallCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token);
-            var stallMonitorTask = Task.Run(async () =>
-            {
-                try
-                {
-                    while (!stallCts.Token.IsCancellationRequested)
-                    {
-                        await Task.Delay(3000, stallCts.Token).ConfigureAwait(false);
-                        
-                        var stalledSeconds = (DateTime.UtcNow - lastActivityTime).TotalSeconds;
-
-                        // At 15s: show warning to user
-                        if (stalledSeconds >= 15 && !stallWarningShown)
-                        {
-                            stallWarningShown = true;
-                            log("Download stalled — will try alternate server shortly...");
-                        }
-
-                        // At StallTimeoutSeconds: cancel this CDN attempt
-                        if (stalledSeconds >= StallTimeoutSeconds)
-                        {
-                            _logger?.Log($"OriginalVpkService: Stall detected after {stalledSeconds:F0}s on {url}");
-                            stallCts.Cancel();
-                        }
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    // Expected — either stall triggered or download completed
-                }
-            }, stallCts.Token);
-
-            try
-            {
-                while ((bytesRead = await progressStream.ReadAsync(buffer, stallCts.Token).ConfigureAwait(false)) > 0)
-                {
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), stallCts.Token).ConfigureAwait(false);
-                    totalRead += bytesRead;
-                    lastActivityTime = DateTime.UtcNow;
-
-                    // Reset stall warning on resumed activity
-                    if (stallWarningShown)
-                    {
-                        stallWarningShown = false;
-                        log($"Download resumed — {totalRead / 1024.0 / 1024.0:F1} MB received so far");
-                    }
-
-                    if (totalBytes > 0)
-                    {
-                        int percent = (int)(totalRead * 100 / totalBytes);
-                        if (percent >= lastPercentReported + 1)
-                        {
-                            lastPercentReported = percent;
-                            progress?.Report(percent);
-                        }
-                    }
-                }
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                // Stall timeout or per-CDN timeout — not user cancellation
-                // Throw a descriptive exception so the fallback loop can catch it
-                throw new TimeoutException(
-                    $"Download stalled for {StallTimeoutSeconds}s with {totalRead / 1024.0 / 1024.0:F1} MB received");
-            }
-            finally
-            {
-                // Stop stall monitor cleanly
-                stallCts.Cancel();
-                try { await stallMonitorTask.ConfigureAwait(false); } catch { }
-            }
-
-            // Verify we actually got data
-            if (totalRead == 0)
-            {
-                throw new HttpRequestException("Server returned empty response body");
-            }
-
-            sw.Stop();
-            var avgSpeed = SpeedCalculator.FormatSpeed(totalRead, sw.Elapsed.TotalSeconds);
-            log($"Download complete ({totalRead / 1024.0 / 1024.0:F1} MB at {avgSpeed})");
-            speedProgress?.Report(new SpeedMetrics { DownloadSpeed = "-- MB/S" });
+            var urls = cdnBaseUrls
+                .Select(b => $"{b.TrimEnd('/')}/{OriginalZipAssetPath}")
+                .ToArray();
+            
+            _logger?.Log($"Starting resumable download of Original.zip ({urls.Length} CDN sources)");
+            
+            await ResumableDownloadService.Instance.DownloadAsync(
+                urls,
+                destPath,
+                log,
+                progress,
+                speedProgress,
+                ct
+            ).ConfigureAwait(false);
         }
 
         /// <summary>

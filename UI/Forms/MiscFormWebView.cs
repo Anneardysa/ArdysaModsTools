@@ -182,18 +182,12 @@ namespace ArdysaModsTools.UI.Forms
                     .InformationalVersion ?? "unknown";
                 await ExecuteScriptAsync($"setVersion('{version}')");
 
-                // Show loading overlay FIRST (before any content loads)
-                await ExecuteScriptAsync("showCachingOverlay()");
-                
-                // Load and preload thumbnails (while overlay is visible)
+                // Load and preload thumbnails
                 await MiscCategoryService.PreloadConfigAsync();
                 await PreloadMiscThumbnailsAsync();
                 
                 // NOW load and render options (after thumbnails are ready)
                 await LoadOptionsAsync();
-                
-                // Hide overlay and show gallery
-                await ExecuteScriptAsync("hideCachingOverlay()");
                 
                 await RestoreSelectionsAsync();
             }
@@ -226,11 +220,17 @@ namespace ArdysaModsTools.UI.Forms
                     name = o.DisplayName,
                     category = o.Category,
                     thumbnailPattern = o.ThumbnailUrlPattern ?? "",
-                    choices = o.Choices.Select(c => new
-                    {
-                        id = c,
-                        name = c
-                    }).ToList()
+                    choices = o.Choices
+                        .Select(c => new
+                        {
+                            id = c,
+                            name = c,
+                            // Nest styles under each choice for the frontend style picker
+                            styles = o.ChoiceStyles.ContainsKey(c) ? o.ChoiceStyles[c].Select(s => new {
+                                id = s,
+                                name = s
+                            }).ToList() : null
+                        }).ToList()
                 }).ToList();
 
                 // Set default thumbnail path (app icon)
@@ -248,8 +248,17 @@ namespace ArdysaModsTools.UI.Forms
         }
 
         /// <summary>
+        /// Cooldown period between batch freshness checks.
+        /// Within this window, subsequent selector opens skip the overlay entirely.
+        /// </summary>
+        private static readonly TimeSpan RefreshCooldown = TimeSpan.FromMinutes(10);
+
+        /// <summary>
         /// Preloads all misc thumbnails with proper UI feedback.
-        /// Phases: Checking → Downloading → Processing
+        /// Uses 3-path caching to avoid showing the overlay on every open:
+        /// 1. All cached + refreshed within cooldown -> Skip overlay entirely
+        /// 2. All cached + cooldown expired -> Silent background refresh
+        /// 3. Missing thumbnails -> Show overlay to download missing ones
         /// </summary>
         private async Task PreloadMiscThumbnailsAsync()
         {
@@ -281,50 +290,121 @@ namespace ArdysaModsTools.UI.Forms
                 var cached = allUrls.Where(u => cacheService.IsCached(u)).ToList();
                 var notCached = allUrls.Where(u => !cacheService.IsCached(u)).ToList();
                 
-                int refreshed = 0, downloaded = 0;
+                System.Diagnostics.Debug.WriteLine(
+                    $"[MiscForm] Thumbnails: {cached.Count} cached, {notCached.Count} missing");
 
-                // Phase 1: Check freshness of cached items
-                if (cached.Count > 0)
+                // ── Path 1: All cached + recently refreshed → skip entirely ─────
+                if (notCached.Count == 0 && !cacheService.ShouldRefreshAssets(RefreshCooldown))
                 {
-                    await UpdateCachingStatusAsync("Checking for updates...", 0, cached.Count);
+                    System.Diagnostics.Debug.WriteLine(
+                        "[MiscForm] All cached, cooldown active — skipping overlay");
+                    return;
+                }
+
+                // ── Path 2: All cached + cooldown expired → silent refresh ──────
+                if (notCached.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        "[MiscForm] All cached, cooldown expired — silent freshness check");
                     
-                    var refreshProgress = new Progress<(int current, int total, string url)>(async p =>
+                    // Run freshness check in background (fire-and-forget)
+                    _ = Task.Run(async () =>
                     {
-                        try { await UpdateCachingProgressAsync(p.current, p.total); }
-                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"RefreshProgress callback failed: {ex.Message}"); }
+                        try
+                        {
+                            await RunSilentRefreshAsync(cacheService, cached);
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine(
+                                $"[MiscForm] Background refresh error: {ex.Message}");
+                        }
                     });
-
-                    var refreshResult = await cacheService.RefreshStaleAssetsAsync(cached, refreshProgress);
-                    refreshed = refreshResult.refreshed;
+                    return;
                 }
 
-                // Phase 2: Download missing items
-                if (notCached.Count > 0)
-                {
-                    await UpdateCachingStatusAsync("Downloading thumbnails...", 0, notCached.Count);
-
-                    var downloadProgress = new Progress<(int current, int total, string url)>(async p =>
-                    {
-                        try { await UpdateCachingProgressAsync(p.current, p.total); }
-                        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"DownloadProgress callback failed: {ex.Message}"); }
-                    });
-
-                    var downloadResult = await cacheService.PreloadAssetsWithProgressAsync(notCached, downloadProgress);
-                    downloaded = downloadResult.downloaded;
-                }
-
-                // Phase 3: Processing (brief transition before showing gallery)
-                var totalProcessed = refreshed + downloaded;
-                if (totalProcessed > 0)
-                {
-                    await UpdateCachingStatusAsync("Processing thumbnails...", totalProcessed, totalProcessed);
-                    await Task.Delay(200); // Brief pause for smooth transition
-                }
+                // ── Path 3: Missing thumbnails → show overlay for downloads ─────
+                await RunDownloadWithOverlayAsync(cacheService, cached, notCached);
             }
             finally
             {
                 // Brief delay for smooth transition
                 await Task.Delay(150);
+            }
+        }
+
+        /// <summary>
+        /// Run freshness check silently in the background (no overlay).
+        /// Called when all assets are cached but the cooldown has expired.
+        /// </summary>
+        private async Task RunSilentRefreshAsync(AssetCacheService cacheService, List<string> cachedUrls)
+        {
+            try
+            {
+                var result = await cacheService.RefreshStaleAssetsAsync(cachedUrls);
+                cacheService.MarkRefreshed();
+
+                System.Diagnostics.Debug.WriteLine(
+                    $"[MiscForm] Silent refresh complete: " +
+                    $"{result.refreshed} refreshed, {result.skipped} skipped, {result.failed} failed");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[MiscForm] Silent refresh error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Download missing thumbnails with visible overlay progress.
+        /// Also runs a freshness check on cached items if the cooldown has expired.
+        /// </summary>
+        private async Task RunDownloadWithOverlayAsync(
+            AssetCacheService cacheService,
+            List<string> cached,
+            List<string> notCached)
+        {
+            int refreshed = 0, downloaded = 0;
+
+            // Phase 1: Check freshness of cached items (only if cooldown expired)
+            if (cached.Count > 0 && cacheService.ShouldRefreshAssets(RefreshCooldown))
+            {
+                await UpdateCachingStatusAsync("Checking for updates...", 0, cached.Count);
+                
+                var refreshProgress = new Progress<(int current, int total, string url)>(async p =>
+                {
+                    try { await UpdateCachingProgressAsync(p.current, p.total); }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"RefreshProgress callback failed: {ex.Message}"); }
+                });
+
+                var refreshResult = await cacheService.RefreshStaleAssetsAsync(cached, refreshProgress);
+                refreshed = refreshResult.refreshed;
+            }
+
+            // Phase 2: Download missing items
+            if (notCached.Count > 0)
+            {
+                await UpdateCachingStatusAsync("Downloading thumbnails...", 0, notCached.Count);
+
+                var downloadProgress = new Progress<(int current, int total, string url)>(async p =>
+                {
+                    try { await UpdateCachingProgressAsync(p.current, p.total); }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"DownloadProgress callback failed: {ex.Message}"); }
+                });
+
+                var downloadResult = await cacheService.PreloadAssetsWithProgressAsync(notCached, downloadProgress);
+                downloaded = downloadResult.downloaded;
+            }
+
+            // Mark refresh complete after both phases
+            cacheService.MarkRefreshed();
+
+            // Phase 3: Processing (brief transition before showing gallery)
+            var totalProcessed = refreshed + downloaded;
+            if (totalProcessed > 0)
+            {
+                await UpdateCachingStatusAsync("Processing thumbnails...", totalProcessed, totalProcessed);
+                await Task.Delay(200); // Brief pause for smooth transition
             }
         }
 

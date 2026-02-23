@@ -30,6 +30,7 @@ using ArdysaModsTools.Helpers;
 using SharpCompress.Archives;
 using SharpCompress.Common;
 using ArdysaModsTools.Core.Interfaces;
+using ArdysaModsTools.Core.Services.Misc;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -134,6 +135,9 @@ namespace ArdysaModsTools.Core.Services
 
             // Apply file-based mods (these don't modify items_game.txt)
             // Adding intervals between each for better pacing
+            content = await ApplyCourierModAsync(content, vpkPath, extractDir, selections, log, ct).ConfigureAwait(false);
+            await Task.Delay(200, ct).ConfigureAwait(false);
+
             await ApplyRiverModAsync(vpkPath, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false);
             await Task.Delay(200, ct).ConfigureAwait(false);
             
@@ -183,7 +187,7 @@ namespace ArdysaModsTools.Core.Services
             }
 
             // Use balanced brace matching for reliable replacement
-            content = KeyValuesBlockHelper.ReplaceIdBlock(content, itemId, replacementBlock, out bool didReplace, requireItemMarkers: false);
+            content = KeyValuesBlockHelper.ReplaceIdBlock(content, itemId, replacementBlock, out bool didReplace, requireItemMarkers: true);
             
             if (didReplace)
             {
@@ -195,6 +199,139 @@ namespace ArdysaModsTools.Core.Services
             }
 
             await Task.Delay(100, ct).ConfigureAwait(false);
+            return content;
+        }
+
+        private async Task<string> ApplyCourierModAsync(string content, string vpkPath, string extractDir,
+            Dictionary<string, string> selections, Action<string> log, CancellationToken ct)
+        {
+            const string category = "Courier";
+
+            // Cleanup previous courier files
+            await CleanupCategoryFilesAsync(category, extractDir, ct).ConfigureAwait(false);
+
+            if (!selections.TryGetValue(category, out var selCourier) || string.IsNullOrEmpty(selCourier))
+                return content;
+
+            if (selCourier == "Default Courier")
+            {
+                log("Restoring Default Courier...");
+                return content;
+            }
+
+            var itemIdRaw = ModConfigurationData.GetUrl(category, selCourier);
+            if (string.IsNullOrEmpty(itemIdRaw)) return content;
+
+            // Split ID and Style (e.g., "10746" or "10746:1")
+            string courierId = itemIdRaw;
+            int? styleIndex = null;
+
+            if (itemIdRaw.Contains(':'))
+            {
+                var parts = itemIdRaw.Split(':');
+                courierId = parts[0];
+                if (int.TryParse(parts[1], out int parsedStyle))
+                    styleIndex = parsedStyle;
+            }
+
+            log($"Applying Courier: {selCourier}...");
+
+            // 1. Extract Default Courier Block (ID 595)
+            string? defaultBlock = KeyValuesBlockHelper.ExtractBlockById(content, CourierPatcherService.DefaultCourierItemId);
+            if (string.IsNullOrEmpty(defaultBlock))
+            {
+                log("Warning: Default Courier block (595) not found in items_game.txt. Mod might not work.");
+                return content;
+            }
+
+            // 2. Extract Selected Courier Block
+            string? selectedBlock = KeyValuesBlockHelper.ExtractBlockById(content, courierId);
+            if (string.IsNullOrEmpty(selectedBlock))
+            {
+                log($"Warning: Selected Courier block ({courierId}) not found.");
+                return content;
+            }
+
+            // 3. Build Merged Block
+            string mergedBlock = CourierPatcherService.BuildMergedCourierBlock(defaultBlock, selectedBlock, styleIndex);
+            if (string.IsNullOrEmpty(mergedBlock))
+            {
+                log("Warning: Failed to build merged courier block.");
+                return content;
+            }
+
+            // 4. Replace Default Block with Merged Block
+            content = KeyValuesBlockHelper.ReplaceIdBlock(content, CourierPatcherService.DefaultCourierItemId, mergedBlock, out bool replaced, requireItemMarkers: true);
+
+            if (!replaced)
+            {
+                log("Warning: Failed to replace Default Courier block.");
+                return content;
+            }
+
+            // 5. Extract Courier Models from Game VPK and map them
+            var models = CourierPatcherService.ParseCourierVisuals(selectedBlock, styleIndex);
+            var vpkExtractPaths = CourierPatcherService.GetVpkExtractionPaths(models);
+            var modelMappings = CourierPatcherService.GetModelMapping(models);
+
+            if (vpkExtractPaths.Count > 0 && modelMappings.Count > 0)
+            {
+                string dotaRoot = PathUtility.NormalizeTargetPath(Path.GetDirectoryName(Path.GetDirectoryName(vpkPath)) ?? "");
+                string gameVpkPath = Path.Combine(dotaRoot, "game", "dota", "pak01_dir.vpk");
+                string hlExtractPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HLExtract.exe");
+
+                if (File.Exists(gameVpkPath) && File.Exists(hlExtractPath))
+                {
+                    string tempModelDir = Path.Combine(extractDir, "_temp_couriers");
+                    Directory.CreateDirectory(tempModelDir);
+
+                    // Re-use VpkExtractor logic logic
+                    foreach (var vpkExtractPath in vpkExtractPaths)
+                    {
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = hlExtractPath,
+                            Arguments = $"-p \"{gameVpkPath}\" -d \"{tempModelDir}\" -e \"{vpkExtractPath}\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                        };
+
+                        using var proc = Process.Start(psi);
+                        if (proc != null)
+                        {
+                            await proc.WaitForExitAsync(ct).ConfigureAwait(false);
+                        }
+                    }
+
+                    string targetModelDir = Path.Combine(extractDir, "models", "props_gameplay");
+                    Directory.CreateDirectory(targetModelDir);
+
+                    foreach (var mapping in modelMappings)
+                    {
+                        // Some couriers might package files directly without the _c, but HLExtract extracts exactly what is in the VPK index.
+                        // The extraction path from GetVpkExtractionPaths includes _c
+                        string extractedFile = Path.Combine(tempModelDir, mapping.SourcePath + "_c");
+                        // Fallback check if it was extracted without _c
+                        if (!File.Exists(extractedFile))
+                            extractedFile = Path.Combine(tempModelDir, mapping.SourcePath);
+                            
+                        if (File.Exists(extractedFile))
+                        {
+                            string targetFile = Path.Combine(targetModelDir, mapping.TargetFileName);
+                            File.Copy(extractedFile, targetFile, true);
+                            TrackInstalledFile(category, Path.Combine("models", "props_gameplay", mapping.TargetFileName).Replace('\\', '/'));
+                        }
+                    }
+
+                    try { Directory.Delete(tempModelDir, true); } catch { }
+                    _logger?.Log("Courier models mapped.");
+                }
+                else
+                {
+                    log("Warning: Could not find Dota 2 game VPK or HLExtract to extract models.");
+                }
+            }
+
             return content;
         }
 

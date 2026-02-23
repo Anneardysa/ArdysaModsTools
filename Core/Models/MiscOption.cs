@@ -59,6 +59,12 @@ namespace ArdysaModsTools.Core.Models
         public Dictionary<string, string> ChoiceThumbnails { get; set; } = new();
 
         /// <summary>
+        /// Per-choice style sub-options (e.g., courier styles).
+        /// Maps choice name to list of style names. When present, the UI shows a style picker.
+        /// </summary>
+        public Dictionary<string, List<string>> ChoiceStyles { get; set; } = new();
+
+        /// <summary>
         /// Get thumbnail URL for a specific choice.
         /// Priority: ChoiceThumbnails (derived from zip URL) -> ThumbnailUrlPattern (legacy)
         /// </summary>
