@@ -506,6 +506,62 @@
          </div>
       </div>
 
+      <!-- Ethereal Overlay (above style overlay) -->
+      <div
+         id="etherealOverlay"
+         class="hidden fixed inset-0 z-[96] flex items-center justify-center"
+      >
+         <div
+            class="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onclick="closeEtherealOverlay()"
+         ></div>
+         <div
+            class="relative bg-amt-bg border border-pink-500/50 rounded-xl w-full max-w-lg mx-4 shadow-2xl animate-bounce-in"
+         >
+            <!-- Header -->
+            <div class="flex items-center gap-4 px-6 py-4 border-b border-pink-500/30">
+               <button
+                  onclick="closeEtherealOverlay()"
+                  class="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+               >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                     ></path>
+                  </svg>
+               </button>
+               <div
+                  id="etherealOverlayThumb"
+                  class="w-12 h-12 rounded-lg bg-amt-card border border-pink-500/30 overflow-hidden flex-shrink-0"
+               ></div>
+               <div class="flex-1 min-w-0">
+                  <h3 class="text-lg font-bold text-pink-300">✦ Ethereal Effects</h3>
+                  <p id="etherealSlotInfo" class="text-xs text-gray-500">Select up to 2 effects</p>
+               </div>
+            </div>
+
+            <!-- Effects Grid -->
+            <div
+               id="etherealGrid"
+               class="p-4 grid grid-cols-1 gap-1.5 max-h-[55vh] overflow-y-auto"
+            ></div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between px-6 py-4 border-t border-pink-500/30">
+               <span id="etherealCounter" class="text-xs text-pink-300/70">0 selected</span>
+               <button
+                  onclick="closeEtherealOverlay()"
+                  class="px-6 py-2 text-sm font-semibold bg-pink-500 text-white rounded-lg hover:bg-pink-400 transition-all"
+               >
+                  Done
+               </button>
+            </div>
+         </div>
+      </div>
+
       <!-- Progress Overlay -->
       <div
          id="progressOverlay"
@@ -739,6 +795,87 @@
          let currentOptionIndex = -1;
          let isGenerating = false;
          const thumbCache = new Map();
+
+         // Ethereal effects data (static — matches EtherealEffects.cs)
+         const ETHEREAL_EFFECTS = {
+            "Touch of Midas (Midas Gold)":
+               "particles/econ/courier/courier_golden_roshan/golden_roshan_ambient.vpcf",
+            "Touch of Flame (Pyroclastic Flow)":
+               "particles/econ/courier/courier_roshan_lava/courier_roshan_lava.vpcf",
+            "Touch of Frost (Glacial Flow)":
+               "particles/econ/courier/courier_roshan_frost/courier_roshan_frost_ambient.vpcf",
+            "Desert Sands":
+               "particles/econ/courier/courier_roshan_desert_sands/baby_roshan_desert_sands_ambient.vpcf",
+            "Dark Moon":
+               "particles/econ/courier/courier_roshan_darkmoon/courier_roshan_darkmoon.vpcf",
+            "Ionic Vapor":
+               "particles/econ/courier/courier_platinum_roshan/platinum_roshan_ambient.vpcf",
+            "Trail of Burning Doom":
+               "particles/econ/courier/courier_trail_lava/courier_trail_lava.vpcf",
+            "Butterfly Romp (Plushy Shag)":
+               "particles/econ/courier/courier_shagbark/courier_shagbark_ambient.vpcf",
+            "New Bloom Celebration":
+               "particles/econ/courier/courier_trail_fireworks/courier_trail_fireworks.vpcf",
+            "Blossom Red":
+               "particles/econ/courier/courier_trail_01/blossom_red_courier_trail_01.vpcf",
+            "Glacial Flow":
+               "particles/econ/courier/courier_trail_01/glacial_flow_courier_trail_01.vpcf",
+            "Resonant Energy (ShipsInTheNight)":
+               "particles/econ/courier/courier_trail_02/courier_trail_02.vpcf",
+            "Felicity's Blessing (Light Green)":
+               "particles/econ/courier/courier_trail_03/courier_trail_03.vpcf",
+            "Affliction of Vermin": "particles/econ/courier/courier_trail_04/courier_trail_04.vpcf",
+            "Trail of the Amanita":
+               "particles/econ/courier/courier_trail_fungal/courier_trail_fungal.vpcf",
+            Sunfire: "particles/econ/courier/courier_trail_05/courier_trail_05.vpcf",
+            "Spirit of Earth":
+               "particles/econ/courier/courier_trail_earth/courier_trail_earth.vpcf",
+            "Spirit of Ember (Ember Flame)":
+               "particles/econ/courier/courier_trail_ember/courier_trail_ember.vpcf",
+            "Orbital Decay": "particles/econ/courier/courier_trail_orbit/courier_trail_orbit.vpcf",
+            "Bleak Hallucination (Creator's Light)":
+               "particles/econ/courier/courier_trail_spirit/courier_trail_spirit.vpcf",
+            "Rubiline Sheen": "particles/econ/courier/courier_trail_ruby/courier_trail_ruby.vpcf",
+            "Deep Green":
+               "particles/econ/courier/courier_polycount_01/courier_trail_polycount_01.vpcf",
+            "Divine Essence (Creator's Light)":
+               "particles/econ/courier/courier_trail_divine/courier_trail_divine_ambient.vpcf",
+            "Cursed Essence":
+               "particles/econ/courier/courier_trail_cursed/courier_trail_cursed_ambient.vpcf",
+            "Crystal Rift (Crystalline Blue)":
+               "particles/econ/courier/courier_crystal_rift/courier_ambient_crystal_rift.vpcf",
+            "Blossom Red (Int 2014)":
+               "particles/econ/courier/courier_trail_blossoms/courier_trail_blossoms.vpcf",
+            "Luminous Gaze (Explosive Burst)":
+               "particles/econ/courier/courier_eye_glow_01/courier_eye_glow_01.vpcf",
+            "Searing Essence (ShipsInTheNight)":
+               "particles/econ/courier/courier_eye_glow_02/courier_eye_glow_02.vpcf",
+            "Burning Animus (Gold)":
+               "particles/econ/courier/courier_eye_glow_03/courier_eye_glow_03.vpcf",
+            "Piercing Beams (Blue)":
+               "particles/econ/courier/courier_eye_glow_04/courier_eye_glow_04.vpcf",
+            "Triumph of Champions":
+               "particles/econ/courier/courier_eye_glow_defense_01/courier_eye_glow_defense_01.vpcf",
+            "Frostivus Frost":
+               "particles/econ/courier/courier_trail_winter_2012/courier_trail_winter_2012.vpcf",
+            "Diretide Corruption":
+               "particles/econ/courier/courier_trail_hw_2012/courier_trail_hw_2012.vpcf",
+            "Diretide Blight":
+               "particles/econ/courier/courier_trail_hw_2013/courier_trail_hw_2013.vpcf",
+            "Champion's Aura 2012 (Champion's Blue)":
+               "particles/econ/courier/courier_trail_int_2012/champ_blue_courier_trail_international_2012.vpcf",
+            "Champion's Aura 2013 (Champion's Green)":
+               "particles/econ/courier/courier_trail_international_2013/champ_green_courier_international_2013.vpcf",
+            "Champion's Aura 2014 (Champion's Purple)":
+               "particles/econ/courier/courier_trail_international_2014/champ_purple_courier_international_2014.vpcf",
+            "Blossom Red (Int 2014 Alt)":
+               "particles/econ/courier/courier_trail_international_2014/blossom_red_courier_international_2014.vpcf",
+            "Plushy Shag":
+               "particles/econ/courier/courier_trail_international_2014/plushy_shag_courier_international_2014.vpcf",
+         };
+         const MAX_ETHEREAL_SLOTS = 2;
+         let etherealSelections = []; // currently selected effect names
+         let currentEtherealOptionId = null; // which option the ethereal overlay is for
 
          // C# calls
          function setDefaultThumb(url) {
@@ -1151,8 +1288,15 @@
                      ? `<div class="absolute -top-2 -right-2 bg-cyan-950 border border-amt-accent rounded-full shadow-lg pointer-events-none px-2 py-0.5 text-[10px] text-amt-accent font-bold tracking-wide uppercase">✦ Styles</div>`
                      : "";
 
+               // Ethereal badge — only on Courier option, pink theme
+               const isCourier = opt.id && opt.id.toLowerCase() === "courier";
+               const etherealBadge = isCourier
+                  ? `<div class="absolute -top-2 -left-2 bg-pink-950 border border-pink-400 rounded-full shadow-lg px-2 py-0.5 text-[10px] text-pink-300 font-bold tracking-wide uppercase cursor-pointer hover:bg-pink-900 transition-colors z-10" onclick="event.stopPropagation(); openEtherealOverlay('${opt.id}', '${c.id}')">✦ Ethereal</div>`
+                  : "";
+
                card.innerHTML = `
                   ${styleBadge}
+                  ${etherealBadge}
                   ${
                      cHasUrl
                         ? `<img src="${cThumb}" alt="" class="w-full aspect-square rounded-lg object-cover ${
@@ -1243,6 +1387,108 @@
 
          function closeStyleOverlay() {
             document.getElementById("styleOverlay").classList.add("hidden");
+         }
+
+         // --- Ethereal Overlay Functions ---
+
+         function openEtherealOverlay(optId, choiceId) {
+            currentEtherealOptionId = optId;
+            const opt = options.find((o) => o.id === optId);
+            if (!opt) return;
+
+            // Load saved ethereal selections from main selections
+            const saved = selections["CourierEthereal"] || "";
+            etherealSelections = saved
+               ? saved
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+               : [];
+
+            // Set thumbnail
+            const cThumb = getThumbUrl(opt, choiceId);
+            const thumbEl = document.getElementById("etherealOverlayThumb");
+            const letter = (choiceId || "E").charAt(0).toUpperCase();
+            if (cThumb) {
+               thumbEl.innerHTML = `<img src="${cThumb}" class="w-full h-full object-cover" onerror="handleImgError(this, '${letter}')">`;
+            } else {
+               thumbEl.innerHTML = `<div class="w-full h-full flex items-center justify-center text-lg font-bold text-gray-500">${letter}</div>`;
+            }
+
+            renderEtherealGrid();
+            document.getElementById("etherealOverlay").classList.remove("hidden");
+         }
+
+         function closeEtherealOverlay() {
+            document.getElementById("etherealOverlay").classList.add("hidden");
+            currentEtherealOptionId = null;
+         }
+
+         function renderEtherealGrid() {
+            const grid = document.getElementById("etherealGrid");
+            grid.innerHTML = "";
+
+            const maxSlots = MAX_ETHEREAL_SLOTS;
+            const selectedCount = etherealSelections.length;
+            document.getElementById("etherealSlotInfo").textContent =
+               `Select up to ${maxSlots} effects`;
+            document.getElementById("etherealCounter").textContent =
+               `${selectedCount}/${maxSlots} selected`;
+
+            Object.entries(ETHEREAL_EFFECTS).forEach(([name, path]) => {
+               const isSelected = etherealSelections.includes(name);
+               const isDisabled = !isSelected && selectedCount >= maxSlots;
+
+               const row = document.createElement("div");
+               row.className = `flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${
+                  isSelected
+                     ? "bg-pink-500/15 border border-pink-500/40"
+                     : isDisabled
+                       ? "opacity-40 cursor-not-allowed border border-transparent"
+                       : "hover:bg-white/5 border border-transparent hover:border-pink-500/20"
+               }`;
+
+               if (!isDisabled || isSelected) {
+                  row.onclick = () => toggleEthereal(name);
+               }
+
+               // Checkbox
+               const checkbox = isSelected
+                  ? `<div class="w-5 h-5 rounded bg-pink-500 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                        </svg>
+                     </div>`
+                  : `<div class="w-5 h-5 rounded border ${
+                       isDisabled ? "border-gray-700" : "border-gray-500"
+                    } flex-shrink-0"></div>`;
+
+               row.innerHTML = `
+                  ${checkbox}
+                  <span class="text-sm ${
+                     isSelected ? "text-pink-200" : isDisabled ? "text-gray-600" : "text-gray-300"
+                  } truncate" title="${name}">${name}</span>
+               `;
+               grid.appendChild(row);
+            });
+         }
+
+         function toggleEthereal(effectName) {
+            const idx = etherealSelections.indexOf(effectName);
+            if (idx >= 0) {
+               etherealSelections.splice(idx, 1);
+            } else if (etherealSelections.length < MAX_ETHEREAL_SLOTS) {
+               etherealSelections.push(effectName);
+            }
+
+            // Save to selections
+            selections["CourierEthereal"] = etherealSelections.join(",");
+            sendMessage("selectionChanged", {
+               optionId: "CourierEthereal",
+               choiceId: selections["CourierEthereal"],
+            });
+
+            renderEtherealGrid();
          }
 
          // Called when clicking a parent/base choice tile

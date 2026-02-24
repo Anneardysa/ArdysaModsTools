@@ -216,6 +216,39 @@ namespace ArdysaModsTools.Core.Services
             if (selCourier == "Default Courier")
             {
                 log("Restoring Default Courier...");
+
+                // Even for Default Courier, apply Ethereal effects if selected
+                if (selections.TryGetValue("CourierEthereal", out var defEthereal) && !string.IsNullOrEmpty(defEthereal))
+                {
+                    var effectNames = defEthereal.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    var effectPaths = new List<string>();
+                    foreach (var name in effectNames)
+                    {
+                        var path = Core.Data.EtherealEffects.GetParticlePath(name);
+                        if (path != null) effectPaths.Add(path);
+                    }
+
+                    if (effectPaths.Count > 0)
+                    {
+                        string? defBlock = KeyValuesBlockHelper.ExtractBlockById(content, CourierPatcherService.DefaultCourierItemId);
+                        if (!string.IsNullOrEmpty(defBlock))
+                        {
+                            int existingParticles = CourierPatcherService.CountExistingParticles(defBlock);
+                            string? visualsBlock = CourierPatcherService.ExtractVisualsBlock(defBlock);
+                            if (visualsBlock != null)
+                            {
+                                string updatedVisuals = CourierPatcherService.AppendEtherealEffects(
+                                    visualsBlock, effectPaths, existingParticles);
+                                string updatedBlock = defBlock.Replace(visualsBlock, updatedVisuals);
+
+                                content = KeyValuesBlockHelper.ReplaceIdBlock(content,
+                                    CourierPatcherService.DefaultCourierItemId, updatedBlock, out _, requireItemMarkers: true);
+                                log($"Ethereal effects applied to Default Courier ({effectPaths.Count} effect{(effectPaths.Count > 1 ? "s" : "")}).");
+                            }
+                        }
+                    }
+                }
+
                 return content;
             }
 
@@ -260,6 +293,37 @@ namespace ArdysaModsTools.Core.Services
                 return content;
             }
 
+            // 3.5. Apply Ethereal Effects (if selected)
+            if (selections.TryGetValue("CourierEthereal", out var etherealSelection) && !string.IsNullOrEmpty(etherealSelection))
+            {
+                var effectNames = etherealSelection.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var effectPaths = new List<string>();
+
+                foreach (var name in effectNames)
+                {
+                    var path = Core.Data.EtherealEffects.GetParticlePath(name);
+                    if (path != null) effectPaths.Add(path);
+                }
+
+                if (effectPaths.Count > 0)
+                {
+                    // Count existing particle_create entries in merged block
+                    int existingParticles = CourierPatcherService.CountExistingParticles(mergedBlock);
+
+                    // Extract visuals, append effects, rebuild
+                    string? visualsBlock = CourierPatcherService.ExtractVisualsBlock(mergedBlock);
+                    if (visualsBlock != null)
+                    {
+                        string updatedVisuals = CourierPatcherService.AppendEtherealEffects(
+                            visualsBlock, effectPaths, existingParticles);
+
+                        // Replace old visuals with updated visuals in merged block
+                        mergedBlock = mergedBlock.Replace(visualsBlock, updatedVisuals);
+                        log($"Ethereal effects applied ({effectPaths.Count} effect{(effectPaths.Count > 1 ? "s" : "")}).");
+                    }
+                }
+            }
+
             // 4. Replace Default Block with Merged Block
             content = KeyValuesBlockHelper.ReplaceIdBlock(content, CourierPatcherService.DefaultCourierItemId, mergedBlock, out bool replaced, requireItemMarkers: true);
 
@@ -285,50 +349,91 @@ namespace ArdysaModsTools.Core.Services
                     string tempModelDir = Path.Combine(extractDir, "_temp_couriers");
                     Directory.CreateDirectory(tempModelDir);
 
-                    // Re-use VpkExtractor logic logic
-                    foreach (var vpkExtractPath in vpkExtractPaths)
+                    // Extract courier model directories from game VPK using HLExtract
+                    // HLExtract extracts directories, not individual files.
+                    // Compute unique parent directories from model paths and extract each once.
+                    var uniqueDirs = vpkExtractPaths
+                        .Select(p => p.Replace('\\', '/'))
+                        .Select(p => p.Contains('/') ? p.Substring(0, p.LastIndexOf('/')) : p)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    foreach (var dir in uniqueDirs)
                     {
+                        string hlExtractArg = $"-p \"{gameVpkPath}\" -d \"{tempModelDir}\" -e \"root/{dir}\"";
+                        _logger?.Log($"HLExtract courier: {hlExtractArg}");
+
                         var psi = new ProcessStartInfo
                         {
                             FileName = hlExtractPath,
-                            Arguments = $"-p \"{gameVpkPath}\" -d \"{tempModelDir}\" -e \"{vpkExtractPath}\"",
+                            Arguments = hlExtractArg,
                             UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
                             CreateNoWindow = true,
                         };
 
                         using var proc = Process.Start(psi);
                         if (proc != null)
                         {
+                            // Read streams to prevent deadlocks
+                            _ = proc.StandardOutput.ReadToEndAsync();
+                            string stderr = await proc.StandardError.ReadToEndAsync().ConfigureAwait(false);
                             await proc.WaitForExitAsync(ct).ConfigureAwait(false);
+
+                            if (proc.ExitCode != 0)
+                            {
+                                _logger?.Log($"HLExtract exited with code {proc.ExitCode} for dir: {dir}");
+                                if (!string.IsNullOrWhiteSpace(stderr))
+                                    _logger?.Log($"HLExtract stderr: {stderr.Trim()}");
+                            }
                         }
                     }
+
+                    // Diagnostic: log what HLExtract actually extracted
+                    LogExtractedFiles(tempModelDir);
 
                     string targetModelDir = Path.Combine(extractDir, "models", "props_gameplay");
                     Directory.CreateDirectory(targetModelDir);
 
+                    int mappedCount = 0;
                     foreach (var mapping in modelMappings)
                     {
-                        // Some couriers might package files directly without the _c, but HLExtract extracts exactly what is in the VPK index.
-                        // The extraction path from GetVpkExtractionPaths includes _c
-                        string extractedFile = Path.Combine(tempModelDir, mapping.SourcePath + "_c");
-                        // Fallback check if it was extracted without _c
-                        if (!File.Exists(extractedFile))
-                            extractedFile = Path.Combine(tempModelDir, mapping.SourcePath);
-                            
-                        if (File.Exists(extractedFile))
+                        string? extractedFile = FindExtractedModel(tempModelDir, mapping.SourcePath);
+
+                        if (extractedFile != null)
                         {
                             string targetFile = Path.Combine(targetModelDir, mapping.TargetFileName);
                             File.Copy(extractedFile, targetFile, true);
                             TrackInstalledFile(category, Path.Combine("models", "props_gameplay", mapping.TargetFileName).Replace('\\', '/'));
+                            mappedCount++;
+                        }
+                        else
+                        {
+                            log($"Warning: Courier model not found: {Path.GetFileName(mapping.SourcePath)}");
+                            _logger?.Log($"Missing courier model: {mapping.SourcePath} (searched in {tempModelDir})");
                         }
                     }
 
                     try { Directory.Delete(tempModelDir, true); } catch { }
-                    _logger?.Log("Courier models mapped.");
+
+                    if (mappedCount > 0)
+                    {
+                        log($"Courier models mapped ({mappedCount}/{modelMappings.Count}).");
+                        _logger?.Log($"Courier models mapped: {mappedCount}/{modelMappings.Count}");
+                    }
+                    else
+                    {
+                        log("Warning: No courier models could be extracted from game VPK.");
+                        _logger?.Log($"No courier models found. Searched paths: {string.Join(", ", vpkExtractPaths)}");
+                    }
                 }
                 else
                 {
-                    log("Warning: Could not find Dota 2 game VPK or HLExtract to extract models.");
+                    if (!File.Exists(gameVpkPath))
+                        log("Warning: Dota 2 game VPK (pak01_dir.vpk) not found.");
+                    if (!File.Exists(hlExtractPath))
+                        log("Warning: HLExtract.exe not found.");
                 }
             }
 
@@ -549,6 +654,68 @@ namespace ArdysaModsTools.Core.Services
             }
 
             log($"{modName} applied.");
+        }
+
+        /// <summary>
+        /// Searches for an extracted courier model file in the temp directory.
+        /// Uses a multi-strategy approach:
+        ///   1. Try known paths (root/ subdir + _c suffix combinations)
+        ///   2. Fallback: recursive filename search in the entire temp directory
+        /// </summary>
+        private string? FindExtractedModel(string tempDir, string sourcePath)
+        {
+            string fileName = Path.GetFileName(sourcePath);
+            string fileNameC = fileName + "_c";
+
+            // Strategy 1: Try direct paths (root/ prefix + _c suffix combinations)
+            string[] candidates =
+            {
+                Path.Combine(tempDir, "root", sourcePath + "_c"),
+                Path.Combine(tempDir, "root", sourcePath),
+                Path.Combine(tempDir, sourcePath + "_c"),
+                Path.Combine(tempDir, sourcePath),
+            };
+
+            foreach (var candidate in candidates)
+            {
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+
+            // Strategy 2: Recursive search by filename (handles unexpected directory structures)
+            try
+            {
+                // Try compiled filename first (_c suffix)
+                foreach (var file in Directory.EnumerateFiles(tempDir, fileNameC, SearchOption.AllDirectories))
+                    return file;
+
+                // Try raw filename
+                foreach (var file in Directory.EnumerateFiles(tempDir, fileName, SearchOption.AllDirectories))
+                    return file;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"FindExtractedModel search error: {ex.Message}");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Logs all files found in the temp extraction directory for diagnostics.
+        /// </summary>
+        private void LogExtractedFiles(string tempDir)
+        {
+            try
+            {
+                var files = Directory.GetFiles(tempDir, "*", SearchOption.AllDirectories);
+                _logger?.Log($"HLExtract temp dir ({tempDir}): {files.Length} files found");
+                foreach (var file in files)
+                {
+                    _logger?.Log($"  Extracted: {Path.GetRelativePath(tempDir, file)}");
+                }
+            }
+            catch { }
         }
 
         private void TrackInstalledFile(string category, string relativePath)

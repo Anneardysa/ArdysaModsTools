@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.15-beta] (Build 2107)
+
+### ✨ Added
+
+- **Ethereal Courier Particle Effects**
+   - Added "✦ Ethereal" badge and multi-select overlay to all Courier choice cards (including Default Courier).
+   - Select up to 2 unusual particle effects from 40 available options (Trails, Eye Glows, Ambient effects).
+   - Intelligent slot logic limits selections based on existing carrier particle configurations.
+
+### 🐛 Fixed
+
+- Model not showing up in game
+
 ## [2.1.14-beta] (Build 2105)
 
 ### ✨ Added

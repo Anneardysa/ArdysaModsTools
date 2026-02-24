@@ -60,11 +60,6 @@ namespace ArdysaModsTools.Core.Services.Misc
     /// </summary>
     public static class CourierPatcherService
     {
-        // The 4 base courier model filenames that must exist
-        private static readonly string[] BaseGroundRadiant = { "donkey.vmdl_c" };
-        private static readonly string[] BaseGroundDire = { "donkey_dire.vmdl_c" };
-        private static readonly string[] BaseFlyingRadiant = { "donkey_wings.vmdl_c" };
-        private static readonly string[] BaseFlyingDire = { "donkey_dire_wings.vmdl_c" };
 
         /// <summary>
         /// All base courier target filenames.
@@ -221,10 +216,21 @@ namespace ArdysaModsTools.Core.Services.Misc
         }
 
         /// <summary>
-        /// Builds a merged courier block: Default Courier structure with selected courier properties.
-        /// Preserves immutable fields (name, prefab, baseitem) and base model paths in visuals.
-        /// Merges mutable fields and appends particle_create entries from the selected courier.
-        /// When a style is selected, uses that style's specific models and particles.
+        /// Builds a merged courier block: Default Courier structure with selected courier's cosmetic properties.
+        /// 
+        /// IMMUTABLE (kept from default courier block "595"):
+        ///   - "name", "prefab", "baseitem" fields
+        ///   - The visuals model references (donkey.vmdl paths)
+        ///     Model swapping happens at file level, not in items_game.txt.
+        /// 
+        /// REPLACED (taken from selected courier):
+        ///   - All other KV fields (image_inventory, item_name, item_quality, etc.)
+        ///   - "portraits" block
+        ///   - "static_attributes" block
+        /// 
+        /// INJECTED into default visuals from selected courier:
+        ///   - "skin" field (e.g., Golden Baby Roshan skin=1, Platinum skin=2)
+        ///   - particle_create entries (ambient effects, etc.)
         /// </summary>
         /// <param name="defaultBlock">The Default Courier block (ID "595") from items_game.txt.</param>
         /// <param name="selectedBlock">The selected courier block from items_game.txt.</param>
@@ -239,23 +245,27 @@ namespace ArdysaModsTools.Core.Services.Misc
             var defaultKvs = ParseTopLevelKeyValues(defaultBlock);
             var selectedKvs = ParseTopLevelKeyValues(selectedBlock);
 
-            // Extract visuals and portraits blocks separately
+            // Extract nested blocks
             string? defaultVisualsBlock = ExtractNamedBlock(defaultBlock, "visuals");
             string? selectedVisualsBlock = ExtractNamedBlock(selectedBlock, "visuals");
             string? selectedPortraits = ExtractNamedBlock(selectedBlock, "portraits");
             string? selectedStaticAttributes = ExtractNamedBlock(selectedBlock, "static_attributes");
 
-            // Extract particle_create entries from selected courier (optionally filtered by style)
+            // Extract particle_create entries from selected courier
             var particleEntries = ExtractParticleCreateEntries(selectedBlock);
+
+            // Extract visuals-level KV pairs from selected courier (e.g., "skin" "1")
+            // These are simple KV pairs inside the visuals block, not asset_modifier sub-blocks
+            var visualsKvPairs = ExtractVisualsKeyValues(selectedVisualsBlock);
 
             // Build the merged block
             var sb = new StringBuilder();
 
-            // Start with the ID line
+            // --- Item ID ---
             sb.AppendLine($"\t\"{DefaultCourierItemId}\"");
             sb.AppendLine("\t{");
 
-            // 1. Always keep immutable fields from default
+            // --- 1. Immutable fields from default (name, prefab, baseitem) ---
             foreach (var field in ImmutableFields)
             {
                 if (defaultKvs.TryGetValue(field, out var val))
@@ -264,7 +274,8 @@ namespace ArdysaModsTools.Core.Services.Misc
                 }
             }
 
-            // 2. Merge mutable KV pairs from selected (skip immutable, visuals, portraits, static_attributes)
+            // --- 2. Mutable KV pairs from selected courier ---
+            // Skip immutable fields and nested blocks (handled separately below)
             var skipFields = new HashSet<string>(ImmutableFields, StringComparer.OrdinalIgnoreCase)
             {
                 "visuals", "portraits", "static_attributes", "creation_date"
@@ -276,43 +287,35 @@ namespace ArdysaModsTools.Core.Services.Misc
                 sb.AppendLine($"\t\t\"{kvp.Key}\"\t\t\"{kvp.Value}\"");
             }
 
-            // 3. Add static_attributes if present
+            // --- 3. Static attributes from selected courier ---
             if (!string.IsNullOrEmpty(selectedStaticAttributes))
             {
                 sb.AppendLine(IndentBlock(selectedStaticAttributes, 2));
             }
 
-            // 4. Add portraits from selected courier
+            // --- 4. Portraits from selected courier ---
             if (!string.IsNullOrEmpty(selectedPortraits))
             {
                 sb.AppendLine(IndentBlock(selectedPortraits, 2));
             }
 
-            // 5. Build merged visuals block
-            if (!string.IsNullOrEmpty(selectedVisualsBlock) && styleIndex.HasValue)
+            // --- 5. Visuals: keep default donkey models, inject skin + particles from selected ---
+            // The default visuals block references models/props_gameplay/donkey*.vmdl.
+            // These file paths must stay unchanged because the actual model swap
+            // is done at file level (copying selected .vmdl_c → donkey.vmdl_c).
+            if (!string.IsNullOrEmpty(defaultVisualsBlock))
             {
-                // Style-aware merge: use selected courier's visuals but FILTER asset_modifiers to the selected style
-                string mergedVisuals = BuildStyleFilteredVisuals(selectedVisualsBlock, styleIndex.Value);
-
-                // Append particle entries for this style
-                if (particleEntries.Count > 0)
-                {
-                    mergedVisuals = AppendToVisualsBlock(mergedVisuals, particleEntries);
-                }
-
-                sb.AppendLine(IndentBlock(mergedVisuals, 2));
-            }
-            else if (!string.IsNullOrEmpty(defaultVisualsBlock))
-            {
-                // No style: keep default visuals, append selected courier's particles
                 string mergedVisuals = defaultVisualsBlock;
 
-                if (!string.IsNullOrEmpty(selectedVisualsBlock))
+                // Inject visuals-level KV pairs from selected courier (e.g., "skin" "1")
+                // Some couriers differentiate by skin index, not model path
+                // (e.g., Golden Baby Roshan skin=1, Platinum Baby Roshan skin=2)
+                if (visualsKvPairs.Count > 0)
                 {
-                    // Replace asset_modifier entries from default with those from selected
-                    mergedVisuals = ReplaceAssetModifiers(defaultVisualsBlock, selectedVisualsBlock);
+                    mergedVisuals = InjectVisualsKVPairs(mergedVisuals, visualsKvPairs);
                 }
 
+                // Append particle_create entries from selected courier
                 if (particleEntries.Count > 0)
                 {
                     mergedVisuals = AppendToVisualsBlock(mergedVisuals, particleEntries);
@@ -326,165 +329,6 @@ namespace ArdysaModsTools.Core.Services.Misc
             return sb.ToString();
         }
 
-        /// <summary>
-        /// Builds a visuals block containing only asset_modifiers that match the given style index.
-        /// Rewrites style-specific entries to have no style tag (so the game uses them as default).
-        /// </summary>
-        private static string BuildStyleFilteredVisuals(string visualsBlock, int styleIndex)
-        {
-            // Build a new visuals block with only the asset_modifiers matching the selected style
-            var sb = new StringBuilder();
-            sb.AppendLine("\"visuals\"");
-            sb.AppendLine("{");
-
-            // Find all asset_modifier blocks, keep only those matching the style
-            var modPattern = new Regex(
-                @"""(asset_modifier\d*)""(\s*)\{", RegexOptions.IgnoreCase);
-
-            int modifierIndex = 0;
-            foreach (Match match in modPattern.Matches(visualsBlock))
-            {
-                int blockStart = visualsBlock.IndexOf('{', match.Index + match.Groups[1].Length);
-                if (blockStart < 0) continue;
-
-                int blockEnd = KeyValuesBlockHelper.ExtractBalancedBlockEnd(visualsBlock, blockStart);
-                if (blockEnd < 0) continue;
-
-                string modBlock = visualsBlock.Substring(blockStart, blockEnd - blockStart);
-
-                // Check if this modifier has a style field
-                var styleMatch = Regex.Match(modBlock, @"""style""\s+""(\d+)""", RegexOptions.IgnoreCase);
-                if (styleMatch.Success)
-                {
-                    int entryStyle = int.Parse(styleMatch.Groups[1].Value);
-                    if (entryStyle != styleIndex) continue; // Skip non-matching styles
-                }
-                // If no style field, it's shared - include it
-
-                // Rewrite with sequential naming, remove style field (game will use as default)
-                string cleanedBlock = Regex.Replace(modBlock,
-                    @"\s*""style""\s+""[^""]*""", "", RegexOptions.IgnoreCase);
-
-                modifierIndex++;
-                sb.AppendLine($"\t\"asset_modifier{modifierIndex}\"");
-                sb.AppendLine($"\t{cleanedBlock.TrimStart()}");
-            }
-
-            // Copy styles block from selected courier (needed for the game to recognize styles)
-            var stylesMatch = Regex.Match(visualsBlock,
-                @"""styles""\s*\{", RegexOptions.IgnoreCase);
-            if (stylesMatch.Success)
-            {
-                int stylesStart = visualsBlock.IndexOf('{', stylesMatch.Index);
-                int stylesEnd = KeyValuesBlockHelper.ExtractBalancedBlockEnd(visualsBlock, stylesStart);
-                if (stylesEnd > 0)
-                {
-                    string stylesBlock = visualsBlock.Substring(stylesMatch.Index, stylesEnd - stylesMatch.Index);
-                    sb.AppendLine($"\t{stylesBlock}");
-                }
-            }
-
-            sb.Append("}");
-
-            return sb.ToString();
-        }
-
-        /// <summary>
-        /// Replaces the asset_modifier entries in the default visuals with those from the selected courier.
-        /// Used for unstyled couriers.
-        /// </summary>
-        private static string ReplaceAssetModifiers(string defaultVisuals, string selectedVisuals)
-        {
-            // Extract courier/courier_flying modifiers from selected
-            var modPattern = new Regex(
-                @"""(asset_modifier\d*)""(\s*)\{", RegexOptions.IgnoreCase);
-
-            // Collect selected courier model modifiers
-            var selectedModifiers = new List<string>();
-            foreach (Match match in modPattern.Matches(selectedVisuals))
-            {
-                int blockStart = selectedVisuals.IndexOf('{', match.Index + match.Groups[1].Length);
-                if (blockStart < 0) continue;
-
-                int blockEnd = KeyValuesBlockHelper.ExtractBalancedBlockEnd(selectedVisuals, blockStart);
-                if (blockEnd < 0) continue;
-
-                string modBlock = selectedVisuals.Substring(blockStart, blockEnd - blockStart);
-                if (Regex.IsMatch(modBlock, @"""type""\s+""(courier|courier_flying)""", RegexOptions.IgnoreCase))
-                {
-                    selectedModifiers.Add(modBlock);
-                }
-            }
-
-            if (selectedModifiers.Count == 0) return defaultVisuals;
-
-            // Remove existing courier model modifiers from default
-            var cleanupSb = new StringBuilder();
-            int currentPos = 0;
-            var findModPattern = new Regex(@"""(asset_modifier\d*)""(\s*)\{", RegexOptions.IgnoreCase);
-
-            while (true)
-            {
-                var match = findModPattern.Match(defaultVisuals, currentPos);
-                if (!match.Success)
-                {
-                    cleanupSb.Append(defaultVisuals.Substring(currentPos));
-                    break;
-                }
-
-                int blockStart = defaultVisuals.IndexOf('{', match.Index + match.Groups[1].Length);
-                if (blockStart < 0)
-                {
-                    cleanupSb.Append(defaultVisuals.Substring(currentPos, match.Index + match.Length - currentPos));
-                    currentPos = match.Index + match.Length;
-                    continue;
-                }
-
-                int blockEnd = KeyValuesBlockHelper.ExtractBalancedBlockEnd(defaultVisuals, blockStart);
-                if (blockEnd < 0)
-                {
-                    cleanupSb.Append(defaultVisuals.Substring(currentPos));
-                    break;
-                }
-
-                string modBlock = defaultVisuals.Substring(blockStart, blockEnd - blockStart);
-                if (Regex.IsMatch(modBlock, @"""type""\s+""(courier|courier_flying)""", RegexOptions.IgnoreCase))
-                {
-                    // Skip this block because it's a courier model modifier
-                    cleanupSb.Append(defaultVisuals.Substring(currentPos, match.Index - currentPos));
-                    // Also skip any trailing whitespace up to newline to clean it up nicely
-                    while (blockEnd < defaultVisuals.Length && (defaultVisuals[blockEnd] == ' ' || defaultVisuals[blockEnd] == '\t' || defaultVisuals[blockEnd] == '\r'))
-                        blockEnd++;
-                    if (blockEnd < defaultVisuals.Length && defaultVisuals[blockEnd] == '\n')
-                        blockEnd++;
-                        
-                    currentPos = blockEnd;
-                }
-                else
-                {
-                    // Keep this block
-                    cleanupSb.Append(defaultVisuals.Substring(currentPos, blockEnd - currentPos));
-                    currentPos = blockEnd;
-                }
-            }
-            string result = cleanupSb.ToString();
-            
-            // Find insertion point (before closing brace of visuals)
-            int lastBrace = result.LastIndexOf('}');
-            if (lastBrace < 0) return defaultVisuals;
-
-            // Insert selected courier modifiers
-            var insertSb = new StringBuilder();
-            for (int i = 0; i < selectedModifiers.Count; i++)
-            {
-                insertSb.AppendLine($"\t\"asset_modifier{i + 1}\"");
-                insertSb.AppendLine($"\t{selectedModifiers[i].TrimStart()}");
-            }
-
-            result = result.Insert(lastBrace, insertSb.ToString());
-
-            return result;
-        }
 
         /// <summary>
         /// Maps selected courier models to the 4 base courier target filenames.
@@ -584,6 +428,129 @@ namespace ArdysaModsTools.Core.Services.Misc
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
         }
+
+        /// <summary>
+        /// Extracts the "visuals" block from a courier block.
+        /// </summary>
+        public static string? ExtractVisualsBlock(string courierBlock)
+        {
+            return ExtractNamedBlock(courierBlock, "visuals");
+        }
+
+        /// <summary>
+        /// Counts the number of existing particle_create entries in a courier block's visuals.
+        /// Used to determine how many Ethereal effect slots remain.
+        /// </summary>
+        /// <param name="courierBlock">The full courier block text.</param>
+        /// <returns>Number of particle_create entries found.</returns>
+        public static int CountExistingParticles(string courierBlock)
+        {
+            return ExtractParticleCreateEntries(courierBlock).Count;
+        }
+
+        /// <summary>
+        /// Appends Ethereal particle effects to a visuals block.
+        /// Each effect is added as an asset_modifier with type "particle_create".
+        /// Respects max slot limit: total particle_create entries ≤ MaxParticleSlots.
+        /// </summary>
+        /// <param name="visualsBlock">The current visuals block text.</param>
+        /// <param name="effectPaths">Particle VPF paths to append (e.g., "particles/econ/courier/...").</param>
+        /// <param name="existingParticleCount">How many particle_create already exist in this block.</param>
+        /// <returns>The visuals block with ethereal effects appended.</returns>
+        public static string AppendEtherealEffects(string visualsBlock, List<string> effectPaths, int existingParticleCount)
+        {
+            if (string.IsNullOrEmpty(visualsBlock) || effectPaths.Count == 0)
+                return visualsBlock ?? string.Empty;
+
+            int availableSlots = Data.EtherealEffects.GetAvailableSlots(existingParticleCount);
+            if (availableSlots <= 0) return visualsBlock;
+
+            // Clamp to available slots
+            var effectsToAdd = effectPaths.Take(availableSlots).ToList();
+
+            // Build particle_create entries as asset_modifier blocks
+            var entries = new List<string>();
+            foreach (var path in effectsToAdd)
+            {
+                var entry = $@"""asset_modifier0""
+{{
+	""type""		""particle_create""
+	""modifier""	""{path}""
+}}";
+                entries.Add(entry);
+            }
+
+            // Use existing AppendToVisualsBlock to inject before closing brace
+            return AppendToVisualsBlock(visualsBlock, entries);
+        }
+
+        #region Visuals Helpers
+
+        /// <summary>
+        /// Extracts top-level key-value pairs from a visuals block (e.g., "skin" "1").
+        /// Only returns simple KV pairs, not nested asset_modifier blocks.
+        /// </summary>
+        private static Dictionary<string, string> ExtractVisualsKeyValues(string? visualsBlock)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(visualsBlock)) return result;
+
+            // Match "key" "value" pairs that are NOT asset_modifier or styles blocks
+            var pattern = new Regex(
+                @"^\s*""([^""]+)""\s+""([^""]*)""\s*$",
+                RegexOptions.Multiline);
+
+            // Skip keys that are block names or asset_modifier entries
+            var skipKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "visuals", "type", "modifier", "asset", "style"
+            };
+
+            foreach (Match match in pattern.Matches(visualsBlock))
+            {
+                string key = match.Groups[1].Value;
+                string value = match.Groups[2].Value;
+
+                // Skip numeric keys (block IDs), block names, and asset_modifier field names
+                if (int.TryParse(key, out _)) continue;
+                if (skipKeys.Contains(key)) continue;
+                if (key.StartsWith("asset_modifier", StringComparison.OrdinalIgnoreCase)) continue;
+
+                result[key] = value;
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Injects KV pairs into a visuals block right after the opening brace.
+        /// Used for fields like "skin" that need to be in the visuals block.
+        /// </summary>
+        private static string InjectVisualsKVPairs(string visualsBlock, Dictionary<string, string> kvPairs)
+        {
+            if (kvPairs.Count == 0) return visualsBlock;
+
+            // Find the opening brace of the visuals block
+            int bracePos = visualsBlock.IndexOf('{');
+            if (bracePos < 0) return visualsBlock;
+
+            // Build the KV lines to inject
+            var sb = new StringBuilder();
+            foreach (var kvp in kvPairs)
+            {
+                sb.AppendLine($"\t\t\"{kvp.Key}\"\t\t\"{kvp.Value}\"");
+            }
+
+            // Insert right after the opening brace + newline
+            int insertPos = bracePos + 1;
+            // Skip past any newline after the opening brace
+            if (insertPos < visualsBlock.Length && visualsBlock[insertPos] == '\r') insertPos++;
+            if (insertPos < visualsBlock.Length && visualsBlock[insertPos] == '\n') insertPos++;
+
+            return visualsBlock.Substring(0, insertPos) + sb.ToString() + visualsBlock.Substring(insertPos);
+        }
+
+        #endregion
 
         #region Private Helpers
 

@@ -249,6 +249,49 @@ namespace ArdysaModsTools.Tests.Services
 	}
 }";
 
+        /// <summary>
+        /// Courier with "skin" field in visuals (like Golden Baby Roshan).
+        /// Uses same model as base Baby Roshan but with skin index for different appearance.
+        /// </summary>
+        private const string GoldenBabyRoshanBlock = @"
+""10096""
+{
+	""name""		""Golden Baby Roshan""
+	""prefab""		""courier""
+	""image_inventory""		""econ/courier/baby_rosh/babyroshan1""
+	""item_name""		""#DOTA_Item_Golden_Baby_Roshan""
+	""item_quality""		""unusual""
+	""item_rarity""		""immortal""
+	""visuals""
+	{
+		""skin""		""1""
+		""asset_modifier0""
+		{
+			""type""		""courier""
+			""modifier""		""models/courier/baby_rosh/babyroshan.vmdl""
+			""asset""		""radiant""
+		}
+		""asset_modifier1""
+		{
+			""type""		""courier""
+			""modifier""		""models/courier/baby_rosh/babyroshan.vmdl""
+			""asset""		""dire""
+		}
+		""asset_modifier2""
+		{
+			""type""		""courier_flying""
+			""modifier""		""models/courier/baby_rosh/babyroshan_flying.vmdl""
+			""asset""		""radiant""
+		}
+		""asset_modifier3""
+		{
+			""type""		""courier_flying""
+			""modifier""		""models/courier/baby_rosh/babyroshan_flying.vmdl""
+			""asset""		""dire""
+		}
+	}
+}";
+
         #endregion
 
         #region ParseCourierVisuals Tests
@@ -478,26 +521,31 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public void BuildMergedCourierBlock_ReplacesDefaultModelsWithSelected()
+        public void BuildMergedCourierBlock_PreservesDefaultDonkeyModels()
         {
             var merged = CourierPatcherService.BuildMergedCourierBlock(
                 DefaultCourierBlock, DrodoBlock);
 
-            // Selected courier models should replace default donkey models
-            Assert.That(merged, Does.Contain("drodo.vmdl"));
-            Assert.That(merged, Does.Contain("drodo_flying.vmdl"));
+            // Default donkey model references must stay in visuals
+            // (actual model swap happens at file level, not in items_game.txt)
+            Assert.That(merged, Does.Contain("donkey.vmdl"));
+            Assert.That(merged, Does.Contain("donkey_dire.vmdl"));
+            Assert.That(merged, Does.Contain("donkey_wings.vmdl"));
+            Assert.That(merged, Does.Contain("donkey_dire_wings.vmdl"));
         }
 
         [Test]
-        public void BuildMergedCourierBlock_WithStyle_UsesStyleSpecificModels()
+        public void BuildMergedCourierBlock_WithStyle_StillKeepsDonkeyModels()
         {
             var merged = CourierPatcherService.BuildMergedCourierBlock(
                 DefaultCourierBlock, StyledCourier, styleIndex: 5);
 
-            // Style 5 models should be used
-            Assert.That(merged, Does.Contain("styled_lvl5.vmdl"));
-            Assert.That(merged, Does.Contain("styled_lvl5_flying.vmdl"));
-            // Style 0 models should NOT be present
+            // Even with style selection, visuals must keep default donkey models
+            // (style-specific model swap is file-level only)
+            Assert.That(merged, Does.Contain("donkey.vmdl"));
+            Assert.That(merged, Does.Contain("donkey_wings.vmdl"));
+            // Selected courier models should NOT appear in visuals
+            Assert.That(merged, Does.Not.Contain("styled_lvl5.vmdl"));
             Assert.That(merged, Does.Not.Contain("styled_lvl0.vmdl"));
         }
 
@@ -531,6 +579,97 @@ namespace ArdysaModsTools.Tests.Services
 
             var result2 = CourierPatcherService.BuildMergedCourierBlock(DefaultCourierBlock, "");
             Assert.That(result2, Is.EqualTo(DefaultCourierBlock));
+        }
+        [Test]
+        public void BuildMergedCourierBlock_InjectsSkinField()
+        {
+            var merged = CourierPatcherService.BuildMergedCourierBlock(
+                DefaultCourierBlock, GoldenBabyRoshanBlock);
+
+            // Skin field from Golden Baby Roshan should be injected into default visuals
+            Assert.That(merged, Does.Contain("\"skin\"\t\t\"1\""));
+            // Donkey models must still be present
+            Assert.That(merged, Does.Contain("donkey.vmdl"));
+            Assert.That(merged, Does.Contain("donkey_wings.vmdl"));
+            // Mutable fields from selected
+            Assert.That(merged, Does.Contain("\"item_quality\"\t\t\"unusual\""));
+        }
+
+        [Test]
+        public void BuildMergedCourierBlock_NoSkinField_WhenNotPresent()
+        {
+            var merged = CourierPatcherService.BuildMergedCourierBlock(
+                DefaultCourierBlock, DrodoBlock);
+
+            // Drodo has no skin field — should not appear in merged block
+            Assert.That(merged, Does.Not.Contain("\"skin\""));
+        }
+
+        #endregion
+
+        #region Ethereal Tests
+
+        [Test]
+        public void CountExistingParticles_ReturnsZero_WhenNoParticles()
+        {
+            // Default courier has no particle_create entries
+            Assert.That(CourierPatcherService.CountExistingParticles(DefaultCourierBlock), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void CountExistingParticles_CountsParticleCreateEntries()
+        {
+            // Drodo has particle_create entries
+            var count = CourierPatcherService.CountExistingParticles(DrodoBlock);
+            Assert.That(count, Is.GreaterThan(0));
+        }
+
+        [Test]
+        public void AppendEtherealEffects_AddsParticleCreate()
+        {
+            var visuals = @"""visuals""
+{
+	""asset_modifier0""
+	{
+		""type""		""courier""
+		""modifier""		""models/courier/test.vmdl""
+		""asset""		""radiant""
+	}
+}";
+            var effects = new List<string>
+            {
+                "particles/econ/courier/courier_golden_roshan/golden_roshan_ambient.vpcf"
+            };
+
+            var result = CourierPatcherService.AppendEtherealEffects(visuals, effects, 0);
+            Assert.That(result, Does.Contain("particle_create"));
+            Assert.That(result, Does.Contain("midas_ambient.vpcf"));
+        }
+
+        [Test]
+        public void AppendEtherealEffects_RespectsSlotLimit()
+        {
+            var visuals = @"""visuals""
+{
+	""asset_modifier0""
+	{
+		""type""		""courier""
+		""modifier""		""models/courier/test.vmdl""
+		""asset""		""radiant""
+	}
+}";
+            var effects = new List<string>
+            {
+                "particles/econ/courier/courier_golden_roshan/golden_roshan_ambient.vpcf",
+                "particles/econ/courier/courier_roshan_lava/courier_roshan_lava.vpcf",
+                "particles/econ/courier/courier_roshan_frost/courier_roshan_frost_ambient.vpcf"
+            };
+
+            // Already have 1 existing particle, so only 1 slot available
+            var result = CourierPatcherService.AppendEtherealEffects(visuals, effects, 1);
+            Assert.That(result, Does.Contain("midas_ambient.vpcf"));
+            Assert.That(result, Does.Not.Contain("courier_flame.vpcf"));
+            Assert.That(result, Does.Not.Contain("courier_frost_ambient.vpcf"));
         }
 
         #endregion
