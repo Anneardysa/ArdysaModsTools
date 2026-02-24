@@ -364,24 +364,9 @@ namespace ArdysaModsTools.UI.Forms
             List<string> cached,
             List<string> notCached)
         {
-            int refreshed = 0, downloaded = 0;
+            int downloaded = 0;
 
-            // Phase 1: Check freshness of cached items (only if cooldown expired)
-            if (cached.Count > 0 && cacheService.ShouldRefreshAssets(RefreshCooldown))
-            {
-                await UpdateCachingStatusAsync("Checking for updates...", 0, cached.Count);
-                
-                var refreshProgress = new Progress<(int current, int total, string url)>(async p =>
-                {
-                    try { await UpdateCachingProgressAsync(p.current, p.total); }
-                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"RefreshProgress callback failed: {ex.Message}"); }
-                });
-
-                var refreshResult = await cacheService.RefreshStaleAssetsAsync(cached, refreshProgress);
-                refreshed = refreshResult.refreshed;
-            }
-
-            // Phase 2: Download missing items
+            // Phase 1: Download missing items FIRST (this is what the user is waiting for)
             if (notCached.Count > 0)
             {
                 await UpdateCachingStatusAsync("Downloading thumbnails...", 0, notCached.Count);
@@ -396,14 +381,33 @@ namespace ArdysaModsTools.UI.Forms
                 downloaded = downloadResult.downloaded;
             }
 
-            // Mark refresh complete after both phases
-            cacheService.MarkRefreshed();
-
-            // Phase 3: Processing (brief transition before showing gallery)
-            var totalProcessed = refreshed + downloaded;
-            if (totalProcessed > 0)
+            // Phase 2: Freshness check runs silently in background (fire-and-forget)
+            // No overlay needed — user shouldn't wait for staleness checks
+            if (cached.Count > 0 && cacheService.ShouldRefreshAssets(RefreshCooldown))
             {
-                await UpdateCachingStatusAsync("Processing thumbnails...", totalProcessed, totalProcessed);
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await RunSilentRefreshAsync(cacheService, cached);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[MiscForm] Background refresh error: {ex.Message}");
+                    }
+                });
+            }
+            else
+            {
+                // No refresh needed, but still mark the timestamp
+                cacheService.MarkRefreshed();
+            }
+
+            // Phase 3: Brief transition before showing gallery
+            if (downloaded > 0)
+            {
+                await UpdateCachingStatusAsync("Processing thumbnails...", downloaded, downloaded);
                 await Task.Delay(200); // Brief pause for smooth transition
             }
         }

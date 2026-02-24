@@ -348,17 +348,21 @@ namespace ArdysaModsTools.Core.Services.Cache
             int total = urls.Count;
             int current = 0;
 
-            // Check and refresh sequentially to avoid overwhelming server with HEAD requests
-            foreach (var url in urls)
+            // Parallel freshness check with concurrency limit
+            // HEAD requests are lightweight, so we can safely run 8 concurrently
+            using var semaphore = new SemaphoreSlim(8);
+
+            var tasks = urls.Select(async url =>
             {
-                if (ct.IsCancellationRequested) break;
-                if (string.IsNullOrEmpty(url)) continue;
+                if (ct.IsCancellationRequested) return;
+                if (string.IsNullOrEmpty(url)) return;
 
-                current++;
-                progress?.Report((current, total, url));
-
+                await semaphore.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
+                    var idx = Interlocked.Increment(ref current);
+                    progress?.Report((idx, total, url));
+
                     // Check if stale
                     bool isStale = await IsStaleAsync(url, ct).ConfigureAwait(false);
                     
@@ -369,23 +373,29 @@ namespace ArdysaModsTools.Core.Services.Cache
                         var result = await GetAssetBytesAsync(url, ct).ConfigureAwait(false);
                         if (result != null && result.Length > 0)
                         {
-                            refreshed++;
+                            Interlocked.Increment(ref refreshed);
                         }
                         else
                         {
-                            failed++;
+                            Interlocked.Increment(ref failed);
                         }
                     }
                     else
                     {
-                        skipped++;
+                        Interlocked.Increment(ref skipped);
                     }
                 }
                 catch
                 {
-                    failed++;
+                    Interlocked.Increment(ref failed);
                 }
-            }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
 
             return (refreshed, skipped, failed);
         }

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.15-beta] (Build 2110)
+
+### 🚀 Improved
+
+- Fixed slow "Checking for updates" overlay in Miscellaneous form by parallelizing freshness checks (`SemaphoreSlim(8)`) and downloading missing thumbnails first.
+
 ## [2.1.15-beta] (Build 2109)
 
 ### ✨ Added
