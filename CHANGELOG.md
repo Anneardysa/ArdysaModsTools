@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.15-beta] (Build 2109)
+
+### ✨ Added
+
+- Added multi-CDN fallback strategy (R2 → jsDelivr → GitHub Raw) for all miscellaneous mod downloads (Battle Effect, River Vial, Emblems, etc.) to prevent failures caused by CDN file-type restrictions.
+
+### 🐛 Fixed
+
+- Fixed indentation loss during nested key-value block merging in courier mod generation, ensuring correct `items_game.txt` formatting.
+- Fixed `ConvertToFastUrl` logic to correctly prioritize R2 CDN for project repository assets, resolving "asset not found" errors for `.zip` files blocked by jsDelivr.
+
 ## [2.1.15-beta] (Build 2108)
 
 ### 🐛 Fixed

@@ -176,7 +176,9 @@ namespace ArdysaModsTools.Core.Services
                 return content;
 
             log($"Fetching {category}...");
-            var replacementBlock = await GetStringWithRetryAsync(url, ct).ConfigureAwait(false);
+            var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
+            var replacementBlock = await TryWithFallbackAsync(url,
+                u => GetStringWithRetryAsync(u, ct), fallbacks).ConfigureAwait(false);
             // reporting speed for strings is negligible, but we reset it
             speedProgress?.Report(ArdysaModsTools.Core.Models.SpeedMetrics.Empty);
 
@@ -376,9 +378,11 @@ namespace ArdysaModsTools.Core.Services
                         using var proc = Process.Start(psi);
                         if (proc != null)
                         {
-                            // Read streams to prevent deadlocks
-                            _ = proc.StandardOutput.ReadToEndAsync();
-                            string stderr = await proc.StandardError.ReadToEndAsync().ConfigureAwait(false);
+                            // Read both streams concurrently to prevent buffer deadlocks
+                            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+                            var stderrTask = proc.StandardError.ReadToEndAsync();
+                            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+                            string stderr = stderrTask.Result;
                             await proc.WaitForExitAsync(ct).ConfigureAwait(false);
 
                             if (proc.ExitCode != 0)
@@ -470,7 +474,9 @@ namespace ArdysaModsTools.Core.Services
             {
                 Directory.CreateDirectory(emblemDir);
                 log("Fetching Emblems...");
-                var data = await GetByteArrayWithProgressAsync(url, ct, speedProgress).ConfigureAwait(false);
+                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
+                var data = await TryWithFallbackAsync(url,
+                    u => GetByteArrayWithProgressAsync(u, ct, speedProgress), fallbacks).ConfigureAwait(false);
                 if (data != null)
                 {
                     await File.WriteAllBytesAsync(Path.Combine(emblemDir, "selected_ring.vpcf_c"), data, ct).ConfigureAwait(false);
@@ -514,7 +520,9 @@ namespace ArdysaModsTools.Core.Services
             {
                 Directory.CreateDirectory(shaderDir);
                 log("Fetching Shader...");
-                var data = await GetByteArrayWithProgressAsync(url, ct, speedProgress).ConfigureAwait(false);
+                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
+                var data = await TryWithFallbackAsync(url,
+                    u => GetByteArrayWithProgressAsync(u, ct, speedProgress), fallbacks).ConfigureAwait(false);
                 if (data != null)
                 {
                     await File.WriteAllBytesAsync(Path.Combine(shaderDir, "deferred_post_process.vmat_c"), data, ct).ConfigureAwait(false);
@@ -551,7 +559,8 @@ namespace ArdysaModsTools.Core.Services
             }
             else
             {
-                await DownloadAndExtractRarAsync(url, extractDir, category, "River Vial", log, ct, null, speedProgress).ConfigureAwait(false);
+                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
+                await DownloadAndExtractRarAsync(url, extractDir, category, "River Vial", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
             }
         }
 
@@ -578,7 +587,8 @@ namespace ArdysaModsTools.Core.Services
             }
             else
             {
-                await DownloadAndExtractRarAsync(url, extractDir, category, "Attack Modifier", log, ct, null, speedProgress).ConfigureAwait(false);
+                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
+                await DownloadAndExtractRarAsync(url, extractDir, category, "Attack Modifier", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
             }
         }
 
@@ -596,6 +606,7 @@ namespace ArdysaModsTools.Core.Services
 
             var rawUrl = ModConfigurationData.GetUrl(category, selEffect);
             var url = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
+            
             if (string.IsNullOrEmpty(url))
                 return;
 
@@ -605,17 +616,20 @@ namespace ArdysaModsTools.Core.Services
             }
             else
             {
-                await DownloadAndExtractRarAsync(url, extractDir, category, "Battle Effect", log, ct, null, speedProgress).ConfigureAwait(false);
+                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
+                await DownloadAndExtractRarAsync(url, extractDir, category, "Battle Effect", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
             }
         }
 
         private async Task DownloadAndExtractRarAsync(string url, string extractDir, string category,
             string modName, Action<string> log, CancellationToken ct, string? password = null,
-            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
+            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null,
+            string[]? fallbackUrls = null)
         {
             log($"Fetching {modName}...");
 
-            using var stream = await GetStreamWithProgressAsync(url, ct, speedProgress).ConfigureAwait(false);
+            using var stream = await TryWithFallbackAsync(url,
+                u => GetStreamWithProgressAsync(u, ct, speedProgress), fallbackUrls).ConfigureAwait(false);
             if (stream == null)
             {
                 log($"Warning: {modName} not available (asset not found).");
@@ -747,6 +761,30 @@ namespace ArdysaModsTools.Core.Services
                     catch { /* ignore */ }
                 }
             }, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Generic fallback helper: tries the primary URL, then each fallback URL on failure.
+        /// Logs fallback attempts via the app logger.
+        /// </summary>
+        private async Task<T?> TryWithFallbackAsync<T>(
+            string primaryUrl, Func<string, Task<T?>> downloadFunc,
+            string[]? fallbackUrls = null) where T : class
+        {
+            var result = await downloadFunc(primaryUrl).ConfigureAwait(false);
+            if (result != null) return result;
+
+            if (fallbackUrls != null)
+            {
+                foreach (var fallback in fallbackUrls)
+                {
+                    _logger?.Log($"Primary CDN failed for {primaryUrl}, trying fallback: {fallback}");
+                    result = await downloadFunc(fallback).ConfigureAwait(false);
+                    if (result != null) return result;
+                }
+            }
+
+            return null;
         }
 
         private async Task<string?> GetStringWithRetryAsync(string url, CancellationToken ct, int retries = 3)

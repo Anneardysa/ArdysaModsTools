@@ -671,6 +671,97 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(result, Does.Not.Contain("courier_roshan_lava.vpcf"));
             Assert.That(result, Does.Not.Contain("courier_roshan_frost_ambient.vpcf"));
         }
+        [Test]
+        public void AppendEtherealEffects_DynamicIndex_StartsAfterMaxExisting()
+        {
+            // Visuals block with asset_modifier up to index 5
+            var visuals = @"""visuals""
+{
+	""asset_modifier3""
+	{
+		""type""		""courier""
+		""modifier""		""models/courier/test.vmdl""
+		""asset""		""radiant""
+	}
+	""asset_modifier5""
+	{
+		""type""		""courier_flying""
+		""modifier""		""models/courier/test_fly.vmdl""
+		""asset""		""radiant""
+	}
+}";
+            var effects = new List<string>
+            {
+                "particles/econ/courier/test/test_ambient.vpcf"
+            };
+
+            var result = CourierPatcherService.AppendEtherealEffects(visuals, effects, 0);
+
+            // New entry should be asset_modifier6 (max existing is 5)
+            Assert.That(result, Does.Contain("\"asset_modifier6\""));
+            Assert.That(result, Does.Not.Contain("\"asset_modifier10\""));
+            Assert.That(result, Does.Contain("test_ambient.vpcf"));
+        }
+
+        [Test]
+        public void AppendEtherealEffects_NoExistingModifiers_StartsAtZero()
+        {
+            // Visuals block with no asset_modifier entries
+            var visuals = @"""visuals""
+{
+}";
+            var effects = new List<string>
+            {
+                "particles/econ/courier/test/test_ambient.vpcf"
+            };
+
+            var result = CourierPatcherService.AppendEtherealEffects(visuals, effects, 0);
+
+            // Should start at index 0 when no existing modifiers
+            Assert.That(result, Does.Contain("\"asset_modifier0\""));
+            Assert.That(result, Does.Contain("test_ambient.vpcf"));
+        }
+
+        [Test]
+        public void BuildMergedCourierBlock_PreservesRelativeIndentation()
+        {
+            var merged = CourierPatcherService.BuildMergedCourierBlock(
+                DefaultCourierBlock, DrodoBlock);
+
+            var lines = merged.Split('\n');
+
+            // Find the portraits block region (between "portraits" header and "visuals" header)
+            int portraitsIdx = -1, visualsIdx = -1;
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var trimmed = lines[i].TrimStart('\t', ' ').TrimEnd('\r', '\n');
+                if (trimmed.StartsWith("\"portraits\"") && portraitsIdx < 0) portraitsIdx = i;
+                if (trimmed.StartsWith("\"visuals\"") && portraitsIdx >= 0) { visualsIdx = i; break; }
+            }
+
+            Assert.That(portraitsIdx, Is.GreaterThanOrEqualTo(0), "portraits block should exist");
+            Assert.That(visualsIdx, Is.GreaterThan(portraitsIdx), "visuals should come after portraits");
+
+            // Within the portraits region, verify relative depth is preserved
+            var portraitsRegion = lines.Skip(portraitsIdx).Take(visualsIdx - portraitsIdx).ToArray();
+
+            var headerLine = portraitsRegion.First(); // "portraits" line
+            var iconLine = portraitsRegion.FirstOrDefault(l => l.TrimStart().StartsWith("\"icon\""));
+            var fovLine = portraitsRegion.FirstOrDefault(l => l.Contains("PortraitFOV"));
+
+            Assert.That(iconLine, Is.Not.Null, "icon block should exist in portraits");
+            Assert.That(fovLine, Is.Not.Null, "PortraitFOV should exist in portraits");
+
+            int headerTabs = headerLine.TakeWhile(c => c == '\t').Count();
+            int iconTabs = iconLine!.TakeWhile(c => c == '\t').Count();
+            int fovTabs = fovLine!.TakeWhile(c => c == '\t').Count();
+
+            // Each nested level should have progressively deeper indentation
+            Assert.That(iconTabs, Is.GreaterThan(headerTabs),
+                $"icon ({iconTabs} tabs) should be deeper than portraits ({headerTabs} tabs)");
+            Assert.That(fovTabs, Is.GreaterThan(iconTabs),
+                $"PortraitFOV ({fovTabs} tabs) should be deeper than icon ({iconTabs} tabs)");
+        }
 
         #endregion
     }

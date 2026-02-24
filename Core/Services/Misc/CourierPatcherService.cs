@@ -618,8 +618,16 @@ namespace ArdysaModsTools.Core.Services.Misc
             var sb = new StringBuilder();
             sb.Append(visualsBlock.Substring(0, lastBrace));
 
-            // Append each particle entry with a unique modifier index
-            int modifierIndex = 10; // Start high to avoid conflicts with existing modifiers
+            // Scan for the highest existing asset_modifier index to avoid key collisions
+            int maxIndex = -1;
+            foreach (Match m in Regex.Matches(visualsBlock,
+                @"""asset_modifier(\d+)""", RegexOptions.IgnoreCase))
+            {
+                if (int.TryParse(m.Groups[1].Value, out int idx) && idx > maxIndex)
+                    maxIndex = idx;
+            }
+            int modifierIndex = maxIndex + 1;
+
             foreach (var entry in entries)
             {
                 // Renumber the asset_modifier to avoid key conflicts
@@ -636,13 +644,30 @@ namespace ArdysaModsTools.Core.Services.Misc
         }
 
         /// <summary>
-        /// Indents a block of text to the specified tab depth.
+        /// Indents a block of text to the specified tab depth, preserving relative indentation.
+        /// Computes the minimum indentation as a baseline and re-indents relative to it.
         /// </summary>
         private static string IndentBlock(string block, int tabDepth)
         {
             var prefix = new string('\t', tabDepth);
             var lines = block.Split('\n');
             var sb = new StringBuilder();
+
+            // Find minimum indentation level to use as baseline
+            int minTabs = int.MaxValue;
+            foreach (var rawLine in lines)
+            {
+                var stripped = rawLine.TrimEnd('\r');
+                if (string.IsNullOrWhiteSpace(stripped)) continue;
+                int tabs = 0;
+                foreach (char c in stripped)
+                {
+                    if (c == '\t') tabs++;
+                    else break;
+                }
+                minTabs = Math.Min(minTabs, tabs);
+            }
+            if (minTabs == int.MaxValue) minTabs = 0;
 
             for (int i = 0; i < lines.Length; i++)
             {
@@ -652,16 +677,15 @@ namespace ArdysaModsTools.Core.Services.Misc
                 if (string.IsNullOrWhiteSpace(trimmed))
                     continue;
 
-                // Count existing indentation level
+                // Count existing tabs and compute relative depth from baseline
                 int existingTabs = 0;
                 foreach (char c in line)
                 {
                     if (c == '\t') existingTabs++;
                     else break;
                 }
-
-                // Re-indent relative to target depth
-                string newLine = prefix + trimmed;
+                int relativeTabs = Math.Max(0, existingTabs - minTabs);
+                string newLine = prefix + new string('\t', relativeTabs) + trimmed;
 
                 if (i < lines.Length - 1)
                     sb.AppendLine(newLine);

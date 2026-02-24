@@ -15,6 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -235,9 +236,13 @@ namespace ArdysaModsTools.Core.Services.Config
         /// Input:  https://raw.githubusercontent.com/Owner/Repo/refs/heads/main/path/file.zip
         /// Output: https://cdn.jsdelivr.net/gh/Owner/Repo@main/path/file.zip
         /// </example>
+        /// <summary>
+        /// Convert a raw GitHub URL to use the fastest available CDN.
+        /// Priority: R2 CDN (for our ModsPack repo) → jsDelivr (for other repos).
+        /// </summary>
         public static string ConvertToFastUrl(string? url)
         {
-            if (string.IsNullOrEmpty(url) || !UseJsDelivrCdn)
+            if (string.IsNullOrEmpty(url))
                 return url ?? string.Empty;
             
             // Pattern: https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}
@@ -248,43 +253,129 @@ namespace ArdysaModsTools.Core.Services.Config
             
             try
             {
-                // Extract: owner/repo/...rest
-                var remainder = url.Substring(rawPrefix.Length);
-                var parts = remainder.Split('/');
-                
-                if (parts.Length < 4)
-                    return url; // Invalid format, return original
-                
-                var owner = parts[0];
-                var repo = parts[1];
-                
-                string branch;
-                string path;
-                
-                // Handle refs/heads/branch format
-                if (parts.Length >= 5 && parts[2] == "refs" && parts[3] == "heads")
-                {
-                    // Format: owner/repo/refs/heads/branch/path...
-                    branch = parts[4];
-                    path = string.Join("/", parts.Skip(5));
-                }
-                else
-                {
-                    // Standard format: owner/repo/branch/path...
-                    branch = parts[2];
-                    path = string.Join("/", parts.Skip(3));
-                }
-                
+                var (owner, repo, branch, path) = ParseRawGitHubUrl(url);
                 if (string.IsNullOrEmpty(path))
-                    return url; // No path, return original
+                    return url;
                 
-                // jsDelivr format: https://cdn.jsdelivr.net/gh/owner/repo@branch/path
-                return $"https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}";
+                // R2 CDN: use for our own ModsPack repo (faster, no file-type restrictions)
+                if (owner.Equals(GitHubOwner, StringComparison.OrdinalIgnoreCase) &&
+                    repo.Equals(GitHubModsRepo, StringComparison.OrdinalIgnoreCase) &&
+                    branch.Equals(GitHubBranch, StringComparison.OrdinalIgnoreCase))
+                {
+                    return $"{R2CdnBase}/{path}";
+                }
+                
+                // jsDelivr CDN for other repos (when enabled)
+                if (UseJsDelivrCdn)
+                    return $"https://cdn.jsdelivr.net/gh/{owner}/{repo}@{branch}/{path}";
+                
+                return url;
             }
             catch
             {
-                return url; // Any error, return original
+                return url;
             }
+        }
+        
+        /// <summary>
+        /// Build fallback CDN URLs for a given primary URL.
+        /// Given any recognized CDN URL (R2/jsDelivr/raw GitHub), extracts the repo-relative
+        /// path and returns alternative CDN URLs to try if the primary fails.
+        /// This enables resilience against regional CDN blocks.
+        /// </summary>
+        /// <returns>Fallback URLs in priority order (may be empty if URL is not recognized).</returns>
+        public static string[] BuildFallbackUrls(string? url)
+        {
+            if (string.IsNullOrEmpty(url))
+                return Array.Empty<string>();
+            
+            string? repoPath = null;
+            var fallbacks = new List<string>(2);
+            
+            // Detect URL type and extract repo-relative path
+            if (url.StartsWith(R2CdnBase, StringComparison.OrdinalIgnoreCase))
+            {
+                // R2 CDN URL: https://cdn.ardysamods.my.id/{path}
+                repoPath = url.Substring(R2CdnBase.Length).TrimStart('/');
+                // Fallbacks: jsDelivr → raw GitHub
+                fallbacks.Add($"{JsDelivrBase}/{repoPath}");
+                fallbacks.Add($"{RawGitHubBase}/{repoPath}");
+            }
+            else if (url.StartsWith("https://raw.githubusercontent.com/", StringComparison.OrdinalIgnoreCase))
+            {
+                // Raw GitHub URL
+                var parsed = ParseRawGitHubUrl(url);
+                if (!string.IsNullOrEmpty(parsed.Path) &&
+                    parsed.Owner.Equals(GitHubOwner, StringComparison.OrdinalIgnoreCase) &&
+                    parsed.Repo.Equals(GitHubModsRepo, StringComparison.OrdinalIgnoreCase))
+                {
+                    repoPath = parsed.Path;
+                    // Fallbacks: R2 → jsDelivr
+                    fallbacks.Add($"{R2CdnBase}/{repoPath}");
+                    fallbacks.Add($"{JsDelivrBase}/{repoPath}");
+                }
+            }
+            else if (url.StartsWith("https://cdn.jsdelivr.net/gh/", StringComparison.OrdinalIgnoreCase))
+            {
+                // jsDelivr URL: https://cdn.jsdelivr.net/gh/owner/repo@branch/path
+                try
+                {
+                    var remainder = url.Substring("https://cdn.jsdelivr.net/gh/".Length);
+                    var atIdx = remainder.IndexOf('@');
+                    if (atIdx >= 0)
+                    {
+                        var afterAt = remainder.Substring(atIdx + 1);
+                        var slashIdx = afterAt.IndexOf('/');
+                        if (slashIdx >= 0)
+                        {
+                            repoPath = afterAt.Substring(slashIdx + 1);
+                            // Fallbacks: R2 → raw GitHub
+                            fallbacks.Add($"{R2CdnBase}/{repoPath}");
+                            fallbacks.Add($"{RawGitHubBase}/{repoPath}");
+                        }
+                    }
+                }
+                catch { }
+            }
+            
+            return fallbacks.ToArray();
+        }
+        
+        /// <summary>
+        /// Parse a raw GitHub URL into its components.
+        /// Handles both standard format and refs/heads format.
+        /// </summary>
+        private static (string Owner, string Repo, string Branch, string Path) ParseRawGitHubUrl(string url)
+        {
+            const string rawPrefix = "https://raw.githubusercontent.com/";
+            if (!url.StartsWith(rawPrefix, StringComparison.OrdinalIgnoreCase))
+                return (string.Empty, string.Empty, string.Empty, string.Empty);
+            
+            var remainder = url.Substring(rawPrefix.Length);
+            var parts = remainder.Split('/');
+            
+            if (parts.Length < 4)
+                return (string.Empty, string.Empty, string.Empty, string.Empty);
+            
+            var owner = parts[0];
+            var repo = parts[1];
+            
+            string branch;
+            string path;
+            
+            // Handle refs/heads/branch format
+            if (parts.Length >= 5 && parts[2] == "refs" && parts[3] == "heads")
+            {
+                branch = parts[4];
+                path = string.Join("/", parts.Skip(5));
+            }
+            else
+            {
+                branch = parts[2];
+                path = string.Join("/", parts.Skip(3));
+            }
+            
+            return (owner, repo, branch, path);
         }
         
         // ============================================================
