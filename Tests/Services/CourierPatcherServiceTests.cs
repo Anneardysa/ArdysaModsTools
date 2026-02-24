@@ -643,7 +643,7 @@ namespace ArdysaModsTools.Tests.Services
 
             var result = CourierPatcherService.AppendEtherealEffects(visuals, effects, 0);
             Assert.That(result, Does.Contain("particle_create"));
-            Assert.That(result, Does.Contain("midas_ambient.vpcf"));
+            Assert.That(result, Does.Contain("golden_roshan_ambient.vpcf"));
         }
 
         [Test]
@@ -667,9 +667,9 @@ namespace ArdysaModsTools.Tests.Services
 
             // Already have 1 existing particle, so only 1 slot available
             var result = CourierPatcherService.AppendEtherealEffects(visuals, effects, 1);
-            Assert.That(result, Does.Contain("midas_ambient.vpcf"));
-            Assert.That(result, Does.Not.Contain("courier_flame.vpcf"));
-            Assert.That(result, Does.Not.Contain("courier_frost_ambient.vpcf"));
+            Assert.That(result, Does.Contain("golden_roshan_ambient.vpcf"));
+            Assert.That(result, Does.Not.Contain("courier_roshan_lava.vpcf"));
+            Assert.That(result, Does.Not.Contain("courier_roshan_frost_ambient.vpcf"));
         }
 
         #endregion

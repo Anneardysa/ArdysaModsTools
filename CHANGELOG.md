@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.15-beta] (Build 2108)
+
+### 🐛 Fixed
+
+- Testing NuNit particle effects
+
 ## [2.1.15-beta] (Build 2107)
 
 ### ✨ Added
