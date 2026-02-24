@@ -15,12 +15,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.Linq;
 using System.Windows.Forms;
 using Microsoft.Extensions.DependencyInjection;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.DependencyInjection;
 using ArdysaModsTools.Core.Services.Security;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Services.App;
 
 namespace ArdysaModsTools
 {
@@ -100,6 +102,19 @@ namespace ArdysaModsTools
                 services.AddArdysaServices();
                 var serviceProvider = services.BuildServiceProvider();
                 Log("DI container built OK");
+
+                // ═══════════════════════════════════════════════════════════════
+                // STARTUP FLAGS
+                // Parse --minimized flag (set by Windows registry startup entry)
+                // ═══════════════════════════════════════════════════════════════
+                bool startMinimized = Environment.GetCommandLineArgs()
+                    .Any(a => a.Equals("--minimized", StringComparison.OrdinalIgnoreCase));
+                Log($"Start minimized: {startMinimized}");
+
+                // Fix stale startup registry path if startup is enabled
+                // (e.g., after an app update moved the exe to a new location)
+                new AppLifecycleService().EnsureStartupPathCurrent();
+                Log("Startup path check completed");
                 
                 // NOTE: ServiceLocator has been removed. All DI now uses constructor injection.
                 // MainForm is created via IMainFormFactory.Create() which handles DI properly.
@@ -204,7 +219,7 @@ namespace ArdysaModsTools
                     // Use factory pattern for proper DI (avoids obsolete constructor warning)
                     var mainFormFactory = serviceProvider.GetRequiredService<UI.Factories.IMainFormFactory>();
                     Log("MainFormFactory resolved, launching Application.Run...");
-                    Application.Run(mainFormFactory.Create());
+                    Application.Run(mainFormFactory.Create(startMinimized));
                     Log("Application.Run exited normally");
                 }
             }

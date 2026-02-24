@@ -330,7 +330,8 @@ namespace ArdysaModsTools.UI.Forms
                 {
                     string msg = $"Cache cleared! {CacheCleaningService.FormatBytes(result.BytesFreed)} freed";
                     await ExecuteScriptAsync($"showToast('{EscapeJs(msg)}', 'success')");
-                    await ExecuteScriptAsync("setCacheSize('0 B')");
+                    // Re-calculate actual remaining size (protected folders still have data)
+                    await LoadCacheSizeAsync();
                 }
                 else
                 {

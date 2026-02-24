@@ -610,7 +610,7 @@
          function resetButton(buttonId, iconHtml, text) {
             const btn = document.getElementById(buttonId);
             if (btn) {
-               btn.innerHTML = `<span class="action-btn-icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.83 1.04 6.5 2.72"/><polyline points="21 3 21 9 15 9"/></svg></span><span class="action-btn-text">${text}</span>`;
+               btn.innerHTML = `<span class="action-btn-icon">${iconHtml}</span><span class="action-btn-text">${text}</span>`;
                btn.disabled = false;
             }
          }

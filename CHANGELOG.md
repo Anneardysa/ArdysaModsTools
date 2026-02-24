@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.15-beta] (Build 2111)
+
+### 🚀 Improved
+
+- Included `AssetCacheService` directory (`%LOCALAPPDATA%\ArdysaModsTools\AssetCache`) in cache clearing and size calculation.
+- Clears `AssetCacheService` in-memory cache after disk cleanup to prevent serving stale entries.
+- Added `--minimized` flag to Windows startup registry entry, enabling the app to start silently in the system tray.
+
+### 🐛 Fixed
+
+- Re-calculate actual cache size after clearing instead of hardcoded 0 B.
+- Fixed `resetButton()` in HTML to use dynamic icon parameter (now properly shows Emoji instead of static SVG).
+- Validates `IsRunOnStartupEnabled` to ensure the stored registry path matches the current exe path.
+- `EnsureStartupPathCurrent()` now auto-fixes stale registry paths on launch.
+
 ## [2.1.15-beta] (Build 2110)
 
 ### 🚀 Improved

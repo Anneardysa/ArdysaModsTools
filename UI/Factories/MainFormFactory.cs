@@ -37,7 +37,7 @@ namespace ArdysaModsTools.UI.Factories
         }
 
         /// <inheritdoc />
-        public MainForm Create()
+        public MainForm Create(bool startMinimized = false)
         {
             // Resolve all dependencies from DI container
             var configService = _serviceProvider.GetRequiredService<IConfigService>();
@@ -50,7 +50,8 @@ namespace ArdysaModsTools.UI.Factories
                 configService,
                 detectionService,
                 modInstallerService,
-                statusService);
+                statusService,
+                startMinimized);
         }
     }
 }

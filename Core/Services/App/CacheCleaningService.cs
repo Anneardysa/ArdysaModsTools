@@ -20,6 +20,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Helpers;
+using ArdysaModsTools.Core.Services.Cache;
 
 namespace ArdysaModsTools.Core.Services.App
 {
@@ -73,6 +74,9 @@ namespace ArdysaModsTools.Core.Services.App
                     {
                         CleanDirectory(folder, result, deleteRoot: folder.DeleteRoot);
                     }
+
+                    // Also clear AssetCacheService in-memory cache so stale entries aren't served
+                    AssetCacheService.Instance.ClearCache();
                 });
 
                 FallbackLogger.Log($"[CacheCleaningService] Cleaned {result.FilesDeleted} files, " +
@@ -121,6 +125,20 @@ namespace ArdysaModsTools.Core.Services.App
                 FallbackLogger.Log($"[CacheCleaningService] Error scanning temp: {ex.Message}");
             }
 
+            // 3. Add AssetCacheService persistent cache (%LOCALAPPDATA%)
+            try
+            {
+                string assetCacheDir = AssetCacheService.Instance.CacheDirectory;
+                if (Directory.Exists(assetCacheDir))
+                {
+                    folders.Add(new CacheFolder(assetCacheDir, "Asset Cache", deleteRoot: false));
+                }
+            }
+            catch (Exception ex)
+            {
+                FallbackLogger.Log($"[CacheCleaningService] Error accessing AssetCacheService: {ex.Message}");
+            }
+
             return folders;
         }
 
@@ -129,7 +147,7 @@ namespace ArdysaModsTools.Core.Services.App
         /// </summary>
         private void CleanDirectory(CacheFolder folder, CleaningResult result, bool deleteRoot = false)
         {
-            if (!Directory.Exists(folder.Path))
+            if (!Directory.Exists(folder.FolderPath))
                 return;
 
             // Skip protected folders entirely
@@ -145,7 +163,7 @@ namespace ArdysaModsTools.Core.Services.App
                 var files = new List<(string Path, long Size)>();
                 try
                 {
-                    foreach (var file in Directory.GetFiles(folder.Path, "*", SearchOption.AllDirectories))
+                    foreach (var file in Directory.GetFiles(folder.FolderPath, "*", SearchOption.AllDirectories))
                     {
                         try
                         {
@@ -180,7 +198,7 @@ namespace ArdysaModsTools.Core.Services.App
                 // Delete subdirectories (bottom-up by path length)
                 try
                 {
-                    var dirs = Directory.GetDirectories(folder.Path, "*", SearchOption.AllDirectories)
+                    var dirs = Directory.GetDirectories(folder.FolderPath, "*", SearchOption.AllDirectories)
                         .OrderByDescending(d => d.Length)
                         .ToList();
 
@@ -197,13 +215,13 @@ namespace ArdysaModsTools.Core.Services.App
                 // Delete root if requested and empty
                 if (deleteRoot)
                 {
-                    TryDeleteEmptyDirectory(folder.Path, result);
+                    TryDeleteEmptyDirectory(folder.FolderPath, result);
                 }
             }
             catch (Exception ex)
             {
                 result.Errors.Add($"Error cleaning {folder.Name}: {ex.Message}");
-                FallbackLogger.Log($"[CacheCleaningService] CleanDirectory error for {folder.Path}: {ex.Message}");
+                FallbackLogger.Log($"[CacheCleaningService] CleanDirectory error for {folder.FolderPath}: {ex.Message}");
             }
         }
 
@@ -244,9 +262,9 @@ namespace ArdysaModsTools.Core.Services.App
                 {
                     // Count ALL folders for display - users want to see total disk usage
                     // Protected folders are only excluded from deletion, not from size calculation
-                    if (Directory.Exists(folder.Path))
+                    if (Directory.Exists(folder.FolderPath))
                     {
-                        totalSize += GetDirectorySizeQuick(folder.Path);
+                        totalSize += GetDirectorySizeQuick(folder.FolderPath);
                     }
                 }
             }
@@ -311,14 +329,14 @@ namespace ArdysaModsTools.Core.Services.App
         /// </summary>
         private class CacheFolder
         {
-            public string Path { get; }
+            public string FolderPath { get; }
             public string Name { get; }
             public bool DeleteRoot { get; }
             public bool IsProtected { get; }
 
             public CacheFolder(string path, string name, bool deleteRoot = false, bool isProtected = false)
             {
-                Path = path;
+                FolderPath = path;
                 Name = name;
                 DeleteRoot = deleteRoot;
                 IsProtected = isProtected;

@@ -39,7 +39,13 @@ namespace ArdysaModsTools.Core.Services.App
                 try
                 {
                     using var key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath, false);
-                    return key?.GetValue(AppName) != null;
+                    var value = key?.GetValue(AppName) as string;
+                    if (string.IsNullOrEmpty(value)) return false;
+
+                    // Validate that the stored path points to the current exe.
+                    // If the app was moved/updated, the old path is stale — report as disabled.
+                    string currentExe = Application.ExecutablePath;
+                    return value.Contains(currentExe, StringComparison.OrdinalIgnoreCase);
                 }
                 catch
                 {
@@ -64,7 +70,7 @@ namespace ArdysaModsTools.Core.Services.App
                 if (enable)
                 {
                     string exePath = Application.ExecutablePath;
-                    key.SetValue(AppName, $"\"{exePath}\"");
+                    key.SetValue(AppName, $"\"{exePath}\" --minimized");
                 }
                 else
                 {
@@ -77,6 +83,33 @@ namespace ArdysaModsTools.Core.Services.App
             {
                 FallbackLogger.Log($"[AppLifecycleService] Failed to set startup: {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// If startup is enabled but the stored path is stale (e.g., after an update moved the exe),
+        /// silently re-register with the correct path. Also adds the --minimized flag to legacy entries.
+        /// Call this once on every app launch.
+        /// </summary>
+        public void EnsureStartupPathCurrent()
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(RegistryKeyPath, true);
+                var value = key?.GetValue(AppName) as string;
+                if (string.IsNullOrEmpty(value)) return; // Not registered — nothing to fix
+
+                string expected = $"\"{Application.ExecutablePath}\" --minimized";
+                if (!string.Equals(value, expected, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Path changed (update/move) or missing --minimized flag — re-register
+                    key!.SetValue(AppName, expected);
+                    FallbackLogger.Log("[AppLifecycleService] Updated startup registry path to current exe");
+                }
+            }
+            catch (Exception ex)
+            {
+                FallbackLogger.Log($"[AppLifecycleService] EnsureStartupPathCurrent failed: {ex.Message}");
             }
         }
 

@@ -70,6 +70,7 @@ namespace ArdysaModsTools
         private TrayService? _trayService;
         private readonly AppLifecycleService _lifecycleService;
         private readonly CacheCleaningService _cacheService;
+        private readonly bool _startMinimized;
 
         /// <summary>
         /// Default constructor is disabled. Use MainFormFactory.Create() for proper DI.
@@ -88,12 +89,15 @@ namespace ArdysaModsTools
         /// <param name="detectionService">Dota 2 detection service.</param>
         /// <param name="modInstallerService">Mod installation service.</param>
         /// <param name="statusService">Mod status service.</param>
+        /// <param name="startMinimized">If true, start minimized to system tray (Windows startup).</param>
         public MainForm(
             IConfigService configService,
             IDetectionService detectionService,
             IModInstallerService modInstallerService,
-            IStatusService statusService)
+            IStatusService statusService,
+            bool startMinimized = false)
         {
+            _startMinimized = startMinimized;
             // Store injected dependencies
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _detection = detectionService ?? throw new ArgumentNullException(nameof(detectionService));
@@ -338,6 +342,14 @@ namespace ArdysaModsTools
                 }
 
                 EnableDetectionButtonsOnly();
+
+                // If launched with --minimized flag (Windows startup), go straight to tray
+                // Skip popups (SupportDialog, donation reminder) for a silent background start
+                if (_startMinimized && _trayService != null)
+                {
+                    _trayService.MinimizeToTray();
+                    return;
+                }
 
                 // Show Support Dialog on startup
                 ShowSupportDialogOnStartup();

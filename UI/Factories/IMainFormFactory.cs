@@ -31,7 +31,8 @@ namespace ArdysaModsTools.UI.Factories
         /// <summary>
         /// Creates a new MainForm instance with all dependencies injected.
         /// </summary>
+        /// <param name="startMinimized">If true, the form starts minimized to the system tray (used for Windows startup).</param>
         /// <returns>A fully initialized MainForm ready to be shown.</returns>
-        MainForm Create();
+        MainForm Create(bool startMinimized = false);
     }
 }
