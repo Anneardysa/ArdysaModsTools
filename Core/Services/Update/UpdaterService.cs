@@ -15,10 +15,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Security.Authentication;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -28,6 +31,7 @@ using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Services.Update.Models;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Constants;
 
 namespace ArdysaModsTools.Core.Services.Update
@@ -42,6 +46,45 @@ namespace ArdysaModsTools.Core.Services.Update
         private readonly Logger _logger;
         private readonly IUpdateStrategy _updateStrategy;
         private readonly InstallationType _installationType;
+
+        // Dedicated HttpClient for binary downloads — no AutomaticDecompression
+        // overhead since .exe/.zip files are already compressed.
+        // MUST include User-Agent + GitHub token or downloads get throttled to ~50KB/s.
+        private static readonly Lazy<HttpClient> _downloadClient = new(() =>
+        {
+            var handler = new HttpClientHandler
+            {
+                AutomaticDecompression = DecompressionMethods.None,
+                SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+                UseProxy = true,
+                Proxy = WebRequest.GetSystemWebProxy(),
+                DefaultProxyCredentials = CredentialCache.DefaultCredentials,
+                MaxConnectionsPerServer = 4,
+            };
+            var client = new HttpClient(handler, disposeHandler: true)
+            {
+                Timeout = Timeout.InfiniteTimeSpan // Per-request CTS handles this
+            };
+
+            // Critical: GitHub throttles requests without User-Agent
+            client.DefaultRequestHeaders.Add("User-Agent", "ArdysaModsTools/1.0");
+
+            // GitHub token for higher rate limits and faster downloads
+            var token = EnvironmentConfig.GitHubToken;
+            if (!string.IsNullOrEmpty(token))
+                client.DefaultRequestHeaders.Add("Authorization", $"token {token}");
+
+            return client;
+        });
+
+        /// <summary>Download buffer size (256 KB for maximum throughput).</summary>
+        private const int DownloadBufferSize = 256 * 1024;
+
+        /// <summary>Seconds with zero bytes before declaring a stall and switching CDN.</summary>
+        private const int StallTimeoutSeconds = 10;
+
+        /// <summary>Per-CDN connection timeout in seconds.</summary>
+        private const int PerCdnTimeoutSeconds = 15;
 
         // URL now loaded from environment configuration
         private static string GitHubApiUrl => EnvironmentConfig.ToolsReleasesApi;
@@ -134,32 +177,13 @@ namespace ArdysaModsTools.Core.Services.Update
                     var currentDisplay = new AppVersion(CurrentVersion, CurrentBuildNumber);
                     var latestDisplay = new AppVersion(updateInfo.Version, updateInfo.BuildNumber);
                     _logger.Log($"Update available: {currentDisplay} → {latestDisplay}");
-                    
-                    string installTypeInfo = _installationType == InstallationType.Installer 
-                        ? "(will require administrator privileges)" 
-                        : "(portable update)";
+                    // Show modern WebView2 update dialog with manual download links
+                    // (falls back to MessageBox if WebView2 unavailable)
+                    Form? parentForm = Application.OpenForms.Count > 0 ? Application.OpenForms[0] : null;
+                    UI.Forms.UpdateAvailableDialogWebView.Show(
+                        parentForm, updateInfo, _installationType);
 
-                    var currentVer = new AppVersion(CurrentVersion, CurrentBuildNumber);
-                    var latestVer = new AppVersion(updateInfo.Version, updateInfo.BuildNumber);
-
-                    var result = MessageBox.Show(
-                        $"A new version is available.\n\n" +
-                        $"Current: {currentVer}\n" +
-                        $"Latest:  {latestVer}\n" +
-                        $"Update type: {InstallationDetector.GetInstallationTypeName(_installationType)} {installTypeInfo}\n\n" +
-                        $"Do you want to update now?",
-                        "Update Available",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Information);
-
-                    if (result == DialogResult.Yes)
-                    {
-                        await DownloadAndApplyUpdateAsync(updateInfo);
-                    }
-                    else
-                    {
-                        _logger.Log("Update skipped by user.");
-                    }
+                    _logger.Log("Update dialog shown to user.");
                 }
                 else
                 {
@@ -449,6 +473,7 @@ namespace ArdysaModsTools.Core.Services.Update
         /// <summary>
         /// Downloads and applies the update using the appropriate strategy.
         /// Shows a ProgressOverlay during download for visual feedback.
+        /// Uses multi-CDN with stall detection for maximum download speed.
         /// </summary>
         private async Task DownloadAndApplyUpdateAsync(UpdateInfo updateInfo)
         {
@@ -464,16 +489,10 @@ namespace ArdysaModsTools.Core.Services.Update
                     return;
                 }
 
-                string? downloadUrl = _installationType == InstallationType.Installer
-                    ? updateInfo.InstallerDownloadUrl
-                    : updateInfo.PortableDownloadUrl;
+                // Build ordered download URLs from all available CDN sources
+                var downloadUrls = BuildOrderedDownloadUrls(updateInfo);
 
-                // Try mirror URL first (R2 CDN - faster for some regions)
-                string? mirrorUrl = _installationType == InstallationType.Installer
-                    ? updateInfo.MirrorInstallerUrl
-                    : updateInfo.MirrorPortableUrl;
-
-                if (string.IsNullOrEmpty(downloadUrl) && string.IsNullOrEmpty(mirrorUrl))
+                if (downloadUrls.Count == 0)
                 {
                     string assetType = _installationType == InstallationType.Installer ? "installer" : "portable";
                     _logger.Log($"No {assetType} asset found in release.");
@@ -486,13 +505,10 @@ namespace ArdysaModsTools.Core.Services.Update
                     return;
                 }
 
-                // Download the update with progress overlay - try mirror first, then GitHub
-                string primaryUrl = mirrorUrl ?? downloadUrl!;
-                string? fallbackUrl = !string.IsNullOrEmpty(mirrorUrl) ? downloadUrl : null;
-                
-                _logger.Log($"Downloading update from: {primaryUrl}");
-                
-                tempFilePath = await DownloadWithFallbackAsync(primaryUrl, fallbackUrl, updateInfo.Version);
+                _logger.Log($"Download servers ({downloadUrls.Count}): {string.Join(", ", downloadUrls.ConvertAll(u => GetCdnLabel(u)))}");
+
+                // Download with progress overlay and multi-CDN fallback
+                tempFilePath = await DownloadWithMultiCdnAsync(downloadUrls, updateInfo.Version);
 
                 if (string.IsNullOrEmpty(tempFilePath))
                 {
@@ -511,16 +527,13 @@ namespace ArdysaModsTools.Core.Services.Update
 
                 if (result.Success)
                 {
+                    // Clean up temp/cache files after successful update
+                    await CleanupAfterUpdateAsync(tempFilePath);
+
                     if (result.RequiresRestart)
                     {
                         _logger.Log("Update in progress. Closing app...");
-                        
-                        // For portable: We need to close so the batch script can proceed
-                        // For installer: Inno Setup with /CLOSEAPPLICATIONS will close us
-                        // Either way, give user a moment to see the status, then close
                         await Task.Delay(1500);
-                        
-                        // Close the application so update can proceed
                         Application.Exit();
                     }
                     else
@@ -550,60 +563,47 @@ namespace ArdysaModsTools.Core.Services.Update
         }
 
         /// <summary>
-        /// Downloads update with fallback support.
-        /// Tries primary URL first (R2 CDN), falls back to secondary URL (GitHub) if failed.
+        /// Build ordered download URL list from all available CDN sources.
+        /// Uses SmartCdnSelector to order by speed (fastest first).
         /// </summary>
-        /// <param name="primaryUrl">Primary download URL (typically R2 mirror)</param>
-        /// <param name="fallbackUrl">Fallback URL (typically GitHub), can be null</param>
-        /// <param name="version">Version being downloaded</param>
-        /// <returns>Path to downloaded file, or null if all downloads failed</returns>
-        private async Task<string?> DownloadWithFallbackAsync(string primaryUrl, string? fallbackUrl, string version)
+        private List<string> BuildOrderedDownloadUrls(UpdateInfo updateInfo)
         {
-            // Try primary URL first (R2 CDN - faster for some regions)
-            string? result = await DownloadWithProgressOverlayAsync(primaryUrl, version);
-            
-            if (!string.IsNullOrEmpty(result))
-            {
-                _logger.Log($"Download successful from primary source");
-                return result;
-            }
+            var urls = new List<string>();
 
-            // If primary failed and we have a fallback, try it
-            if (!string.IsNullOrEmpty(fallbackUrl))
-            {
-                _logger.Log($"Primary download failed, trying fallback: {fallbackUrl}");
-                result = await DownloadWithProgressOverlayAsync(fallbackUrl, version);
-                
-                if (!string.IsNullOrEmpty(result))
-                {
-                    _logger.Log($"Download successful from fallback source");
-                    return result;
-                }
-            }
+            // GitHub release URLs — primary (fastest, direct CDN)
+            string? githubUrl = _installationType == InstallationType.Installer
+                ? updateInfo.InstallerDownloadUrl
+                : updateInfo.PortableDownloadUrl;
+            if (!string.IsNullOrEmpty(githubUrl))
+                urls.Add(githubUrl);
 
-            _logger.Log("All download sources failed");
-            return null;
+            // R2 mirror URLs — fallback
+            string? mirrorUrl = _installationType == InstallationType.Installer
+                ? updateInfo.MirrorInstallerUrl
+                : updateInfo.MirrorPortableUrl;
+            if (!string.IsNullOrEmpty(mirrorUrl))
+                urls.Add(mirrorUrl);
+
+            return urls;
         }
 
         /// <summary>
-        /// Downloads update file with animated ProgressOverlay.
+        /// Multi-CDN download with ProgressOverlay, stall detection, and server logging.
+        /// Tries each CDN in speed-optimized order; auto-switches on stall or failure.
         /// </summary>
-        private async Task<string?> DownloadWithProgressOverlayAsync(string url, string version)
+        private async Task<string?> DownloadWithMultiCdnAsync(List<string> urls, string version)
         {
-            // Find parent form for overlay
             Form? parentForm = Application.OpenForms.Count > 0 ? Application.OpenForms[0] : null;
-            
+
             string? resultPath = null;
             bool wasCancelled = false;
             Exception? downloadException = null;
 
-            // Create overlay on UI thread
             UI.Forms.ProgressOverlay? overlay = null;
             Panel? dimPanel = null;
-            
+
             if (parentForm != null && !parentForm.InvokeRequired)
             {
-                // Create dim panel
                 dimPanel = new Panel
                 {
                     BackColor = Color.FromArgb(179, 0, 0, 0),
@@ -613,7 +613,7 @@ namespace ArdysaModsTools.Core.Services.Update
                 dimPanel.BringToFront();
 
                 overlay = new UI.Forms.ProgressOverlay();
-                
+
                 try
                 {
                     await overlay.InitializeAsync();
@@ -621,7 +621,6 @@ namespace ArdysaModsTools.Core.Services.Update
                 }
                 catch
                 {
-                    // WebView2 not available - fall back to classic download
                     overlay?.Dispose();
                     overlay = null;
                     parentForm.Controls.Remove(dimPanel!);
@@ -632,88 +631,32 @@ namespace ArdysaModsTools.Core.Services.Update
 
             if (overlay != null && parentForm != null)
             {
-                // Download with overlay
                 var cts = new CancellationTokenSource();
-                
+
                 overlay.CancelRequested += (s, e) =>
                 {
                     wasCancelled = true;
                     try { cts.Cancel(); } catch { }
                 };
 
-                // Start download task
+                // Build server log entries
+                var serverLog = new ServerLogEntry[urls.Count];
+                for (int i = 0; i < urls.Count; i++)
+                {
+                    serverLog[i] = new ServerLogEntry
+                    {
+                        Name = $"Server-{(i + 1):D2}",
+                        InternalLabel = GetCdnLabel(urls[i]),
+                        Status = ServerStatus.Standby
+                    };
+                }
+
                 var downloadTask = Task.Run(async () =>
                 {
                     try
                     {
-                        string extension = url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ? ".zip" : ".exe";
-                        string tempPath = Path.Combine(Path.GetTempPath(), $"ArdysaModsTools_Update_{Guid.NewGuid()}{extension}");
-
-                        using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cts.Token);
-                        response.EnsureSuccessStatusCode();
-
-                        await using var netStream = await response.Content.ReadAsStreamAsync(cts.Token);
-                        await using var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
-
-                        long totalRead = 0;
-                        long? totalBytes = response.Content.Headers.ContentLength;
-                        byte[] buffer = new byte[81920];
-                        int bytesRead;
-                        int lastProgress = -1;
-                        var sw = Stopwatch.StartNew();
-                        long lastBytes = 0;
-                        double lastSpeed = 0;
-                        bool needsUiUpdate = false;
-
-                        while ((bytesRead = await netStream.ReadAsync(buffer, 0, buffer.Length, cts.Token)) > 0)
-                        {
-                            await fileStream.WriteAsync(buffer, 0, bytesRead, cts.Token);
-                            totalRead += bytesRead;
-
-                            // Recalculate speed and flag UI update every ~500ms
-                            if (sw.ElapsedMilliseconds >= 500)
-                            {
-                                long deltaBytes = totalRead - lastBytes;
-                                double elapsedSec = sw.ElapsedMilliseconds / 1000.0;
-                                lastSpeed = elapsedSec > 0 ? deltaBytes / elapsedSec / (1024 * 1024) : 0; // MB/s
-                                lastBytes = totalRead;
-                                sw.Restart();
-                                needsUiUpdate = true;
-                            }
-
-                            if (totalBytes.HasValue)
-                            {
-                                int progress = (int)(totalRead * 100L / totalBytes.Value);
-
-                                // Trigger UI update on progress change OR timer tick
-                                if (progress > lastProgress)
-                                {
-                                    lastProgress = progress;
-                                    needsUiUpdate = true;
-                                }
-
-                                if (needsUiUpdate && overlay.InvokeRequired)
-                                {
-                                    needsUiUpdate = false;
-
-                                    // Snapshot values for thread-safe UI update
-                                    int snapProgress = lastProgress;
-                                    double snapMbDown = totalRead / 1024.0 / 1024.0;
-                                    double snapMbTotal = totalBytes.Value / 1024.0 / 1024.0;
-                                    double snapSpeed = lastSpeed;
-
-                                    overlay.BeginInvoke(new Action(async () =>
-                                    {
-                                        await overlay.UpdateProgressAsync(snapProgress);
-                                        await overlay.UpdateDownloadProgressAsync(snapMbDown, snapMbTotal);
-                                        await overlay.UpdateDownloadSpeedAsync(
-                                            snapSpeed > 0 ? $"{snapSpeed:F1} MB/S" : "-- MB/S");
-                                    }));
-                                }
-                            }
-                        }
-
-                        resultPath = tempPath;
+                        resultPath = await DownloadFromMultipleCdnsAsync(
+                            urls, serverLog, overlay, cts.Token);
                     }
                     catch (OperationCanceledException)
                     {
@@ -725,20 +668,15 @@ namespace ArdysaModsTools.Core.Services.Update
                     }
                     finally
                     {
-                        // Close overlay
-                        if (overlay.InvokeRequired)
-                            overlay.BeginInvoke(new Action(() => { try { overlay.Complete(); } catch { } }));
-                        else
-                            try { overlay.Complete(); } catch { }
+                        // Complete() is idempotent — safe if cancel already closed the dialog
+                        try { overlay.Complete(); } catch { }
                     }
                 }, cts.Token);
 
-                // Show dialog (blocks until closed)
                 overlay.ShowDialog(parentForm);
-                
-                // Wait for download to finish
+
                 try { await downloadTask; } catch { }
-                
+
                 overlay.Dispose();
                 parentForm.Controls.Remove(dimPanel!);
                 dimPanel?.Dispose();
@@ -747,6 +685,11 @@ namespace ArdysaModsTools.Core.Services.Update
                 if (wasCancelled)
                 {
                     _logger.Log("Update download cancelled by user.");
+                    // Clean up any temp file that may have completed during cancel
+                    if (!string.IsNullOrEmpty(resultPath))
+                    {
+                        try { File.Delete(resultPath); } catch { }
+                    }
                     return null;
                 }
 
@@ -760,37 +703,284 @@ namespace ArdysaModsTools.Core.Services.Update
             }
             else
             {
-                // Fallback: download without overlay (original method)
-                return await DownloadFileAsync(url);
+                // Fallback: no overlay — download from first available URL
+                return await DownloadFileAsync(urls[0]);
             }
         }
 
         /// <summary>
-        /// Downloads a file from URL to a temporary location with progress reporting.
+        /// Core multi-CDN download engine with stall detection.
+        /// Tries each URL in order; if download stalls (no data for 10s), switches to next CDN.
+        /// Reports progress and server status to the ProgressOverlay.
+        /// </summary>
+        private async Task<string?> DownloadFromMultipleCdnsAsync(
+            List<string> urls,
+            ServerLogEntry[] serverLog,
+            UI.Forms.ProgressOverlay overlay,
+            CancellationToken ct)
+        {
+            string? lastError = null;
+
+            for (int cdnIdx = 0; cdnIdx < urls.Count; cdnIdx++)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                string url = urls[cdnIdx];
+                string cdnLabel = serverLog[cdnIdx].InternalLabel;
+
+                // Update server log: mark this CDN as active
+                serverLog[cdnIdx].Status = ServerStatus.Active;
+                _logger.Log($"Trying {serverLog[cdnIdx].Name} ({cdnLabel}): {url}");
+                UpdateServerLogOnUi(overlay, serverLog);
+
+                try
+                {
+                    string? result = await DownloadFromSingleCdnAsync(
+                        url, overlay, serverLog, cdnIdx, ct);
+
+                    if (!string.IsNullOrEmpty(result))
+                    {
+                        // Success
+                        serverLog[cdnIdx].Status = ServerStatus.Success;
+                        UpdateServerLogOnUi(overlay, serverLog);
+                        _logger.Log($"Download successful from {serverLog[cdnIdx].Name} ({cdnLabel})");
+                        return result;
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw; // User cancelled — bubble up
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex.Message;
+                    _logger.Log($"{serverLog[cdnIdx].Name} ({cdnLabel}) failed: {ex.Message}");
+
+                    // Report failure to SmartCdnSelector for future reordering
+                    SmartCdnSelector.Instance.ReportFailure(url);
+                }
+
+                // Mark this CDN as failed
+                serverLog[cdnIdx].Status = ServerStatus.Failed;
+                UpdateServerLogOnUi(overlay, serverLog);
+
+                if (cdnIdx < urls.Count - 1)
+                {
+                    _logger.Log($"Switching to {serverLog[cdnIdx + 1].Name}...");
+                }
+            }
+
+            _logger.Log($"All download servers failed. Last error: {lastError}");
+            return null;
+        }
+
+        /// <summary>
+        /// Download from a single CDN URL with stall detection.
+        /// Returns the temp file path on success, null on stall/failure.
+        /// </summary>
+        private async Task<string?> DownloadFromSingleCdnAsync(
+            string url,
+            UI.Forms.ProgressOverlay overlay,
+            ServerLogEntry[] serverLog,
+            int cdnIdx,
+            CancellationToken ct)
+        {
+            var client = _downloadClient.Value;
+
+            // Per-CDN timeout for initial connection
+            using var connectCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            connectCts.CancelAfter(TimeSpan.FromSeconds(PerCdnTimeoutSeconds));
+
+            string extension = url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ? ".zip" : ".exe";
+            string tempPath = Path.Combine(Path.GetTempPath(), $"ArdysaModsTools_Update_{Guid.NewGuid()}{extension}");
+
+            using var response = await client.GetAsync(
+                url, HttpCompletionOption.ResponseHeadersRead, connectCts.Token)
+                .ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            await using var netStream = await response.Content.ReadAsStreamAsync(ct)
+                .ConfigureAwait(false);
+            await using var fileStream = new FileStream(
+                tempPath, FileMode.Create, FileAccess.Write, FileShare.None, DownloadBufferSize, true);
+
+            long totalRead = 0;
+            long? totalBytes = response.Content.Headers.ContentLength;
+            byte[] buffer = new byte[DownloadBufferSize];
+            int lastProgress = -1;
+
+            // Speed tracking
+            var sw = Stopwatch.StartNew();
+            long speedWindowBytes = 0;
+            var speedWindowStart = sw.Elapsed;
+            double lastSpeed = 0;
+            bool firstSpeedSample = true; // First sample uses shorter window for fast feedback
+
+            // Stall detection
+            var lastDataTime = DateTime.UtcNow;
+
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                // Check for stall
+                if ((DateTime.UtcNow - lastDataTime).TotalSeconds > StallTimeoutSeconds)
+                {
+                    _logger.Log($"{serverLog[cdnIdx].Name} stalled (no data for {StallTimeoutSeconds}s)");
+                    // Clean up partial file
+                    try { fileStream.Close(); } catch { }
+                    try { File.Delete(tempPath); } catch { }
+                    return null; // Stall — caller will try next CDN
+                }
+
+                // Read with a short timeout to detect stalls promptly
+                using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                readCts.CancelAfter(TimeSpan.FromSeconds(StallTimeoutSeconds + 2));
+
+                int bytesRead;
+                try
+                {
+                    bytesRead = await netStream.ReadAsync(buffer, 0, buffer.Length, readCts.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    // Read timeout — stall
+                    _logger.Log($"{serverLog[cdnIdx].Name} read timeout");
+                    try { fileStream.Close(); } catch { }
+                    try { File.Delete(tempPath); } catch { }
+                    return null;
+                }
+
+                if (bytesRead == 0)
+                    break; // Download complete
+
+                await fileStream.WriteAsync(buffer, 0, bytesRead, ct).ConfigureAwait(false);
+                totalRead += bytesRead;
+                speedWindowBytes += bytesRead;
+                lastDataTime = DateTime.UtcNow;
+
+                // Speed tracking — first sample at 200ms, then 500ms for smoother updates
+                var elapsedSinceWindow = sw.Elapsed - speedWindowStart;
+                int speedWindowMs = firstSpeedSample ? 200 : 500;
+                bool speedWindowTick = elapsedSinceWindow.TotalMilliseconds >= speedWindowMs;
+                if (speedWindowTick)
+                {
+                    lastSpeed = speedWindowBytes / elapsedSinceWindow.TotalSeconds / (1024 * 1024);
+                    speedWindowBytes = 0;
+                    speedWindowStart = sw.Elapsed;
+                    firstSpeedSample = false;
+                }
+
+                // Update progress UI
+                if (totalBytes.HasValue && totalBytes.Value > 0)
+                {
+                    int progress = (int)(totalRead * 100L / totalBytes.Value);
+                    bool percentChanged = progress > lastProgress;
+
+                    if (percentChanged)
+                        lastProgress = progress;
+
+                    // Push UI updates on percent change OR every speed tick
+                    if (percentChanged || speedWindowTick)
+                    {
+                        int snapProgress = lastProgress;
+                        double snapMbDown = totalRead / 1024.0 / 1024.0;
+                        double snapMbTotal = totalBytes.Value / 1024.0 / 1024.0;
+                        string snapSpeedText = lastSpeed > 0 ? $"{lastSpeed:F1} MB/S" : "-- MB/S";
+
+                        try
+                        {
+                            overlay.BeginInvoke(new Action(() =>
+                            {
+                                try
+                                {
+                                    _ = overlay.UpdateProgressAsync(snapProgress);
+                                    _ = overlay.UpdateDownloadProgressAsync(snapMbDown, snapMbTotal);
+                                    _ = overlay.UpdateDownloadSpeedAsync(snapSpeedText);
+                                }
+                                catch { /* overlay disposed or closing */ }
+                            }));
+                        }
+                        catch { /* handle not created yet or overlay disposed */ }
+                    }
+                }
+            }
+
+            sw.Stop();
+            double avgSpeed = totalRead / 1024.0 / 1024.0 / sw.Elapsed.TotalSeconds;
+            _logger.Log($"Download: {totalRead / 1024.0 / 1024.0:F1} MB at {avgSpeed:F1} MB/s");
+
+            return tempPath;
+        }
+
+        /// <summary>
+        /// Update server log on the UI thread.
+        /// </summary>
+        private static void UpdateServerLogOnUi(UI.Forms.ProgressOverlay overlay, ServerLogEntry[] serverLog)
+        {
+            if (overlay.InvokeRequired)
+            {
+                // Clone entries for thread safety
+                var snapshot = new ServerLogEntry[serverLog.Length];
+                for (int i = 0; i < serverLog.Length; i++)
+                {
+                    snapshot[i] = new ServerLogEntry
+                    {
+                        Name = serverLog[i].Name,
+                        InternalLabel = serverLog[i].InternalLabel,
+                        Status = serverLog[i].Status
+                    };
+                }
+                overlay.BeginInvoke(new Action(async () =>
+                {
+                    await overlay.UpdateServerLogAsync(snapshot);
+                }));
+            }
+        }
+
+        /// <summary>
+        /// Get display label for a CDN URL (for internal logging only).
+        /// </summary>
+        private static string GetCdnLabel(string url)
+        {
+            if (url.Contains("ardysamods.my.id") || url.Contains("r2.dev"))
+                return "R2";
+            if (url.Contains("jsdelivr.net"))
+                return "jsDelivr";
+            if (url.Contains("github.com") || url.Contains("githubusercontent.com"))
+                return "GitHub";
+            return "Unknown";
+        }
+
+        /// <summary>
+        /// Fallback: simple download without overlay (used when WebView2 unavailable).
         /// </summary>
         private async Task<string?> DownloadFileAsync(string url)
         {
             try
             {
+                var client = _downloadClient.Value;
                 string extension = url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ? ".zip" : ".exe";
                 string tempPath = Path.Combine(Path.GetTempPath(), $"ArdysaModsTools_Update_{Guid.NewGuid()}{extension}");
 
-                using var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+                using var response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cts.Token);
                 response.EnsureSuccessStatusCode();
 
-                await using var netStream = await response.Content.ReadAsStreamAsync();
-                await using var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+                await using var netStream = await response.Content.ReadAsStreamAsync(cts.Token);
+                await using var fileStream = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, DownloadBufferSize, true);
 
                 long totalRead = 0;
                 long? totalBytes = response.Content.Headers.ContentLength;
-                byte[] buffer = new byte[81920];
+                byte[] buffer = new byte[DownloadBufferSize];
                 int bytesRead;
                 int lastProgress = 0;
                 var sw = Stopwatch.StartNew();
 
-                while ((bytesRead = await netStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                while ((bytesRead = await netStream.ReadAsync(buffer, 0, buffer.Length, cts.Token)) > 0)
                 {
-                    await fileStream.WriteAsync(buffer, 0, bytesRead);
+                    await fileStream.WriteAsync(buffer, 0, bytesRead, cts.Token);
                     totalRead += bytesRead;
 
                     if (totalBytes.HasValue)
@@ -840,6 +1030,83 @@ namespace ArdysaModsTools.Core.Services.Update
             var latest = new AppVersion(latestVersion, latestBuild);
             return current.ShouldUpdateTo(latest);
         }
+
+        /// <summary>
+        /// Clean up all temp/cache files after a successful update.
+        /// Removes: downloaded update file, leftover update temp files,
+        /// WebView2 progress overlay cache, and all app temp/cache via CacheCleaningService.
+        /// </summary>
+        private async Task CleanupAfterUpdateAsync(string? downloadedFilePath)
+        {
+            _logger.Log("Cleaning up temp/cache files after update...");
+            int filesDeleted = 0;
+
+            // Run file cleanup on background thread to avoid blocking UI
+            await Task.Run(() =>
+            {
+                // 1. Delete the downloaded update file
+                if (!string.IsNullOrEmpty(downloadedFilePath))
+                {
+                    try
+                    {
+                        if (File.Exists(downloadedFilePath))
+                        {
+                            File.Delete(downloadedFilePath);
+                            Interlocked.Increment(ref filesDeleted);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Log($"Could not delete update file: {ex.Message}");
+                    }
+                }
+
+                // 2. Clean up any leftover ArdysaModsTools_Update_* temp files
+                try
+                {
+                    string tempDir = Path.GetTempPath();
+                    var leftoverFiles = Directory.GetFiles(tempDir, "ArdysaModsTools_Update_*");
+                    foreach (var file in leftoverFiles)
+                    {
+                        try { File.Delete(file); Interlocked.Increment(ref filesDeleted); }
+                        catch { /* in use or locked */ }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"Could not clean leftover update files: {ex.Message}");
+                }
+
+                // 3. Clean up WebView2 temp folder used by progress overlay
+                try
+                {
+                    string webViewTemp = Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2");
+                    if (Directory.Exists(webViewTemp))
+                    {
+                        Directory.Delete(webViewTemp, true);
+                        _logger.Log("Cleaned WebView2 temp folder");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"Could not clean WebView2 temp: {ex.Message}");
+                }
+            }).ConfigureAwait(false);
+
+            // 4. Full cache clean via CacheCleaningService (already uses Task.Run internally)
+            try
+            {
+                var cacheService = new Core.Services.App.CacheCleaningService();
+                var result = await cacheService.ClearAllCacheAsync().ConfigureAwait(false);
+                filesDeleted += result.FilesDeleted;
+                _logger.Log($"Cache cleaned: {result.FilesDeleted} files, {Core.Services.App.CacheCleaningService.FormatBytes(result.BytesFreed)} freed");
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Cache clean failed: {ex.Message}");
+            }
+
+            _logger.Log($"Post-update cleanup complete. {filesDeleted} files removed.");
+        }
     }
 }
-

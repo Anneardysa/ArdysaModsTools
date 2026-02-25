@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Update Available - AMT 2.0</title>
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         :root {
+            --bg-dark: #000000;
+            --bg-card: #0a0a0a;
+            --bg-card-hover: #111111;
+            --border-color: #333333;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --text-muted: #666666;
+            --accent-cyan: #00d4ff;
+            --accent-cyan-light: #33ddff;
+            --accent-green: #22c55e;
+         }
+
+         body {
+            font-family: "JetBrains Mono", "Consolas", monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            border: 1px solid var(--accent-cyan);
+            overflow: hidden;
+         }
+
+         /* Drag Area */
+         .drag-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 36px;
+            cursor: move;
+            -webkit-app-region: drag;
+            z-index: 10;
+         }
+
+         /* Close Button */
+         .close-btn {
+            position: fixed;
+            top: 10px;
+            right: 12px;
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+            z-index: 20;
+         }
+         .close-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+         }
+         .close-btn svg {
+            width: 14px;
+            height: 14px;
+         }
+
+         /* Main Container */
+         .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 48px 28px;
+         }
+
+         /* Update Icon */
+         .update-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: rgba(0, 212, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 14px;
+            animation: pulse 2s ease-in-out infinite;
+         }
+         .update-icon svg {
+            width: 26px;
+            height: 26px;
+            color: var(--accent-cyan);
+         }
+
+         @keyframes pulse {
+            0%,
+            100% {
+               opacity: 1;
+               transform: scale(1);
+            }
+            50% {
+               opacity: 0.85;
+               transform: scale(1.05);
+            }
+         }
+
+         @keyframes fadeInUp {
+            from {
+               opacity: 0;
+               transform: translateY(8px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+
+         /* Badge */
+         .badge {
+            display: inline-block;
+            padding: 5px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
+         }
+
+         /* Title */
+         .title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: 18px;
+            letter-spacing: 0.5px;
+         }
+
+         /* Version Info */
+         .version-info {
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-bottom: 22px;
+            animation: fadeInUp 0.3s ease-out;
+         }
+         .version-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+         }
+         .version-row + .version-row {
+            border-top: 1px solid rgba(51, 51, 51, 0.5);
+         }
+         .version-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+         }
+         .version-value {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--text-secondary);
+         }
+         .version-value.latest {
+            color: var(--accent-cyan);
+         }
+         .version-value.type-badge {
+            color: var(--accent-green);
+         }
+
+         /* Section Label */
+         .section-label {
+            width: 100%;
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            text-align: center;
+         }
+
+         /* Download Cards */
+         .download-section {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 18px;
+         }
+         .download-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+         }
+         .download-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: var(--bg-card-hover);
+            transform: translateY(-1px);
+         }
+         .download-card .card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+         }
+         .download-card .card-icon.cdn {
+            background: rgba(0, 212, 255, 0.1);
+         }
+         .download-card .card-icon.cdn svg {
+            color: var(--accent-cyan);
+         }
+         .download-card .card-icon.github {
+            background: rgba(255, 255, 255, 0.08);
+         }
+         .download-card .card-icon.github svg {
+            color: var(--text-secondary);
+         }
+         .download-card .card-icon svg {
+            width: 18px;
+            height: 18px;
+         }
+         .card-info {
+            flex: 1;
+            min-width: 0;
+         }
+         .card-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--text-primary);
+         }
+         .card-desc {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .card-arrow {
+            color: var(--text-muted);
+            flex-shrink: 0;
+         }
+         .card-arrow svg {
+            width: 14px;
+            height: 14px;
+         }
+
+         /* Cancel */
+         .btn-cancel {
+            padding: 6px 20px;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            letter-spacing: 0.5px;
+         }
+         .btn-cancel:hover {
+            color: var(--text-secondary);
+         }
+      </style>
+   </head>
+   <body>
+      <div class="drag-area" onmousedown="startDrag()"></div>
+
+      <button class="close-btn" onclick="notNow()" title="Close">
+         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+               stroke-linecap="round"
+               stroke-linejoin="round"
+               stroke-width="2"
+               d="M6 18L18 6M6 6l12 12"
+            />
+         </svg>
+      </button>
+
+      <div class="container">
+         <!-- Update Icon -->
+         <div class="update-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+               />
+            </svg>
+         </div>
+
+         <!-- Badge -->
+         <div class="badge">[ UPDATE AVAILABLE ]</div>
+
+         <!-- Title -->
+         <div class="title">A NEW VERSION IS AVAILABLE</div>
+
+         <!-- Version Info Card -->
+         <div class="version-info">
+            <div class="version-row">
+               <span class="version-label">Current</span>
+               <span class="version-value" id="currentVersion">--</span>
+            </div>
+            <div class="version-row">
+               <span class="version-label">Latest</span>
+               <span class="version-value latest" id="latestVersion">--</span>
+            </div>
+            <div class="version-row">
+               <span class="version-label">Type</span>
+               <span class="version-value type-badge" id="updateType">--</span>
+            </div>
+         </div>
+
+         <!-- Download Section -->
+         <div class="section-label">Download Latest Version</div>
+
+         <div class="download-section">
+            <!-- CDN Link -->
+            <div class="download-card" onclick="openLink('cdn')" id="cdnCard">
+               <div class="card-icon cdn">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"
+                     />
+                  </svg>
+               </div>
+               <div class="card-info">
+                  <div class="card-title">CDN Server</div>
+                  <div class="card-desc" id="cdnDesc">cdn.ardysamods.my.id</div>
+               </div>
+               <div class="card-arrow">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                     />
+                  </svg>
+               </div>
+            </div>
+
+            <!-- GitHub Link -->
+            <div class="download-card" onclick="openLink('github')" id="githubCard">
+               <div class="card-icon github">
+                  <svg fill="currentColor" viewBox="0 0 24 24">
+                     <path
+                        d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+                     />
+                  </svg>
+               </div>
+               <div class="card-info">
+                  <div class="card-title">Download from Website</div>
+                  <div class="card-desc" id="githubDesc">ardysamods.my.id</div>
+               </div>
+               <div class="card-arrow">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                     />
+                  </svg>
+               </div>
+            </div>
+         </div>
+
+         <!-- Cancel -->
+         <button class="btn-cancel" onclick="notNow()">Not Now</button>
+      </div>
+
+      <script>
+         let cdnLink = "";
+         let githubLink = "";
+
+         function setUpdateInfo(data) {
+            document.getElementById("currentVersion").textContent = data.currentVersion || "--";
+            document.getElementById("latestVersion").textContent = data.latestVersion || "--";
+            document.getElementById("updateType").textContent = data.updateType || "--";
+            cdnLink = data.cdnUrl || "";
+            githubLink = data.githubUrl || "";
+
+            if (data.cdnFilename) {
+               document.getElementById("cdnDesc").textContent = data.cdnFilename;
+            }
+            if (data.githubFilename) {
+               document.getElementById("githubDesc").textContent = data.githubFilename;
+            }
+         }
+
+         function openLink(source) {
+            const url = source === "cdn" ? cdnLink : githubLink;
+            if (url) {
+               sendMessage({ type: "openLink", url: url });
+            }
+         }
+
+         function notNow() {
+            sendMessage({ type: "notNow" });
+         }
+
+         function startDrag() {
+            sendMessage({ type: "startDrag" });
+         }
+
+         function sendMessage(data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(data);
+            }
+         }
+      </script>
+   </body>
+</html>

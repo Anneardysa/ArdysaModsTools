@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.16-beta] (Build 2113)
+
+### 🚀 UI/UX
+
+- Replaced the simple MessageBox update prompt with a modern, dark-themed WebView2 `UpdateAvailableDialogWebView`.
+- Included clear version comparison (Current vs Latest) and app type (Portable/Installer) in the update dialog.
+- Added manual download cards for the CDN Server and official website (`ardysamods.my.id`).
+
 ## [2.1.15-beta] (Build 2111)
 
 ### 🚀 Improved

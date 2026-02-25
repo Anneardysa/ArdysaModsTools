@@ -29,8 +29,8 @@
   <!-- ============================================== -->
   <PropertyGroup>
     <Version>2.1.16-beta</Version>
-    <AssemblyVersion>2.1.16.2112</AssemblyVersion>
-    <FileVersion>2.1.16.2112</FileVersion>
+    <AssemblyVersion>2.1.16.2113</AssemblyVersion>
+    <FileVersion>2.1.16.2113</FileVersion>
     <InformationalVersion>2.1.16-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
@@ -215,6 +215,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Html\verify_files.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\update_available.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
 

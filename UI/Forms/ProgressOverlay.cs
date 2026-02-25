@@ -26,6 +26,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
+using ArdysaModsTools.Core.Services.Update.Models;
 
 namespace ArdysaModsTools.UI.Forms
 {
@@ -42,6 +43,7 @@ namespace ArdysaModsTools.UI.Forms
         
         // Cancel support - robust state management
         private bool _cancelInProgress;
+        private volatile bool _completed;
         public bool WasCancelled { get; private set; }
         public event EventHandler? CancelRequested;
 
@@ -137,27 +139,13 @@ namespace ArdysaModsTools.UI.Forms
                 return;
             
             _cancelInProgress = true;
-            
-            // Visual feedback: update HTML cancel button
-            _ = ExecuteScriptSafeAsync(
-                "var b=document.getElementById('cancelBtn');" +
-                "if(b){b.textContent='CANCELLING...';b.disabled=true;b.style.opacity='0.4';b.style.cursor='default'}");
-            
-            // Update status to show cancellation in progress
-            try { _ = UpdateStatusAsync("Cancelling..."); } catch { }
-            
-            // Set cancelled flag and fire event
             WasCancelled = true;
+            
+            // Fire cancel event first so download task stops
             CancelRequested?.Invoke(this, EventArgs.Empty);
             
-            // Close overlay after a brief delay for visual feedback
-            Task.Delay(500).ContinueWith(_ =>
-            {
-                if (this.InvokeRequired)
-                    this.BeginInvoke(new Action(() => SafeClose()));
-                else
-                    SafeClose();
-            });
+            // Close immediately — Complete() is idempotent
+            Complete();
         }
         
         /// <summary>
@@ -354,6 +342,34 @@ namespace ArdysaModsTools.UI.Forms
         }
 
         /// <summary>
+        /// Update server log display showing CDN server statuses.
+        /// Shows only server number (e.g. "Server-01") with status indicators.
+        /// </summary>
+        public async Task UpdateServerLogAsync(ServerLogEntry[] servers)
+        {
+            if (!_initialized || _webView?.CoreWebView2 == null) return;
+            if (servers == null || servers.Length == 0) return;
+
+            try
+            {
+                // Build JSON array manually for thread safety
+                var entries = new System.Text.StringBuilder("[");
+                for (int i = 0; i < servers.Length; i++)
+                {
+                    if (i > 0) entries.Append(',');
+                    string name = (servers[i].Name ?? "").Replace("\"", "\\\"");
+                    string status = servers[i].Status.ToString().ToLower();
+                    entries.Append("{\"Name\":\"" + name + "\",\"Status\":\"" + status + "\"}");
+                }
+                entries.Append(']');
+
+                await _webView.CoreWebView2.ExecuteScriptAsync(
+                    $"updateServerLog({entries})");
+            }
+            catch { }
+        }
+
+        /// <summary>
         /// Update file progress (current/total files).
         /// Used during Building, Installing, and Download Assets phases.
         /// </summary>
@@ -496,15 +512,19 @@ namespace ArdysaModsTools.UI.Forms
         }
 
         /// <summary>
-        /// Signal completion and close.
+        /// Signal completion and close. Thread-safe, idempotent.
         /// </summary>
         public void Complete()
         {
+            if (_completed) return; // Guard: already closed
+            
             if (this.InvokeRequired)
             {
                 this.BeginInvoke(new Action(Complete));
                 return;
             }
+            
+            _completed = true;
             
             // Dispose WebView2 to release memory
             try
@@ -536,6 +556,7 @@ namespace ArdysaModsTools.UI.Forms
 
         private static string GetFallbackHtml()
         {
+            // Server log JS uses setAttribute() to avoid double-quote issues in verbatim string
             return @"<!DOCTYPE html>
 <html>
 <head>
@@ -554,6 +575,18 @@ body { background: #000; min-height: 100vh; display: flex; flex-direction: colum
 .substatus { font-size: 11px; color: #444; margin-bottom: 20px; }
 .metrics { display: flex; justify-content: center; gap: 16px; font-size: 10px; color: #444; margin-bottom: 10px; }
 .metric-val { color: #888; margin-left: 4px; }
+.server-log { display:none; margin-top:12px; padding:8px 12px; border:1px solid #222; min-width:160px; }
+.server-log.visible { display:block; }
+.server-entry { display:flex; align-items:center; gap:8px; padding:3px 0; font-size:10px; letter-spacing:1px; text-transform:uppercase; }
+.server-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.server-dot.standby { background:#444; opacity:0.4; }
+.server-dot.active { background:#fff; }
+.server-dot.success { background:#22c55e; }
+.server-dot.failed { background:#ef4444; opacity:0.7; }
+.server-name { color:#444; }
+.server-name.active { color:#fff; font-weight:600; }
+.server-name.success { color:#22c55e; }
+.server-name.failed { color:#ef4444; opacity:0.7; text-decoration:line-through; }
 </style>
 </head>
 <body>
@@ -567,22 +600,44 @@ body { background: #000; min-height: 100vh; display: flex; flex-direction: colum
 </div>
 <div class='status' id='status'>Preparing</div>
 <div class='substatus' id='substatus'></div>
+<div class='server-log' id='serverLog'></div>
 <div class='metrics'>
   <div>DL: <span id='dlSpeed' class='metric-val'>-- MB/S</span></div>
   <div>WRITE: <span id='writeSpeed' class='metric-val'>-- MB/S</span></div>
 </div>
 </div>
 <script>
-const circumference = 2 * Math.PI * 70;
+var circumference = 2 * Math.PI * 70;
 function updateProgress(p) { document.getElementById('progressRing').style.strokeDashoffset = circumference - (p/100)*circumference; document.getElementById('percent').textContent = Math.round(p)+'%'; }
 function updateStatus(t) { document.getElementById('status').textContent = t; }
 function updateSubstatus(t) { var el = document.getElementById('substatus'); if (el) el.textContent = t; }
 function updateDownloadSpeed(s) { document.getElementById('dlSpeed').textContent = s; }
 function updateWriteSpeed(s) { document.getElementById('writeSpeed').textContent = s; }
+function updateDownloadProgress(d,t) {}
+function hideDownloadProgress() {}
+function updateFileProgress(c,t) {}
+function updateServerLog(servers) {
+  var c = document.getElementById('serverLog');
+  if (!servers||!servers.length){c.classList.remove('visible');return;}
+  c.classList.add('visible');
+  c.innerHTML = '';
+  servers.forEach(function(s){
+    var st = (s.Status||'standby').toLowerCase();
+    var row = document.createElement('div');
+    row.className = 'server-entry';
+    var dot = document.createElement('span');
+    dot.className = 'server-dot ' + st;
+    var name = document.createElement('span');
+    name.className = 'server-name ' + st;
+    name.textContent = s.Name;
+    row.appendChild(dot);
+    row.appendChild(name);
+    c.appendChild(row);
+  });
+}
 </script>
 </body>
 </html>";
         }
     }
 }
-
