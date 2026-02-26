@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.16-beta] (Build 2114)
+
+### ✨ Added
+
+- Added FAQ page into user docs
+
 ## [2.1.16-beta] (Build 2113)
 
 ### 🚀 UI/UX
