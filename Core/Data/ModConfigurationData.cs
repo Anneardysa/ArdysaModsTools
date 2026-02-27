@@ -48,6 +48,7 @@ namespace ArdysaModsTools.Core.Data
                 "RadiantTower" => "RadiantTower",
                 "DireTower" => "DireTower",
                 "Effect" => "Effect",
+                "Special" => "Special",
                 _ => category
             };
 

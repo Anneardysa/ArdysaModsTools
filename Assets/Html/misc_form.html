@@ -903,6 +903,24 @@
             renderOptions();
          }
 
+         // Called from C# when a conflicting option is auto-reset due to mutual exclusion
+         function resetOption(optionId, defaultChoiceId) {
+            selections[optionId] = defaultChoiceId;
+            renderOptions();
+
+            // Flash the reset tile to indicate the change
+            const tile = document.querySelector(`[data-option-id="${optionId}"]`);
+            if (tile) {
+               tile.style.transition = "border-color 0.3s, opacity 0.3s";
+               tile.style.borderColor = "#ef4444";
+               tile.style.opacity = "0.6";
+               setTimeout(() => {
+                  tile.style.borderColor = "";
+                  tile.style.opacity = "";
+               }, 600);
+            }
+         }
+
          function setStatus(text) {
             document.getElementById("statusText").textContent = text;
          }
@@ -1516,6 +1534,36 @@
                if (opt) showOptionInModal(opt);
                renderOptions();
             }
+
+            // Enforce mutual exclusion on the JS side for instant UI feedback
+            enforceExclusion(optId);
+         }
+
+         // Mutual exclusion: reset conflicting options when a non-default selection is made
+         function enforceExclusion(optId) {
+            const opt = options.find((o) => o.id === optId);
+            if (!opt || !opt.excludesWith || opt.excludesWith.length === 0) return;
+
+            // Check if current selection is default (first choice)
+            const currentChoice = selections[optId];
+            const defaultChoice = opt.choices?.[0]?.id || "default";
+            if (currentChoice === defaultChoice) return;
+
+            // Reset each conflicting option to its default
+            opt.excludesWith.forEach((excludedId) => {
+               const excludedOpt = options.find((o) => o.id === excludedId);
+               if (!excludedOpt) return;
+
+               const excludedDefault = excludedOpt.choices?.[0]?.id || "default";
+               const currentExcluded = selections[excludedId];
+               if (currentExcluded && currentExcluded !== excludedDefault) {
+                  resetOption(excludedId, excludedDefault);
+                  sendMessage("selectionChanged", {
+                     optionId: excludedId,
+                     choiceId: excludedDefault,
+                  });
+               }
+            });
          }
 
          // Called when clicking a specific style tile in the overlay

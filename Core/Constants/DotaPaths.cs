@@ -30,7 +30,6 @@ namespace ArdysaModsTools.Core.Constants
 
         /// <summary>Main mod VPK file.</summary>
         public const string ModsVpk = "game/_ArdysaMods/pak01_dir.vpk";
-
         /// <summary>Mod version file.</summary>
         public const string ModsVersion = "game/_ArdysaMods/version.txt";
 

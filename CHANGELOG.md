@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.17-beta] (Build 2116)
+
+### ✨ Added
+
+- **Misc**: Added Special mod option — supports direct ZIP-based mod downloads (e.g., LowPoly Map) extracted into `pak01_dir.vpk` like other mods.
+- Added `IsSpecialVpk` flag and `type` field to `RemoteMiscOption` for config-driven special mod identification.
+- Added data-driven **mutual exclusion** system (`excludesWith`) — options like Map and Special auto-reset each other when selected, with red flash animation in the UI.
+- Added `ExcludesWith` property to `RemoteMiscOption` and `MiscOption` models, wired through `MiscCategoryService`.
+- Added JS `resetOption()` and `enforceExclusion()` functions for instant client-side exclusion feedback.
+- Added C# exclusion enforcement in `HandleSelectionChanged` as backend guard.
+- Added `"Special"` category mapping in `ModConfigurationData`.
+- Added 16 unit tests for Special mod option and exclusion logic.
+
+## [2.1.16-beta] (Build 2115)
+
+### ✨ Added
+
+- **Misc**: Added Ward option — select cosmetic ward skins with style support and model extraction from game VPK.
+- Added `WardPatcherService` for ward block parsing, merging, and model mapping (`entity_model` type, single target `default_ward.vmdl_c`).
+- Added 31 unit tests for ward generation (parsing, mapping, merging, styles, skin injection, particles).
+
 ## [2.1.16-beta] (Build 2114)
 
 ### ✨ Added

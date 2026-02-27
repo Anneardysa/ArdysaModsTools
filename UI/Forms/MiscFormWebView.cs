@@ -220,6 +220,7 @@ namespace ArdysaModsTools.UI.Forms
                     name = o.DisplayName,
                     category = o.Category,
                     thumbnailPattern = o.ThumbnailUrlPattern ?? "",
+                    excludesWith = o.ExcludesWith.Count > 0 ? o.ExcludesWith : null,
                     choices = o.Choices
                         .Select(c => new
                         {
@@ -500,7 +501,7 @@ namespace ArdysaModsTools.UI.Forms
             }
         }
 
-        private void HandleSelectionChanged(JsonElement message)
+        private async void HandleSelectionChanged(JsonElement message)
         {
             try
             {
@@ -509,6 +510,28 @@ namespace ArdysaModsTools.UI.Forms
                 if (optionId != null && choiceId != null)
                 {
                     _selections[optionId] = choiceId;
+
+                    // Enforce mutual exclusion: if this option has excludesWith,
+                    // reset conflicting options to default
+                    var options = MiscCategoryService.GetAllOptions();
+                    var currentOption = options.FirstOrDefault(o => o.Id == optionId);
+                    if (currentOption?.ExcludesWith.Count > 0)
+                    {
+                        // Only enforce if the selection is non-default (not the first choice)
+                        bool isDefault = currentOption.Choices.Count > 0 && choiceId == currentOption.Choices[0];
+                        if (!isDefault)
+                        {
+                            foreach (var excludedId in currentOption.ExcludesWith)
+                            {
+                                var excludedOption = options.FirstOrDefault(o => o.Id == excludedId);
+                                if (excludedOption == null) continue;
+
+                                string defaultChoice = excludedOption.Choices.Count > 0 ? excludedOption.Choices[0] : "default";
+                                _selections[excludedId] = defaultChoice;
+                                await ExecuteScriptAsync($"resetOption('{EscapeJs(excludedId)}', '{EscapeJs(defaultChoice)}')");
+                            }
+                        }
+                    }
                 }
             }
             catch { }

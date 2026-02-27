@@ -138,6 +138,9 @@ namespace ArdysaModsTools.Core.Services
             content = await ApplyCourierModAsync(content, vpkPath, extractDir, selections, log, ct).ConfigureAwait(false);
             await Task.Delay(200, ct).ConfigureAwait(false);
 
+            content = await ApplyWardModAsync(content, vpkPath, extractDir, selections, log, ct).ConfigureAwait(false);
+            await Task.Delay(200, ct).ConfigureAwait(false);
+
             await ApplyRiverModAsync(vpkPath, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false);
             await Task.Delay(200, ct).ConfigureAwait(false);
             
@@ -151,6 +154,10 @@ namespace ArdysaModsTools.Core.Services
             await Task.Delay(200, ct).ConfigureAwait(false);
             
             await ApplyEffectModAsync(vpkPath, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false);
+            await Task.Delay(200, ct).ConfigureAwait(false);
+
+            // Apply special mods (extracted into pak01_dir.vpk like other mods)
+            await ApplySpecialModAsync(vpkPath, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false);
 
             // Write modified content back
             await File.WriteAllTextAsync(itemsGamePath, content, ct).ConfigureAwait(false);
@@ -444,6 +451,179 @@ namespace ArdysaModsTools.Core.Services
             return content;
         }
 
+        private async Task<string> ApplyWardModAsync(string content, string vpkPath, string extractDir,
+            Dictionary<string, string> selections, Action<string> log, CancellationToken ct)
+        {
+            const string category = "Ward";
+
+            // Cleanup previous ward files
+            await CleanupCategoryFilesAsync(category, extractDir, ct).ConfigureAwait(false);
+
+            if (!selections.TryGetValue(category, out var selWard) || string.IsNullOrEmpty(selWard))
+                return content;
+
+            if (selWard == "Default Ward")
+            {
+                log("Restoring Default Ward...");
+                return content;
+            }
+
+            var itemIdRaw = ModConfigurationData.GetUrl(category, selWard);
+            if (string.IsNullOrEmpty(itemIdRaw)) return content;
+
+            // Split ID and Style (e.g., "15000" or "15000:1")
+            string wardId = itemIdRaw;
+            int? styleIndex = null;
+
+            if (itemIdRaw.Contains(':'))
+            {
+                var parts = itemIdRaw.Split(':');
+                wardId = parts[0];
+                if (int.TryParse(parts[1], out int parsedStyle))
+                    styleIndex = parsedStyle;
+            }
+
+            log($"Applying Ward: {selWard}...");
+
+            // 1. Extract Default Ward Block (ID 596)
+            string? defaultBlock = KeyValuesBlockHelper.ExtractBlockById(content, WardPatcherService.DefaultWardItemId);
+            if (string.IsNullOrEmpty(defaultBlock))
+            {
+                log("Warning: Default Ward block (596) not found in items_game.txt. Mod might not work.");
+                return content;
+            }
+
+            // 2. Extract Selected Ward Block
+            string? selectedBlock = KeyValuesBlockHelper.ExtractBlockById(content, wardId);
+            if (string.IsNullOrEmpty(selectedBlock))
+            {
+                log($"Warning: Selected Ward block ({wardId}) not found.");
+                return content;
+            }
+
+            // 3. Build Merged Block
+            string mergedBlock = WardPatcherService.BuildMergedWardBlock(defaultBlock, selectedBlock, styleIndex);
+            if (string.IsNullOrEmpty(mergedBlock))
+            {
+                log("Warning: Failed to build merged ward block.");
+                return content;
+            }
+
+            // 4. Replace Default Block with Merged Block
+            content = KeyValuesBlockHelper.ReplaceIdBlock(content, WardPatcherService.DefaultWardItemId, mergedBlock, out bool replaced, requireItemMarkers: true);
+
+            if (!replaced)
+            {
+                log("Warning: Failed to replace Default Ward block.");
+                return content;
+            }
+
+            // 5. Extract Ward Model from Game VPK and map it
+            var models = WardPatcherService.ParseWardVisuals(selectedBlock, styleIndex);
+            var vpkExtractPaths = WardPatcherService.GetVpkExtractionPaths(models);
+            var modelMappings = WardPatcherService.GetModelMapping(models);
+
+            if (vpkExtractPaths.Count > 0 && modelMappings.Count > 0)
+            {
+                string dotaRoot = PathUtility.NormalizeTargetPath(Path.GetDirectoryName(Path.GetDirectoryName(vpkPath)) ?? "");
+                string gameVpkPath = Path.Combine(dotaRoot, "game", "dota", "pak01_dir.vpk");
+                string hlExtractPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HLExtract.exe");
+
+                if (File.Exists(gameVpkPath) && File.Exists(hlExtractPath))
+                {
+                    string tempModelDir = Path.Combine(extractDir, "_temp_wards");
+                    Directory.CreateDirectory(tempModelDir);
+
+                    // Extract ward model directories from game VPK using HLExtract
+                    var uniqueDirs = vpkExtractPaths
+                        .Select(p => p.Replace('\\', '/'))
+                        .Select(p => p.Contains('/') ? p.Substring(0, p.LastIndexOf('/')) : p)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+
+                    foreach (var dir in uniqueDirs)
+                    {
+                        string hlExtractArg = $"-p \"{gameVpkPath}\" -d \"{tempModelDir}\" -e \"root/{dir}\"";
+                        _logger?.Log($"HLExtract ward: {hlExtractArg}");
+
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = hlExtractPath,
+                            Arguments = hlExtractArg,
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            CreateNoWindow = true,
+                        };
+
+                        using var proc = Process.Start(psi);
+                        if (proc != null)
+                        {
+                            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+                            var stderrTask = proc.StandardError.ReadToEndAsync();
+                            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+                            string stderr = stderrTask.Result;
+                            await proc.WaitForExitAsync(ct).ConfigureAwait(false);
+
+                            if (proc.ExitCode != 0)
+                            {
+                                _logger?.Log($"HLExtract exited with code {proc.ExitCode} for dir: {dir}");
+                                if (!string.IsNullOrWhiteSpace(stderr))
+                                    _logger?.Log($"HLExtract stderr: {stderr.Trim()}");
+                            }
+                        }
+                    }
+
+                    // Diagnostic: log what HLExtract actually extracted
+                    LogExtractedFiles(tempModelDir);
+
+                    string targetModelDir = Path.Combine(extractDir, "models", "props_gameplay");
+                    Directory.CreateDirectory(targetModelDir);
+
+                    int mappedCount = 0;
+                    foreach (var mapping in modelMappings)
+                    {
+                        string? extractedFile = FindExtractedModel(tempModelDir, mapping.SourcePath);
+
+                        if (extractedFile != null)
+                        {
+                            string targetFile = Path.Combine(targetModelDir, mapping.TargetFileName);
+                            File.Copy(extractedFile, targetFile, true);
+                            TrackInstalledFile(category, Path.Combine("models", "props_gameplay", mapping.TargetFileName).Replace('\\', '/'));
+                            mappedCount++;
+                        }
+                        else
+                        {
+                            log($"Warning: Ward model not found: {Path.GetFileName(mapping.SourcePath)}");
+                            _logger?.Log($"Missing ward model: {mapping.SourcePath} (searched in {tempModelDir})");
+                        }
+                    }
+
+                    try { Directory.Delete(tempModelDir, true); } catch { }
+
+                    if (mappedCount > 0)
+                    {
+                        log($"Ward models mapped ({mappedCount}/{modelMappings.Count}).");
+                        _logger?.Log($"Ward models mapped: {mappedCount}/{modelMappings.Count}");
+                    }
+                    else
+                    {
+                        log("Warning: No ward models could be extracted from game VPK.");
+                        _logger?.Log($"No ward models found. Searched paths: {string.Join(", ", vpkExtractPaths)}");
+                    }
+                }
+                else
+                {
+                    if (!File.Exists(gameVpkPath))
+                        log("Warning: Dota 2 game VPK (pak01_dir.vpk) not found.");
+                    if (!File.Exists(hlExtractPath))
+                        log("Warning: HLExtract.exe not found.");
+                }
+            }
+
+            return content;
+        }
+
         private async Task ApplyEmblemModAsync(string extractDir, Dictionary<string, string> selections,
             Action<string> log, CancellationToken ct,
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
@@ -618,6 +798,36 @@ namespace ArdysaModsTools.Core.Services
             {
                 var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
                 await DownloadAndExtractRarAsync(url, extractDir, category, "Battle Effect", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ApplySpecialModAsync(
+            string vpkPath, string extractDir, Dictionary<string, string> selections,
+            Action<string> log, CancellationToken ct,
+            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
+        {
+            const string category = "Special";
+
+            // Cleanup previous special files
+            await CleanupCategoryFilesAsync(category, extractDir, ct).ConfigureAwait(false);
+
+            if (!selections.TryGetValue(category, out var selSpecial) || string.IsNullOrEmpty(selSpecial))
+                return;
+
+            var rawUrl = ModConfigurationData.GetUrl(category, selSpecial);
+            var url = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
+
+            if (string.IsNullOrEmpty(url))
+                return;
+
+            if (selSpecial == "Disable Special")
+            {
+                log("Disabling Special...");
+            }
+            else
+            {
+                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
+                await DownloadAndExtractRarAsync(url, extractDir, category, "Special Mod", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
             }
         }
 

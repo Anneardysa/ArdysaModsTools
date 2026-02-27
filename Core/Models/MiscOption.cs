@@ -59,6 +59,16 @@ namespace ArdysaModsTools.Core.Models
         public Dictionary<string, string> ChoiceThumbnails { get; set; } = new();
 
         /// <summary>
+        /// Whether this is a special VPK option (downloads a complete VPK file directly).
+        /// </summary>
+        public bool IsSpecialVpk { get; set; }
+
+        /// <summary>
+        /// List of option IDs that are mutually exclusive with this option.
+        /// </summary>
+        public List<string> ExcludesWith { get; set; } = new();
+
+        /// <summary>
         /// Per-choice style sub-options (e.g., courier styles).
         /// Maps choice name to list of style names. When present, the UI shows a style picker.
         /// </summary>

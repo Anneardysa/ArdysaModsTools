@@ -82,6 +82,8 @@ namespace ArdysaModsTools.Core.Services
                 options.Add(new MiscOption
                 {
                     Id = remoteOption.Id,
+                    IsSpecialVpk = remoteOption.IsSpecialVpk,
+                    ExcludesWith = remoteOption.ExcludesWith,
                     DisplayName = remoteOption.DisplayName,
                     Category = remoteOption.Category,
                     Choices = choiceNames,

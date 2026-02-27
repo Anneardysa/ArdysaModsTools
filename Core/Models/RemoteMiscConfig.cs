@@ -50,6 +50,25 @@ namespace ArdysaModsTools.Core.Models
         [JsonPropertyName("category")]
         public string Category { get; set; } = "";
 
+        /// <summary>
+        /// Option type: null/"" = normal (extract into pak01_dir.vpk), "vpk" = special VPK (separate pak file).
+        /// </summary>
+        [JsonPropertyName("type")]
+        public string? Type { get; set; }
+
+        /// <summary>
+        /// Whether this is a special VPK option (downloads VPK directly instead of RAR extraction).
+        /// </summary>
+        [JsonIgnore]
+        public bool IsSpecialVpk => string.Equals(Type, "vpk", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// List of option IDs that are mutually exclusive with this option.
+        /// When this option is selected, the excluded options will be reset to default.
+        /// </summary>
+        [JsonPropertyName("excludesWith")]
+        public List<string> ExcludesWith { get; set; } = new();
+
         [JsonPropertyName("thumbnailFolder")]
         public string ThumbnailFolder { get; set; } = "";
 
