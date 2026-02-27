@@ -785,6 +785,181 @@
          </div>
       </div>
 
+      <!-- Creator Tribute Modal -->
+      <div id="tributeModal" class="hidden fixed inset-0 z-[200] flex items-center justify-center">
+         <div class="absolute inset-0 bg-black/90 backdrop-blur-sm"></div>
+         <div
+            class="relative bg-amt-bg border border-purple-500/40 rounded-2xl p-0 max-w-md w-full mx-4 shadow-2xl animate-bounce-in overflow-hidden"
+         >
+            <!-- Gradient Header -->
+            <div class="relative px-6 pt-6 pb-4">
+               <div
+                  class="absolute inset-0 bg-gradient-to-b from-purple-600/20 to-transparent"
+               ></div>
+               <div class="relative text-center">
+                  <div
+                     class="w-16 h-16 mx-auto mb-3 rounded-full bg-purple-500/20 border-2 border-purple-400/50 flex items-center justify-center"
+                  >
+                     <svg
+                        class="w-8 h-8 text-purple-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                     >
+                        <path
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                           stroke-width="1.5"
+                           d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                        />
+                     </svg>
+                  </div>
+                  <h3 class="text-lg font-bold text-purple-200">Created by Darkness</h3>
+                  <p id="tributeSubtitle" class="text-xs text-gray-400 mt-1">
+                     This mod was made with ❤ by the community
+                  </p>
+               </div>
+            </div>
+
+            <!-- Links -->
+            <div class="px-6 pb-4 space-y-2.5">
+               <!-- Telegram -->
+               <a
+                  href="https://t.me/Darkness_Logovo"
+                  target="_blank"
+                  class="flex items-center gap-3 p-3 bg-[#2AABEE]/10 border border-[#2AABEE]/30 rounded-xl hover:bg-[#2AABEE]/20 transition-all group cursor-pointer"
+                  onclick="
+                     event.preventDefault();
+                     window.open('https://t.me/Darkness_Logovo', '_blank');
+                  "
+               >
+                  <div
+                     class="w-10 h-10 rounded-full bg-[#2AABEE]/20 flex items-center justify-center flex-shrink-0"
+                  >
+                     <svg class="w-5 h-5 text-[#2AABEE]" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                           d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"
+                        />
+                     </svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                     <div
+                        class="text-sm font-semibold text-[#2AABEE] group-hover:text-[#5BC8F5] transition-colors"
+                     >
+                        Telegram Channel
+                     </div>
+                     <div class="text-xs text-gray-500">@Darkness_Logovo</div>
+                  </div>
+                  <svg
+                     class="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                     />
+                  </svg>
+               </a>
+
+               <!-- Donation Alerts -->
+               <a
+                  href="https://www.donationalerts.com/r/darknessings"
+                  target="_blank"
+                  class="flex items-center gap-3 p-3 bg-orange-500/10 border border-orange-500/30 rounded-xl hover:bg-orange-500/20 transition-all group cursor-pointer"
+                  onclick="
+                     event.preventDefault();
+                     window.open('https://www.donationalerts.com/r/darknessings', '_blank');
+                  "
+               >
+                  <div
+                     class="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0"
+                  >
+                     <svg
+                        class="w-5 h-5 text-orange-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                     >
+                        <path
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                           stroke-width="2"
+                           d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                     </svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                     <div
+                        class="text-sm font-semibold text-orange-400 group-hover:text-orange-300 transition-colors"
+                     >
+                        Donation Alerts
+                     </div>
+                     <div class="text-xs text-gray-500">Support the creator</div>
+                  </div>
+                  <svg
+                     class="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors"
+                     fill="none"
+                     stroke="currentColor"
+                     viewBox="0 0 24 24"
+                  >
+                     <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                     />
+                  </svg>
+               </a>
+
+               <!-- YuMoney -->
+               <div
+                  class="flex items-center gap-3 p-3 bg-green-500/10 border border-green-500/30 rounded-xl"
+               >
+                  <div
+                     class="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0"
+                  >
+                     <svg
+                        class="w-5 h-5 text-green-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                     >
+                        <path
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                           stroke-width="2"
+                           d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                        />
+                     </svg>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                     <div class="text-sm font-semibold text-green-400">ЮMoney</div>
+                     <div class="text-xs text-gray-400 font-mono select-all">
+                        4100 1185 8130 2645
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <!-- Footer with countdown -->
+            <div class="px-6 py-4 border-t border-purple-500/20 flex items-center justify-between">
+               <span class="text-xs text-gray-500">Thank you for using community mods</span>
+               <button
+                  id="tributeCloseBtn"
+                  onclick="closeTributeModal()"
+                  disabled
+                  class="px-5 py-2 text-sm font-semibold rounded-lg transition-all bg-purple-500/30 text-purple-300 opacity-50 cursor-not-allowed"
+               >
+                  <span id="tributeCountdown">Wait 10s</span>
+               </button>
+            </div>
+         </div>
+      </div>
+
       <script>
          // Default thumbnail for options without images (AMT logo)
          let DEFAULT_THUMB = "";
@@ -1222,11 +1397,85 @@
             document.addEventListener("keydown", handleModalKeydown);
          }
 
+         // Track which special options have shown tribute this session
+         let tributeShownFor = new Set();
+         let tributeTimer = null;
+         let pendingAfterTribute = null;
+
          function closeOptionModal() {
             closeStyleOverlay(); // Close style overlay if open
+
+            // Check if current option is Special with a non-default selection
+            if (currentOptionIndex >= 0) {
+               const opt = options[currentOptionIndex];
+               if (opt && opt.isSpecialVpk) {
+                  const currentSel = selections[opt.id];
+                  const defaultChoice = opt.choices?.[0]?.id || "default";
+                  if (currentSel && currentSel !== defaultChoice && !tributeShownFor.has(opt.id)) {
+                     tributeShownFor.add(opt.id);
+                     document.getElementById("optionModal").classList.add("hidden");
+                     document.removeEventListener("keydown", handleModalKeydown);
+                     currentOptionIndex = -1;
+                     showTributeModal(currentSel);
+                     return;
+                  }
+               }
+            }
+
             document.getElementById("optionModal").classList.add("hidden");
             document.removeEventListener("keydown", handleModalKeydown);
             currentOptionIndex = -1;
+         }
+
+         function showTributeModal(choiceName) {
+            const modal = document.getElementById("tributeModal");
+            const btn = document.getElementById("tributeCloseBtn");
+            const countdown = document.getElementById("tributeCountdown");
+            const subtitle = document.getElementById("tributeSubtitle");
+
+            // Show which option triggered the tribute
+            if (choiceName) {
+               subtitle.textContent = `Selected: ${choiceName}`;
+            } else {
+               subtitle.textContent = "This mod was made with ❤ by the community";
+            }
+
+            modal.classList.remove("hidden");
+            btn.disabled = true;
+            btn.className =
+               "px-5 py-2 text-sm font-semibold rounded-lg transition-all bg-purple-500/30 text-purple-300 opacity-50 cursor-not-allowed";
+
+            let remaining = 10;
+            countdown.textContent = `Wait ${remaining}s`;
+
+            tributeTimer = setInterval(() => {
+               remaining--;
+               if (remaining > 0) {
+                  countdown.textContent = `Wait ${remaining}s`;
+               } else {
+                  clearInterval(tributeTimer);
+                  tributeTimer = null;
+                  countdown.textContent = "Close";
+                  btn.disabled = false;
+                  btn.className =
+                     "px-5 py-2 text-sm font-semibold rounded-lg transition-all bg-purple-500 text-white hover:bg-purple-400 cursor-pointer";
+               }
+            }, 1000);
+         }
+
+         function closeTributeModal() {
+            if (tributeTimer) {
+               clearInterval(tributeTimer);
+               tributeTimer = null;
+            }
+            document.getElementById("tributeModal").classList.add("hidden");
+
+            // Execute pending callback (e.g., proceed with generation)
+            if (pendingAfterTribute) {
+               const cb = pendingAfterTribute;
+               pendingAfterTribute = null;
+               cb();
+            }
          }
 
          function handleModalKeydown(e) {
@@ -1582,7 +1831,27 @@
          // Actions
          function generate() {
             if (isGenerating) return;
-            sendMessage("generate", { selections });
+
+            // Check if any Special option has a non-default selection
+            let specialChoiceName = null;
+            const hasSpecialSelected = options.some((opt) => {
+               if (!opt.isSpecialVpk) return false;
+               const sel = selections[opt.id];
+               const def = opt.choices?.[0]?.id || "default";
+               if (sel && sel !== def) {
+                  specialChoiceName = sel;
+                  return true;
+               }
+               return false;
+            });
+
+            if (hasSpecialSelected) {
+               // Show tribute first, then generate after dismissal
+               pendingAfterTribute = () => sendMessage("generate", { selections });
+               showTributeModal(specialChoiceName);
+            } else {
+               sendMessage("generate", { selections });
+            }
          }
 
          function showModeModal() {

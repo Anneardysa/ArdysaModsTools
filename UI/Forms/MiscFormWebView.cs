@@ -221,6 +221,7 @@ namespace ArdysaModsTools.UI.Forms
                     category = o.Category,
                     thumbnailPattern = o.ThumbnailUrlPattern ?? "",
                     excludesWith = o.ExcludesWith.Count > 0 ? o.ExcludesWith : null,
+                    isSpecialVpk = o.IsSpecialVpk ? true : (bool?)null,
                     choices = o.Choices
                         .Select(c => new
                         {
