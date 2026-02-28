@@ -41,6 +41,12 @@ namespace ArdysaModsTools.Core.Models
         /// </summary>
         public List<(string name, string reason)>? FailedItems { get; init; }
         
+        /// <summary>
+        /// Non-fatal warnings from the operation (e.g., individual mod download failures).
+        /// The operation succeeded overall but some items were skipped.
+        /// </summary>
+        public List<string>? Warnings { get; init; }
+        
         /// <summary>Number of items that succeeded (for batch operations).</summary>
         public int SuccessCount { get; init; }
 

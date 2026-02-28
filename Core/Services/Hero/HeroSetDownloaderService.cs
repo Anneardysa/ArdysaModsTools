@@ -357,11 +357,11 @@ namespace ArdysaModsTools.Core.Services
         }
         
         /// <summary>
-        /// Gets all CDN URLs for an asset in priority order: R2 → jsDelivr → GitHub Raw.
-        /// This ensures large files (>20MB) can be downloaded from R2, which has no size limit.
+        /// Gets all CDN URLs for an asset ordered by benchmark speed (fastest first for this user).
+        /// Uses SmartCdnSelector results; falls back to static CdnConfig order if not initialized.
         /// </summary>
         /// <param name="originalUrl">Original asset URL (can be from any CDN)</param>
-        /// <returns>Array of URLs to try in priority order</returns>
+        /// <returns>Array of URLs to try in speed-optimized order</returns>
         private static string[] GetCdnUrlsInPriorityOrder(string originalUrl)
         {
             // Extract the asset path from the URL
@@ -373,23 +373,20 @@ namespace ArdysaModsTools.Core.Services
                 return new[] { originalUrl };
             }
             
-            var urls = new List<string>();
-            
-            // Priority 1: R2 CDN (no file size limit)
-            if (CdnConfig.IsR2Enabled)
-            {
-                urls.Add($"{CdnConfig.R2BaseUrl}/{assetPath}");
-            }
-            
-            // Priority 2: jsDelivr (fast but has 20MB limit)
-            urls.Add($"{CdnConfig.JsDelivrBaseUrl}/{assetPath}");
-            
-            // Priority 3: Raw GitHub (slowest but always works)
-            urls.Add($"{CdnConfig.GitHubRawBaseUrl}/{assetPath}");
-            
-            return urls.ToArray();
-        }
-        
+            // Use benchmark-ordered CDNs (fastest first for this user)
+            var orderedBases = SmartCdnSelector.Instance.GetOrderedCdnUrls();
+            var urls = orderedBases
+                .Select(baseUrl => $"{baseUrl.TrimEnd('/')}/{assetPath}")
+                .ToArray();
+
+            if (urls.Length > 0)
+                return urls;
+
+            // SmartCdnSelector not initialized — use static CdnConfig order
+            return CdnConfig.GetCdnBaseUrls()
+                .Select(baseUrl => $"{baseUrl.TrimEnd('/')}/{assetPath}")
+                .ToArray();
+        }        
         private static string MakeSafeFileName(string input)
         {
             var invalidChars = Path.GetInvalidFileNameChars();

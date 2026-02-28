@@ -17,9 +17,11 @@
 using System;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -29,11 +31,6 @@ namespace ArdysaModsTools.Core.Services
     /// </summary>
     public sealed class SubsGoalService
     {
-        private static readonly HttpClient _httpClient = new()
-        {
-            Timeout = TimeSpan.FromSeconds(5)
-        };
-        
         private const string ConfigPath = "config/subs_goal.json";
         
         // Cache to avoid repeated requests
@@ -56,14 +53,17 @@ namespace ArdysaModsTools.Core.Services
             try
             {
                 string url = $"{CdnConfig.R2BaseUrl}/{ConfigPath}";
-                var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
+                
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var response = await HttpClientProvider.Client
+                    .GetAsync(url, cts.Token).ConfigureAwait(false);
                 
                 if (!response.IsSuccessStatusCode)
                 {
                     return _cachedConfig; // Return stale cache on error
                 }
                 
-                var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var json = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
                 var options = new JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true

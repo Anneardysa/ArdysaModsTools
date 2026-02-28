@@ -32,7 +32,9 @@ namespace ArdysaModsTools.Helpers
         {
             var handler = new HttpClientHandler
             {
-                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+                AutomaticDecompression = DecompressionMethods.GZip
+                    | DecompressionMethods.Deflate
+                    | DecompressionMethods.Brotli,
                 SslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
                 // Inherit system proxy settings (like browsers do)
                 UseProxy = true,

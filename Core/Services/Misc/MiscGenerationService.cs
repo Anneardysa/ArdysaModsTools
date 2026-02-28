@@ -139,8 +139,25 @@ namespace ArdysaModsTools.Core.Services
 
                     await CleanupAsync(tempRoot, log).ConfigureAwait(false);
 
+                    // Collect any non-fatal warnings (e.g., mods that failed to download)
+                    var warnings = _modifier.GetWarnings();
+                    if (warnings.Count > 0)
+                    {
+                        log($"Completed with {warnings.Count} warning(s):");
+                        foreach (var w in warnings)
+                            log($"  ⚠ {w}");
+                    }
+
                     log("Done!");
-                    return new OperationResult { Success = true, Message = "All mods successfully applied." };
+                    var message = warnings.Count > 0
+                        ? $"Completed with {warnings.Count} warning(s). Some mods may not have been applied."
+                        : "All mods successfully applied.";
+                    return new OperationResult 
+                    { 
+                        Success = true, 
+                        Message = message, 
+                        Warnings = warnings.Count > 0 ? new List<string>(warnings) : null 
+                    };
                 }
 
                 finally

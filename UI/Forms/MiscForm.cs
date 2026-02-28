@@ -465,6 +465,15 @@ namespace ArdysaModsTools
                 {
                     // Show completion
                     _miscLogger.Log("");
+
+                    // Show warnings in console if any mods failed
+                    if (operationResult.Warnings?.Count > 0)
+                    {
+                        foreach (var w in operationResult.Warnings)
+                            _miscLogger.Log($"  ⚠ {w}");
+                        _miscLogger.Log("");
+                    }
+
                     _miscLogger.Log($"Completed in {elapsed.TotalSeconds:F1}s");
                     
                     // Store result for MainForm logging
@@ -481,10 +490,20 @@ namespace ArdysaModsTools
                     await Task.Delay(500);
                     Application.DoEvents();
                     
-                    // Show success dialog
-                    string successMessage = selectedMode == MiscGenerationMode.GenerateOnly
-                        ? "Miscellaneous mods generated successfully!\n\nNote: Previous mods have been replaced."
-                        : "All mods have been successfully applied!";
+                    // Show success dialog with warning info if applicable
+                    string successMessage;
+                    if (operationResult.Warnings?.Count > 0)
+                    {
+                        successMessage = $"Generation completed with {operationResult.Warnings.Count} warning(s).\n\nSome options could not be downloaded and were skipped. Check the console log for details.";
+                    }
+                    else if (selectedMode == MiscGenerationMode.GenerateOnly)
+                    {
+                        successMessage = "Miscellaneous mods generated successfully!\n\nNote: Previous mods have been replaced.";
+                    }
+                    else
+                    {
+                        successMessage = "All mods have been successfully applied!";
+                    }
                     
                     MessageBox.Show(successMessage, "Miscellaneous - Generation Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     

@@ -30,6 +30,7 @@ using ArdysaModsTools.Helpers;
 using SharpCompress.Archives;
 using SharpCompress.Common;
 using ArdysaModsTools.Core.Interfaces;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Services.Misc;
 
 namespace ArdysaModsTools.Core.Services
@@ -67,6 +68,9 @@ namespace ArdysaModsTools.Core.Services
         // Tracks installed files from last operation (category -> file paths)
         private readonly Dictionary<string, List<string>> _installedFiles = new();
 
+        // Tracks non-fatal warnings during generation (e.g., failed downloads)
+        private readonly List<string> _warnings = new();
+
         // Previous extraction log for cleanup
         private MiscExtractionLog? _previousLog;
 
@@ -96,6 +100,11 @@ namespace ArdysaModsTools.Core.Services
         public Dictionary<string, List<string>> GetInstalledFiles() => _installedFiles;
 
         /// <summary>
+        /// Gets non-fatal warnings from the last modification operation.
+        /// </summary>
+        public List<string> GetWarnings() => _warnings;
+
+        /// <summary>
         /// Sets the previous extraction log for cleanup operations.
         /// </summary>
         public void SetPreviousLog(MiscExtractionLog? log) => _previousLog = log;
@@ -108,8 +117,9 @@ namespace ArdysaModsTools.Core.Services
         {
             log("Applying modifications...");
 
-            // Clear installed files from previous run
+            // Clear installed files and warnings from previous run
             _installedFiles.Clear();
+            _warnings.Clear();
 
             string itemsGamePath = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
             if (!File.Exists(itemsGamePath))
@@ -183,15 +193,17 @@ namespace ArdysaModsTools.Core.Services
                 return content;
 
             log($"Fetching {category}...");
-            var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
-            var replacementBlock = await TryWithFallbackAsync(url,
+            var (primary, fallbacks) = GetSmartCdnUrls(rawUrl);
+            var replacementBlock = await TryWithFallbackAsync(primary,
                 u => GetStringWithRetryAsync(u, ct), fallbacks).ConfigureAwait(false);
             // reporting speed for strings is negligible, but we reset it
             speedProgress?.Report(ArdysaModsTools.Core.Models.SpeedMetrics.Empty);
 
             if (string.IsNullOrEmpty(replacementBlock))
             {
-                log($"Warning: Failed to fetch {category}.");
+                var warning = $"{category}: Failed to download from all CDNs (asset may be unavailable).";
+                log($"Warning: {warning}");
+                _warnings.Add(warning);
                 return content;
             }
 
@@ -204,7 +216,9 @@ namespace ArdysaModsTools.Core.Services
             }
             else
             {
-                log($"Warning: {category} not found.");
+                var warning = $"{category}: Block ID '{itemId}' not found in items_game.txt.";
+                log($"Warning: {warning}");
+                _warnings.Add(warning);
             }
 
             await Task.Delay(100, ct).ConfigureAwait(false);
@@ -654,8 +668,8 @@ namespace ArdysaModsTools.Core.Services
             {
                 Directory.CreateDirectory(emblemDir);
                 log("Fetching Emblems...");
-                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
-                var data = await TryWithFallbackAsync(url,
+                var (primary, fallbacks) = GetSmartCdnUrls(rawUrl);
+                var data = await TryWithFallbackAsync(primary,
                     u => GetByteArrayWithProgressAsync(u, ct, speedProgress), fallbacks).ConfigureAwait(false);
                 if (data != null)
                 {
@@ -665,7 +679,9 @@ namespace ArdysaModsTools.Core.Services
                 }
                 else
                 {
-                    log("Warning: Failed to download Emblem.");
+                    var warning = "Emblems: Download failed — asset not available from any CDN.";
+                    log($"Warning: {warning}");
+                    _warnings.Add(warning);
                 }
             }
         }
@@ -700,8 +716,8 @@ namespace ArdysaModsTools.Core.Services
             {
                 Directory.CreateDirectory(shaderDir);
                 log("Fetching Shader...");
-                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
-                var data = await TryWithFallbackAsync(url,
+                var (primary, fallbacks) = GetSmartCdnUrls(rawUrl);
+                var data = await TryWithFallbackAsync(primary,
                     u => GetByteArrayWithProgressAsync(u, ct, speedProgress), fallbacks).ConfigureAwait(false);
                 if (data != null)
                 {
@@ -711,7 +727,9 @@ namespace ArdysaModsTools.Core.Services
                 }
                 else
                 {
-                    log("Warning: Failed to download Shader.");
+                    var warning = "Shader: Download failed — asset not available from any CDN.";
+                    log($"Warning: {warning}");
+                    _warnings.Add(warning);
                 }
             }
         }
@@ -739,8 +757,8 @@ namespace ArdysaModsTools.Core.Services
             }
             else
             {
-                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
-                await DownloadAndExtractRarAsync(url, extractDir, category, "River Vial", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
+                var (primary, fallbacks) = GetSmartCdnUrls(rawUrl);
+                await DownloadAndExtractRarAsync(primary, extractDir, category, "River Vial", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
             }
         }
 
@@ -767,8 +785,8 @@ namespace ArdysaModsTools.Core.Services
             }
             else
             {
-                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
-                await DownloadAndExtractRarAsync(url, extractDir, category, "Attack Modifier", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
+                var (primary, fallbacks) = GetSmartCdnUrls(rawUrl);
+                await DownloadAndExtractRarAsync(primary, extractDir, category, "Attack Modifier", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
             }
         }
 
@@ -796,8 +814,8 @@ namespace ArdysaModsTools.Core.Services
             }
             else
             {
-                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
-                await DownloadAndExtractRarAsync(url, extractDir, category, "Battle Effect", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
+                var (primary, fallbacks) = GetSmartCdnUrls(rawUrl);
+                await DownloadAndExtractRarAsync(primary, extractDir, category, "Battle Effect", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
             }
         }
 
@@ -826,8 +844,8 @@ namespace ArdysaModsTools.Core.Services
             }
             else
             {
-                var fallbacks = Config.EnvironmentConfig.BuildFallbackUrls(url);
-                await DownloadAndExtractRarAsync(url, extractDir, category, "Special Mod", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
+                var (primary, fallbacks) = GetSmartCdnUrls(rawUrl);
+                await DownloadAndExtractRarAsync(primary, extractDir, category, "Special Mod", log, ct, null, speedProgress, fallbacks).ConfigureAwait(false);
             }
         }
 
@@ -842,7 +860,9 @@ namespace ArdysaModsTools.Core.Services
                 u => GetStreamWithProgressAsync(u, ct, speedProgress), fallbackUrls).ConfigureAwait(false);
             if (stream == null)
             {
-                log($"Warning: {modName} not available (asset not found).");
+                var warning = $"{modName}: Download failed — asset not available from any CDN.";
+                log($"Warning: {warning}");
+                _warnings.Add(warning);
                 return;
             }
 
@@ -974,26 +994,79 @@ namespace ArdysaModsTools.Core.Services
         }
 
         /// <summary>
-        /// Generic fallback helper: tries the primary URL, then each fallback URL on failure.
-        /// Logs fallback attempts via the app logger.
+        /// Builds CDN URLs in speed-optimized order using SmartCdnSelector benchmark results.
+        /// Returns (primaryUrl, fallbackUrls[]) — the fastest CDN is primary, rest are fallbacks.
+        /// Falls back to EnvironmentConfig if the URL is not a recognized ModsPack asset.
         /// </summary>
+        private static (string primary, string[] fallbacks) GetSmartCdnUrls(string? rawUrl)
+        {
+            if (string.IsNullOrEmpty(rawUrl))
+                return (rawUrl ?? string.Empty, Array.Empty<string>());
+
+            // Convert to fastest URL first (for the primary)
+            var fastUrl = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
+            if (string.IsNullOrEmpty(fastUrl))
+                return (rawUrl, Array.Empty<string>());
+
+            // Extract the asset path (e.g., "Assets/misc/Weather/aurora.zip")
+            var assetPath = Constants.CdnConfig.ExtractAssetPath(fastUrl);
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                // Not a recognized asset URL — use legacy fallback
+                var legacyFallbacks = Config.EnvironmentConfig.BuildFallbackUrls(fastUrl);
+                return (fastUrl, legacyFallbacks);
+            }
+
+            // Build URLs from all CDNs ordered by benchmark speed (fastest first for this user)
+            var orderedBases = SmartCdnSelector.Instance.GetOrderedCdnUrls();
+            var allUrls = orderedBases
+                .Select(baseUrl => $"{baseUrl.TrimEnd('/')}/{assetPath}")
+                .ToArray();
+
+            if (allUrls.Length == 0)
+            {
+                // SmartCdnSelector not initialized — use legacy
+                var legacyFallbacks = Config.EnvironmentConfig.BuildFallbackUrls(fastUrl);
+                return (fastUrl, legacyFallbacks);
+            }
+
+            // First URL = primary (fastest CDN), rest = fallbacks
+            return (allUrls[0], allUrls.Skip(1).ToArray());
+        }
         private async Task<T?> TryWithFallbackAsync<T>(
             string primaryUrl, Func<string, Task<T?>> downloadFunc,
             string[]? fallbackUrls = null) where T : class
         {
-            var result = await downloadFunc(primaryUrl).ConfigureAwait(false);
-            if (result != null) return result;
+            try
+            {
+                var result = await downloadFunc(primaryUrl).ConfigureAwait(false);
+                if (result != null) return result;
+                _logger?.Log($"Primary CDN returned null: {primaryUrl}");
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger?.Log($"Primary CDN failed ({ex.StatusCode}): {primaryUrl} — {ex.Message}");
+            }
 
             if (fallbackUrls != null)
             {
                 foreach (var fallback in fallbackUrls)
                 {
-                    _logger?.Log($"Primary CDN failed for {primaryUrl}, trying fallback: {fallback}");
-                    result = await downloadFunc(fallback).ConfigureAwait(false);
-                    if (result != null) return result;
+                    try
+                    {
+                        _logger?.Log($"Trying fallback CDN: {fallback}");
+                        var result = await downloadFunc(fallback).ConfigureAwait(false);
+                        if (result != null) return result;
+                        _logger?.Log($"Fallback CDN returned null: {fallback}");
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        _logger?.Log($"Fallback CDN failed ({ex.StatusCode}): {fallback} — {ex.Message}");
+                    }
                 }
             }
 
+            _logger?.Log($"All CDNs exhausted for: {primaryUrl}");
             return null;
         }
 
@@ -1003,11 +1076,26 @@ namespace ArdysaModsTools.Core.Services
             {
                 try
                 {
-                    return await _httpClient.GetStringAsync(url, ct).ConfigureAwait(false);
+                    using var resp = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+
+                    // Don't retry 404 — the asset simply doesn't exist at this URL
+                    if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        _logger?.Log($"Asset not found (404): {url}");
+                        return null;
+                    }
+
+                    resp.EnsureSuccessStatusCode();
+                    return await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 }
-                catch when (i < retries - 1)
+                catch (HttpRequestException) when (i < retries - 1)
                 {
                     await Task.Delay(500 * (i + 1), ct).ConfigureAwait(false);
+                }
+                catch (HttpRequestException ex)
+                {
+                    _logger?.Log($"Failed to download string after {retries} attempts: {ex.Message} — {url}");
+                    return null;
                 }
             }
             return null;
@@ -1020,6 +1108,14 @@ namespace ArdysaModsTools.Core.Services
                 try
                 {
                     using var resp = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+
+                    // Don't retry 404 — the asset simply doesn't exist at this URL
+                    if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        _logger?.Log($"Asset not found (404): {url}");
+                        return null;
+                    }
+
                     resp.EnsureSuccessStatusCode();
                     
                     using var contentStream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
@@ -1029,9 +1125,14 @@ namespace ArdysaModsTools.Core.Services
                     await progressStream.CopyToAsync(ms, 81920, ct).ConfigureAwait(false);
                     return ms.ToArray();
                 }
-                catch when (i < retries - 1)
+                catch (HttpRequestException) when (i < retries - 1)
                 {
                     await Task.Delay(500 * (i + 1), ct).ConfigureAwait(false);
+                }
+                catch (HttpRequestException ex)
+                {
+                    _logger?.Log($"Failed to download bytes after {retries} attempts: {ex.Message} — {url}");
+                    return null;
                 }
             }
             return null;

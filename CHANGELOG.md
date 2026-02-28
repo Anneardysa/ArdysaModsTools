@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.17-beta] (Build 2118)
+
+### 🐛 Fixed
+
+- Fixed "Generation Failed: 404 (Not Found)" crash caused by unhandled `HttpRequestException` propagating on the final retry attempt, completely bypassing the CDN fallback system.
+- `GetStringWithRetryAsync` and `GetByteArrayWithProgressAsync` now return `null` immediately on 404 instead of retrying 3 times and then crashing.
+- `TryWithFallbackAsync` now catches `HttpRequestException` at each CDN level, ensuring R2 → jsDelivr → GitHub fallback actually works when a CDN returns an error.
+- Misc generation now reports partial-success warnings (e.g., "Weather: Download failed — asset not available from any CDN") instead of silently skipping mods and showing "All mods successfully applied."
+- Both WebView2 and classic Misc forms now display warning details in the console and adjust the success dialog when mods were skipped.
+
+### 🚀 Improved
+
+- Misc mod downloads (`AssetModifierService`) and Hero skin downloads (`HeroSetDownloaderService`) now use `SmartCdnSelector` benchmark results to auto-select the fastest CDN for each user, instead of hardcoded R2 → jsDelivr → GitHub order.
+- If GitHub is fastest for the user's connection, it becomes the primary CDN automatically. Slower CDNs serve as fallbacks.
+
+## [2.1.17-beta] (Build 2117)
+
+### 🛠️ Changed
+
+- Updated `sync-to-r2.ps1` to set `Cache-Control` headers on upload — `max-age=86400` (24h) for Assets, `max-age=300` (5min) for config/remote — ensuring Cloudflare edge caching and reducing download stalls.
+- Replaced stale `pub-*.r2.dev` URL with custom domain `cdn.ardysamods.my.id` in sync script and workflow docs to avoid ISP blocking.
+- Added post-sync cache verification step showing `cf-cache-status` (HIT/MISS) for key files.
+- Added cache pre-warming — automatically fetches popular files (heroes.json, Original.zip, config) after sync to prime Cloudflare edge cache so first real user gets a HIT.
+- Added `--metadata` flag to rclone sync for proper content-type detection on uploaded files.
+- Added Brotli decompression to `HttpClientProvider` — Cloudflare serves Brotli by default, 20-30% more efficient than gzip for JSON/text transfers.
+- Replaced standalone `HttpClient` in `SubsGoalService` with shared `HttpClientProvider.Client` for consistent decompression, proxy, and TLS settings.
+
 ## [2.1.17-beta] (Build 2116)
 
 ### ✨ Added

@@ -674,6 +674,14 @@ namespace ArdysaModsTools.UI.Forms
 
                 if (result.Success)
                 {
+                    // Show warnings in console if any mods failed to download
+                    if (result.Warnings?.Count > 0)
+                    {
+                        await AppendConsoleAsync("");
+                        foreach (var w in result.Warnings)
+                            await AppendConsoleAsync($"⚠ {w}");
+                    }
+
                     await ExecuteScriptAsync("flashConsole('success')");
                     
                     // Store generation result for MainForm logging
@@ -686,9 +694,19 @@ namespace ArdysaModsTools.UI.Forms
                         Duration = elapsed
                     };
                     
-                    string successMessage = selectedMode == MiscGenerationMode.GenerateOnly
-                        ? "Miscellaneous mods generated successfully!\\n\\nNote: Previous mods have been replaced."
-                        : "All mods have been successfully applied!";
+                    string successMessage;
+                    if (result.Warnings?.Count > 0)
+                    {
+                        successMessage = $"Generation completed with {result.Warnings.Count} warning(s).\\n\\nSome options could not be downloaded and were skipped. Check the console log for details.";
+                    }
+                    else if (selectedMode == MiscGenerationMode.GenerateOnly)
+                    {
+                        successMessage = "Miscellaneous mods generated successfully!\\n\\nNote: Previous mods have been replaced.";
+                    }
+                    else
+                    {
+                        successMessage = "All mods have been successfully applied!";
+                    }
 
                     _alertDismissed = new TaskCompletionSource<bool>();
                     await ExecuteScriptAsync($"showAlert('Generation Complete', '{successMessage}', 'success')");
