@@ -1,0 +1,1414 @@
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script>
+         tailwind.config = {
+            theme: {
+               extend: {
+                  colors: {
+                     "amt-bg": "#000000", // Black
+                     "amt-surface": "#0a0a0a", // Grey
+                     "amt-surface2": "#111111", // Grey
+                     "amt-border": "#222222", // Grey
+                     "amt-accent": "#FFFFFF", // White
+                     "amt-accent-dim": "#0055DD", // Blue
+                     "amt-text": "#FFFFFF", // White
+                     "amt-text-dim": "#888888", // Grey
+                     "amt-text-muted": "#555555", // Grey
+                     "amt-success": "#00ff00", // Green
+                     "amt-error": "#ff4444", // Red
+                     "amt-warning": "#ffcc00", // Yellow
+                     "amt-cyan": "#00ccff", // Cyan
+                  },
+               },
+            },
+         };
+      </script>
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+         body {
+            font-family: "JetBrains Mono", monospace;
+            background: #000;
+            overflow: hidden;
+            font-size: 13px;
+         }
+
+         ::-webkit-scrollbar {
+            width: 5px;
+         }
+         ::-webkit-scrollbar-track {
+            background: transparent;
+         }
+         ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 3px;
+         }
+         ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+         }
+
+         .glass {
+            background: rgba(10, 10, 10, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+         }
+         .preset-btn {
+            transition: all 0.2s ease;
+            border: 1px solid #222;
+         }
+         .preset-btn:hover {
+            border-color: #0066ff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(0, 102, 255, 0.15);
+         }
+         .preset-btn.active {
+            border-color: #0066ff;
+            background: rgba(0, 102, 255, 0.08);
+            box-shadow: 0 0 20px rgba(0, 102, 255, 0.1);
+         }
+
+         .toggle-track {
+            width: 44px;
+            height: 24px;
+            border-radius: 12px;
+            background: #333;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+            flex-shrink: 0;
+         }
+         .toggle-track.on {
+            background: #0066ff;
+         }
+         .toggle-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+         }
+         .toggle-track.on .toggle-thumb {
+            transform: translateX(20px);
+         }
+
+         .category-header {
+            cursor: pointer;
+            transition: background 0.15s;
+         }
+         .category-header:hover {
+            background: rgba(255, 255, 255, 0.02);
+         }
+         .category-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+         }
+         .category-content.open {
+            max-height: 3000px;
+         }
+
+         .setting-row {
+            transition: background 0.15s;
+         }
+         .setting-row:hover {
+            background: rgba(0, 102, 255, 0.04);
+         }
+
+         select.cvar-select {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 13px;
+            cursor: pointer;
+            outline: none;
+         }
+         select.cvar-select:focus {
+            border-color: #0066ff;
+         }
+         input.cvar-input {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 13px;
+            width: 90px;
+            outline: none;
+            text-align: center;
+         }
+         input.cvar-input:focus {
+            border-color: #0066ff;
+         }
+
+         .action-btn {
+            transition: all 0.2s;
+         }
+         .action-btn:hover {
+            transform: translateY(-1px);
+         }
+         .action-btn:active {
+            transform: translateY(0);
+         }
+
+         .tab-btn {
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+         }
+         .tab-btn:hover {
+            color: #4d94ff;
+         }
+         .tab-btn.active {
+            color: #0066ff;
+            border-bottom-color: #0066ff;
+         }
+
+         .launch-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: transparent;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 12px;
+            color: #888;
+            transition: all 0.15s;
+            cursor: pointer;
+         }
+         .launch-tag.enabled {
+            border-color: #0066ff;
+            color: #fff;
+            background: rgba(0, 102, 255, 0.05);
+         }
+         .launch-tag .tag-x {
+            cursor: pointer;
+            color: #555;
+            font-size: 13px;
+         }
+         .launch-tag .tag-x:hover {
+            color: #ff4444;
+         }
+
+         @keyframes fadeIn {
+            from {
+               opacity: 0;
+               transform: translateY(8px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+         .fade-in {
+            animation: fadeIn 0.35s ease both;
+         }
+
+         .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            z-index: 1000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+         }
+         .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+         }
+         .toast.success {
+            background: rgba(0, 255, 0, 0.08);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            color: #00ff00;
+         }
+         .toast.error {
+            background: rgba(255, 68, 68, 0.08);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            color: #ff4444;
+         }
+         .toast.info {
+            background: rgba(0, 102, 255, 0.08);
+            border: 1px solid rgba(0, 102, 255, 0.3);
+            color: #0066ff;
+         }
+
+         .diff-badge {
+            display: inline-block;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-left: 8px;
+            background: rgba(0, 102, 255, 0.1);
+            color: #0066ff;
+            border: 1px solid rgba(0, 102, 255, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+         }
+      </style>
+   </head>
+   <body class="bg-amt-bg text-amt-text select-none">
+      <!-- Titlebar -->
+      <div
+         id="titlebar"
+         class="h-11 w-full flex items-center justify-between px-4 border-b border-amt-border relative z-10"
+      >
+         <div class="flex-1 flex items-center gap-3 h-full" style="-webkit-app-region: drag">
+            <span class="text-amt-accent font-bold text-sm tracking-[3px]"
+               >AMT | PERFORMANCE TWEAK</span
+            >
+            <span
+               id="presetBadge"
+               class="text-[11px] px-2 py-0.5 border border-amt-border text-amt-text-muted hidden tracking-wider"
+               >CUSTOM</span
+            >
+         </div>
+         <button
+            id="closeBtn"
+            class="h-9 w-10 text-amt-text-muted hover:text-amt-error hover:border-amt-error border border-transparent transition-colors text-base font-bold flex-shrink-0"
+         >
+            X
+         </button>
+      </div>
+
+      <div class="flex relative z-10" style="height: calc(100vh - 44px)">
+         <!-- Sidebar -->
+         <div
+            class="w-[220px] flex-shrink-0 p-4 flex flex-col gap-2 border-r border-amt-border/50 fade-in"
+         >
+            <div class="text-[11px] text-amt-text-muted tracking-[3px] mb-1">[ PRESETS ]</div>
+
+            <button
+               onclick="applyPreset('potato')"
+               class="preset-btn rounded-lg px-4 py-3 text-left"
+               data-preset="potato"
+            >
+               <div class="text-base font-bold text-orange-400">POTATO</div>
+               <div class="text-xs text-amt-text-muted mt-0.5">// max_fps, min_quality</div>
+            </button>
+            <button
+               onclick="applyPreset('low')"
+               class="preset-btn rounded-lg px-4 py-3 text-left"
+               data-preset="low"
+            >
+               <div class="text-base font-bold text-yellow-400">LOW</div>
+               <div class="text-xs text-amt-text-muted mt-0.5">// performance_priority</div>
+            </button>
+            <button
+               onclick="applyPreset('medium')"
+               class="preset-btn rounded-lg px-4 py-3 text-left"
+               data-preset="medium"
+            >
+               <div class="text-base font-bold text-green-400">MEDIUM</div>
+               <div class="text-xs text-amt-text-muted mt-0.5">// balanced_look_fps</div>
+            </button>
+            <button
+               onclick="applyPreset('high')"
+               class="preset-btn rounded-lg px-4 py-3 text-left"
+               data-preset="high"
+            >
+               <div class="text-base font-bold text-blue-400">HIGH</div>
+               <div class="text-xs text-amt-text-muted mt-0.5">// quality_with_extras</div>
+            </button>
+            <button
+               onclick="applyPreset('ultra')"
+               class="preset-btn rounded-lg px-4 py-3 text-left"
+               data-preset="ultra"
+            >
+               <div class="text-base font-bold text-purple-400">ULTRA</div>
+               <div class="text-xs text-amt-text-muted mt-0.5">// maximum_visual</div>
+            </button>
+            <button
+               onclick="applyPreset('competitive')"
+               class="preset-btn rounded-lg px-4 py-3 text-left"
+               data-preset="competitive"
+            >
+               <div class="text-base font-bold text-amt-accent">COMPETITIVE</div>
+               <div class="text-xs text-amt-text-muted mt-0.5">// tweaked_for_ranked</div>
+            </button>
+
+            <div class="flex-1"></div>
+            <div
+               class="text-[11px] text-amt-text-muted/40 leading-relaxed p-3 border border-amt-border/30 rounded-lg"
+            >
+               // output: <span class="text-amt-text-muted">autoexec.cfg</span><br />
+               // path: <span class="text-amt-text-muted">dota/cfg/</span>
+            </div>
+         </div>
+
+         <!-- Main Content -->
+         <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Tabs -->
+            <div class="flex border-b border-amt-border/50 px-5 pt-1">
+               <button
+                  class="tab-btn active px-5 py-3 text-base font-bold tracking-wider"
+                  data-tab="cvars"
+                  onclick="switchTab('cvars')"
+               >
+                  [ VIDEO ]
+               </button>
+               <button
+                  class="tab-btn px-5 py-3 text-base font-bold tracking-wider"
+                  data-tab="launch"
+                  onclick="switchTab('launch')"
+               >
+                  [ LAUNCH ]
+               </button>
+            </div>
+
+            <!-- Tab: CVars -->
+            <div id="tabCvars" class="flex-1 overflow-y-auto p-5 space-y-3"></div>
+
+            <!-- Tab: Launch -->
+            <div id="tabLaunch" class="flex-1 overflow-y-auto p-5 space-y-4 hidden">
+               <div class="glass rounded-lg p-5 fade-in">
+                  <div class="text-base font-bold tracking-wider mb-1">[ LAUNCH_OPTIONS ]</div>
+                  <div class="text-xs text-amt-text-muted mb-4">
+                     // steam > right-click dota 2 > properties > launch options
+                  </div>
+                  <div id="launchTags" class="flex flex-wrap gap-2 mb-5"></div>
+                  <div class="text-[11px] text-amt-text-muted/60 mb-2 tracking-wider">
+                     GENERATED_STRING
+                  </div>
+                  <div class="flex items-center gap-3">
+                     <div
+                        id="launchString"
+                        class="flex-1 bg-amt-bg border border-amt-border rounded-lg px-4 py-3 text-sm text-amt-text break-all select-text"
+                        style="user-select: text"
+                     ></div>
+                     <button
+                        onclick="copyLaunchString()"
+                        class="action-btn px-4 py-3 rounded-lg text-xs font-bold border border-amt-border hover:border-amt-accent/50 text-amt-text-dim hover:text-amt-accent transition-colors flex-shrink-0"
+                     >
+                        COPY
+                     </button>
+                  </div>
+               </div>
+
+               <div class="glass rounded-lg p-5 fade-in">
+                  <div class="text-base font-bold tracking-wider mb-1">[ CUSTOM ]</div>
+                  <div class="text-xs text-amt-text-muted mb-3">// add custom launch flags</div>
+                  <div class="flex gap-3">
+                     <input
+                        id="customLaunchInput"
+                        type="text"
+                        placeholder="-high or -threads 8"
+                        class="cvar-input flex-1 text-left"
+                        style="width: auto"
+                     />
+                     <button
+                        onclick="addCustomLaunch()"
+                        class="action-btn px-4 py-2 rounded-lg text-xs font-bold bg-white hover:bg-gray-200 text-black transition-colors"
+                     >
+                        ADD
+                     </button>
+                  </div>
+               </div>
+
+               <div class="glass rounded-lg p-5 fade-in">
+                  <div class="text-base font-bold tracking-wider mb-3">[ REFERENCE ]</div>
+                  <div class="overflow-x-auto">
+                     <table class="w-full text-sm">
+                        <thead>
+                           <tr class="text-amt-text-muted border-b border-amt-border/30">
+                              <th class="text-left py-2 pr-4">flag</th>
+                              <th class="text-left py-2">description</th>
+                           </tr>
+                        </thead>
+                        <tbody id="launchRefTable"></tbody>
+                     </table>
+                  </div>
+               </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="flex-shrink-0 border-t border-amt-border/50 p-4 flex items-center gap-3">
+               <button
+                  onclick="sendMessage('applySettings')"
+                  class="action-btn flex-1 bg-white hover:bg-gray-200 text-black font-bold py-3 rounded-lg text-sm tracking-wider transition-colors"
+               >
+                  [ APPLY TO AUTOEXEC.CFG ]
+               </button>
+               <button
+                  onclick="sendMessage('exportCfg')"
+                  class="action-btn px-5 py-3 rounded-lg text-xs font-bold border border-amt-border hover:border-amt-accent/50 text-amt-text-dim hover:text-amt-accent transition-colors"
+               >
+                  EXPORT
+               </button>
+               <button
+                  onclick="resetAll()"
+                  class="action-btn px-5 py-3 rounded-lg text-xs font-bold border border-amt-border hover:border-amt-error/50 text-amt-text-dim hover:text-amt-error transition-colors"
+               >
+                  RESET
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <!-- Toast -->
+      <div id="toast" class="toast"></div>
+
+      <script>
+         // ═══════════════════════════════════════════════════════════
+         // CVAR DEFINITIONS
+         // ═══════════════════════════════════════════════════════════
+         const SETTINGS = {
+            "DISPLAY & FPS": {
+               cvars: {
+                  fps_max: {
+                     label: "Max FPS (In-Game)",
+                     type: "input",
+                     default: "0",
+                     tip: "0 = uncapped. Match your monitor refresh rate for stability.",
+                  },
+                  fps_max_ui: {
+                     label: "Dashboard Max FPS",
+                     type: "input",
+                     default: "60",
+                     tip: "Stops the menu from cooking your GPU.",
+                  },
+                  mat_viewportscale: {
+                     label: "Render Quality",
+                     type: "select",
+                     options: {
+                        "1.0": "100%",
+                        0.91: "91%",
+                        0.85: "85%",
+                        0.81: "81%",
+                        0.71: "71%",
+                        "0.60": "60%",
+                     },
+                     default: "1.0",
+                     tip: "Lower = more FPS but softer image. Use with FSR.",
+                  },
+                  r_fullscreen_gamma: {
+                     label: "Gamma",
+                     type: "input",
+                     default: "2.2",
+                     tip: "Default 2.2. Adjust for monitor brightness.",
+                  },
+               },
+            },
+            "VISUAL TOGGLES": {
+               cvars: {
+                  dota_portrait_animate: {
+                     label: "Animate Portrait",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Reduces extra UI animation overhead.",
+                  },
+                  r_deferred_additive_pass: {
+                     label: "Additive Light Pass",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Removes extra lighting passes and reflections.",
+                  },
+                  r_deferred_simple_light: {
+                     label: "World Lighting",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Large GPU cost for cosmetic gain. 1=Simple, 0=Off.",
+                  },
+                  r_ssao: {
+                     label: "Ambient Occlusion",
+                     type: "toggle",
+                     default: "0",
+                     tip: "One of the fastest ways to gain FPS.",
+                  },
+                  r_dota_normal_maps: {
+                     label: "Normal Maps",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Reduces surface detail calculations.",
+                  },
+                  r_dota_allow_parallax_mapping: {
+                     label: "Ground Parallax",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Depth effects on terrain, irrelevant in fights.",
+                  },
+                  dota_ambient_creatures: {
+                     label: "Ambient Creatures",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Eliminates extra background units.",
+                  },
+                  dota_ambient_cloth: {
+                     label: "Ambient Cloth Sim",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Prevents cloth physics overhead.",
+                  },
+                  r_grass_quality: {
+                     label: "Grass",
+                     type: "select",
+                     options: { 0: "Off", 2: "Low", 3: "Medium", 4: "High" },
+                     default: "0",
+                     tip: "Dense ground detail that costs FPS.",
+                  },
+                  r_dota_fxaa: {
+                     label: "Anti-Aliasing",
+                     type: "toggle",
+                     default: "0",
+                     tip: "AA is a clarity trade. Off improves sharpness.",
+                  },
+                  r_deferred_specular: {
+                     label: "Specular",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Reduces shiny highlights and lighting work.",
+                  },
+                  r_deferred_specular_bloom: {
+                     label: "Specular & Light Blooms",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Bloom washes out spell effects.",
+                  },
+                  dota_cheap_water: {
+                     label: "Cheap Water",
+                     type: "toggle",
+                     default: "1",
+                     tip: "1=cheap water for better FPS near river.",
+                  },
+                  r_deferred_height_fog: {
+                     label: "Atmospheric Fog",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Removes atmospheric effects that spike in fights.",
+                  },
+                  r_dashboard_render_quality: {
+                     label: "HQ Dashboard",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Reduces menu GPU load.",
+                  },
+                  r_dota_allow_wind_on_trees: {
+                     label: "Tree Wind",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Removes constant environmental animation.",
+                  },
+                  r_dota_bloom_compute_shader: {
+                     label: "Compute Shaders",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Recommended ON for modern GPUs.",
+                  },
+               },
+            },
+            QUALITY: {
+               cvars: {
+                  r_texture_stream_mip_bias: {
+                     label: "Texture Quality",
+                     type: "select",
+                     options: { 0: "Ultra", 1: "High", 2: "Medium", 3: "Low" },
+                     default: "0",
+                     tip: "Mostly a VRAM issue. Keep higher for clarity.",
+                  },
+                  cl_particle_fallback_base: {
+                     label: "Effects Quality",
+                     type: "select",
+                     options: { 0: "Ultra", 2: "Medium", 4: "Low" },
+                     default: "2",
+                     tip: "Spell effects spike load. Low = stable.",
+                  },
+                  cl_globallight_shadow_mode: {
+                     label: "Shadow Quality",
+                     type: "select",
+                     options: { 0: "Off", 1: "Low", 2: "Medium", 3: "High" },
+                     default: "1",
+                     tip: "Shadows are the most expensive setting.",
+                  },
+                  r_texturefilteringquality: {
+                     label: "Texture Filtering",
+                     type: "select",
+                     options: { 0: "Bilinear", 1: "Trilinear", 3: "Aniso 8x", 5: "Aniso 16x" },
+                     default: "3",
+                     tip: "Higher = sharper textures at angles.",
+                  },
+               },
+            },
+            "ENGINE TWEAKS": {
+               cvars: {
+                  cl_particle_fallback_multiplier: {
+                     label: "Particle Fallback Multi",
+                     type: "input",
+                     default: "4",
+                     tip: "Higher = more aggressive particle LOD.",
+                  },
+                  cl_particle_sim_fallback_threshold_ms: {
+                     label: "Particle Sim Threshold (ms)",
+                     type: "input",
+                     default: "4",
+                     tip: "Max particle simulation time.",
+                  },
+                  dota_allow_clientside_particles: {
+                     label: "Client-side Particles",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Non-essential cosmetic particles.",
+                  },
+                  dota_disable_particle_lights: {
+                     label: "Disable Particle Lights",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Removes light from particles.",
+                  },
+                  lb_shadow_texture_width_override: {
+                     label: "Shadow Tex Width",
+                     type: "input",
+                     default: "128",
+                     tip: "Lower = less detail, more FPS.",
+                  },
+                  lb_shadow_texture_height_override: {
+                     label: "Shadow Tex Height",
+                     type: "input",
+                     default: "128",
+                     tip: "Lower = less detail, more FPS.",
+                  },
+                  r_dota_spotlight_shadows_resolution: {
+                     label: "Spotlight Shadow Res",
+                     type: "input",
+                     default: "128",
+                     tip: "Spotlight shadows resolution.",
+                  },
+                  r_particle_max_detail_level: {
+                     label: "Particle Max Detail",
+                     type: "select",
+                     options: { 0: "Low", 1: "Medium", 2: "High", 3: "Ultra" },
+                     default: "0",
+                     tip: "Particle detail level.",
+                  },
+                  r_dota_color_correction: {
+                     label: "Color Correction",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Extra post-processing.",
+                  },
+                  r_dota_render_2d_skybox: {
+                     label: "Skybox Clouds",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Skybox cloud rendering.",
+                  },
+                  engine_no_focus_sleep: {
+                     label: "Alt-Tab Sleep (ms)",
+                     type: "input",
+                     default: "20",
+                     tip: "Power savings while alt-tabbed.",
+                  },
+               },
+            },
+            "VSYNC & LATENCY": {
+               cvars: {
+                  engine_low_latency_sleep_after_client_tick: {
+                     label: "Low Latency Sleep",
+                     type: "toggle",
+                     default: "1",
+                     tip: "VSync OFF with less tearing.",
+                  },
+                  r_experimental_lag_limiter: {
+                     label: "Experimental Lag Limiter",
+                     type: "toggle",
+                     default: "1",
+                     tip: "VSync ON with less input lag.",
+                  },
+                  r_low_latency: {
+                     label: "NVIDIA Reflex",
+                     type: "select",
+                     options: { 0: "Off", 1: "On", 2: "On + Boost" },
+                     default: "2",
+                     tip: "Reduces system latency on NVIDIA GPUs.",
+                  },
+               },
+            },
+            NETWORK: {
+               cvars: {
+                  rate: {
+                     label: "Net Rate",
+                     type: "input",
+                     default: "80000",
+                     tip: "Max receive rate.",
+                  },
+                  cl_updaterate: {
+                     label: "Update Rate",
+                     type: "input",
+                     default: "60",
+                     tip: "Net updates per second.",
+                  },
+                  cl_interp_ratio: {
+                     label: "Interp Ratio",
+                     type: "input",
+                     default: "2",
+                     tip: "Interpolation ratio.",
+                  },
+                  cl_smooth: {
+                     label: "Smooth Interp",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Smooth interpolation errors.",
+                  },
+               },
+            },
+         };
+
+         // ═══════════════════════════════════════════════════════════
+         // LAUNCH OPTIONS
+         // ═══════════════════════════════════════════════════════════
+         const LAUNCH_OPTIONS = [
+            { flag: "-novid", desc: "Skips the intro video on startup.", default: true },
+            { flag: "-console", desc: "Enables the developer console.", default: true },
+            { flag: "-fullscreen", desc: "Forces exclusive fullscreen mode.", default: false },
+            {
+               flag: "-force_allow_excl_fullscreen",
+               desc: "Allows exclusive fullscreen with compositing.",
+               default: false,
+            },
+            { flag: "-coop_fullscreen", desc: "Desktop-friendly fullscreen mode.", default: false },
+            {
+               flag: "-force_allow_coop_fullscreen",
+               desc: "Forces cooperative fullscreen support.",
+               default: false,
+            },
+            {
+               flag: "-favor_consistent_framerate",
+               desc: "Prioritizes consistent frame times.",
+               default: true,
+            },
+            {
+               flag: "-skip_download_player_info",
+               desc: "Skips downloading player info on load.",
+               default: true,
+            },
+            { flag: "-high", desc: "Sets process to high priority.", default: false },
+            { flag: "-r_max_device_threads 32", desc: "Max rendering threads.", default: false },
+            { flag: "-threads 9", desc: "CPU threads for the engine.", default: false },
+            {
+               flag: "-mainthreadpriority 2",
+               desc: "Main thread scheduling priority.",
+               default: false,
+            },
+            {
+               flag: "-set_power_qos_disable",
+               desc: "Disables Windows power throttling.",
+               default: false,
+            },
+            {
+               flag: "-map_enable_background_maps 0",
+               desc: "Disables animated menu backgrounds.",
+               default: false,
+            },
+            {
+               flag: "-prewarm_panorama",
+               desc: "Pre-warms UI to reduce first-load stutters.",
+               default: false,
+            },
+            { flag: "-noaafonts", desc: "Disables font anti-aliasing.", default: false },
+         ];
+
+         let enabledLaunchOptions = {};
+         let customLaunchOptions = [];
+
+         // ═══════════════════════════════════════════════════════════
+         // PRESETS
+         // ═══════════════════════════════════════════════════════════
+         const PRESETS = {
+            potato: {
+               fps_max: "57",
+               fps_max_ui: "20",
+               mat_viewportscale: "0.71",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "0",
+               r_deferred_additive_pass: "0",
+               r_deferred_simple_light: "0",
+               r_ssao: "0",
+               r_dota_normal_maps: "0",
+               r_dota_allow_parallax_mapping: "0",
+               dota_ambient_creatures: "0",
+               dota_ambient_cloth: "0",
+               r_grass_quality: "0",
+               r_dota_fxaa: "0",
+               r_deferred_specular: "0",
+               r_deferred_specular_bloom: "0",
+               dota_cheap_water: "1",
+               r_deferred_height_fog: "0",
+               r_dashboard_render_quality: "0",
+               r_dota_allow_wind_on_trees: "0",
+               r_dota_bloom_compute_shader: "0",
+               r_texture_stream_mip_bias: "3",
+               cl_particle_fallback_base: "4",
+               cl_globallight_shadow_mode: "0",
+               r_texturefilteringquality: "0",
+               cl_particle_fallback_multiplier: "4",
+               cl_particle_sim_fallback_threshold_ms: "4",
+               dota_allow_clientside_particles: "0",
+               dota_disable_particle_lights: "1",
+               lb_shadow_texture_width_override: "128",
+               lb_shadow_texture_height_override: "128",
+               r_dota_spotlight_shadows_resolution: "128",
+               r_particle_max_detail_level: "0",
+               r_dota_color_correction: "0",
+               r_dota_render_2d_skybox: "0",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "0",
+               r_experimental_lag_limiter: "0",
+               r_low_latency: "0",
+               rate: "80000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+            low: {
+               fps_max: "90",
+               fps_max_ui: "30",
+               mat_viewportscale: "0.81",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "0",
+               r_deferred_additive_pass: "0",
+               r_deferred_simple_light: "1",
+               r_ssao: "0",
+               r_dota_normal_maps: "0",
+               r_dota_allow_parallax_mapping: "0",
+               dota_ambient_creatures: "0",
+               dota_ambient_cloth: "1",
+               r_grass_quality: "0",
+               r_dota_fxaa: "0",
+               r_deferred_specular: "0",
+               r_deferred_specular_bloom: "0",
+               dota_cheap_water: "1",
+               r_deferred_height_fog: "0",
+               r_dashboard_render_quality: "0",
+               r_dota_allow_wind_on_trees: "0",
+               r_dota_bloom_compute_shader: "0",
+               r_texture_stream_mip_bias: "2",
+               cl_particle_fallback_base: "4",
+               cl_globallight_shadow_mode: "0",
+               r_texturefilteringquality: "0",
+               cl_particle_fallback_multiplier: "4",
+               cl_particle_sim_fallback_threshold_ms: "4",
+               dota_allow_clientside_particles: "0",
+               dota_disable_particle_lights: "1",
+               lb_shadow_texture_width_override: "128",
+               lb_shadow_texture_height_override: "128",
+               r_dota_spotlight_shadows_resolution: "128",
+               r_particle_max_detail_level: "0",
+               r_dota_color_correction: "0",
+               r_dota_render_2d_skybox: "0",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "1",
+               r_experimental_lag_limiter: "0",
+               r_low_latency: "1",
+               rate: "80000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+            medium: {
+               fps_max: "120",
+               fps_max_ui: "60",
+               mat_viewportscale: "0.91",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "1",
+               r_deferred_additive_pass: "1",
+               r_deferred_simple_light: "1",
+               r_ssao: "0",
+               r_dota_normal_maps: "1",
+               r_dota_allow_parallax_mapping: "0",
+               dota_ambient_creatures: "0",
+               dota_ambient_cloth: "1",
+               r_grass_quality: "2",
+               r_dota_fxaa: "0",
+               r_deferred_specular: "1",
+               r_deferred_specular_bloom: "0",
+               dota_cheap_water: "1",
+               r_deferred_height_fog: "1",
+               r_dashboard_render_quality: "0",
+               r_dota_allow_wind_on_trees: "1",
+               r_dota_bloom_compute_shader: "1",
+               r_texture_stream_mip_bias: "1",
+               cl_particle_fallback_base: "2",
+               cl_globallight_shadow_mode: "2",
+               r_texturefilteringquality: "1",
+               cl_particle_fallback_multiplier: "4",
+               cl_particle_sim_fallback_threshold_ms: "4",
+               dota_allow_clientside_particles: "0",
+               dota_disable_particle_lights: "1",
+               lb_shadow_texture_width_override: "128",
+               lb_shadow_texture_height_override: "128",
+               r_dota_spotlight_shadows_resolution: "128",
+               r_particle_max_detail_level: "1",
+               r_dota_color_correction: "0",
+               r_dota_render_2d_skybox: "0",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "1",
+               r_experimental_lag_limiter: "0",
+               r_low_latency: "2",
+               rate: "80000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+            high: {
+               fps_max: "240",
+               fps_max_ui: "120",
+               mat_viewportscale: "1.0",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "1",
+               r_deferred_additive_pass: "1",
+               r_deferred_simple_light: "1",
+               r_ssao: "0",
+               r_dota_normal_maps: "1",
+               r_dota_allow_parallax_mapping: "1",
+               dota_ambient_creatures: "1",
+               dota_ambient_cloth: "1",
+               r_grass_quality: "3",
+               r_dota_fxaa: "1",
+               r_deferred_specular: "1",
+               r_deferred_specular_bloom: "1",
+               dota_cheap_water: "0",
+               r_deferred_height_fog: "1",
+               r_dashboard_render_quality: "1",
+               r_dota_allow_wind_on_trees: "1",
+               r_dota_bloom_compute_shader: "1",
+               r_texture_stream_mip_bias: "0",
+               cl_particle_fallback_base: "0",
+               cl_globallight_shadow_mode: "2",
+               r_texturefilteringquality: "3",
+               cl_particle_fallback_multiplier: "2",
+               cl_particle_sim_fallback_threshold_ms: "6",
+               dota_allow_clientside_particles: "1",
+               dota_disable_particle_lights: "0",
+               lb_shadow_texture_width_override: "-1",
+               lb_shadow_texture_height_override: "-1",
+               r_dota_spotlight_shadows_resolution: "256",
+               r_particle_max_detail_level: "2",
+               r_dota_color_correction: "1",
+               r_dota_render_2d_skybox: "1",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "1",
+               r_experimental_lag_limiter: "0",
+               r_low_latency: "2",
+               rate: "80000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+            ultra: {
+               fps_max: "0",
+               fps_max_ui: "120",
+               mat_viewportscale: "1.0",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "1",
+               r_deferred_additive_pass: "1",
+               r_deferred_simple_light: "1",
+               r_ssao: "1",
+               r_dota_normal_maps: "1",
+               r_dota_allow_parallax_mapping: "1",
+               dota_ambient_creatures: "1",
+               dota_ambient_cloth: "1",
+               r_grass_quality: "4",
+               r_dota_fxaa: "1",
+               r_deferred_specular: "1",
+               r_deferred_specular_bloom: "1",
+               dota_cheap_water: "0",
+               r_deferred_height_fog: "1",
+               r_dashboard_render_quality: "1",
+               r_dota_allow_wind_on_trees: "1",
+               r_dota_bloom_compute_shader: "1",
+               r_texture_stream_mip_bias: "0",
+               cl_particle_fallback_base: "0",
+               cl_globallight_shadow_mode: "3",
+               r_texturefilteringquality: "5",
+               cl_particle_fallback_multiplier: "2",
+               cl_particle_sim_fallback_threshold_ms: "6",
+               dota_allow_clientside_particles: "1",
+               dota_disable_particle_lights: "0",
+               lb_shadow_texture_width_override: "-1",
+               lb_shadow_texture_height_override: "-1",
+               r_dota_spotlight_shadows_resolution: "256",
+               r_particle_max_detail_level: "3",
+               r_dota_color_correction: "1",
+               r_dota_render_2d_skybox: "1",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "1",
+               r_experimental_lag_limiter: "0",
+               r_low_latency: "2",
+               rate: "1000000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+            competitive: {
+               fps_max: "0",
+               fps_max_ui: "60",
+               mat_viewportscale: "0.81",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "0",
+               r_deferred_additive_pass: "0",
+               r_deferred_simple_light: "1",
+               r_ssao: "0",
+               r_dota_normal_maps: "1",
+               r_dota_allow_parallax_mapping: "0",
+               dota_ambient_creatures: "0",
+               dota_ambient_cloth: "1",
+               r_grass_quality: "0",
+               r_dota_fxaa: "0",
+               r_deferred_specular: "0",
+               r_deferred_specular_bloom: "0",
+               dota_cheap_water: "1",
+               r_deferred_height_fog: "0",
+               r_dashboard_render_quality: "0",
+               r_dota_allow_wind_on_trees: "0",
+               r_dota_bloom_compute_shader: "1",
+               r_texture_stream_mip_bias: "0",
+               cl_particle_fallback_base: "2",
+               cl_globallight_shadow_mode: "1",
+               r_texturefilteringquality: "3",
+               cl_particle_fallback_multiplier: "4",
+               cl_particle_sim_fallback_threshold_ms: "4",
+               dota_allow_clientside_particles: "0",
+               dota_disable_particle_lights: "1",
+               lb_shadow_texture_width_override: "128",
+               lb_shadow_texture_height_override: "128",
+               r_dota_spotlight_shadows_resolution: "128",
+               r_particle_max_detail_level: "0",
+               r_dota_color_correction: "0",
+               r_dota_render_2d_skybox: "0",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "1",
+               r_experimental_lag_limiter: "1",
+               r_low_latency: "2",
+               rate: "80000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+         };
+
+         let currentValues = {};
+         let originalValues = {};
+         let activePreset = null;
+
+         // ═══════════════════════════════════════════════════════════
+         // TABS
+         // ═══════════════════════════════════════════════════════════
+         function switchTab(tab) {
+            document
+               .querySelectorAll(".tab-btn")
+               .forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+            document.getElementById("tabCvars").classList.toggle("hidden", tab !== "cvars");
+            document.getElementById("tabLaunch").classList.toggle("hidden", tab !== "launch");
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // RENDER
+         // ═══════════════════════════════════════════════════════════
+         function renderSettings() {
+            const container = document.getElementById("tabCvars");
+            container.innerHTML = "";
+
+            for (const [catName, cat] of Object.entries(SETTINGS)) {
+               const catDiv = document.createElement("div");
+               catDiv.className = "glass rounded-lg overflow-hidden fade-in";
+
+               const header = document.createElement("div");
+               header.className = "category-header flex items-center justify-between px-5 py-3.5";
+               header.innerHTML = `
+            <div class="flex items-center gap-3">
+               <span class="text-sm font-bold tracking-wider">[ ${catName} ]</span>
+               <span class="text-xs text-amt-text-muted">${Object.keys(cat.cvars).length} settings</span>
+            </div>
+            <span class="chevron text-amt-text-muted/40 text-xs transition-transform duration-200">&#9660;</span>
+         `;
+
+               const content = document.createElement("div");
+               content.className = "category-content open";
+
+               header.addEventListener("click", () => {
+                  content.classList.toggle("open");
+                  header.querySelector(".chevron").style.transform = content.classList.contains(
+                     "open",
+                  )
+                     ? ""
+                     : "rotate(-90deg)";
+               });
+
+               for (const [cvar, cfg] of Object.entries(cat.cvars)) {
+                  const val = currentValues[cvar] ?? cfg.default;
+                  const row = document.createElement("div");
+                  row.className = "setting-row flex items-center justify-between px-5 py-3";
+                  row.id = `row-${cvar}`;
+
+                  let control = "";
+                  if (cfg.type === "toggle") {
+                     const isOn = val !== "0";
+                     control = `<div class="toggle-track ${isOn ? "on" : ""}" data-cvar="${cvar}" onclick="toggleCvar('${cvar}')"><div class="toggle-thumb"></div></div>`;
+                  } else if (cfg.type === "select") {
+                     let opts = "";
+                     for (const [v, label] of Object.entries(cfg.options)) {
+                        opts += `<option value="${v}" ${val === v ? "selected" : ""}>${label}</option>`;
+                     }
+                     control = `<select class="cvar-select" data-cvar="${cvar}" onchange="setCvar('${cvar}', this.value)">${opts}</select>`;
+                  } else {
+                     control = `<input class="cvar-input" type="text" data-cvar="${cvar}" value="${val}" onchange="setCvar('${cvar}', this.value)" />`;
+                  }
+
+                  const diffBadge =
+                     originalValues[cvar] !== undefined && originalValues[cvar] !== val
+                        ? '<span class="diff-badge">mod</span>'
+                        : "";
+
+                  row.innerHTML = `
+               <div class="flex-1 min-w-0 mr-4">
+                  <div class="flex items-center">
+                     <span class="text-sm font-semibold">${cfg.label}</span>${diffBadge}
+                  </div>
+                  <div class="text-xs text-amt-text-muted mt-1 truncate" title="${cfg.tip}">// ${cfg.tip}</div>
+               </div>
+               <div class="flex items-center gap-3">
+                  <span class="text-xs text-amt-text-muted/30">${cvar}</span>
+                  ${control}
+               </div>
+            `;
+                  content.appendChild(row);
+               }
+
+               catDiv.appendChild(header);
+               catDiv.appendChild(content);
+               container.appendChild(catDiv);
+            }
+         }
+
+         function toggleCvar(cvar) {
+            currentValues[cvar] = currentValues[cvar] === "0" ? "1" : "0";
+            checkPresetMatch();
+            renderSettings();
+         }
+
+         function setCvar(cvar, val) {
+            currentValues[cvar] = val;
+            checkPresetMatch();
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // LAUNCH OPTIONS
+         // ═══════════════════════════════════════════════════════════
+         function renderLaunchOptions() {
+            const container = document.getElementById("launchTags");
+            container.innerHTML = "";
+
+            LAUNCH_OPTIONS.forEach((opt) => {
+               const enabled = enabledLaunchOptions[opt.flag] ?? opt.default;
+               const tag = document.createElement("div");
+               tag.className = `launch-tag ${enabled ? "enabled" : ""}`;
+               tag.onclick = () => toggleLaunchOption(opt.flag);
+               tag.innerHTML = `<span style="font-size:11px;">${enabled ? "[x]" : "[ ]"}</span> <span>${opt.flag}</span>`;
+               container.appendChild(tag);
+            });
+
+            customLaunchOptions.forEach((opt, i) => {
+               const tag = document.createElement("div");
+               tag.className = "launch-tag enabled";
+               tag.innerHTML = `<span>${opt}</span> <span class="tag-x" onclick="event.stopPropagation(); removeCustomLaunch(${i})">x</span>`;
+               container.appendChild(tag);
+            });
+
+            updateLaunchString();
+
+            const table = document.getElementById("launchRefTable");
+            table.innerHTML = "";
+            LAUNCH_OPTIONS.forEach((opt) => {
+               const tr = document.createElement("tr");
+               tr.className = "border-b border-amt-border/20";
+               tr.innerHTML = `<td class="py-2 pr-4 text-amt-accent">${opt.flag}</td><td class="py-2 text-amt-text-dim">${opt.desc}</td>`;
+               table.appendChild(tr);
+            });
+         }
+
+         function toggleLaunchOption(flag) {
+            const opt = LAUNCH_OPTIONS.find((o) => o.flag === flag);
+            const current = enabledLaunchOptions[flag] ?? (opt ? opt.default : false);
+            enabledLaunchOptions[flag] = !current;
+            renderLaunchOptions();
+         }
+
+         function addCustomLaunch() {
+            const input = document.getElementById("customLaunchInput");
+            const val = input.value.trim();
+            if (val) {
+               customLaunchOptions.push(val);
+               input.value = "";
+               renderLaunchOptions();
+            }
+         }
+
+         function removeCustomLaunch(idx) {
+            customLaunchOptions.splice(idx, 1);
+            renderLaunchOptions();
+         }
+
+         function updateLaunchString() {
+            const parts = [];
+            LAUNCH_OPTIONS.forEach((opt) => {
+               if (enabledLaunchOptions[opt.flag] ?? opt.default) parts.push(opt.flag);
+            });
+            parts.push(...customLaunchOptions);
+            document.getElementById("launchString").textContent = parts.join(" ") || "(none)";
+         }
+
+         function copyLaunchString() {
+            const text = document.getElementById("launchString").textContent;
+            if (text && text !== "(none)") {
+               sendMessage("copyText", { text });
+               showToast("// copied to clipboard", "success");
+            }
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // PRESETS
+         // ═══════════════════════════════════════════════════════════
+         function applyPreset(name) {
+            const preset = PRESETS[name];
+            if (!preset) return;
+            currentValues = { ...preset };
+            activePreset = name;
+            updatePresetUI();
+            renderSettings();
+         }
+
+         function checkPresetMatch() {
+            activePreset = null;
+            for (const [name, preset] of Object.entries(PRESETS)) {
+               let match = true;
+               for (const [k, v] of Object.entries(preset)) {
+                  if (currentValues[k] !== v) {
+                     match = false;
+                     break;
+                  }
+               }
+               if (match) {
+                  activePreset = name;
+                  break;
+               }
+            }
+            updatePresetUI();
+         }
+
+         function updatePresetUI() {
+            document
+               .querySelectorAll(".preset-btn")
+               .forEach((btn) =>
+                  btn.classList.toggle("active", btn.dataset.preset === activePreset),
+               );
+            const badge = document.getElementById("presetBadge");
+            badge.textContent = activePreset ? activePreset.toUpperCase() : "CUSTOM";
+            badge.classList.remove("hidden");
+            badge.style.color = activePreset ? "#0066FF" : "#555";
+            badge.style.borderColor = activePreset ? "#0066FF" : "#222";
+         }
+
+         function resetAll() {
+            currentValues = {};
+            for (const cat of Object.values(SETTINGS)) {
+               for (const [cvar, cfg] of Object.entries(cat.cvars)) {
+                  currentValues[cvar] = cfg.default;
+               }
+            }
+            activePreset = null;
+            updatePresetUI();
+            renderSettings();
+            showToast("// reset to defaults", "info");
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // INTEROP
+         // ═══════════════════════════════════════════════════════════
+         function sendMessage(type, data = {}) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type, ...data });
+            }
+         }
+
+         function getAllSettings() {
+            return JSON.stringify(currentValues);
+         }
+
+         function loadSettings(jsonString) {
+            try {
+               const data = JSON.parse(jsonString);
+               originalValues = { ...data };
+               currentValues = { ...data };
+               for (const cat of Object.values(SETTINGS)) {
+                  for (const [cvar, cfg] of Object.entries(cat.cvars)) {
+                     if (currentValues[cvar] === undefined) currentValues[cvar] = cfg.default;
+                  }
+               }
+               checkPresetMatch();
+               renderSettings();
+            } catch (e) {
+               console.error("loadSettings error:", e);
+            }
+         }
+
+         function showToast(msg, type = "info") {
+            const t = document.getElementById("toast");
+            t.textContent = msg;
+            t.className = `toast ${type} show`;
+            setTimeout(() => t.classList.remove("show"), 3000);
+         }
+
+         function showAlert(title, msg, type) {
+            showToast(`// ${title}: ${msg}`, type);
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // INIT
+         // ═══════════════════════════════════════════════════════════
+         (function init() {
+            for (const cat of Object.values(SETTINGS)) {
+               for (const [cvar, cfg] of Object.entries(cat.cvars)) {
+                  currentValues[cvar] = cfg.default;
+               }
+            }
+            LAUNCH_OPTIONS.forEach((opt) => {
+               enabledLaunchOptions[opt.flag] = opt.default;
+            });
+            renderSettings();
+            renderLaunchOptions();
+            applyPreset("competitive");
+         })();
+
+         document.getElementById("closeBtn")?.addEventListener("click", function (e) {
+            e.stopPropagation();
+            sendMessage("close");
+         });
+         document.getElementById("customLaunchInput")?.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") addCustomLaunch();
+         });
+      </script>
+   </body>
+</html>

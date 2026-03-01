@@ -28,10 +28,10 @@
   <!-- APPLICATION METADATA                           -->
   <!-- ============================================== -->
   <PropertyGroup>
-    <Version>2.1.18-beta</Version>
-    <AssemblyVersion>2.1.18.2118</AssemblyVersion>
-    <FileVersion>2.1.18.2118</FileVersion>
-    <InformationalVersion>2.1.18-beta</InformationalVersion>
+    <Version>2.1.19-beta</Version>
+    <AssemblyVersion>2.1.18.2119</AssemblyVersion>
+    <FileVersion>2.1.18.2119</FileVersion>
+    <InformationalVersion>2.1.19-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
     <Authors>Ardysa</Authors>
@@ -218,6 +218,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Html\update_available.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\dota2_performance.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
 

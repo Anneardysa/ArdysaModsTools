@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.18-beta] (Build 2119)
+
+### ✨ Added
+
+- Added a new "Tweak" button to the main form header.
+- Implemented a completely new `Dota2PerformanceForm` using WebView2 to manage game performance options.
+- Created `dota2_performance.html` featuring a cyber-themed industrial UI (JetBrains Mono, `#000` background, bracket-style headers) to easily apply FPS, Visual, Quality, Engine, VSync, and Network cvar presets to `autoexec.cfg`.
+- Added custom Launch Options generator within the new Performance Tweak UI.
+
 ## [2.1.17-beta] (Build 2118)
 
 ### 🐛 Fixed

@@ -35,6 +35,7 @@ namespace ArdysaModsTools
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            btnTweak = new Label();
             sidebarPanel = new Panel();
             pictureBox1 = new PictureBox();
             lblDetectSection = new Label();
@@ -496,9 +497,27 @@ namespace ArdysaModsTools
             imagePictureBox.TabIndex = 0;
             imagePictureBox.TabStop = false;
             // 
+            // btnTweak
+            // 
+            btnTweak.BackColor = Color.FromArgb(147, 51, 234);
+            btnTweak.Cursor = Cursors.Hand;
+            btnTweak.Font = new Font("JetBrains Mono", 7F, FontStyle.Bold);
+            btnTweak.ForeColor = Color.White;
+            btnTweak.Location = new Point(478, 8);
+            btnTweak.Name = "btnTweak";
+            btnTweak.Size = new Size(52, 24);
+            btnTweak.TabIndex = 4;
+            btnTweak.Text = "Tweak";
+            btnTweak.TextAlign = ContentAlignment.MiddleCenter;
+            btnTweak.Click += BtnTweak_Click;
+            btnTweak.MouseEnter += BtnTweak_MouseEnter;
+            btnTweak.MouseLeave += BtnTweak_MouseLeave;
+            btnTweak.Paint += BtnTweak_Paint;
+            // 
             // headerPanel
             // 
             headerPanel.BackColor = Color.Transparent;
+            headerPanel.Controls.Add(btnTweak);
             headerPanel.Controls.Add(btnSettings);
             headerPanel.Controls.Add(btnMinimize);
             headerPanel.Controls.Add(btnClose);
@@ -631,6 +650,7 @@ namespace ArdysaModsTools
         private Label btnClose;
         private PictureBox pictureBox1;
         private Label btnSettings;
+        private Label btnTweak;
         private NotifyIcon trayIcon;
     }
 }

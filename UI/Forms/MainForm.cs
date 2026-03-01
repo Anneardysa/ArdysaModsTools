@@ -1083,6 +1083,65 @@ namespace ArdysaModsTools
             }
         }
 
+        #region Tweak Button
+
+        private void BtnTweak_Click(object? sender, EventArgs e)
+        {
+            try
+            {
+                // Use game path from the detected target path, walk up to "game" level
+                string? gamePath = null;
+                if (!string.IsNullOrEmpty(targetPath))
+                {
+                    // targetPath is typically "...\dota 2 beta\game"
+                    gamePath = targetPath;
+                }
+
+                using var perfForm = new UI.Forms.Dota2PerformanceForm(gamePath);
+                perfForm.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Failed to open Performance Tweak: {ex.Message}");
+            }
+        }
+
+        private void BtnTweak_MouseEnter(object? sender, EventArgs e)
+        {
+            if (sender is Label lbl) lbl.BackColor = Color.FromArgb(126, 34, 206); // darker purple on hover
+        }
+
+        private void BtnTweak_MouseLeave(object? sender, EventArgs e)
+        {
+            if (sender is Label lbl) lbl.BackColor = Color.FromArgb(147, 51, 234); // original purple
+        }
+
+        private void BtnTweak_Paint(object? sender, PaintEventArgs e)
+        {
+            if (sender is not Label lbl) return;
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            int radius = 12;
+            var rect = new Rectangle(0, 0, lbl.Width - 1, lbl.Height - 1);
+            using var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
+            path.AddArc(rect.Right - radius, rect.Y, radius, radius, 270, 90);
+            path.AddArc(rect.Right - radius, rect.Bottom - radius, radius, radius, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - radius, radius, radius, 90, 90);
+            path.CloseFigure();
+
+            lbl.Region = new Region(path);
+            using var brush = new SolidBrush(lbl.BackColor);
+            g.FillPath(brush, path);
+
+            // Draw text centered
+            TextRenderer.DrawText(g, lbl.Text, lbl.Font, rect, lbl.ForeColor,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+
+        #endregion
+
         #endregion
 
 
