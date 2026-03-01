@@ -509,6 +509,124 @@ namespace ArdysaModsTools.Tests.Helpers
             Assert.That(block, Does.Contain("\"npc_dota_hero_nevermore\""));
         }
 
+        /// <summary>
+        /// Regression: ReplaceIdBlock must never produce CRLF (\r\n).
+        /// Source 2 engine crashes on mixed line endings in items_game.txt.
+        /// </summary>
+        [Test]
+        public void ReplaceIdBlock_NeverProducesCRLF()
+        {
+            var content = "\"items\"\n{\n\t\"12345\"\n\t{\n\t\t\"name\"\t\t\"Original\"\n\t\t\"prefab\"\t\t\"default_item\"\n\t\t\"used_by_heroes\"\n\t\t{\n\t\t\t\"npc_dota_hero_invoker\"\t\t\"1\"\n\t\t}\n\t}\n}";
+            var replacement = "\t\"12345\"\n\t{\n\t\t\"name\"\t\t\"Modified\"\n\t\t\"prefab\"\t\t\"default_item\"\n\t\t\"used_by_heroes\"\n\t\t{\n\t\t\t\"npc_dota_hero_invoker\"\t\t\"1\"\n\t\t}\n\t}";
+
+            var result = KeyValuesBlockHelper.ReplaceIdBlock(content, "12345", replacement, out bool didReplace, "npc_dota_hero_invoker");
+
+            Assert.That(didReplace, Is.True);
+            Assert.That(result, Does.Not.Contain("\r"),
+                "ReplaceIdBlock must use LF-only line endings for Source 2 compatibility");
+        }
+
+        /// <summary>
+        /// Regression: PrettifyKvText must never produce CRLF (\r\n).
+        /// </summary>
+        [Test]
+        public void PrettifyKvText_NeverProducesCRLF()
+        {
+            var oneliner = "\"items\" { \"12345\" { \"name\" \"Test\" \"prefab\" \"default_item\" \"used_by_heroes\" { \"npc_dota_hero_invoker\" \"1\" } } }";
+
+            var result = KeyValuesBlockHelper.PrettifyKvText(oneliner);
+
+            Assert.That(result, Does.Not.Contain("\r"),
+                "PrettifyKvText must use LF-only line endings for Source 2 compatibility");
+            Assert.That(result, Does.Contain("\n"),
+                "Output should contain LF newlines");
+        }
+
+        /// <summary>
+        /// Regression: PrettifyKvText must emit double-tab (\t\t) between key-value pairs.
+        /// Single-tab causes Source 2 parser to misread blocks, crashing on hero deploy.
+        /// </summary>
+        [Test]
+        public void PrettifyKvText_OneLiner_ProducesDoubleTabSeparation()
+        {
+            var oneliner = "\"555\" { \"name\" \"Weather Snow\" \"prefab\" \"default_item\" }";
+
+            var result = KeyValuesBlockHelper.PrettifyKvText(oneliner);
+
+            // Key-value pairs must use double-tab
+            Assert.That(result, Does.Contain("\"name\"\t\t\"Weather Snow\""),
+                "Key-value pairs must be separated by double-tab (\\t\\t)");
+            Assert.That(result, Does.Contain("\"prefab\"\t\t\"default_item\""),
+                "Key-value pairs must be separated by double-tab (\\t\\t)");
+        }
+
+        /// <summary>
+        /// Regression: PrettifyKvText must produce correct indentation for nested blocks.
+        /// </summary>
+        [Test]
+        public void PrettifyKvText_OneLiner_ProducesCorrectIndentation()
+        {
+            var oneliner = "\"items\" { \"99\" { \"name\" \"Hair\" \"used_by_heroes\" { \"npc_dota_hero_invoker\" \"1\" } } }";
+
+            var result = KeyValuesBlockHelper.PrettifyKvText(oneliner);
+            var lines = result.Split('\n');
+
+            // Verify nesting structure
+            Assert.That(result, Does.Contain("\"items\""));
+            Assert.That(result, Does.Contain("\t\"99\""), "ID should be at indent level 1");
+            Assert.That(result, Does.Contain("\t\t\"name\"\t\t\"Hair\""), "Properties at indent level 2");
+            Assert.That(result, Does.Contain("\t\t\"used_by_heroes\""), "Sub-block key at indent level 2");
+            Assert.That(result, Does.Contain("\t\t\t\"npc_dota_hero_invoker\"\t\t\"1\""), "Inner property at indent level 3");
+        }
+
+        /// <summary>
+        /// Regression: PrettifyKvText output must be parseable by ExtractBlockById.
+        /// This validates the prettifier doesn't break the round-trip parse path
+        /// used when misc "Add to Current" reads a hero VPK.
+        /// </summary>
+        [Test]
+        public void PrettifyKvText_RoundTrip_ExtractBlockStillWorks()
+        {
+            var oneliner = "\"DOTAEconomyItems\" { \"items\" { \"555\" { \"name\" \"Weather Snow\" \"prefab\" \"default_item\" \"item_slot\" \"weather\" \"used_by_heroes\" { \"npc_dota_hero_base\" \"1\" } } \"590\" { \"name\" \"Map Terrain\" \"prefab\" \"default_item\" \"item_slot\" \"map\" } } }";
+
+            var prettified = KeyValuesBlockHelper.PrettifyKvText(oneliner);
+
+            // Must be able to extract blocks from prettified output
+            var block555 = KeyValuesBlockHelper.ExtractBlockById(prettified, "555");
+            var block590 = KeyValuesBlockHelper.ExtractBlockById(prettified, "590");
+
+            Assert.That(block555, Is.Not.Null, "Block 555 must be extractable from prettified output");
+            Assert.That(block555, Does.Contain("\"Weather Snow\""));
+            Assert.That(block555, Does.Contain("\"npc_dota_hero_base\""));
+
+            Assert.That(block590, Is.Not.Null, "Block 590 must be extractable from prettified output");
+            Assert.That(block590, Does.Contain("\"Map Terrain\""));
+        }
+
+        /// <summary>
+        /// Regression: PrettifyKvText + ReplaceIdBlock must work together.
+        /// This simulates the exact crash path: hero VPK one-liner → prettify → replace block.
+        /// </summary>
+        [Test]
+        public void PrettifyKvText_ThenReplaceIdBlock_ProducesValidOutput()
+        {
+            // Simulate hero VPK one-liner items_game.txt
+            var oneliner = "\"DOTAEconomyItems\" { \"items\" { \"555\" { \"name\" \"Weather Snow\" \"prefab\" \"default_item\" } \"590\" { \"name\" \"Default Map\" \"prefab\" \"default_item\" } } }";
+
+            // Step 1: Prettify (as AssetModifierService does)
+            var prettified = KeyValuesBlockHelper.PrettifyKvText(oneliner);
+
+            // Step 2: Replace block (as ApplyBlockModAsync does)
+            var newBlock = "\t\t\"555\"\n\t\t{\n\t\t\t\"name\"\t\t\"Weather Aurora\"\n\t\t\t\"prefab\"\t\t\"default_item\"\n\t\t\t\"item_rarity\"\t\t\"mythical\"\n\t\t}";
+            var result = KeyValuesBlockHelper.ReplaceIdBlock(prettified, "555", newBlock, out bool didReplace);
+
+            Assert.That(didReplace, Is.True, "ReplaceIdBlock must find block in prettified content");
+            Assert.That(result, Does.Contain("\"Weather Aurora\""), "New block content must be present");
+            Assert.That(result, Does.Not.Contain("\"Weather Snow\""), "Old block content must be replaced");
+            Assert.That(result, Does.Contain("\"Default Map\""), "Other blocks must be preserved");
+            Assert.That(result, Does.Not.Contain("\r"), "No CRLF in final output");
+        }
+
         #endregion
     }
 }

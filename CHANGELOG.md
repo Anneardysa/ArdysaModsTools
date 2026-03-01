@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.19-beta] (Build 2120)
+
+### 🐛 Fixed
+
+- Fixed critical game crash occurring when players installed Misc mods (via "Add to Current Mods") after installing a Hero ModsPack.
+- Rewrote `KeyValuesBlockHelper.PrettifyKvText` state machine to correctly format one-liner `items_game.txt` files extracted from hero VPKs, ensuring proper Valve KeyValues block structure.
+- Fixed `PrettifyKvText` and `ReplaceIdBlock` incorrectly inserting Windows-style CRLF (`\r\n`) line endings which broke the Source 2 engine parser; now strictly enforces LF (`\n`).
+- Added comprehensive regression tests for KeyValues double-tab spacing, nesting indentation, round-trip extraction, and LF-only line endings.
+
 ## [2.1.18-beta] (Build 2119)
 
 ### ✨ Added

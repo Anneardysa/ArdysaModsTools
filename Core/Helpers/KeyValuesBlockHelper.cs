@@ -182,7 +182,7 @@ namespace ArdysaModsTools.Core.Helpers
                 // Replace the block
                 var before = content.Substring(0, blockStart);
                 var afterBlock = content.Substring(blockEndExclusive);
-                var rep = replacementBlock.TrimEnd() + Environment.NewLine;
+                var rep = replacementBlock.TrimEnd() + "\n";
                 content = before + rep + afterBlock;
                 didReplace = true;
                 return content;
@@ -355,29 +355,39 @@ namespace ArdysaModsTools.Core.Helpers
 
         /// <summary>
         /// Prettify KeyValues text from one-liner format to proper multi-line Valve format.
-        /// Handles quoted strings, braces, and proper indentation.
+        /// Uses a state machine to track key/value token pairs and emit correct separators:
+        /// - Double-tab (\t\t) between a key and its value on the same line
+        /// - Newline + indent between value→key and after braces
         /// </summary>
         public static string PrettifyKvText(string raw)
         {
             if (string.IsNullOrEmpty(raw)) return string.Empty;
 
-            // Normalize first
+            // Normalize first (BOM, line endings, smart quotes, zero-width chars)
             raw = NormalizeKvText(raw);
 
             int lineCount = raw.Count(c => c == '\n');
-            if (lineCount > 100) return raw; // Already formatted
+            if (lineCount > 100) return raw; // Already multi-line formatted
 
             var result = new System.Text.StringBuilder(raw.Length * 2);
             int indent = 0;
             bool inQuote = false;
             bool escape = false;
-            bool needNewline = false;
-            int lastNonWs = -1;
+
+            // tokenOnLine tracks quoted tokens emitted on the current logical line:
+            //   0 = start of line (no token yet)
+            //   1 = key emitted (next quote opens its value → emit \t\t)
+            //   2 = value emitted (next quote opens a new key → emit \n + indent, reset to 0)
+            int tokenOnLine = 0;
+
+            // afterBrace is set after { or } — the next token needs \n + indent
+            bool afterBrace = false;
 
             for (int i = 0; i < raw.Length; i++)
             {
                 char c = raw[i];
 
+                // Handle escape sequences inside quotes
                 if (escape)
                 {
                     result.Append(c);
@@ -394,64 +404,91 @@ namespace ArdysaModsTools.Core.Helpers
 
                 if (c == '"')
                 {
-                    if (needNewline && !inQuote)
+                    if (!inQuote)
                     {
-                        result.AppendLine();
-                        result.Append('\t', indent);
-                        needNewline = false;
+                        // Opening quote — decide separator based on state
+                        if (afterBrace)
+                        {
+                            // After { or }, start content on new line
+                            result.Append('\n');
+                            result.Append('\t', indent);
+                            afterBrace = false;
+                            tokenOnLine = 0;
+                        }
+                        else if (tokenOnLine == 1)
+                        {
+                            // Key was emitted, this opens its value → double-tab
+                            result.Append('\t', 2);
+                        }
+                        else if (tokenOnLine >= 2)
+                        {
+                            // Value was emitted, this opens a new key → new line
+                            result.Append('\n');
+                            result.Append('\t', indent);
+                            tokenOnLine = 0;
+                        }
+                        // tokenOnLine == 0 && !afterBrace: start of line, no separator needed
+
+                        result.Append('"');
+                        inQuote = true;
                     }
-                    result.Append(c);
-                    inQuote = !inQuote;
-                    lastNonWs = result.Length - 1;
+                    else
+                    {
+                        // Closing quote — advance token counter
+                        result.Append('"');
+                        inQuote = false;
+                        tokenOnLine++;
+                    }
                     continue;
                 }
 
                 if (inQuote)
                 {
                     result.Append(c);
-                    if (!char.IsWhiteSpace(c)) lastNonWs = result.Length - 1;
                     continue;
                 }
 
                 // Outside quotes
                 if (c == '{')
                 {
-                    result.AppendLine();
+                    result.Append('\n');
                     result.Append('\t', indent);
                     result.Append('{');
                     indent++;
-                    needNewline = true;
+                    tokenOnLine = 0;
+                    afterBrace = true;
                 }
                 else if (c == '}')
                 {
                     indent = Math.Max(0, indent - 1);
-                    result.AppendLine();
+                    result.Append('\n');
                     result.Append('\t', indent);
                     result.Append('}');
-                    needNewline = true;
+                    tokenOnLine = 0;
+                    afterBrace = true;
                 }
                 else if (char.IsWhiteSpace(c))
                 {
-                    // Convert multiple whitespace to tabs between tokens on same line
-                    if (lastNonWs >= 0 && result.Length > lastNonWs + 1)
-                    {
-                        // Skip adding more whitespace
-                    }
-                    else if (result.Length > 0 && !char.IsWhiteSpace(result[result.Length - 1]))
-                    {
-                        result.Append('\t');
-                    }
+                    // Skip all whitespace outside quotes — separators are controlled
+                    // by the tokenOnLine state machine above
                 }
                 else
                 {
-                    if (needNewline)
+                    // Non-quote, non-brace, non-whitespace character outside quotes
+                    // This shouldn't happen in well-formed KV, but handle gracefully
+                    if (afterBrace)
                     {
-                        result.AppendLine();
+                        result.Append('\n');
                         result.Append('\t', indent);
-                        needNewline = false;
+                        afterBrace = false;
+                    }
+                    else if (tokenOnLine >= 2)
+                    {
+                        result.Append('\n');
+                        result.Append('\t', indent);
+                        tokenOnLine = 0;
                     }
                     result.Append(c);
-                    lastNonWs = result.Length - 1;
                 }
             }
 
