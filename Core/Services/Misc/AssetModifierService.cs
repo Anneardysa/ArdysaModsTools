@@ -261,7 +261,7 @@ namespace ArdysaModsTools.Core.Services
                             if (visualsBlock != null)
                             {
                                 string updatedVisuals = CourierPatcherService.AppendEtherealEffects(
-                                    visualsBlock, effectPaths, existingParticles);
+                                    visualsBlock, effectPaths, existingParticles, replaceExisting: true);
                                 string updatedBlock = defBlock.Replace(visualsBlock, updatedVisuals);
 
                                 content = KeyValuesBlockHelper.ReplaceIdBlock(content,
@@ -338,7 +338,7 @@ namespace ArdysaModsTools.Core.Services
                     if (visualsBlock != null)
                     {
                         string updatedVisuals = CourierPatcherService.AppendEtherealEffects(
-                            visualsBlock, effectPaths, existingParticles);
+                            visualsBlock, effectPaths, existingParticles, replaceExisting: true);
 
                         // Replace old visuals with updated visuals in merged block
                         mergedBlock = mergedBlock.Replace(visualsBlock, updatedVisuals);

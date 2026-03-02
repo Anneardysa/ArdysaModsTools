@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.20-beta] (Build 2121)
+
+### 🐛 Fixed
+
+- **Misc**: Fixed Ethereal effects failing to apply on couriers that already have native particle effects (e.g., Aghanim's Interdimensional Baby Roshan). Ethereal effects now properly replace native particles instead of being blocked by slot limits.
+
 ## [2.1.19-beta] (Build 2120)
 
 ### 🐛 Fixed

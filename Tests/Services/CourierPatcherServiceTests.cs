@@ -292,6 +292,73 @@ namespace ArdysaModsTools.Tests.Services
 	}
 }";
 
+        /// <summary>
+        /// Courier with multiple particle_create entries (like Aghanim's Interdimensional Baby Roshan).
+        /// Has 4 different particle_create entries for ground/flying × radiant/dire.
+        /// </summary>
+        private const string MultiParticleCourier = @"
+""40000""
+{
+	""name""		""Multi Particle Courier""
+	""prefab""		""courier""
+	""item_quality""		""legendary""
+	""visuals""
+	{
+		""asset_modifier4""
+		{
+			""type""		""courier""
+			""modifier""		""models/courier/multi/multi.vmdl""
+			""asset""		""radiant""
+		}
+		""asset_modifier5""
+		{
+			""type""		""courier""
+			""modifier""		""models/courier/multi/multi_dire.vmdl""
+			""asset""		""dire""
+		}
+		""asset_modifier0""
+		{
+			""type""		""courier_flying""
+			""modifier""		""models/courier/multi/multi_flying.vmdl""
+			""asset""		""radiant""
+		}
+		""asset_modifier2""
+		{
+			""type""		""courier_flying""
+			""modifier""		""models/courier/multi/multi_dire_flying.vmdl""
+			""asset""		""dire""
+		}
+		""asset_modifier""
+		{
+			""type""		""particle_create""
+			""modifier""		""particles/econ/courier/multi/multi_ambient.vpcf""
+			""ground_courier_only""		""1""
+			""radiant_only""		""1""
+		}
+		""asset_modifier""
+		{
+			""type""		""particle_create""
+			""modifier""		""particles/econ/courier/multi/multi_ambient_flying.vpcf""
+			""flying_courier_only""		""1""
+			""radiant_only""		""1""
+		}
+		""asset_modifier""
+		{
+			""type""		""particle_create""
+			""modifier""		""particles/econ/courier/multi/multi_dire_ambient.vpcf""
+			""ground_courier_only""		""1""
+			""dire_only""		""1""
+		}
+		""asset_modifier""
+		{
+			""type""		""particle_create""
+			""modifier""		""particles/econ/courier/multi/multi_dire_ambient_flying.vpcf""
+			""flying_courier_only""		""1""
+			""dire_only""		""1""
+		}
+	}
+}";
+
         #endregion
 
         #region ParseCourierVisuals Tests
@@ -761,6 +828,157 @@ namespace ArdysaModsTools.Tests.Services
                 $"icon ({iconTabs} tabs) should be deeper than portraits ({headerTabs} tabs)");
             Assert.That(fovTabs, Is.GreaterThan(iconTabs),
                 $"PortraitFOV ({fovTabs} tabs) should be deeper than icon ({iconTabs} tabs)");
+        }
+
+        #endregion
+
+        #region RemoveParticleCreateEntries Tests
+
+        [Test]
+        public void RemoveParticleCreateEntries_PreservesModelEntries()
+        {
+            var visuals = @"""visuals""
+{
+	""asset_modifier0""
+	{
+		""type""		""courier""
+		""modifier""		""models/courier/test.vmdl""
+		""asset""		""radiant""
+	}
+	""asset_modifier1""
+	{
+		""type""		""particle_create""
+		""modifier""		""particles/econ/courier/test/test_ambient.vpcf""
+	}
+}";
+            var result = CourierPatcherService.RemoveParticleCreateEntries(visuals);
+
+            // Model entries should survive
+            Assert.That(result, Does.Contain("\"courier\""));
+            Assert.That(result, Does.Contain("test.vmdl"));
+            // Particle entries should be removed
+            Assert.That(result, Does.Not.Contain("particle_create"));
+            Assert.That(result, Does.Not.Contain("test_ambient.vpcf"));
+        }
+
+        [Test]
+        public void RemoveParticleCreateEntries_RemovesAll4Particles()
+        {
+            // Extract visuals from multi-particle courier
+            var visualsBlock = CourierPatcherService.ExtractVisualsBlock(MultiParticleCourier);
+            Assert.That(visualsBlock, Is.Not.Null);
+
+            var result = CourierPatcherService.RemoveParticleCreateEntries(visualsBlock!);
+
+            // All 4 particle_create entries should be gone
+            Assert.That(result, Does.Not.Contain("particle_create"));
+            Assert.That(result, Does.Not.Contain("multi_ambient.vpcf"));
+            Assert.That(result, Does.Not.Contain("multi_ambient_flying.vpcf"));
+            Assert.That(result, Does.Not.Contain("multi_dire_ambient.vpcf"));
+            Assert.That(result, Does.Not.Contain("multi_dire_ambient_flying.vpcf"));
+
+            // Model entries should survive
+            Assert.That(result, Does.Contain("multi.vmdl"));
+            Assert.That(result, Does.Contain("multi_dire.vmdl"));
+            Assert.That(result, Does.Contain("multi_flying.vmdl"));
+            Assert.That(result, Does.Contain("multi_dire_flying.vmdl"));
+        }
+
+        [Test]
+        public void RemoveParticleCreateEntries_EmptyBlock_ReturnsEmpty()
+        {
+            Assert.That(CourierPatcherService.RemoveParticleCreateEntries(""), Is.EqualTo(""));
+            Assert.That(CourierPatcherService.RemoveParticleCreateEntries(null!), Is.EqualTo(""));
+        }
+
+        #endregion
+
+        #region AppendEtherealEffects with replaceExisting Tests
+
+        [Test]
+        public void AppendEtherealEffects_ReplaceExisting_RemovesOldAndAddsNew()
+        {
+            // Visuals block with existing particle_create
+            var visuals = @"""visuals""
+{
+	""asset_modifier0""
+	{
+		""type""		""courier""
+		""modifier""		""models/courier/test.vmdl""
+		""asset""		""radiant""
+	}
+	""asset_modifier1""
+	{
+		""type""		""particle_create""
+		""modifier""		""particles/econ/courier/old/old_ambient.vpcf""
+	}
+}";
+            var effects = new List<string>
+            {
+                "particles/econ/courier/courier_golden_roshan/golden_roshan_ambient.vpcf"
+            };
+
+            // replaceExisting: true → old particle removed, new ethereal added
+            var result = CourierPatcherService.AppendEtherealEffects(visuals, effects, 1, replaceExisting: true);
+
+            Assert.That(result, Does.Not.Contain("old_ambient.vpcf"), "Old particle should be removed");
+            Assert.That(result, Does.Contain("golden_roshan_ambient.vpcf"), "New ethereal should be added");
+            Assert.That(result, Does.Contain("particle_create"), "Should have particle_create entry");
+            Assert.That(result, Does.Contain("test.vmdl"), "Model entry should survive");
+        }
+
+        [Test]
+        public void AppendEtherealEffects_ReplaceExisting_WithMultipleNativeParticles()
+        {
+            // Extract visuals from multi-particle courier (4 existing particles)
+            var visualsBlock = CourierPatcherService.ExtractVisualsBlock(MultiParticleCourier);
+            Assert.That(visualsBlock, Is.Not.Null);
+
+            var effects = new List<string>
+            {
+                "particles/econ/courier/courier_golden_roshan/golden_roshan_ambient.vpcf"
+            };
+
+            // Without replaceExisting: 4 existing particles → 0 slots → no change
+            var resultWithout = CourierPatcherService.AppendEtherealEffects(visualsBlock!, effects, 4, replaceExisting: false);
+            Assert.That(resultWithout, Does.Not.Contain("golden_roshan_ambient.vpcf"),
+                "Without replaceExisting, ethereal should be blocked by 4 existing particles");
+
+            // With replaceExisting: all native particles removed → ethereal applied
+            var resultWith = CourierPatcherService.AppendEtherealEffects(visualsBlock!, effects, 4, replaceExisting: true);
+            Assert.That(resultWith, Does.Contain("golden_roshan_ambient.vpcf"),
+                "With replaceExisting, ethereal should be applied after removing native particles");
+            Assert.That(resultWith, Does.Not.Contain("multi_ambient.vpcf"),
+                "Native particles should be removed");
+            Assert.That(resultWith, Does.Contain("multi.vmdl"),
+                "Model entries should survive");
+        }
+
+        [Test]
+        public void AppendEtherealEffects_ReplaceExisting_RespectsMaxSlots()
+        {
+            var visuals = @"""visuals""
+{
+	""asset_modifier0""
+	{
+		""type""		""courier""
+		""modifier""		""models/courier/test.vmdl""
+		""asset""		""radiant""
+	}
+}";
+            var effects = new List<string>
+            {
+                "particles/econ/courier/effect1/effect1.vpcf",
+                "particles/econ/courier/effect2/effect2.vpcf",
+                "particles/econ/courier/effect3/effect3.vpcf"  // 3 effects, but max is 2
+            };
+
+            var result = CourierPatcherService.AppendEtherealEffects(visuals, effects, 0, replaceExisting: true);
+
+            // Should only add 2 effects (MaxParticleSlots = 2)
+            Assert.That(result, Does.Contain("effect1.vpcf"));
+            Assert.That(result, Does.Contain("effect2.vpcf"));
+            Assert.That(result, Does.Not.Contain("effect3.vpcf"));
         }
 
         #endregion

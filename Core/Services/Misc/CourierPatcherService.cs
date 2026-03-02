@@ -449,21 +449,88 @@ namespace ArdysaModsTools.Core.Services.Misc
         }
 
         /// <summary>
+        /// Removes all particle_create asset_modifier blocks from a visuals block.
+        /// Preserves all other entries (courier models, courier_flying models, skin, etc.).
+        /// Used to clear courier-native particles before applying Ethereal effects.
+        /// </summary>
+        /// <param name="visualsBlock">The visuals block text.</param>
+        /// <returns>The visuals block with all particle_create entries removed.</returns>
+        public static string RemoveParticleCreateEntries(string visualsBlock)
+        {
+            if (string.IsNullOrEmpty(visualsBlock)) return visualsBlock ?? string.Empty;
+
+            // Find all asset_modifier blocks that contain particle_create, remove each one.
+            // Work backward to preserve string indices.
+            var assetModifierPattern = new Regex(
+                @"""asset_modifier\d*""\s*\{", RegexOptions.IgnoreCase);
+
+            var matches = assetModifierPattern.Matches(visualsBlock).Cast<Match>().ToList();
+            // Process in reverse order so earlier indices stay valid
+            for (int i = matches.Count - 1; i >= 0; i--)
+            {
+                var match = matches[i];
+                int blockStart = match.Index + match.Length - 1;
+                int blockEnd = KeyValuesBlockHelper.ExtractBalancedBlockEnd(visualsBlock, blockStart);
+                if (blockEnd < 0) continue;
+
+                string modifierBlock = visualsBlock.Substring(blockStart, blockEnd - blockStart);
+
+                // Only remove particle_create entries
+                if (!Regex.IsMatch(modifierBlock, @"""type""\s+""particle_create""", RegexOptions.IgnoreCase))
+                    continue;
+
+                // Find the start of the line containing the match (skip leading whitespace/newline)
+                int removeStart = match.Index;
+                while (removeStart > 0 && visualsBlock[removeStart - 1] != '\n')
+                    removeStart--;
+
+                // Find the end: skip trailing newline after the block
+                int removeEnd = blockEnd;
+                if (removeEnd < visualsBlock.Length && visualsBlock[removeEnd] == '\r') removeEnd++;
+                if (removeEnd < visualsBlock.Length && visualsBlock[removeEnd] == '\n') removeEnd++;
+
+                visualsBlock = visualsBlock.Substring(0, removeStart) + visualsBlock.Substring(removeEnd);
+            }
+
+            return visualsBlock;
+        }
+
+        /// <summary>
         /// Appends Ethereal particle effects to a visuals block.
         /// Each effect is added as an asset_modifier with type "particle_create".
-        /// Respects max slot limit: total particle_create entries ≤ MaxParticleSlots.
+        /// 
+        /// When replaceExisting is false (default):
+        ///   Respects max slot limit: total particle_create entries ≤ MaxParticleSlots.
+        /// 
+        /// When replaceExisting is true:
+        ///   Removes all existing particle_create entries first, then appends
+        ///   up to MaxParticleSlots ethereal effects. Use this when the user
+        ///   explicitly selects an ethereal effect to override courier-native particles.
         /// </summary>
         /// <param name="visualsBlock">The current visuals block text.</param>
         /// <param name="effectPaths">Particle VPF paths to append (e.g., "particles/econ/courier/...").</param>
         /// <param name="existingParticleCount">How many particle_create already exist in this block.</param>
+        /// <param name="replaceExisting">If true, remove all existing particle_create before appending.</param>
         /// <returns>The visuals block with ethereal effects appended.</returns>
-        public static string AppendEtherealEffects(string visualsBlock, List<string> effectPaths, int existingParticleCount)
+        public static string AppendEtherealEffects(string visualsBlock, List<string> effectPaths,
+            int existingParticleCount, bool replaceExisting = false)
         {
             if (string.IsNullOrEmpty(visualsBlock) || effectPaths.Count == 0)
                 return visualsBlock ?? string.Empty;
 
-            int availableSlots = Data.EtherealEffects.GetAvailableSlots(existingParticleCount);
-            if (availableSlots <= 0) return visualsBlock;
+            int availableSlots;
+            if (replaceExisting)
+            {
+                // Remove all existing particle_create entries first
+                visualsBlock = RemoveParticleCreateEntries(visualsBlock);
+                // After removal, all MaxParticleSlots are available
+                availableSlots = Data.EtherealEffects.MaxParticleSlots;
+            }
+            else
+            {
+                availableSlots = Data.EtherealEffects.GetAvailableSlots(existingParticleCount);
+                if (availableSlots <= 0) return visualsBlock;
+            }
 
             // Clamp to available slots
             var effectsToAdd = effectPaths.Take(availableSlots).ToList();
