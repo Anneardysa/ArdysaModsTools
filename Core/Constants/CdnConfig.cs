@@ -45,6 +45,24 @@ namespace ArdysaModsTools.Core.Constants
 
         #endregion
 
+        #region GitHub Proxy Mirrors (GFW Bypass)
+
+        /// <summary>
+        /// GitHub proxy mirror via ghfast.top (Fallback 3).
+        /// Enables access from regions where GitHub/Cloudflare/jsDelivr are blocked
+        /// (e.g., China Mobile, China Telecom behind the Great Firewall).
+        /// Proxies the full GitHub Raw URL through an accessible relay.
+        /// </summary>
+        public const string GitHubProxyPrimaryUrl = "https://ghfast.top/" + GitHubRawBaseUrl;
+
+        /// <summary>
+        /// GitHub proxy mirror via gh-proxy.com (Fallback 4).
+        /// Secondary proxy in case the primary proxy is also unavailable.
+        /// </summary>
+        public const string GitHubProxySecondaryUrl = "https://gh-proxy.com/" + GitHubRawBaseUrl;
+
+        #endregion
+
         #region Asset Path Markers
 
         /// <summary>Assets folder marker in URL paths.</summary>
@@ -117,20 +135,24 @@ namespace ArdysaModsTools.Core.Constants
         {
             if (IsR2Enabled)
             {
-                return new[]
-                {
-                    R2BaseUrl,
-                    JsDelivrBaseUrl,
-                    GitHubRawBaseUrl
-                };
+                return
+                [
+                    R2BaseUrl,             // Priority 1: Cloudflare R2 (fastest)
+                    JsDelivrBaseUrl,       // Priority 2: jsDelivr CDN
+                    GitHubRawBaseUrl,      // Priority 3: GitHub Raw
+                    GitHubProxyPrimaryUrl, // Priority 4: ghfast.top proxy (GFW bypass)
+                    GitHubProxySecondaryUrl // Priority 5: gh-proxy.com proxy (GFW bypass)
+                ];
             }
 
             // R2 not configured, use GitHub CDNs only
-            return new[]
-            {
+            return
+            [
                 JsDelivrBaseUrl,
-                GitHubRawBaseUrl
-            };
+                GitHubRawBaseUrl,
+                GitHubProxyPrimaryUrl,
+                GitHubProxySecondaryUrl
+            ];
         }
 
         /// <summary>
@@ -196,7 +218,20 @@ namespace ArdysaModsTools.Core.Constants
             return url.Contains("ModsPack") || 
                    url.Contains("r2.dev") ||
                    url.Contains("ardysamods.my.id") ||
-                   url.Contains("Anneardysa");
+                   url.Contains("Anneardysa") ||
+                   IsProxyUrl(url);
+        }
+
+        /// <summary>
+        /// Check if a URL is served through a GitHub proxy mirror.
+        /// </summary>
+        public static bool IsProxyUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+                return false;
+
+            return url.Contains("ghfast.top") ||
+                   url.Contains("gh-proxy.com");
         }
 
         #endregion

@@ -359,6 +359,104 @@ namespace ArdysaModsTools.Tests.Services
 	}
 }";
 
+        /// <summary>
+        /// Onibi-like courier: shared models (no style field) + style-specific particle_create entries.
+        /// Simulates a courier with 3 different style particles (e.g., style 0, 5, 21).
+        /// </summary>
+        private const string StyledParticleCourier = @"
+""50000""
+{
+	""name""		""Onibi""
+	""prefab""		""courier""
+	""item_rarity""		""immortal""
+	""image_inventory""		""econ/items/courier/onibi_lvl_00/onibi_lvl_00""
+	""item_name""		""#DOTA_Item_Onibi""
+	""visuals""
+	{
+		""asset_modifier0""
+		{
+			""type""		""courier""
+			""modifier""		""models/items/courier/onibi_lvl_21/onibi_lvl_21.vmdl""
+			""asset""		""radiant""
+			""style""		""21""
+		}
+		""asset_modifier1""
+		{
+			""type""		""courier""
+			""modifier""		""models/items/courier/onibi_lvl_21/onibi_lvl_21.vmdl""
+			""asset""		""dire""
+			""style""		""21""
+		}
+		""asset_modifier2""
+		{
+			""type""		""courier_flying""
+			""modifier""		""models/items/courier/onibi_lvl_21/onibi_lvl_21_flying.vmdl""
+			""asset""		""radiant""
+			""style""		""21""
+		}
+		""asset_modifier3""
+		{
+			""type""		""courier_flying""
+			""modifier""		""models/items/courier/onibi_lvl_21/onibi_lvl_21_flying.vmdl""
+			""asset""		""dire""
+			""style""		""21""
+		}
+		""asset_modifier4""
+		{
+			""type""		""particle_create""
+			""modifier""		""particles/econ/courier/courier_onibi/courier_onibi_green_lvl0_ambient.vpcf""
+			""style""		""0""
+		}
+		""asset_modifier5""
+		{
+			""type""		""particle_create""
+			""modifier""		""particles/econ/courier/courier_onibi/courier_onibi_blue_lvl5_ambient.vpcf""
+			""style""		""5""
+		}
+		""asset_modifier6""
+		{
+			""type""		""particle_create""
+			""modifier""		""particles/econ/courier/courier_onibi/courier_onibi_black_lvl21_ambient.vpcf""
+			""style""		""21""
+		}
+		""styles""
+		{
+			""0""
+			{
+				""name""		""#DOTA_Style_Onibi_0""
+				""skin""		""0""
+			}
+			""5""
+			{
+				""name""		""#DOTA_Style_Onibi_5""
+				""skin""		""0""
+				""alternate_icon""		""5""
+			}
+			""21""
+			{
+				""name""		""#DOTA_Style_Onibi_21""
+				""skin""		""0""
+				""alternate_icon""		""21""
+			}
+		}
+		""alternate_icons""
+		{
+			""0""
+			{
+				""icon_path""		""econ/items/courier/onibi_lvl_00/onibi_lvl_00""
+			}
+			""5""
+			{
+				""icon_path""		""econ/items/courier/onibi_lvl_05/onibi_lvl_05""
+			}
+			""21""
+			{
+				""icon_path""		""econ/items/courier/onibi_lvl_21/onibi_lvl_21""
+			}
+		}
+	}
+}";
+
         #endregion
 
         #region ParseCourierVisuals Tests
@@ -487,6 +585,104 @@ namespace ArdysaModsTools.Tests.Services
             // Default courier has no particle_create entries
             var particles = CourierPatcherService.ExtractParticleCreateEntries(DefaultCourierBlock);
             Assert.That(particles, Is.Empty);
+        }
+
+        #endregion
+
+        #region ExtractParticleCreateEntries Style Tests
+
+        [Test]
+        public void ExtractParticleCreateEntries_WithStyleFilter_ReturnsOnlyMatchingStyle()
+        {
+            // Style 21 → only the black lvl21 particle
+            var particles = CourierPatcherService.ExtractParticleCreateEntries(StyledParticleCourier, styleIndex: 21);
+
+            Assert.That(particles, Has.Count.EqualTo(1));
+            Assert.That(particles[0], Does.Contain("courier_onibi_black_lvl21_ambient.vpcf"));
+            Assert.That(particles[0], Does.Not.Contain("lvl0_ambient"));
+            Assert.That(particles[0], Does.Not.Contain("lvl5_ambient"));
+
+            // Style field should be stripped from the returned entry
+            Assert.That(particles[0], Does.Not.Contain("\"style\""),
+                "Style field should be stripped after filtering");
+        }
+
+        [Test]
+        public void ExtractParticleCreateEntries_WithStyleFilter0_ReturnsOnlyStyle0()
+        {
+            var particles = CourierPatcherService.ExtractParticleCreateEntries(StyledParticleCourier, styleIndex: 0);
+
+            Assert.That(particles, Has.Count.EqualTo(1));
+            Assert.That(particles[0], Does.Contain("courier_onibi_green_lvl0_ambient.vpcf"));
+        }
+
+        [Test]
+        public void ExtractParticleCreateEntries_NoStyleFilter_ReturnsAll()
+        {
+            // No style filter → all 3 styled particles returned
+            var particles = CourierPatcherService.ExtractParticleCreateEntries(StyledParticleCourier);
+
+            Assert.That(particles, Has.Count.EqualTo(3));
+            Assert.That(particles.Any(p => p.Contains("lvl0_ambient")), Is.True);
+            Assert.That(particles.Any(p => p.Contains("lvl5_ambient")), Is.True);
+            Assert.That(particles.Any(p => p.Contains("lvl21_ambient")), Is.True);
+        }
+
+        [Test]
+        public void ExtractParticleCreateEntries_UnstyledParticles_AlwaysIncluded()
+        {
+            // Drodo has unstyled particle_create → should be included regardless of styleIndex
+            var particlesNoFilter = CourierPatcherService.ExtractParticleCreateEntries(DrodoBlock);
+            var particlesWithFilter = CourierPatcherService.ExtractParticleCreateEntries(DrodoBlock, styleIndex: 5);
+
+            Assert.That(particlesNoFilter, Has.Count.EqualTo(1));
+            Assert.That(particlesWithFilter, Has.Count.EqualTo(1));
+            Assert.That(particlesWithFilter[0], Does.Contain("courier_drodo_ambient.vpcf"));
+        }
+
+        [Test]
+        public void ExtractParticleCreateEntries_NonexistentStyle_ReturnsEmpty()
+        {
+            // Style 99 doesn't exist in the data → no matching particles
+            var particles = CourierPatcherService.ExtractParticleCreateEntries(StyledParticleCourier, styleIndex: 99);
+            Assert.That(particles, Is.Empty);
+        }
+
+        [Test]
+        public void BuildMergedCourierBlock_StyledParticles_OnlyInjectsMatchingStyle()
+        {
+            // Merge with style 21 → only black lvl21 particle should appear
+            var merged = CourierPatcherService.BuildMergedCourierBlock(
+                DefaultCourierBlock, StyledParticleCourier, styleIndex: 21);
+
+            // Particle filtering: only style 21's particle injected
+            Assert.That(merged, Does.Contain("courier_onibi_black_lvl21_ambient.vpcf"),
+                "Style 21 particle should be injected");
+            Assert.That(merged, Does.Not.Contain("courier_onibi_green_lvl0_ambient.vpcf"),
+                "Style 0 particle should NOT be injected");
+            Assert.That(merged, Does.Not.Contain("courier_onibi_blue_lvl5_ambient.vpcf"),
+                "Style 5 particle should NOT be injected");
+
+            // Style field should be stripped from injected particle
+            // Count occurrences of "style" — should NOT appear in particle entries
+            Assert.That(merged, Does.Not.Contain("\"style\""),
+                "Style field should be stripped from particle entries");
+
+            // Style-specific overrides: item_name from styles block
+            Assert.That(merged, Does.Contain("#DOTA_Style_Onibi_21"),
+                "item_name should be overridden with style-specific name");
+            Assert.That(merged, Does.Not.Contain("#DOTA_Item_Onibi"),
+                "Original item_name should be replaced");
+
+            // Style-specific overrides: image_inventory from alternate_icons block
+            Assert.That(merged, Does.Contain("econ/items/courier/onibi_lvl_21/onibi_lvl_21"),
+                "image_inventory should be overridden with style-specific icon");
+            Assert.That(merged, Does.Not.Contain("econ/items/courier/onibi_lvl_00/onibi_lvl_00"),
+                "Original image_inventory should be replaced");
+
+            // Default donkey models must still be present
+            Assert.That(merged, Does.Contain("donkey.vmdl"));
+            Assert.That(merged, Does.Contain("donkey_wings.vmdl"));
         }
 
         #endregion

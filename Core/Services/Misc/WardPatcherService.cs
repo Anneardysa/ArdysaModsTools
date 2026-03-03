@@ -158,12 +158,14 @@ namespace ArdysaModsTools.Core.Services.Misc
         }
 
         /// <summary>
-        /// Extracts all particle_create entries from a ward's visuals block.
-        /// These need to be appended to the base ward's visuals.
+        /// Extracts particle_create entries from a ward's visuals block.
+        /// When styleIndex is provided, only returns entries matching that style.
+        /// Entries without a style field are always included (shared across all styles).
         /// </summary>
         /// <param name="wardBlock">The full ward block text.</param>
+        /// <param name="styleIndex">Optional style index to filter by. Null = all entries.</param>
         /// <returns>List of particle_create block texts (each including "asset_modifierN" { ... }).</returns>
-        public static List<string> ExtractParticleCreateEntries(string wardBlock)
+        public static List<string> ExtractParticleCreateEntries(string wardBlock, int? styleIndex = null)
         {
             var particles = new List<string>();
             if (string.IsNullOrEmpty(wardBlock)) return particles;
@@ -192,10 +194,35 @@ namespace ArdysaModsTools.Core.Services.Misc
                 string modifierBlock = visualsContent.Substring(match.Index, blockEnd - match.Index);
 
                 // Check if this is a particle_create type
-                if (Regex.IsMatch(modifierBlock, @"""type""\s+""particle_create""", RegexOptions.IgnoreCase))
+                if (!Regex.IsMatch(modifierBlock, @"""type""\s+""particle_create""", RegexOptions.IgnoreCase))
+                    continue;
+
+                // Filter by style (same logic as ParseWardVisuals)
+                if (styleIndex.HasValue)
                 {
-                    particles.Add(modifierBlock);
+                    var styleMatch = Regex.Match(modifierBlock,
+                        @"""style""\s+""(\d+)""", RegexOptions.IgnoreCase);
+
+                    if (styleMatch.Success)
+                    {
+                        // Entry has a style field — must match the requested style
+                        int entryStyle = int.Parse(styleMatch.Groups[1].Value);
+                        if (entryStyle != styleIndex.Value)
+                            continue;
+                    }
+                    // Entry has no style field — include it (shared across all styles)
                 }
+
+                // Strip the "style" field from the entry since filtering already applied.
+                // The merged block should not carry style metadata.
+                if (styleIndex.HasValue)
+                {
+                    modifierBlock = Regex.Replace(modifierBlock,
+                        @"\r?\n[^\n]*""style""\s+""\d+""[^\n]*", "",
+                        RegexOptions.IgnoreCase);
+                }
+
+                particles.Add(modifierBlock);
             }
 
             return particles;
@@ -237,8 +264,8 @@ namespace ArdysaModsTools.Core.Services.Misc
             string? selectedPortraits = ExtractNamedBlock(selectedBlock, "portraits");
             string? selectedStaticAttributes = ExtractNamedBlock(selectedBlock, "static_attributes");
 
-            // Extract particle_create entries from selected ward
-            var particleEntries = ExtractParticleCreateEntries(selectedBlock);
+            // Extract particle_create entries from selected ward (filtered by style)
+            var particleEntries = ExtractParticleCreateEntries(selectedBlock, styleIndex);
 
             // Extract visuals-level KV pairs from selected ward (e.g., "skin" "1")
             var visualsKvPairs = ExtractVisualsKeyValues(selectedVisualsBlock);
@@ -365,26 +392,58 @@ namespace ArdysaModsTools.Core.Services.Misc
 
         /// <summary>
         /// Extracts top-level key-value pairs from a visuals block (e.g., "skin" "1").
-        /// Only returns simple KV pairs, not nested asset_modifier blocks.
+        /// Only returns simple KV pairs at depth 1 inside the visuals block,
+        /// ignoring any KV pairs inside nested sub-blocks like "styles",
+        /// "alternate_icons", or "asset_modifier" entries.
+        /// Uses brace-depth tracking to determine nesting level.
         /// </summary>
         private static Dictionary<string, string> ExtractVisualsKeyValues(string? visualsBlock)
         {
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (string.IsNullOrEmpty(visualsBlock)) return result;
 
-            // Match "key" "value" pairs that are NOT asset_modifier or styles blocks
-            var pattern = new Regex(
+            var kvPattern = new Regex(
                 @"^\s*""([^""]+)""\s+""([^""]*)""",
                 RegexOptions.Multiline);
 
-            // Skip keys that are block names or asset_modifier entries
+            // Skip keys that are block names or asset_modifier internal fields
             var skipKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "visuals", "type", "modifier", "asset", "style"
             };
 
-            foreach (Match match in pattern.Matches(visualsBlock))
+            // Find the opening brace of the visuals block
+            int outerBrace = visualsBlock.IndexOf('{');
+            if (outerBrace < 0) return result;
+
+            // Build depth map: track brace depth at each line start
+            int depth = 0;
+            var lineDepths = new Dictionary<int, int>();
+
+            for (int i = outerBrace; i < visualsBlock.Length; i++)
             {
+                if (visualsBlock[i] == '{') depth++;
+                else if (visualsBlock[i] == '}') depth--;
+                else if (visualsBlock[i] == '\n' && i + 1 < visualsBlock.Length)
+                    lineDepths[i + 1] = depth;
+            }
+
+            foreach (Match match in kvPattern.Matches(visualsBlock))
+            {
+                // Find line start and its depth
+                int lineStart = match.Index;
+                while (lineStart > 0 && visualsBlock[lineStart - 1] != '\n')
+                    lineStart--;
+
+                int lineDepth = 0;
+                if (lineDepths.TryGetValue(lineStart, out int d))
+                    lineDepth = d;
+                else if (lineStart <= outerBrace + 1)
+                    lineDepth = 1;
+
+                // Only capture depth 1 (direct children of the visuals block)
+                if (lineDepth != 1) continue;
+
                 string key = match.Groups[1].Value;
                 string value = match.Groups[2].Value;
 

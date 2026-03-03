@@ -172,12 +172,14 @@ namespace ArdysaModsTools.Core.Services.Misc
         }
 
         /// <summary>
-        /// Extracts all particle_create entries from a courier's visuals block.
-        /// These need to be appended to the base courier's visuals.
+        /// Extracts particle_create entries from a courier's visuals block.
+        /// When styleIndex is provided, only returns entries matching that style.
+        /// Entries without a style field are always included (shared across all styles).
         /// </summary>
         /// <param name="courierBlock">The full courier block text.</param>
+        /// <param name="styleIndex">Optional style index to filter by. Null = all entries.</param>
         /// <returns>List of particle_create block texts (each including "asset_modifierN" { ... }).</returns>
-        public static List<string> ExtractParticleCreateEntries(string courierBlock)
+        public static List<string> ExtractParticleCreateEntries(string courierBlock, int? styleIndex = null)
         {
             var particles = new List<string>();
             if (string.IsNullOrEmpty(courierBlock)) return particles;
@@ -206,13 +208,117 @@ namespace ArdysaModsTools.Core.Services.Misc
                 string modifierBlock = visualsContent.Substring(match.Index, blockEnd - match.Index);
 
                 // Check if this is a particle_create type
-                if (Regex.IsMatch(modifierBlock, @"""type""\s+""particle_create""", RegexOptions.IgnoreCase))
+                if (!Regex.IsMatch(modifierBlock, @"""type""\s+""particle_create""", RegexOptions.IgnoreCase))
+                    continue;
+
+                // Filter by style (same logic as ParseCourierVisuals)
+                if (styleIndex.HasValue)
                 {
-                    particles.Add(modifierBlock);
+                    var styleMatch = Regex.Match(modifierBlock,
+                        @"""style""\s+""(\d+)""", RegexOptions.IgnoreCase);
+
+                    if (styleMatch.Success)
+                    {
+                        // Entry has a style field — must match the requested style
+                        int entryStyle = int.Parse(styleMatch.Groups[1].Value);
+                        if (entryStyle != styleIndex.Value)
+                            continue;
+                    }
+                    // Entry has no style field — include it (shared across all styles)
                 }
+
+                // Strip the "style" field from the entry since filtering already applied.
+                // The merged block should not carry style metadata.
+                if (styleIndex.HasValue)
+                {
+                    modifierBlock = Regex.Replace(modifierBlock,
+                        @"\r?\n[^\n]*""style""\s+""\d+""[^\n]*", "",
+                        RegexOptions.IgnoreCase);
+                }
+
+                particles.Add(modifierBlock);
             }
 
             return particles;
+        }
+
+        /// <summary>
+        /// Extracts style-specific overrides from a courier's visuals block.
+        /// Parses the "styles" and "alternate_icons" sub-blocks to get:
+        ///   - item_name: from styles > {N} > name
+        ///   - image_inventory: from alternate_icons > {N} > icon_path
+        ///   - skin: from styles > {N} > skin
+        /// </summary>
+        /// <param name="selectedVisualsBlock">The extracted visuals block text.</param>
+        /// <param name="styleIndex">The style index to look up.</param>
+        /// <returns>Dictionary of field overrides (item_name, image_inventory, skin).</returns>
+        private static Dictionary<string, string> ExtractStyleOverrides(string? selectedVisualsBlock, int styleIndex)
+        {
+            var overrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(selectedVisualsBlock)) return overrides;
+
+            // --- Extract from "styles" > "{styleIndex}" block ---
+            string? stylesBlock = ExtractNamedBlock(selectedVisualsBlock, "styles");
+            if (!string.IsNullOrEmpty(stylesBlock))
+            {
+                // Find the specific style entry: "{styleIndex}" { ... }
+                var styleEntryPattern = new Regex(
+                    $@"""{styleIndex}""\s*\{{", RegexOptions.IgnoreCase);
+                var styleEntryMatch = styleEntryPattern.Match(stylesBlock);
+                if (styleEntryMatch.Success)
+                {
+                    int braceStart = stylesBlock.IndexOf('{', styleEntryMatch.Index + styleEntryMatch.Length - 1);
+                    if (braceStart >= 0)
+                    {
+                        int braceEnd = KeyValuesBlockHelper.ExtractBalancedBlockEnd(stylesBlock, braceStart);
+                        if (braceEnd > 0)
+                        {
+                            string styleContent = stylesBlock.Substring(braceStart, braceEnd - braceStart);
+
+                            // Extract "name" → override item_name
+                            var nameMatch = Regex.Match(styleContent,
+                                @"""name""\s+""([^""]+)""", RegexOptions.IgnoreCase);
+                            if (nameMatch.Success)
+                                overrides["item_name"] = nameMatch.Groups[1].Value;
+
+                            // Extract "skin" → inject into visuals
+                            var skinMatch = Regex.Match(styleContent,
+                                @"""skin""\s+""([^""]+)""", RegexOptions.IgnoreCase);
+                            if (skinMatch.Success)
+                                overrides["skin"] = skinMatch.Groups[1].Value;
+                        }
+                    }
+                }
+            }
+
+            // --- Extract from "alternate_icons" > "{styleIndex}" block ---
+            string? altIconsBlock = ExtractNamedBlock(selectedVisualsBlock, "alternate_icons");
+            if (!string.IsNullOrEmpty(altIconsBlock))
+            {
+                var iconEntryPattern = new Regex(
+                    $@"""{styleIndex}""\s*\{{", RegexOptions.IgnoreCase);
+                var iconEntryMatch = iconEntryPattern.Match(altIconsBlock);
+                if (iconEntryMatch.Success)
+                {
+                    int braceStart = altIconsBlock.IndexOf('{', iconEntryMatch.Index + iconEntryMatch.Length - 1);
+                    if (braceStart >= 0)
+                    {
+                        int braceEnd = KeyValuesBlockHelper.ExtractBalancedBlockEnd(altIconsBlock, braceStart);
+                        if (braceEnd > 0)
+                        {
+                            string iconContent = altIconsBlock.Substring(braceStart, braceEnd - braceStart);
+
+                            // Extract "icon_path" → override image_inventory
+                            var iconMatch = Regex.Match(iconContent,
+                                @"""icon_path""\s+""([^""]+)""", RegexOptions.IgnoreCase);
+                            if (iconMatch.Success)
+                                overrides["image_inventory"] = iconMatch.Groups[1].Value;
+                        }
+                    }
+                }
+            }
+
+            return overrides;
         }
 
         /// <summary>
@@ -228,9 +334,13 @@ namespace ArdysaModsTools.Core.Services.Misc
         ///   - "portraits" block
         ///   - "static_attributes" block
         /// 
+        /// OVERRIDDEN (when styleIndex provided, from visuals > styles/alternate_icons):
+        ///   - item_name ← styles > {N} > name
+        ///   - image_inventory ← alternate_icons > {N} > icon_path
+        /// 
         /// INJECTED into default visuals from selected courier:
-        ///   - "skin" field (e.g., Golden Baby Roshan skin=1, Platinum skin=2)
-        ///   - particle_create entries (ambient effects, etc.)
+        ///   - "skin" field (from styles > {N} > skin, or visuals top-level)
+        ///   - particle_create entries (style-filtered, with "style" field stripped)
         /// </summary>
         /// <param name="defaultBlock">The Default Courier block (ID "595") from items_game.txt.</param>
         /// <param name="selectedBlock">The selected courier block from items_game.txt.</param>
@@ -251,12 +361,28 @@ namespace ArdysaModsTools.Core.Services.Misc
             string? selectedPortraits = ExtractNamedBlock(selectedBlock, "portraits");
             string? selectedStaticAttributes = ExtractNamedBlock(selectedBlock, "static_attributes");
 
-            // Extract particle_create entries from selected courier
-            var particleEntries = ExtractParticleCreateEntries(selectedBlock);
+            // Extract particle_create entries from selected courier (filtered by style)
+            var particleEntries = ExtractParticleCreateEntries(selectedBlock, styleIndex);
 
             // Extract visuals-level KV pairs from selected courier (e.g., "skin" "1")
             // These are simple KV pairs inside the visuals block, not asset_modifier sub-blocks
             var visualsKvPairs = ExtractVisualsKeyValues(selectedVisualsBlock);
+
+            // Apply style-specific overrides (item_name, image_inventory, skin)
+            if (styleIndex.HasValue && !string.IsNullOrEmpty(selectedVisualsBlock))
+            {
+                var styleOverrides = ExtractStyleOverrides(selectedVisualsBlock, styleIndex.Value);
+
+                // Override top-level fields from style data
+                if (styleOverrides.TryGetValue("item_name", out var styleName))
+                    selectedKvs["item_name"] = styleName;
+                if (styleOverrides.TryGetValue("image_inventory", out var styleIcon))
+                    selectedKvs["image_inventory"] = styleIcon;
+
+                // Merge skin from style data into visuals KV pairs
+                if (styleOverrides.TryGetValue("skin", out var styleSkin))
+                    visualsKvPairs["skin"] = styleSkin;
+            }
 
             // Build the merged block
             var sb = new StringBuilder();
@@ -555,26 +681,58 @@ namespace ArdysaModsTools.Core.Services.Misc
 
         /// <summary>
         /// Extracts top-level key-value pairs from a visuals block (e.g., "skin" "1").
-        /// Only returns simple KV pairs, not nested asset_modifier blocks.
+        /// Only returns simple KV pairs at depth 1 inside the visuals block,
+        /// ignoring any KV pairs inside nested sub-blocks like "styles",
+        /// "alternate_icons", or "asset_modifier" entries.
+        /// Uses brace-depth tracking to determine nesting level.
         /// </summary>
         private static Dictionary<string, string> ExtractVisualsKeyValues(string? visualsBlock)
         {
             var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (string.IsNullOrEmpty(visualsBlock)) return result;
 
-            // Match "key" "value" pairs that are NOT asset_modifier or styles blocks
-            var pattern = new Regex(
-                @"^\s*""([^""]+)""\s+""([^""]*)""\s*$",
+            var kvPattern = new Regex(
+                @"^\s*""([^""]+)""\s+""([^""]*)""",
                 RegexOptions.Multiline);
 
-            // Skip keys that are block names or asset_modifier entries
+            // Skip keys that are block names or asset_modifier internal fields
             var skipKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 "visuals", "type", "modifier", "asset", "style"
             };
 
-            foreach (Match match in pattern.Matches(visualsBlock))
+            // Find the opening brace of the visuals block
+            int outerBrace = visualsBlock.IndexOf('{');
+            if (outerBrace < 0) return result;
+
+            // Build depth map: track brace depth at each line start
+            int depth = 0;
+            var lineDepths = new Dictionary<int, int>();
+
+            for (int i = outerBrace; i < visualsBlock.Length; i++)
             {
+                if (visualsBlock[i] == '{') depth++;
+                else if (visualsBlock[i] == '}') depth--;
+                else if (visualsBlock[i] == '\n' && i + 1 < visualsBlock.Length)
+                    lineDepths[i + 1] = depth;
+            }
+
+            foreach (Match match in kvPattern.Matches(visualsBlock))
+            {
+                // Find line start and its depth
+                int lineStart = match.Index;
+                while (lineStart > 0 && visualsBlock[lineStart - 1] != '\n')
+                    lineStart--;
+
+                int lineDepth = 0;
+                if (lineDepths.TryGetValue(lineStart, out int d))
+                    lineDepth = d;
+                else if (lineStart <= outerBrace + 1)
+                    lineDepth = 1;
+
+                // Only capture depth 1 (direct children of the visuals block)
+                if (lineDepth != 1) continue;
+
                 string key = match.Groups[1].Value;
                 string value = match.Groups[2].Value;
 
@@ -623,26 +781,74 @@ namespace ArdysaModsTools.Core.Services.Misc
 
         /// <summary>
         /// Parses top-level key-value pairs from a KV block (not nested blocks).
-        /// Only captures simple "key" "value" pairs, not block keys like "visuals" { }.
+        /// Only captures simple "key" "value" pairs at depth 1 (inside the item's
+        /// outer braces), ignoring any KV pairs inside nested blocks like
+        /// "visuals", "portraits", "static_attributes", "styles", etc.
+        /// Uses brace-depth tracking to determine nesting level.
         /// </summary>
         private static Dictionary<string, string> ParseTopLevelKeyValues(string block)
         {
             var kvs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(block)) return kvs;
 
-            // Match "key" "value" or "key"\t\t"value" patterns (not followed by {)
-            var pattern = new Regex(
-                @"^\s*""([^""]+)""\s+""([^""]*)""\s*$",
+            var kvPattern = new Regex(
+                @"^\s*""([^""]+)""\s+""([^""]*)""",
                 RegexOptions.Multiline);
 
-            foreach (Match match in pattern.Matches(block))
+            // Find the outer opening brace of the item block
+            int outerBrace = block.IndexOf('{');
+            if (outerBrace < 0) return kvs;
+
+            // Track brace depth to determine which KV pairs are at the top level
+            // Depth 0 = outside outer braces
+            // Depth 1 = top-level KV pairs (what we want)
+            // Depth 2+ = inside nested blocks (skip)
+            int depth = 0;
+            var lineDepths = new Dictionary<int, int>(); // lineStartIndex -> depth at that line
+
+            for (int i = outerBrace; i < block.Length; i++)
             {
+                if (block[i] == '{')
+                {
+                    depth++;
+                }
+                else if (block[i] == '}')
+                {
+                    depth--;
+                }
+                else if (block[i] == '\n')
+                {
+                    // Record depth at start of next line
+                    if (i + 1 < block.Length)
+                        lineDepths[i + 1] = depth;
+                }
+            }
+
+            foreach (Match match in kvPattern.Matches(block))
+            {
+                // Find the nearest recorded line depth
+                int matchPos = match.Index;
+                int lineDepth = 0;
+
+                // Walk backwards to find the line start and its depth
+                int lineStart = matchPos;
+                while (lineStart > 0 && block[lineStart - 1] != '\n')
+                    lineStart--;
+
+                if (lineDepths.TryGetValue(lineStart, out int d))
+                    lineDepth = d;
+                else if (lineStart <= outerBrace + 1)
+                    lineDepth = 1; // First line after outer brace
+
+                // Only capture depth 1 (inside outer brace, not inside nested blocks)
+                if (lineDepth != 1) continue;
+
                 string key = match.Groups[1].Value;
                 string value = match.Groups[2].Value;
 
                 // Skip the ID line (numeric-only key at top level)
                 if (int.TryParse(key, out _)) continue;
 
-                // Skip keys that are block openers (next non-whitespace char is '{')
                 kvs[key] = value;
             }
 

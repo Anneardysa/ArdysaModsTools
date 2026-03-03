@@ -307,6 +307,8 @@ namespace ArdysaModsTools.Core.Services.Cdn
         {
             if (url.Contains("r2.dev") || url.Contains("ardysamods.my.id")) return "Cloudflare R2";
             if (url.Contains("jsdelivr")) return "jsDelivr";
+            if (url.Contains("ghfast.top")) return "GitHub Proxy (ghfast)";
+            if (url.Contains("gh-proxy.com")) return "GitHub Proxy (gh-proxy)";
             if (url.Contains("github")) return "GitHub Raw";
             return "Unknown CDN";
         }

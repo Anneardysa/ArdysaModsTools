@@ -100,13 +100,14 @@ namespace ArdysaModsTools.Core.Services.Cdn
         private long _r2Successes;
         private long _jsdelivrSuccesses;
         private long _githubSuccesses;
+        private long _proxySuccesses;
         private long _totalFailures;
 
         /// <summary>
         /// Get download statistics.
         /// </summary>
-        public (long total, long r2, long jsdelivr, long github, long failures) GetStats() =>
-            (_totalDownloads, _r2Successes, _jsdelivrSuccesses, _githubSuccesses, _totalFailures);
+        public (long total, long r2, long jsdelivr, long github, long proxy, long failures) GetStats() =>
+            (_totalDownloads, _r2Successes, _jsdelivrSuccesses, _githubSuccesses, _proxySuccesses, _totalFailures);
 
         /// <summary>Reset statistics.</summary>
         public void ResetStats()
@@ -115,6 +116,7 @@ namespace ArdysaModsTools.Core.Services.Cdn
             Interlocked.Exchange(ref _r2Successes, 0);
             Interlocked.Exchange(ref _jsdelivrSuccesses, 0);
             Interlocked.Exchange(ref _githubSuccesses, 0);
+            Interlocked.Exchange(ref _proxySuccesses, 0);
             Interlocked.Exchange(ref _totalFailures, 0);
         }
 
@@ -313,6 +315,8 @@ namespace ArdysaModsTools.Core.Services.Cdn
                 Interlocked.Increment(ref _r2Successes);
             else if (cdnBase.Contains("jsdelivr"))
                 Interlocked.Increment(ref _jsdelivrSuccesses);
+            else if (CdnConfig.IsProxyUrl(cdnBase))
+                Interlocked.Increment(ref _proxySuccesses);
             else if (cdnBase.Contains("githubusercontent") || cdnBase.Contains("github"))
                 Interlocked.Increment(ref _githubSuccesses);
         }
