@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         :root {
+            --bg: #000000;
+            --surface: #141414;
+            --surface-hover: #1c1c1c;
+            --border: #333333;
+            --border-dim: #252525;
+            --text: #ffffff;
+            --text-dim: #999999;
+            --text-muted: #666666;
+            --kofi-blue: #29abe0;
+            --kofi-dark: #1d83af;
+            --yt-red: #ff3232;
+            --yt-dark: #c80000;
+            --accent-glow: rgba(41, 171, 224, 0.15);
+            --yt-glow: rgba(255, 50, 50, 0.15);
+         }
+
+         body {
+            font-family: "JetBrains Mono", monospace;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            user-select: none;
+            border: 1px solid var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+         }
+
+         /* ═══ TITLEBAR (DRAG REGION) ═══ */
+         #titlebar {
+            height: 36px;
+            min-height: 36px;
+            -webkit-app-region: drag;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+         }
+         #titlebar button {
+            -webkit-app-region: no-drag;
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 16px;
+            width: 42px;
+            height: 36px;
+            cursor: pointer;
+            transition: all 0.2s;
+         }
+         #titlebar button:hover {
+            color: white;
+            background: rgba(255, 80, 80, 0.8);
+         }
+
+         /* ═══ MAIN LAYOUT ═══ */
+         .container {
+            flex: 1;
+            padding: 0 48px 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+         }
+
+         /* ═══ BADGE ═══ */
+         .badge {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 6px 20px;
+            letter-spacing: 2px;
+            animation: fadeSlideIn 0.3s ease-out both;
+         }
+
+         /* ═══ HEADER ═══ */
+         .title {
+            font-size: 22px;
+            font-weight: 700;
+            margin-top: 16px;
+            letter-spacing: 2px;
+            animation: fadeSlideIn 0.35s ease-out 0.05s both;
+         }
+         .subtitle {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 8px;
+            text-align: center;
+            line-height: 1.5;
+            animation: fadeSlideIn 0.35s ease-out 0.1s both;
+         }
+
+         /* ═══ DONATION CARDS ═══ */
+         .cards-row {
+            display: flex;
+            gap: 20px;
+            margin-top: 28px;
+            width: 100%;
+         }
+         .card {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border-dim);
+            padding: 24px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+         }
+         .card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--kofi-blue), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+         }
+         .card:hover {
+            background: var(--surface-hover);
+            border-color: var(--border);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+         }
+         .card:hover::before {
+            opacity: 1;
+         }
+
+         .card:nth-child(1) {
+            animation: fadeSlideIn 0.4s ease-out 0.15s both;
+         }
+         .card:nth-child(2) {
+            animation: fadeSlideIn 0.4s ease-out 0.22s both;
+         }
+         .card:nth-child(3) {
+            animation: fadeSlideIn 0.4s ease-out 0.29s both;
+         }
+
+         .card-icon {
+            width: 36px;
+            height: 36px;
+            margin: 0 auto 12px;
+            opacity: 0.9;
+         }
+         .card-title {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+         }
+         .card-sub {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 6px;
+         }
+
+         /* ═══ FOOTER MESSAGE ═══ */
+         .footer-msg {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 22px;
+            animation: fadeSlideIn 0.4s ease-out 0.35s both;
+         }
+
+         /* ═══ SEPARATOR ═══ */
+         .separator {
+            width: 100%;
+            height: 1px;
+            background: var(--border-dim);
+            margin-top: 22px;
+            animation: fadeSlideIn 0.3s ease-out 0.4s both;
+         }
+
+         /* ═══ GOAL SECTION ═══ */
+         .goals-row {
+            display: flex;
+            gap: 20px;
+            margin-top: 22px;
+            width: 100%;
+         }
+         .goal-card {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border-dim);
+            padding: 20px 22px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+         }
+         .goal-card:hover {
+            background: var(--surface-hover);
+            border-color: var(--border);
+         }
+         .goal-card:nth-child(1) {
+            animation: fadeSlideIn 0.4s ease-out 0.45s both;
+         }
+         .goal-card:nth-child(2) {
+            animation: fadeSlideIn 0.4s ease-out 0.52s both;
+         }
+
+         .goal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+         }
+         .goal-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+         }
+         .goal-icon {
+            width: 18px;
+            height: 18px;
+            opacity: 0.85;
+         }
+         .goal-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+         }
+         .goal-value {
+            font-size: 13px;
+            font-weight: 600;
+         }
+         .goal-value.kofi {
+            color: var(--kofi-blue);
+         }
+         .goal-value.yt {
+            color: var(--yt-red);
+         }
+
+         /* Progress bar */
+         .progress-track {
+            width: 100%;
+            height: 10px;
+            background: #1a1a1a;
+            border-radius: 5px;
+            overflow: hidden;
+         }
+         .progress-fill {
+            height: 100%;
+            border-radius: 5px;
+            width: 0%;
+            transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+         }
+         .progress-fill.kofi {
+            background: linear-gradient(90deg, var(--kofi-dark), var(--kofi-blue));
+            box-shadow: 0 0 14px var(--accent-glow);
+         }
+         .progress-fill.yt {
+            background: linear-gradient(90deg, var(--yt-dark), var(--yt-red));
+            box-shadow: 0 0 14px var(--yt-glow);
+         }
+
+         .goal-footer {
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            text-align: center;
+            letter-spacing: 0.5px;
+         }
+
+         /* ═══ CLOSE BUTTON ═══ */
+         .close-btn {
+            margin-top: 26px;
+            padding: 10px 36px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-family: "JetBrains Mono", monospace;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+            animation: fadeSlideIn 0.4s ease-out 0.6s both;
+         }
+         .close-btn:hover {
+            color: var(--text);
+            background: var(--surface);
+            border-color: var(--text-dim);
+         }
+
+         /* ═══ ANIMATIONS ═══ */
+         @keyframes fadeSlideIn {
+            from {
+               opacity: 0;
+               transform: translateY(12px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+
+         /* Hidden state for goals (before data loads) */
+         .goal-card.hidden {
+            display: none;
+         }
+      </style>
+   </head>
+   <body>
+      <!-- Drag region -->
+      <div id="titlebar">
+         <button
+            onclick="sendMessage('close')"
+            title="Close (ESC)"
+            style="-webkit-app-region: no-drag"
+         >
+            ✕
+         </button>
+      </div>
+
+      <div class="container">
+         <!-- Badge -->
+         <div class="badge">[ SUPPORT ]</div>
+
+         <!-- Header -->
+         <div class="title">SUPPORT THE DEVELOPMENT</div>
+         <div class="subtitle">
+            ArdysaModsTools is free and always will be.<br />Your support helps keep this project
+            alive!
+         </div>
+
+         <!-- Donation cards -->
+         <div class="cards-row">
+            <div class="card" onclick="openUrl('https://paypal.me/ardysa')">
+               <img
+                  class="card-icon"
+                  src="https://cdn.simpleicons.org/paypal/ffffff"
+                  alt="PayPal"
+               />
+               <div class="card-title">PAYPAL</div>
+               <div class="card-sub">One-time donation</div>
+            </div>
+            <div class="card" onclick="openUrl('https://ko-fi.com/ardysa')">
+               <img class="card-icon" src="https://cdn.simpleicons.org/kofi/ffffff" alt="Ko-fi" />
+               <div class="card-title">KO-FI</div>
+               <div class="card-sub">One-time / monthly</div>
+            </div>
+            <div class="card" onclick="openUrl('https://sociabuzz.com/ardysa/support')">
+               <img
+                  class="card-icon"
+                  src="https://cdn.simpleicons.org/simpleicons/ffffff"
+                  alt="Sociabuzz"
+               />
+               <div class="card-title">SOCIABUZZ</div>
+               <div class="card-sub">One-time donation</div>
+            </div>
+         </div>
+
+         <!-- Footer message -->
+         <div class="footer-msg">❤ Every contribution helps improve the tool for everyone ❤</div>
+
+         <!-- Separator -->
+         <div class="separator"></div>
+
+         <!-- Goal sections -->
+         <div class="goals-row">
+            <!-- Ko-fi Donation Goal -->
+            <div class="goal-card hidden" id="kofiGoal" onclick="openGoalUrl('kofi')">
+               <div class="goal-header">
+                  <div class="goal-header-left">
+                     <img class="goal-icon" src="https://cdn.simpleicons.org/kofi/29ABE0" alt="" />
+                     <span class="goal-title" id="kofiTitle">DONATION GOAL</span>
+                  </div>
+                  <span class="goal-value kofi" id="kofiValue">—</span>
+               </div>
+               <div class="progress-track">
+                  <div class="progress-fill kofi" id="kofiFill"></div>
+               </div>
+               <div class="goal-footer">Powered by Ko-fi</div>
+            </div>
+
+            <!-- YouTube Subscriber Goal -->
+            <div class="goal-card hidden" id="subsGoal" onclick="openGoalUrl('subs')">
+               <div class="goal-header">
+                  <div class="goal-header-left">
+                     <img
+                        class="goal-icon"
+                        src="https://cdn.simpleicons.org/youtube/ff0000"
+                        alt=""
+                     />
+                     <span class="goal-title">SUBSCRIBE GOAL</span>
+                  </div>
+                  <span class="goal-value yt" id="subsValue">—</span>
+               </div>
+               <div class="progress-track">
+                  <div class="progress-fill yt" id="subsFill"></div>
+               </div>
+               <div class="goal-footer">Updated daily at 0:00 GMT</div>
+            </div>
+         </div>
+
+         <!-- Close button -->
+         <button class="close-btn" onclick="sendMessage('close')">[ CLOSE ]</button>
+      </div>
+
+      <script>
+         // Goal URLs (updated from C#)
+         let _kofiUrl = "https://ko-fi.com/ardysa/goal?g=0";
+         let _subsUrl = "https://youtube.com/@ArdysaMods";
+
+         // C# → JS interop
+         function sendMessage(type, data = {}) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type, ...data });
+            }
+         }
+
+         function openUrl(url) {
+            sendMessage("openUrl", { url });
+         }
+
+         function openGoalUrl(goal) {
+            if (goal === "kofi") openUrl(_kofiUrl);
+            else openUrl(_subsUrl);
+         }
+
+         // Called from C# after data loads
+         function loadGoals(jsonString) {
+            const data = JSON.parse(jsonString);
+
+            // Ko-fi goal
+            if (data.kofiGoal && data.kofiGoal.enabled) {
+               const kg = data.kofiGoal;
+               _kofiUrl = kg.goalUrl || _kofiUrl;
+
+               document.getElementById("kofiTitle").textContent = (
+                  kg.title || "DONATION GOAL"
+               ).toUpperCase();
+               document.getElementById("kofiValue").textContent =
+                  "$" + kg.raisedAmount.toLocaleString() + " / $" + kg.goalAmount.toLocaleString();
+               document.getElementById("kofiGoal").classList.remove("hidden");
+
+               // Animate progress bar after reveal
+               requestAnimationFrame(() => {
+                  setTimeout(() => {
+                     document.getElementById("kofiFill").style.width = kg.progressPercent + "%";
+                  }, 200);
+               });
+            }
+
+            // Subscriber goal
+            if (data.subsGoal && data.subsGoal.enabled) {
+               const sg = data.subsGoal;
+               _subsUrl = sg.channelUrl || _subsUrl;
+
+               document.getElementById("subsValue").textContent =
+                  sg.currentSubs.toLocaleString() + " / " + sg.goalSubs.toLocaleString();
+               document.getElementById("subsGoal").classList.remove("hidden");
+
+               const subsPct =
+                  sg.goalSubs > 0 ? Math.min(100, (sg.currentSubs / sg.goalSubs) * 100) : 0;
+               requestAnimationFrame(() => {
+                  setTimeout(() => {
+                     document.getElementById("subsFill").style.width = subsPct + "%";
+                  }, 300);
+               });
+            }
+         }
+
+         // ESC to close
+         document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") sendMessage("close");
+         });
+
+         // Drag support fallback
+         document.getElementById("titlebar")?.addEventListener("mousedown", () => {
+            sendMessage("startDrag");
+         });
+      </script>
+   </body>
+</html>

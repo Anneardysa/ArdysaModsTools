@@ -8,7 +8,7 @@
 
 _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one click._
 
-![Version](https://img.shields.io/badge/Version-2.1.16--beta-00d4ff?style=for-the-badge&logo=v)
+![Version](https://img.shields.io/badge/Version-2.1.22--beta-00d4ff?style=for-the-badge&logo=v)
 ![Build](https://img.shields.io/github/actions/workflow/status/Anneardysa/ArdysaModsTools/release.yml?style=for-the-badge&logo=github&label=Build)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
@@ -17,7 +17,7 @@ _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one c
 ![Downloads](https://img.shields.io/github/downloads/Anneardysa/ArdysaModsTools/total?style=flat-square&color=FF6B6B&logo=github&label=Downloads)
 ![Stars](https://img.shields.io/github/stars/Anneardysa/ArdysaModsTools?style=flat-square&color=yellow)
 ![Last Commit](https://img.shields.io/github/last-commit/Anneardysa/ArdysaModsTools?style=flat-square&color=blue)
-![Tests](https://img.shields.io/badge/Tests-285+-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/Tests-480+-brightgreen?style=flat-square)
 
 [📥 Download](#-installation) · [🚀 Quick Start](#-quick-start) · [🎨 Features](#-features) · [🏗️ Architecture](#%EF%B8%8F-architecture) · [❓ FAQ](#-faq)
 
@@ -38,24 +38,27 @@ _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one c
 
 ### 🎮 Core Functionality
 
-| Feature                        | Description                                                                                 |
-| ------------------------------ | ------------------------------------------------------------------------------------------- |
-| **One-Click ModsPack Install** | Download and install the complete mod pack from CDN with a single click                     |
-| **Skin Selector**              | Browse and choose custom cosmetic sets for individual heroes via a gallery UI               |
-| **Miscellaneous Mods**         | Toggle weather effects, terrain skins, HUD themes, cursors, music packs, and battle effects |
-| **Auto-Patching**              | Automatically detects Dota 2 updates and re-applies your mods — no manual work needed       |
-| **Manual VPK Install**         | Import your own custom `.vpk` mod files directly                                            |
-| **Safe & Reversible**          | Click "Disable Mods" to instantly restore vanilla Dota 2 — no files are permanently altered |
+| Feature                        | Description                                                                                               |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| **One-Click ModsPack Install** | Download and install the complete mod pack from CDN with a single click                                   |
+| **Skin Selector**              | Browse and choose custom cosmetic sets for individual heroes via a gallery UI                             |
+| **Miscellaneous Mods**         | Toggle weather, terrain, HUD, cursors, music, battle effects, couriers, wards, and special mods           |
+| **Performance Tweaker**        | Tune Dota 2 FPS, visuals, quality, engine, VSync, and network cvars + launch options via a WebView2 panel |
+| **Auto-Patching**              | Automatically detects Dota 2 updates and re-applies your mods — no manual work needed                     |
+| **Manual VPK Install**         | Import your own custom `.vpk` mod files directly                                                          |
+| **Safe & Reversible**          | Click "Disable Mods" to instantly restore vanilla Dota 2 — no files are permanently altered               |
 
 ### 🛠️ Technical Highlights
 
-- **Multi-CDN Download Strategy** — Primary: Cloudflare R2, fallback: jsDelivr → GitHub Raw
+- **Multi-CDN Download Strategy** — Primary: Cloudflare R2, fallback: jsDelivr → GitHub Raw → GFW proxy mirrors
+- **Smart CDN Selection** — Automatic latency benchmarking picks the fastest CDN per user
+- **Resumable Downloads** — HTTP Range-based chunk streaming with cross-CDN failover without losing progress
 - **Atomic File Operations** — Extract-then-swap pattern prevents broken installs if interrupted
 - **SHA-256 Hash Verification** — Downloads are verified against remote hashes for integrity
 - **PatchWatcher** — Background file watcher detects Dota 2 updates in real-time
 - **Remote Feature Control** — Features can be remotely enabled/disabled via Cloudflare R2 config
 - **Self-Contained Build** — .NET 8 runtime is bundled; no external runtime installation needed
-- **285+ Unit Tests** — Comprehensive test coverage for core services
+- **480+ Unit Tests** — Comprehensive test coverage for core services
 
 ---
 
@@ -117,14 +120,18 @@ Click **"Disable Mods"** to restore vanilla Dota 2. This safely removes all modi
 
 ## 🎨 Mod Types
 
-| Type               | Description                   | Examples                                             |
-| ------------------ | ----------------------------- | ---------------------------------------------------- |
-| **Hero Sets**      | Custom cosmetic sets per hero | Arcanas, collectors' cache sets, immortals           |
-| **Weather**        | Weather visual effects        | Rain, snow, moonbeam, aurora                         |
-| **Terrain**        | Custom map skins              | TI terrains, seasonal maps                           |
-| **HUD**            | Interface themes              | Custom HUD skins and overlays                        |
-| **Battle Effects** | Kill/ability effects          | TI-themed effects (Aghanim, Nemestice, TI 2015–2022) |
-| **Music**          | Custom music packs            | —                                                    |
+| Type               | Description                           | Examples                                             |
+| ------------------ | ------------------------------------- | ---------------------------------------------------- |
+| **Hero Sets**      | Custom cosmetic sets per hero         | Arcanas, collectors' cache sets, immortals           |
+| **Weather**        | Weather visual effects                | Rain, snow, moonbeam, aurora                         |
+| **Terrain**        | Custom map skins                      | TI terrains, seasonal maps                           |
+| **HUD**            | Interface themes                      | Custom HUD skins and overlays                        |
+| **Battle Effects** | Kill/ability effects                  | TI-themed effects (Aghanim, Nemestice, TI 2015–2022) |
+| **Music**          | Custom music packs                    | —                                                    |
+| **Courier**        | Cosmetic courier skins with particles | Styled couriers + up to 2 ethereal particle effects  |
+| **Ward**           | Cosmetic ward skins with styles       | Custom ward models and particle effects              |
+| **Special**        | Full ZIP-based mod packs              | LowPoly Map, community-made total conversions        |
+| **Cursor**         | Custom cursor skins                   | —                                                    |
 
 ---
 
@@ -148,34 +155,35 @@ Click **"Disable Mods"** to restore vanilla Dota 2. This safely removes all modi
 ```
 ArdysaModsTools/
 ├── Core/                      # Business logic & services
-│   ├── Constants/             # Shared constants (paths, URLs)
+│   ├── Constants/             # Shared constants (paths, URLs, CDN config)
 │   ├── DependencyInjection/   # DI container setup
 │   ├── Interfaces/            # Service contracts (16 interfaces)
 │   ├── Models/                # Data models & DTOs
 │   ├── Services/
 │   │   ├── App/               # App lifecycle, update service
 │   │   ├── Cache/             # Cache cleaning service
-│   │   ├── Cdn/               # CDN config & URL resolution
+│   │   ├── Cdn/               # CDN config, SmartCdnSelector, fallback
 │   │   ├── Config/            # Settings, favorites, feature access
 │   │   ├── Conflict/          # Mod conflict detection & resolution
 │   │   ├── Detection/         # Dota 2 folder auto/manual detection
 │   │   ├── FileTransaction/   # Atomic file operations with rollback
 │   │   ├── Hero/              # Hero set generation & patching
 │   │   ├── Logging/           # App & fallback logging
-│   │   ├── Misc/              # Weather, terrain, HUD, etc.
+│   │   ├── Meta/              # Support goals (Ko-fi, YouTube)
+│   │   ├── Misc/              # Weather, terrain, HUD, courier, ward, etc.
 │   │   ├── Mods/              # ModsPack install, disable, patch
 │   │   ├── Security/          # Anti-tamper & integrity checks
-│   │   ├── Update/            # Auto-update & PatchWatcher
+│   │   ├── Update/            # Auto-update, PatchWatcher, resumable DL
 │   │   └── Vpk/               # VPK extraction & recompilation
 │   └── Helpers/               # Utility classes
 ├── UI/                        # Presentation layer
-│   ├── Forms/                 # WinForms + WebView2 forms
-│   ├── Presenters/            # MVP presenters
+│   ├── Forms/                 # WinForms + WebView2 hybrid forms (37 files)
+│   ├── Presenters/            # MVP presenters (5 specialized presenters)
 │   ├── Controls/              # Custom UI controls
 │   └── Styles/                # Theme & styling
 ├── Installer/                 # WPF-based installer project
 ├── Assets/                    # Icons, HTML templates, fonts, images
-├── Tests/                     # Unit tests (285+)
+├── Tests/                     # Unit tests (480+)
 ├── scripts/                   # Build & automation scripts
 ├── tools/                     # VPK tools, .NET runtime, WebView2
 └── docs/                      # Developer & user documentation
@@ -183,13 +191,14 @@ ArdysaModsTools/
 
 ### Key Design Decisions
 
-| Decision                 | Approach                | Details                                                        |
-| ------------------------ | ----------------------- | -------------------------------------------------------------- |
-| **UI Strategy**          | WebView2 Hybrid         | Rich HTML/CSS UI inside WinForms shell ([ADR-0005](docs/adr/)) |
-| **Dependency Injection** | Constructor Injection   | Full DI via `Microsoft.Extensions.DI` ([ADR-0002](docs/adr/))  |
-| **CDN Strategy**         | Multi-CDN with Fallback | R2 → jsDelivr → GitHub Raw ([ADR-0003](docs/adr/))             |
-| **Patch Automation**     | FileSystemWatcher       | Detects Dota 2 updates automatically ([ADR-0006](docs/adr/))   |
-| **Security**             | Anti-Tamper             | Integrity checks on critical files ([ADR-0007](docs/adr/))     |
+| Decision                    | Approach                | Details                                                                   |
+| --------------------------- | ----------------------- | ------------------------------------------------------------------------- |
+| **UI Strategy**             | WebView2 Hybrid         | Rich HTML/CSS UI inside WinForms shell ([ADR-0005](docs/adr/))            |
+| **Dependency Injection**    | Constructor Injection   | Full DI via `Microsoft.Extensions.DI` ([ADR-0002](docs/adr/))             |
+| **CDN Strategy**            | Multi-CDN with Fallback | R2 → jsDelivr → GitHub Raw → Proxy mirrors ([ADR-0003](docs/adr/))        |
+| **Presenter Decomposition** | SRP Specialization      | 3 focused presenters split from MainFormPresenter ([ADR-0004](docs/adr/)) |
+| **Patch Automation**        | FileSystemWatcher       | Detects Dota 2 updates automatically ([ADR-0006](docs/adr/))              |
+| **Security**                | Anti-Tamper             | Integrity checks on critical files ([ADR-0007](docs/adr/))                |
 
 > See [Architecture Decision Records](docs/adr/) for full details on all design decisions.
 

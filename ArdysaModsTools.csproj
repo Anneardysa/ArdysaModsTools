@@ -29,8 +29,8 @@
   <!-- ============================================== -->
   <PropertyGroup>
     <Version>2.1.21-beta</Version>
-    <AssemblyVersion>2.1.21.2122</AssemblyVersion>
-    <FileVersion>2.1.21.2122</FileVersion>
+    <AssemblyVersion>2.1.21.2123</AssemblyVersion>
+    <FileVersion>2.1.21.2123</FileVersion>
     <InformationalVersion>2.1.21-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
@@ -221,6 +221,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Html\dota2_performance.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\support.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
 

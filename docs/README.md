@@ -13,6 +13,7 @@ Welcome to the AMT 2.0 documentation hub. Find everything you need to use or con
 | **[Main README](../README.md)**        | Complete project overview, features, installation |
 | **[Quick Start](user/QUICK_START.md)** | Get up and running in 5 minutes                   |
 | **[User Guide](user/USER_GUIDE.md)**   | Detailed usage walkthrough                        |
+| **[FAQ](user/FAQ.md)**                 | Frequently asked questions (ban safety, tips)     |
 
 ### 👨‍💻 For Developers
 
@@ -22,6 +23,8 @@ Welcome to the AMT 2.0 documentation hub. Find everything you need to use or con
 | **[Architecture](developer/architecture.md)**     | System design, DI, MVP pattern |
 | **[Services API](developer/api/services.md)**     | Core service reference         |
 | **[Contributing](dev/CONTRIBUTING.md)**           | How to contribute code         |
+| **[Installer Guide](dev/INSTALLER.md)**           | Installer build process        |
+| **[Security](dev/SECURITY.md)**                   | Security model & anti-tamper   |
 
 ---
 
@@ -34,11 +37,13 @@ docs/
 │
 ├── user/                      ← End-user guides
 │   ├── QUICK_START.md
-│   └── USER_GUIDE.md
+│   ├── USER_GUIDE.md
+│   └── FAQ.md
 │
 ├── dev/                       ← Contributor guidelines
 │   ├── CONTRIBUTING.md
-│   └── SECURITY.md
+│   ├── SECURITY.md
+│   └── INSTALLER.md
 │
 ├── developer/                 ← Technical documentation
 │   ├── architecture.md        ← System design, DI, CDN
@@ -46,12 +51,26 @@ docs/
 │   └── api/
 │       ├── services.md        ← Service reference
 │       ├── models.md          ← Data models
-│       └── ui-components.md   ← Forms & presenters
+│       ├── ui-components.md   ← Forms & presenters
+│       ├── helpers.md         ← Utilities
+│       ├── exceptions.md      ← Error codes
+│       ├── active-mods.md     ← Query installed mods
+│       ├── misc-mods.md       ← Misc mod control
+│       ├── auto-patching.md   ← Auto re-patching
+│       └── mod-file-structure.md ← File/folder specs
 │
-└── adr/                       ← Architecture Decision Records
-    ├── 0001-refactor-mainform-mvp.md
-    ├── 0002-complete-di-migration-factory-pattern.md
-    └── 0003-multi-cdn-strategy-r2-primary.md
+├── adr/                       ← Architecture Decision Records
+│   ├── 0001-refactor-mainform-mvp.md
+│   ├── 0002-complete-di-migration-factory-pattern.md
+│   ├── 0003-multi-cdn-strategy-r2-primary.md
+│   ├── 0004-presenter-decomposition-srp.md
+│   ├── 0005-webview2-hybrid-ui.md
+│   ├── 0006-automated-patch-watcher.md
+│   └── 0007-security-anti-tamper-architecture.md
+│
+└── samples/                   ← Example JSON configs
+    ├── feature_access.json
+    └── support_goals.json
 ```
 
 ### 🆘 Need Help?
@@ -63,12 +82,14 @@ docs/
 
 ## 🔑 Key Concepts
 
-| Concept                  | Description                                      |
-| ------------------------ | ------------------------------------------------ |
-| **MVP Pattern**          | UI uses Model-View-Presenter for testability     |
-| **DI + Factory Pattern** | `IMainFormFactory` bridges DI with WinForms      |
-| **Multi-CDN Fallback**   | R2 → jsDelivr → GitHub Raw for asset reliability |
-| **OperationResult**      | Service returns instead of throwing exceptions   |
+| Concept                     | Description                                    |
+| --------------------------- | ---------------------------------------------- |
+| **MVP Pattern**             | UI uses Model-View-Presenter for testability   |
+| **DI + Factory Pattern**    | `IMainFormFactory` bridges DI with WinForms    |
+| **Multi-CDN Fallback**      | R2 → jsDelivr → GitHub Raw → GFW proxy mirrors |
+| **Smart CDN Selection**     | Latency benchmark picks fastest CDN per user   |
+| **OperationResult**         | Service returns instead of throwing exceptions |
+| **Presenter Decomposition** | 3 SRP presenters split from MainFormPresenter  |
 
 ---
 

@@ -77,26 +77,30 @@ Ensure `.csproj` copies tools:
 
 **Error:** `Unable to resolve service for type 'IConfigService'`
 
-**Cause:** `ServiceLocator` not initialized in test setup
+**Cause:** Missing mock dependency in test constructor injection
 
 **Solution:**
+
+All services use **constructor injection** — create mocks for each dependency:
 
 ```csharp
 [SetUp]
 public void Setup()
 {
-    var services = new ServiceCollection();
-    services.AddArdysaServices();
-    var provider = services.BuildServiceProvider();
-    ServiceLocator.Initialize(provider);
-}
+    _mockConfigService = new Mock<IConfigService>();
+    _mockLogger = new Mock<IAppLogger>();
+    _mockDetectionService = new Mock<IDetectionService>();
 
-[TearDown]
-public void TearDown()
-{
-    ServiceLocator.Dispose();
+    _sut = new MyService(
+        _mockConfigService.Object,
+        _mockLogger.Object,
+        _mockDetectionService.Object
+    );
 }
 ```
+
+> [!NOTE]
+> `ServiceLocator` was completely removed in Build 2082. All tests now use direct constructor injection with Moq.
 
 ### Tests Pass Locally but Fail in CI
 
@@ -105,6 +109,7 @@ public void TearDown()
 1. **Path differences** - Use `Path.Combine()` not hardcoded paths
 2. **Missing test data** - Ensure embedded resources are included
 3. **Timing issues** - Add proper async waits
+4. **STA apartment** - WinForms presenters need `[Apartment(ApartmentState.STA)]`
 
 ---
 

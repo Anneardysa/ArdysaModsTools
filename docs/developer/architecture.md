@@ -15,26 +15,45 @@ graph TB
             MiscF[MiscForm]
             PO[ProgressOverlay]
         end
-        subgraph WebView2["WebView2 (Tailwind CSS)"]
+        subgraph WebView2["WebView2 Hybrid"]
             HGF[HeroGalleryForm]
-            POW[ProgressOverlay HTML]
+            MFWV[MiscFormWebView]
+            SFWV[SettingsFormWebView]
+            SDDWV[StatusDetailsDialogWebView]
+            UADWV[UpdateAvailableDialogWebView]
+            VFDWV[VerifyFilesDialogWebView]
+            D2PF[Dota2PerformanceForm]
+            SD[SupportDialog]
+            FUDWV[FeatureUnavailableDialog]
         end
     end
 
     subgraph Presenters["Presenter Layer"]
         MFP[MainFormPresenter]
+        MOP[ModOperationsPresenter]
+        PP[PatchPresenter]
+        NP[NavigationPresenter]
         SHP[SelectHeroPresenter]
     end
 
     subgraph Core["Core Layer"]
-        subgraph Controllers
-            MC[MiscController]
-        end
         subgraph Services
             MIS[ModInstallerService]
             HGS[HeroGenerationService]
             MGS[MiscGenerationService]
             SS[StatusService]
+            FAS[FeatureAccessService]
+            SGS[SupportGoalsService]
+        end
+        subgraph MiscServices["Misc Patchers"]
+            CPS[CourierPatcherService]
+            WPS[WardPatcherService]
+            AMS[AssetModifierService]
+        end
+        subgraph CdnServices["CDN Services"]
+            SCS[SmartCdnSelector]
+            CFS[CdnFallbackService]
+            RDS[ResumableDownloadService]
         end
         subgraph VPK["VPK Services"]
             VE[VpkExtractor]
@@ -49,16 +68,23 @@ graph TB
     end
 
     MF --> MFP
+    MFP --> MOP
+    MFP --> PP
+    MFP --> NP
     SH --> SHP
-    MFP --> MIS
-    MFP --> SS
+    MOP --> MIS
+    PP --> SS
     SHP --> HGS
-    MC --> MGS
+    MGS --> CPS
+    MGS --> WPS
+    MGS --> AMS
     MIS --> VE
     HGS --> VE
     HGS --> VR
     MGS --> VE
     MGS --> VR
+    SCS --> CFS
+    MIS --> RDS
     VE --> HLE
     VR --> VPKT
 ```
@@ -67,26 +93,35 @@ graph TB
 
 ## Layer Responsibilities
 
-| Layer         | Purpose                      | Key Components                              |
-| ------------- | ---------------------------- | ------------------------------------------- |
-| **UI**        | User interaction, display    | Forms, Controls, Dialogs, WebView2 HTML     |
-| **Presenter** | Business logic, coordination | MainFormPresenter, SelectHeroPresenter      |
-| **Service**   | Domain operations            | ModInstaller, HeroGeneration, StatusService |
-| **VPK**       | File operations              | Extractor, Recompiler, Replacer             |
-| **External**  | Native tools                 | HLExtract.exe, vpk.exe                      |
+| Layer         | Purpose                      | Key Components                                                    |
+| ------------- | ---------------------------- | ----------------------------------------------------------------- |
+| **UI**        | User interaction, display    | Forms, Controls, Dialogs, WebView2 HTML                           |
+| **Presenter** | Business logic, coordination | MainForm, ModOperations, Patch, Navigation, SelectHero presenters |
+| **Service**   | Domain operations            | ModInstaller, HeroGeneration, MiscGeneration, StatusService       |
+| **CDN**       | Content delivery             | SmartCdnSelector, CdnFallbackService, ResumableDownloadService    |
+| **VPK**       | File operations              | Extractor, Recompiler, Replacer                                   |
+| **External**  | Native tools                 | HLExtract.exe, vpk.exe                                            |
 
 ---
 
 ## WebView2 UI Pattern
 
-The project uses **WebView2** with **Tailwind CSS** for modern UI components:
+The project uses **WebView2** for modern UI components:
 
 ### Components Using WebView2
 
-| Component           | HTML File           | Purpose                         |
-| ------------------- | ------------------- | ------------------------------- |
-| **HeroGalleryForm** | `hero_gallery.html` | Hero selection with sets grid   |
-| **ProgressOverlay** | `progress.html`     | Progress bar and status updates |
+| Component                        | HTML File                  | Purpose                                      |
+| -------------------------------- | -------------------------- | -------------------------------------------- |
+| **HeroGalleryForm**              | `hero_gallery.html`        | Hero selection with sets grid                |
+| **MiscFormWebView**              | `misc.html`                | Miscellaneous mod selection UI               |
+| **ProgressOverlay**              | `progress.html`            | Progress bar, status, and ModsPack preview   |
+| **SettingsFormWebView**          | `settings.html`            | App settings with cache control              |
+| **StatusDetailsDialogWebView**   | `status_details.html`      | 4-step mod verification with animated checks |
+| **UpdateAvailableDialogWebView** | `update_available.html`    | Version comparison and download cards        |
+| **VerifyFilesDialogWebView**     | `verify_files.html`        | File integrity verification UI               |
+| **Dota2PerformanceForm**         | `dota2_performance.html`   | FPS/quality/cvar tweaks and launch options   |
+| **SupportDialog**                | `support.html`             | Ko-fi donation + YouTube subscriber goals    |
+| **FeatureUnavailableDialog**     | `feature_unavailable.html` | Remote feature gating notification           |
 
 ### C# ↔ JavaScript Interop
 
@@ -158,6 +193,7 @@ sequenceDiagram
     participant User
     participant Program.cs
     participant SecurityManager
+    participant IMainFormFactory
     participant MainForm
 
     User->>Program.cs: Launch App
@@ -165,15 +201,17 @@ sequenceDiagram
     alt Security OK
         SecurityManager-->>Program.cs: true
         Program.cs->>Program.cs: Check Dota2 not running
-        Program.cs->>MainForm: new MainForm()
+        Program.cs->>Program.cs: Build DI ServiceProvider
+        Program.cs->>IMainFormFactory: Create()
+        IMainFormFactory->>MainForm: new MainForm(dependencies...)
         MainForm-->>User: Display UI
     else Security Failed
         SecurityManager-->>Program.cs: false
-        Program.cs->>User: Exit
+        Program.cs-->>User: Exit
     end
 ```
 
-### MVP Pattern
+### MVP Pattern (Decomposed Presenters)
 
 ```mermaid
 classDiagram
@@ -194,16 +232,33 @@ classDiagram
 
     class MainFormPresenter {
         -view: IMainFormView
-        -modInstaller: ModInstallerService
-        -statusService: StatusService
-        +DetectDota2Async()
+        -modOps: ModOperationsPresenter
+        -patch: PatchPresenter
+        -nav: NavigationPresenter
+    }
+
+    class ModOperationsPresenter {
+        -modInstaller: IModInstallerService
         +InstallModsAsync()
+        +DisableModsAsync()
+    }
+
+    class PatchPresenter {
+        -statusService: IStatusService
+        +PatchUpdateAsync()
+        +VerifyModsAsync()
+    }
+
+    class NavigationPresenter {
+        +OpenHeroSelectorAsync()
+        +OpenMiscFormAsync()
     }
 
     MainForm ..|> IMainFormView
     MainFormPresenter --> IMainFormView
-    MainFormPresenter --> ModInstallerService
-    MainFormPresenter --> StatusService
+    MainFormPresenter --> ModOperationsPresenter
+    MainFormPresenter --> PatchPresenter
+    MainFormPresenter --> NavigationPresenter
 ```
 
 ---
@@ -275,6 +330,7 @@ graph TB
         MIS[ModInstallerService]
         SS[StatusService]
         DVS[DotaVersionService]
+        FAS[FeatureAccessService]
     end
 
     subgraph "Generation Services"
@@ -283,6 +339,14 @@ graph TB
         HSPS[HeroSetPatcherService]
         MGS[MiscGenerationService]
         AMS[AssetModifierService]
+        CPS[CourierPatcherService]
+        WPS[WardPatcherService]
+    end
+
+    subgraph "CDN Services"
+        SCS[SmartCdnSelector]
+        CFS[CdnFallbackService]
+        RDS[ResumableDownloadService]
     end
 
     subgraph "VPK Services"
@@ -297,17 +361,24 @@ graph TB
         US[UpdaterService]
         CS[ConfigService]
         LS[Logger]
+        SGS[SupportGoalsService]
     end
 
     MIS --> VES
     MIS --> SS
+    MIS --> RDS
     HGS --> HSDS
     HGS --> HSPS
     HGS --> VRS
     HGS --> OVS
+    HSDS --> SCS
     MGS --> AMS
+    MGS --> CPS
+    MGS --> WPS
     MGS --> VES
     MGS --> VRS
+    AMS --> SCS
+    SCS --> CFS
 ```
 
 ---
@@ -409,11 +480,16 @@ graph TB
 
 Assets are served via multi-CDN with automatic fallback:
 
-| Priority | CDN               | Base URL                                               | Purpose           |
-| -------- | ----------------- | ------------------------------------------------------ | ----------------- |
-| 1        | **Cloudflare R2** | `https://cdn.ardysamods.my.id`                         | Primary (fastest) |
-| 2        | jsDelivr          | `https://cdn.jsdelivr.net/gh/Anneardysa/ModsPack@main` | Fallback 1        |
-| 3        | GitHub Raw        | `https://raw.githubusercontent.com/...`                | Fallback 2        |
+| Priority | CDN                  | Base URL                                               | Purpose            |
+| -------- | -------------------- | ------------------------------------------------------ | ------------------ |
+| 1        | **Cloudflare R2**    | `https://cdn.ardysamods.my.id`                         | Primary (fastest)  |
+| 2        | jsDelivr             | `https://cdn.jsdelivr.net/gh/Anneardysa/ModsPack@main` | Fallback 1         |
+| 3        | GitHub Raw           | `https://raw.githubusercontent.com/...`                | Fallback 2         |
+| 4        | ghfast.top (proxy)   | `https://ghfast.top/...`                               | GFW proxy fallback |
+| 5        | gh-proxy.com (proxy) | `https://gh-proxy.com/...`                             | GFW proxy fallback |
+
+> [!NOTE]
+> `SmartCdnSelector` runs a latency benchmark on first launch and auto-selects the fastest CDN for each user. If GitHub is fastest (e.g., for GFW users), it becomes primary automatically.
 
 **Configuration in `CdnConfig.cs`:**
 

@@ -10,11 +10,12 @@
 
 1. Download `ArdysaModsTools_Setup_x64.exe`
 2. Run the installer as Administrator
-3. If prompted, install .NET 8 Desktop Runtime first
-4. Complete the installation wizard
-5. Launch ArdysaModsTools
+3. Complete the installation wizard
+4. Launch ArdysaModsTools
 
-> [!WARNING] > **Important**: Close Dota 2 before launching AMT!
+> [!TIP]
+> The app is self-contained — .NET 8 runtime is bundled. No separate installation needed.
+> If you see a WebView2 error, install the [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/).
 
 ---
 

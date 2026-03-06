@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.21-beta] (Build 2123)
+
+### ✨ Added
+
+- Added WebView2-based **Support Dialog** displaying Ko-fi donation goal and YouTube subscriber goal with CSS animations, powered by a remote `support_goals.json` config on R2 CDN.
+- Created `SupportGoalsConfig` model and `SupportGoalsService` for fetching and caching combined goal data.
+
+### 📖 Documentation
+
+- Comprehensive documentation refresh across 7 files to match current project state (v2.1.22-beta, 480+ tests).
+- Updated version badge, test count (285+ → 480+), added Performance Tweaker feature, Courier/Ward/Special/Cursor mod types, Smart CDN Selection, Resumable Downloads, GFW proxy mirrors, and ADR-0004 Presenter Decomposition to design decisions.
+- Added FAQ, Installer Guide, Security links; expanded ADR listing from 3 → 7; added all 9 API docs and `samples/` directory to structure tree.
+- Rewrote all Mermaid diagrams — system architecture (5 presenters, 10 WebView2 forms, CDN/Misc service subgraphs), entry point flow (IMainFormFactory + DI), MVP class diagram (decomposed presenters), service layer (Courier/Ward/CDN services), and CDN table (GFW proxy entries + SmartCdnSelector).
+- Replaced stale `ServiceLocator` test pattern with constructor injection + Moq; added STA apartment tip.
+- Version 2.1.2 → 2.1.21, self-contained build (no .NET install), corrected install path to `%LocalAppData%`, added 6 missing misc categories, fixed settings path to `%AppData%`.
+- Fixed project root name, added full 15-directory service tree, expanded CDN entry, added `exceptions.md` link.
+- Removed .NET 8 install step (self-contained), added WebView2 troubleshooting tip.
+
 ## [2.1.20-beta] (Build 2122)
 
 ### 🚀 Improved

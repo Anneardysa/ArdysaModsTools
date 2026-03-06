@@ -1,6 +1,6 @@
 # ArdysaModsTools User Guide
 
-**Version 2.1.2-beta** | The Ultimate Dota 2 Mod Manager
+**Version 2.1.22-beta** | The Ultimate Dota 2 Mod Manager
 
 ![Banner](images/main_window_interface.jpg)
 
@@ -41,16 +41,16 @@
 
 ## System Requirements
 
-| Component                | Requirement                          |
-| ------------------------ | ------------------------------------ |
-| **Operating System**     | Windows 10/11 (64-bit)               |
-| **.NET Desktop Runtime** | 8.0 or higher                        |
-| **Disk Space**           | 500 MB free (for temporary files)    |
-| **Dota 2**               | Installed via Steam                  |
-| **Administrator Rights** | Required for game file modifications |
+| Component            | Requirement                                                                                                           |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Operating System** | Windows 10/11 (64-bit)                                                                                                |
+| **Runtime**          | Bundled (self-contained — no separate .NET install needed)                                                            |
+| **Browser Runtime**  | [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (usually pre-installed on Windows 10/11) |
+| **Disk Space**       | 500 MB free (for temporary files)                                                                                     |
+| **Dota 2**           | Installed via Steam                                                                                                   |
 
 > [!NOTE]
-> The installer will automatically check for .NET 8 and guide you to install it if needed.
+> The app is self-contained — the .NET 8 runtime is bundled with the installer. No separate runtime installation is needed.
 
 ---
 
@@ -71,7 +71,7 @@
    - After installing .NET 8, run the AMT installer again
 
 4. **Complete Installation**
-   - Choose installation location (default: `C:\Program Files\ArdysaModsTools`)
+   - Choose installation location (default: `%LocalAppData%\ArdysaModsTools`)
    - Optionally create a desktop shortcut
    - Click **Install**
 
@@ -288,10 +288,32 @@ Customize additional game elements beyond hero skins.
 - Interface customizations
 - UI element replacements
 
+**⚔️ Battle Effects**
+
+- TI-themed kill/ability effects (Aghanim, Nemestice, TI 2015–2022)
+
+**🐴 Courier**
+
+- Custom courier skins with style support
+- Up to 2 ethereal particle effects per courier
+
+**🔮 Ward**
+
+- Custom ward skins with model extraction
+- Style variants and particle effects
+
 **🔊 Audio Mods**
 
-- Custom sound effects
-- Music replacements
+- Custom music packs
+
+**🎯 Cursor**
+
+- Custom cursor skins
+
+**⭐ Special**
+
+- Full ZIP-based mod packs (e.g., LowPoly Map)
+- Mutual exclusion with Map option
 
 #### Using Miscellaneous Mods
 
@@ -526,7 +548,7 @@ A: Mods are installed in: `dota 2 beta/game/dota/_ArdysaMods/pak01_dir.vpk`
 A: Logs are in: `[Dota 2 Path]/game/_ArdysaMods/_temp/logs/`
 
 **Q: Where are settings saved?**  
-A: Settings are in: `[Dota 2 Path]/game/_ArdysaMods/_temp/` (config files are stored within your Dota 2 installation)
+A: Settings are in: `%AppData%\ArdysaModsTools` (favorites, user preferences, and configuration files)
 
 **Q: Can I backup my mods?**  
 A: Yes, backup the `_ArdysaMods` folder and your AMT settings folder.
@@ -662,4 +684,4 @@ AMT uses:
 
 **Thank you for using ArdysaModsTools! Enjoy your customized Dota 2 experience! 🎮**
 
-_Version 2.1.2-beta_
+_Version 2.1.22-beta_
