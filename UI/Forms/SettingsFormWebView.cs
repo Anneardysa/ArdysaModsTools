@@ -44,6 +44,11 @@ namespace ArdysaModsTools.UI.Forms
         private readonly UpdaterService _updaterService;
         private readonly TrayService? _trayService;
 
+        /// <summary>
+        /// Fired when the user requests to re-show the onboarding guide from Settings.
+        /// </summary>
+        public event EventHandler? ShowGuideRequested;
+
         // P/Invoke for window dragging
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool ReleaseCapture();
@@ -245,6 +250,11 @@ namespace ArdysaModsTools.UI.Forms
                     case "startDrag":
                         ReleaseCapture();
                         SendMessage(this.Handle, WM_NCLBUTTONDOWN, (IntPtr)HTCAPTION, IntPtr.Zero);
+                        break;
+
+                    case "showGuide":
+                        SafeClose();
+                        ShowGuideRequested?.Invoke(this, EventArgs.Empty);
                         break;
                 }
             }

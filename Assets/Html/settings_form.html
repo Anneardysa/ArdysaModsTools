@@ -517,7 +517,7 @@
                <span class="section-title">Actions</span>
                <div class="section-line"></div>
             </div>
-            <div class="action-grid">
+            <div class="action-grid" style="grid-template-columns: 1fr 1fr 1fr">
                <button class="action-btn" id="btnCheckUpdates" onclick="checkUpdates()">
                   <span class="action-btn-icon">
                      <svg viewBox="0 0 24 24">
@@ -538,6 +538,16 @@
                      </svg>
                   </span>
                   <span class="action-btn-text">Clear Cache</span>
+               </button>
+               <button class="action-btn" id="btnShowGuide" onclick="showGuide()">
+                  <span class="action-btn-icon">
+                     <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                     </svg>
+                  </span>
+                  <span class="action-btn-text">Show Guide</span>
                </button>
             </div>
             <div class="cache-info" id="cacheInfo">
@@ -643,6 +653,10 @@
             setTimeout(() => {
                toast.classList.remove("show");
             }, 3000);
+         }
+
+         function showGuide() {
+            sendMessage({ type: "showGuide" });
          }
 
          function closeForm() {

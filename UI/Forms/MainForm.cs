@@ -72,6 +72,9 @@ namespace ArdysaModsTools
         private readonly CacheCleaningService _cacheService;
         private readonly bool _startMinimized;
 
+        // Onboarding guide
+        private readonly OnboardingService _onboardingService;
+
         /// <summary>
         /// Default constructor is disabled. Use MainFormFactory.Create() for proper DI.
         /// </summary>
@@ -153,6 +156,9 @@ namespace ArdysaModsTools
             // Initialize services for Settings
             _lifecycleService = new AppLifecycleService();
             _cacheService = new CacheCleaningService();
+
+            // Initialize onboarding service
+            _onboardingService = new OnboardingService(_configService);
 
             // Initialize TrayService (after presenter so we can pass configService)
             try
@@ -353,6 +359,9 @@ namespace ArdysaModsTools
 
                 // Show Support Dialog on startup
                 ShowSupportDialogOnStartup();
+
+                // Show onboarding guide for first-time users
+                ShowOnboardingGuide();
                 
                 // Show donation reminder notification (always on startup)
                 _trayService?.ShowDonationReminder();
@@ -378,6 +387,41 @@ namespace ArdysaModsTools
             {
                 _logger.Log($"Failed to show support dialog: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Shows the onboarding guide overlay for first-time users.
+        /// Highlights each feature step-by-step with spotlight and tooltips.
+        /// </summary>
+        private void ShowOnboardingGuide()
+        {
+            if (_onboardingService.IsOnboardingCompleted()) return;
+
+            try
+            {
+                var steps = _onboardingService.GetSteps();
+                using var overlay = new OnboardingOverlay(this, steps);
+                overlay.OnboardingFinished += (s, e) =>
+                {
+                    _onboardingService.MarkOnboardingCompleted();
+                };
+                overlay.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Onboarding guide error: {ex.Message}");
+                // Don't block the app if guide fails — mark as completed
+                _onboardingService.MarkOnboardingCompleted();
+            }
+        }
+
+        /// <summary>
+        /// Resets and re-shows the onboarding guide (called from Settings).
+        /// </summary>
+        public void ResetAndShowOnboarding()
+        {
+            _onboardingService.ResetOnboarding();
+            ShowOnboardingGuide();
         }
 
 
@@ -1074,6 +1118,11 @@ namespace ArdysaModsTools
                     updaterService,
                     _trayService
                 );
+
+                settingsForm.ShowGuideRequested += (s, e) =>
+                {
+                    ResetAndShowOnboarding();
+                };
 
                 settingsForm.ShowDialog(this);
             }

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.21-beta] (Build 2124)
+
+### ✨ Added
+
+- Added **Newcomer Onboarding Guide** — an interactive step-by-step overlay that highlights each feature when the app opens for the first time, guiding users through Auto Detect, Manual Detect, Skin Selector, Miscellaneous, Install, Patch Update, Console, and Settings.
+- Onboarding uses a native WinForms spotlight overlay with pulsing cyan glow animations and dark backdrop for pixel-perfect control highlighting.
+   - Features smooth spotlight transition animations, connector lines, dynamic tooltip heights, and L-bracket corner decorations.
+   - Automatically captures a screenshot of the parent form to render actual UI behind a dimming layer.
+- Onboarding state persists via `IConfigService` — shows only on first launch, can be re-triggered from Settings → "Show Guide" button.
+
 ## [2.1.21-beta] (Build 2123)
 
 ### ✨ Added
