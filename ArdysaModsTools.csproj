@@ -14,6 +14,10 @@
     <ApplicationIcon>Assets\Icons\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="ArdysaModsTools.Tests" />
+  </ItemGroup>
+
   <!-- ============================================== -->
   <!-- BUILD & PUBLISH SETTINGS                       -->
   <!-- ============================================== -->
@@ -29,8 +33,8 @@
   <!-- ============================================== -->
   <PropertyGroup>
     <Version>2.1.21-beta</Version>
-    <AssemblyVersion>2.1.21.2124</AssemblyVersion>
-    <FileVersion>2.1.21.2124</FileVersion>
+    <AssemblyVersion>2.1.21.2125</AssemblyVersion>
+    <FileVersion>2.1.21.2125</FileVersion>
     <InformationalVersion>2.1.21-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>

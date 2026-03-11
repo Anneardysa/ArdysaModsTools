@@ -70,7 +70,14 @@ namespace ArdysaModsTools.UI.Forms
             this.SuspendLayout();
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1600, 850);
+
+            // Responsive sizing: 90% of screen, clamped to min 900×600
+            var screen = Screen.PrimaryScreen?.WorkingArea
+                ?? new System.Drawing.Rectangle(0, 0, 1920, 1080);
+            int w = Math.Max(900, (int)(screen.Width * 0.9));
+            int h = Math.Max(600, (int)(screen.Height * 0.9));
+            this.ClientSize = new System.Drawing.Size(w, h);
+
             this.Name = "Dota2PerformanceForm";
             this.Text = "Dota 2 Performance Tweak - AMT 2.0";
             this.ResumeLayout(false);
@@ -114,12 +121,11 @@ namespace ArdysaModsTools.UI.Forms
                 // Disable right-click context menu
                 _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
 
-                // Load HTML
+                // Load HTML — use file:// URI so relative paths (e.g. @font-face ../Fonts/) resolve
                 var htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Html", "dota2_performance.html");
                 if (File.Exists(htmlPath))
                 {
-                    var html = await File.ReadAllTextAsync(htmlPath);
-                    _webView.CoreWebView2.NavigateToString(html);
+                    _webView.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
                 }
                 else
                 {
@@ -222,8 +228,7 @@ namespace ArdysaModsTools.UI.Forms
                 if (settings.Count > 0)
                 {
                     var json = JsonSerializer.Serialize(settings);
-                    var escaped = json.Replace("'", "\\'");
-                    await ExecuteScriptAsync($"loadSettings('{escaped}')");
+                    await ExecuteScriptAsync($"loadSettings('{EscapeJs(json)}')");
                     await ExecuteScriptAsync($"showToast('Loaded {settings.Count} settings from autoexec.cfg', 'success')");
                 }
             }
@@ -308,7 +313,7 @@ namespace ArdysaModsTools.UI.Forms
                 await File.WriteAllTextAsync(autoexecPath, content, Encoding.UTF8);
 
                 await ExecuteScriptAsync($"showToast('autoexec.cfg saved! Backup created as .bak', 'success')");
-                await ExecuteScriptAsync($"loadSettings('{JsonSerializer.Serialize(settings).Replace("'", "\\\\'")}')" );
+                await ExecuteScriptAsync($"loadSettings('{EscapeJs(JsonSerializer.Serialize(settings))}')");
             }
             catch (Exception ex)
             {
@@ -468,6 +473,19 @@ namespace ArdysaModsTools.UI.Forms
         private static string EscapeJs(string text)
         {
             return text.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\n", "\\n").Replace("\r", "");
+        }
+
+        /// <summary>
+        /// Disposes WebView2 resources before form cleanup.
+        /// </summary>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _webView?.Dispose();
+                _webView = null;
+            }
+            base.Dispose(disposing);
         }
     }
 }

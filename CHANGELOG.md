@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.21-beta] (Build 2125)
+
+### 🚀 Improved
+
+- Removed TailwindCSS and Google Fonts CDN dependencies — all CSS and fonts now load locally via `@font-face` for offline and GFW compatibility.
+- Switched WebView2 from `NavigateToString` to `Navigate(file://)` to enable proper local font resolution.
+- Added real-time input validation on numeric cvar fields with red border feedback and range tooltips (e.g., `fps_max` 0–999, `rate` 1000–1000000).
+- Form now sizes responsively to 90% of screen bounds (min 900×600), fixing overflow on 1366×768 displays.
+- Fixed inconsistent JSON escaping in settings load/apply by using `EscapeJs()` uniformly.
+- Added proper `Dispose` override for WebView2 resource cleanup.
+
+### 🧪 Testing
+
+- Added 14 unit tests for `Dota2PerformanceForm.ParseAutoexec` and `GenerateAutoexecContent` covering empty input, comments, standard cvars, inline comments, tabs, duplicates, alias lines, category grouping, unknown cvars, timestamping, and round-trip preservation.
+- Added `InternalsVisibleTo` attribute to expose internal static methods to the test project.
+
 ## [2.1.21-beta] (Build 2124)
 
 ### ✨ Added
