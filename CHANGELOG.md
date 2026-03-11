@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.22-beta] (Build 2126)
+
+### 🐛 Fixed
+
+- Fixed Support Dialog X button (titlebar close) not working by adding `WindowCloseRequested` handler and `window.close()` JS fallback for when WebView2 interop isn't available.
+- Fixed Support Dialog UI being cropped on small resolution monitors (e.g., 1366×768) — form now sizes responsively to 85% of screen bounds (capped at 820×620), CSS container scrolls on overflow, and a compact media query fires below 580px viewport height.
+- Added proper `Dispose` override for WebView2 resource cleanup in `SupportDialog`.
+
 ## [2.1.21-beta] (Build 2125)
 
 ### 🚀 Improved

@@ -7,7 +7,7 @@
          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap"
          rel="stylesheet"
       />
-      <style>
+       <style>
          * {
             margin: 0;
             padding: 0;
@@ -77,6 +77,7 @@
             align-items: center;
             justify-content: center;
             gap: 0;
+            overflow-y: auto;
          }
 
          /* ═══ BADGE ═══ */
@@ -293,6 +294,7 @@
             letter-spacing: 2px;
             cursor: pointer;
             transition: all 0.2s;
+            flex-shrink: 0;
             animation: fadeSlideIn 0.4s ease-out 0.6s both;
          }
          .close-btn:hover {
@@ -316,6 +318,58 @@
          /* Hidden state for goals (before data loads) */
          .goal-card.hidden {
             display: none;
+         }
+
+         /* ═══ RESPONSIVE: compact layout for small viewports ═══ */
+         @media (max-height: 580px) {
+            .container {
+               padding: 0 24px 16px;
+               justify-content: flex-start;
+            }
+            .title {
+               font-size: 17px;
+               margin-top: 10px;
+            }
+            .subtitle {
+               font-size: 11px;
+               margin-top: 4px;
+            }
+            .cards-row {
+               margin-top: 14px;
+               gap: 10px;
+            }
+            .card {
+               padding: 14px 10px;
+            }
+            .card-icon {
+               width: 28px;
+               height: 28px;
+               margin-bottom: 6px;
+            }
+            .card-title {
+               font-size: 11px;
+            }
+            .footer-msg {
+               margin-top: 12px;
+            }
+            .separator {
+               margin-top: 12px;
+            }
+            .goals-row {
+               margin-top: 12px;
+               gap: 10px;
+            }
+            .goal-card {
+               padding: 12px 14px;
+            }
+            .goal-header {
+               margin-bottom: 8px;
+            }
+            .close-btn {
+               margin-top: 14px;
+               padding: 8px 28px;
+               font-size: 11px;
+            }
          }
       </style>
    </head>
@@ -421,10 +475,12 @@
          let _kofiUrl = "https://ko-fi.com/ardysa/goal?g=0";
          let _subsUrl = "https://youtube.com/@ArdysaMods";
 
-         // C# → JS interop
+         // C# → JS interop (with window.close() fallback)
          function sendMessage(type, data = {}) {
             if (window.chrome && window.chrome.webview) {
                window.chrome.webview.postMessage({ type, ...data });
+            } else if (type === 'close') {
+               window.close();
             }
          }
 

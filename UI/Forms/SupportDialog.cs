@@ -58,8 +58,14 @@ namespace ArdysaModsTools.UI.Forms
             this.FormBorderStyle = FormBorderStyle.None;
             this.BackColor = System.Drawing.Color.Black;
             this.StartPosition = FormStartPosition.CenterParent;
-            this.Size = new System.Drawing.Size(820, 620);
             this.ShowInTaskbar = false;
+
+            // Responsive sizing: cap at 820×620 but scale down on small monitors
+            var screen = Screen.FromControl(this) ?? Screen.PrimaryScreen;
+            var workArea = screen!.WorkingArea;
+            int width = Math.Min(820, (int)(workArea.Width * 0.85));
+            int height = Math.Min(620, (int)(workArea.Height * 0.85));
+            this.Size = new System.Drawing.Size(width, height);
 
             _webView = new WebView2
             {
@@ -87,6 +93,7 @@ namespace ArdysaModsTools.UI.Forms
                 var env = await CoreWebView2Environment.CreateAsync(null, tempPath);
                 await _webView!.EnsureCoreWebView2Async(env);
                 _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
+                _webView.CoreWebView2.WindowCloseRequested += (s, e) => SafeClose();
 
                 // Disable right-click context menu
                 _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
@@ -202,6 +209,16 @@ namespace ArdysaModsTools.UI.Forms
             {
                 await _webView.CoreWebView2.ExecuteScriptAsync(script);
             }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _webView?.Dispose();
+                _webView = null;
+            }
+            base.Dispose(disposing);
         }
     }
 }
