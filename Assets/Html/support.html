@@ -29,6 +29,24 @@
             --yt-dark: #c80000;
             --accent-glow: rgba(41, 171, 224, 0.15);
             --yt-glow: rgba(255, 50, 50, 0.15);
+
+            /* ═══ FLUID SPACING TOKENS (auto-scale with viewport height) ═══ */
+            --sp-xs:  clamp(4px,  0.8vh,  8px);      /* extra-small gap */
+            --sp-sm:  clamp(6px,  1.2vh,  12px);      /* small gap */
+            --sp-md:  clamp(10px, 2vh,   20px);       /* medium gap */
+            --sp-lg:  clamp(14px, 2.8vh, 28px);       /* large gap */
+            --sp-xl:  clamp(16px, 3.2vh, 32px);       /* extra-large gap */
+
+            /* ═══ FLUID FONT TOKENS ═══ */
+            --fs-xs:  clamp(9px,  1.5vh,  10px);      /* tiny labels */
+            --fs-sm:  clamp(10px, 1.7vh,  11px);      /* secondary text */
+            --fs-md:  clamp(11px, 1.9vh,  13px);      /* body / card titles */
+            --fs-lg:  clamp(16px, 3vh,   22px);       /* main title */
+
+            /* ═══ FLUID ELEMENT TOKENS ═══ */
+            --icon-card: clamp(24px, 5vh, 36px);      /* donation card icons */
+            --icon-goal: clamp(14px, 2.5vh, 18px);    /* goal row icons */
+            --bar-h:     clamp(6px, 1.4vh, 10px);     /* progress bar height */
          }
 
          body {
@@ -48,12 +66,14 @@
             height: 36px;
             min-height: 36px;
             -webkit-app-region: drag;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
          }
-         #titlebar button {
-            -webkit-app-region: no-drag;
+
+         /* ═══ CLOSE X (outside drag region) ═══ */
+         .close-x {
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 100;
             background: none;
             border: none;
             color: var(--text-dim);
@@ -62,8 +82,11 @@
             height: 36px;
             cursor: pointer;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
          }
-         #titlebar button:hover {
+         .close-x:hover {
             color: white;
             background: rgba(255, 80, 80, 0.8);
          }
@@ -71,7 +94,7 @@
          /* ═══ MAIN LAYOUT ═══ */
          .container {
             flex: 1;
-            padding: 0 48px 32px;
+            padding: 0 clamp(24px, 5vw, 48px) var(--sp-xl);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -82,28 +105,28 @@
 
          /* ═══ BADGE ═══ */
          .badge {
-            font-size: 11px;
+            font-size: var(--fs-sm);
             font-weight: 700;
             color: var(--text);
             background: var(--surface);
             border: 1px solid var(--border);
-            padding: 6px 20px;
+            padding: var(--sp-xs) clamp(12px, 2.5vw, 20px);
             letter-spacing: 2px;
             animation: fadeSlideIn 0.3s ease-out both;
          }
 
          /* ═══ HEADER ═══ */
          .title {
-            font-size: 22px;
+            font-size: var(--fs-lg);
             font-weight: 700;
-            margin-top: 16px;
+            margin-top: var(--sp-md);
             letter-spacing: 2px;
             animation: fadeSlideIn 0.35s ease-out 0.05s both;
          }
          .subtitle {
-            font-size: 12px;
+            font-size: var(--fs-sm);
             color: var(--text-dim);
-            margin-top: 8px;
+            margin-top: var(--sp-xs);
             text-align: center;
             line-height: 1.5;
             animation: fadeSlideIn 0.35s ease-out 0.1s both;
@@ -112,15 +135,15 @@
          /* ═══ DONATION CARDS ═══ */
          .cards-row {
             display: flex;
-            gap: 20px;
-            margin-top: 28px;
+            gap: var(--sp-md);
+            margin-top: var(--sp-lg);
             width: 100%;
          }
          .card {
             flex: 1;
             background: var(--surface);
             border: 1px solid var(--border-dim);
-            padding: 24px 16px;
+            padding: var(--sp-md) clamp(8px, 2vw, 16px);
             text-align: center;
             cursor: pointer;
             transition: all 0.25s ease;
@@ -159,27 +182,27 @@
          }
 
          .card-icon {
-            width: 36px;
-            height: 36px;
-            margin: 0 auto 12px;
+            width: var(--icon-card);
+            height: var(--icon-card);
+            margin: 0 auto var(--sp-sm);
             opacity: 0.9;
          }
          .card-title {
-            font-size: 13px;
+            font-size: var(--fs-md);
             font-weight: 700;
             letter-spacing: 2px;
          }
          .card-sub {
-            font-size: 10px;
+            font-size: var(--fs-xs);
             color: var(--text-muted);
-            margin-top: 6px;
+            margin-top: var(--sp-xs);
          }
 
          /* ═══ FOOTER MESSAGE ═══ */
          .footer-msg {
-            font-size: 11px;
+            font-size: var(--fs-sm);
             color: var(--text-muted);
-            margin-top: 22px;
+            margin-top: var(--sp-md);
             animation: fadeSlideIn 0.4s ease-out 0.35s both;
          }
 
@@ -188,22 +211,22 @@
             width: 100%;
             height: 1px;
             background: var(--border-dim);
-            margin-top: 22px;
+            margin-top: var(--sp-md);
             animation: fadeSlideIn 0.3s ease-out 0.4s both;
          }
 
          /* ═══ GOAL SECTION ═══ */
          .goals-row {
             display: flex;
-            gap: 20px;
-            margin-top: 22px;
+            gap: var(--sp-md);
+            margin-top: var(--sp-md);
             width: 100%;
          }
          .goal-card {
             flex: 1;
             background: var(--surface);
             border: 1px solid var(--border-dim);
-            padding: 20px 22px;
+            padding: var(--sp-sm) var(--sp-md);
             cursor: pointer;
             transition: all 0.25s ease;
          }
@@ -222,25 +245,25 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 14px;
+            margin-bottom: var(--sp-sm);
          }
          .goal-header-left {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: var(--sp-sm);
          }
          .goal-icon {
-            width: 18px;
-            height: 18px;
+            width: var(--icon-goal);
+            height: var(--icon-goal);
             opacity: 0.85;
          }
          .goal-title {
-            font-size: 11px;
+            font-size: var(--fs-sm);
             font-weight: 700;
             letter-spacing: 1.5px;
          }
          .goal-value {
-            font-size: 13px;
+            font-size: var(--fs-md);
             font-weight: 600;
          }
          .goal-value.kofi {
@@ -253,7 +276,7 @@
          /* Progress bar */
          .progress-track {
             width: 100%;
-            height: 10px;
+            height: var(--bar-h);
             background: #1a1a1a;
             border-radius: 5px;
             overflow: hidden;
@@ -274,22 +297,22 @@
          }
 
          .goal-footer {
-            font-size: 9px;
+            font-size: var(--fs-xs);
             color: var(--text-muted);
-            margin-top: 10px;
+            margin-top: var(--sp-xs);
             text-align: center;
             letter-spacing: 0.5px;
          }
 
          /* ═══ CLOSE BUTTON ═══ */
          .close-btn {
-            margin-top: 26px;
-            padding: 10px 36px;
+            margin-top: var(--sp-lg);
+            padding: var(--sp-xs) clamp(20px, 4vw, 36px);
             background: var(--bg);
             border: 1px solid var(--border);
             color: var(--text-dim);
             font-family: "JetBrains Mono", monospace;
-            font-size: 12px;
+            font-size: var(--fs-sm);
             font-weight: 700;
             letter-spacing: 2px;
             cursor: pointer;
@@ -319,71 +342,14 @@
          .goal-card.hidden {
             display: none;
          }
-
-         /* ═══ RESPONSIVE: compact layout for small viewports ═══ */
-         @media (max-height: 580px) {
-            .container {
-               padding: 0 24px 16px;
-               justify-content: flex-start;
-            }
-            .title {
-               font-size: 17px;
-               margin-top: 10px;
-            }
-            .subtitle {
-               font-size: 11px;
-               margin-top: 4px;
-            }
-            .cards-row {
-               margin-top: 14px;
-               gap: 10px;
-            }
-            .card {
-               padding: 14px 10px;
-            }
-            .card-icon {
-               width: 28px;
-               height: 28px;
-               margin-bottom: 6px;
-            }
-            .card-title {
-               font-size: 11px;
-            }
-            .footer-msg {
-               margin-top: 12px;
-            }
-            .separator {
-               margin-top: 12px;
-            }
-            .goals-row {
-               margin-top: 12px;
-               gap: 10px;
-            }
-            .goal-card {
-               padding: 12px 14px;
-            }
-            .goal-header {
-               margin-bottom: 8px;
-            }
-            .close-btn {
-               margin-top: 14px;
-               padding: 8px 28px;
-               font-size: 11px;
-            }
-         }
       </style>
    </head>
    <body>
       <!-- Drag region -->
-      <div id="titlebar">
-         <button
-            onclick="sendMessage('close')"
-            title="Close (ESC)"
-            style="-webkit-app-region: no-drag"
-         >
-            ✕
-         </button>
-      </div>
+      <div id="titlebar"></div>
+
+      <!-- Close X (outside drag region so clicks always work) -->
+      <button class="close-x" onclick="sendMessage('close')" title="Close (ESC)">✕</button>
 
       <div class="container">
          <!-- Badge -->

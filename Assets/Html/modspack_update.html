@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>ModsPack Update - AMT 2.0</title>
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         :root {
+            --bg-dark: #000000;
+            --bg-card: #0a0a0a;
+            --bg-card-hover: #111111;
+            --border-color: #333333;
+            --border-dim: #252525;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --text-muted: #666666;
+            --accent-cyan: #00d4ff;
+            --accent-cyan-dim: rgba(0, 212, 255, 0.12);
+            --accent-cyan-glow: rgba(0, 212, 255, 0.25);
+            --accent-green: #4ade80;
+         }
+
+         body {
+            font-family: "JetBrains Mono", "Consolas", monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            border: 1px solid var(--accent-cyan);
+            overflow: hidden;
+         }
+
+         /* ═══ DRAG AREA ═══ */
+         .drag-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 36px;
+            cursor: move;
+            -webkit-app-region: drag;
+            z-index: 10;
+         }
+
+         /* ═══ CLOSE BUTTON ═══ */
+         .close-btn {
+            position: fixed;
+            top: 10px;
+            right: 12px;
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+            z-index: 20;
+         }
+         .close-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+         }
+         .close-btn svg {
+            width: 14px;
+            height: 14px;
+         }
+
+         /* ═══ MAIN CONTAINER ═══ */
+         .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 48px 32px;
+         }
+
+         /* ═══ UPDATE ICON ═══ */
+         .update-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            background: var(--accent-cyan-dim);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 18px;
+            animation: pulse 2.2s ease-in-out infinite, fadeInUp 0.35s ease-out both;
+         }
+         .update-icon svg {
+            width: 28px;
+            height: 28px;
+            color: var(--accent-cyan);
+         }
+
+         @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.06); }
+         }
+
+         /* ═══ BADGE ═══ */
+         .badge {
+            display: inline-block;
+            padding: 5px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            animation: fadeInUp 0.35s ease-out 0.06s both;
+         }
+
+         /* ═══ TITLE ═══ */
+         .title {
+            font-size: 15px;
+            font-weight: bold;
+            color: var(--text-primary);
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+            animation: fadeInUp 0.35s ease-out 0.12s both;
+         }
+
+         /* ═══ DESCRIPTION ═══ */
+         .description {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: center;
+            line-height: 1.65;
+            margin-bottom: 28px;
+            max-width: 340px;
+            animation: fadeInUp 0.35s ease-out 0.18s both;
+         }
+
+         /* ═══ BUTTONS ═══ */
+         .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            max-width: 280px;
+         }
+
+         .btn {
+            padding: 12px 24px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+            text-align: center;
+         }
+
+         .btn-primary {
+            background: var(--accent-cyan-dim);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            animation: fadeInUp 0.35s ease-out 0.24s both;
+         }
+         .btn-primary:hover {
+            background: rgba(0, 212, 255, 0.2);
+            box-shadow: 0 0 20px var(--accent-cyan-glow);
+            transform: translateY(-1px);
+         }
+
+         .btn-secondary {
+            background: transparent;
+            border-color: var(--border-color);
+            color: var(--text-muted);
+            animation: fadeInUp 0.35s ease-out 0.3s both;
+         }
+         .btn-secondary:hover {
+            color: var(--text-secondary);
+            border-color: var(--text-muted);
+         }
+
+         /* ═══ ANIMATIONS ═══ */
+         @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+         }
+      </style>
+   </head>
+   <body>
+      <div class="drag-area" onmousedown="startDrag()"></div>
+
+      <button class="close-btn" onclick="dismiss()" title="Close">
+         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+         </svg>
+      </button>
+
+      <div class="container">
+         <!-- Update Icon -->
+         <div class="update-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+         </div>
+
+         <!-- Badge -->
+         <div class="badge">[ MODSPACK UPDATE ]</div>
+
+         <!-- Title -->
+         <div class="title">A NEWER MODSPACK IS AVAILABLE</div>
+
+         <!-- Description -->
+         <div class="description">
+            A new version of the ModsPack has been released.<br />
+            Update now to get the latest cosmetic mods.
+         </div>
+
+         <!-- Buttons -->
+         <div class="buttons">
+            <button class="btn btn-primary" onclick="updateNow()">UPDATE NOW</button>
+            <button class="btn btn-secondary" onclick="dismiss()">NOT NOW</button>
+         </div>
+      </div>
+
+      <script>
+         function updateNow() {
+            sendMessage({ type: "updateNow" });
+         }
+
+         function dismiss() {
+            sendMessage({ type: "notNow" });
+         }
+
+         function startDrag() {
+            sendMessage({ type: "startDrag" });
+         }
+
+         function sendMessage(data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(data);
+            }
+         }
+
+         // ESC to close
+         document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") dismiss();
+         });
+      </script>
+   </body>
+</html>

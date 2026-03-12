@@ -32,10 +32,10 @@
   <!-- APPLICATION METADATA                           -->
   <!-- ============================================== -->
   <PropertyGroup>
-    <Version>2.1.22-beta</Version>
-    <AssemblyVersion>2.1.22.2126</AssemblyVersion>
-    <FileVersion>2.1.22.2126</FileVersion>
-    <InformationalVersion>2.1.22-beta</InformationalVersion>
+    <Version>2.1.24-beta</Version>
+    <AssemblyVersion>2.1.24.2128</AssemblyVersion>
+    <FileVersion>2.1.24.2128</FileVersion>
+    <InformationalVersion>2.1.24-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
     <Authors>Ardysa</Authors>
@@ -228,6 +228,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Assets\Html\support.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\modspack_update.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
 
