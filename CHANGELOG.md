@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.24-beta] (Build 2128)
+
+### ✨ Added
+
+- Added **ModsPack Update Trigger Dialog** — a modern WebView2 dialog that prompts users to update when a newer ModsPack is available after Dota 2 path detection.
+- Created `ModsPackUpdateService` to wrap hash comparison with a clean API that only triggers for existing installs with a newer remote hash.
+- Created `ModsPackUpdateDialog` (WebView2 form) with dark-themed `modspack_update.html` template featuring JetBrains Mono font, cyan accent borders, pulsing download icon, and staggered fadeInUp animations.
+- Dialog includes "Update Now" (triggers install flow) and "Not Now" (dismiss) buttons, with fallback to native MessageBox if WebView2 is unavailable.
+- Update check runs after Auto-Detect/Manual-Detect, following the flow: detect → check status → install dialog (if needed) → ModsPack update check.
+
 ## [2.1.22-beta] (Build 2126)
 
 ### 🐛 Fixed

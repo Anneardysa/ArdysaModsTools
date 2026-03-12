@@ -26,6 +26,7 @@ using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Services.Mods;
 using ArdysaModsTools.Core.Services.Update;
 using System.Net.Http;
 using ArdysaModsTools.UI.Interfaces;
@@ -59,6 +60,7 @@ namespace ArdysaModsTools.UI.Presenters
         
         private bool _patchDialogDismissedByUser;
         private DotaPatchWatcherService? _patchWatcher;
+        private readonly ModsPackUpdateService _modsPackUpdateService;
 
         private string? _targetPath;
         private CancellationTokenSource? _operationCts;
@@ -107,6 +109,7 @@ namespace ArdysaModsTools.UI.Presenters
             };
 
             _modInstaller = new ModInstallerService(_logger);
+            _modsPackUpdateService = new ModsPackUpdateService(_modInstaller, _logger);
             _detection = new DetectionService(_logger);
             _status = new StatusService(_logger);
             _versionService = new DotaVersionService(_logger);
@@ -214,6 +217,47 @@ namespace ArdysaModsTools.UI.Presenters
             _navigationPresenter.CurrentStatus = status;
         }
 
+        /// <summary>
+        /// Checks for ModsPack update on startup and shows the update dialog if available.
+        /// Only triggers for users with an existing ModsPack install where a newer version exists.
+        /// Silently fails on errors to avoid blocking app startup.
+        /// </summary>
+        private async Task CheckModsPackUpdateOnStartupAsync()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_targetPath))
+                    return;
+
+                // NOTE: No ConfigureAwait(false) here — we MUST stay on the UI thread
+                // so ShowUpdateDialog can display the modal dialog and capture its result.
+                bool hasUpdate = await _modsPackUpdateService
+                    .CheckForUpdateAsync(_targetPath);
+
+                if (!hasUpdate)
+                    return;
+
+                // We are on the UI thread here — show dialog directly
+                var owner = _view as System.Windows.Forms.IWin32Window;
+                bool shouldUpdate = ModsPackUpdateDialog.ShowUpdateDialog(owner);
+
+                if (shouldUpdate)
+                {
+                    _logger.Log("[ModsPack] User accepted update — starting install...");
+                    await InstallAsync();
+                }
+                else
+                {
+                    _logger.Log("[ModsPack] User deferred update.");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Never block app startup due to update check failure
+                _logger.Log($"[ModsPack] Startup update check failed: {ex.Message}");
+            }
+        }
+
         #endregion
 
         #region Detection Commands
@@ -237,6 +281,7 @@ namespace ArdysaModsTools.UI.Presenters
                     await CheckModsStatusAsync();
                     await StartPatchWatcherAsync(_targetPath);
                     await ShowInstallDialogIfNeededAsync();
+                    await CheckModsPackUpdateOnStartupAsync();
                     _view.EnableAllButtons();
                 }
                 else
@@ -271,6 +316,7 @@ namespace ArdysaModsTools.UI.Presenters
                     await CheckModsStatusAsync();
                     await StartPatchWatcherAsync(_targetPath);
                     await ShowInstallDialogIfNeededAsync();
+                    await CheckModsPackUpdateOnStartupAsync();
                     _view.EnableAllButtons();
                 }
                 else
