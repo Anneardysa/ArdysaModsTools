@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.24-beta] (Build 2130)
+
+### 🚀 Improved & Refactored
+
+- **Hero Mapping Consolidation**: Extracted a unified `HeroModelMapper.MapFromSummaries(List<HeroSummary>)` service to map raw hero configurations to full `HeroModel` objects, replacing the legacy 270-line reflection-based mapping monster in `SelectHero.cs` and duplicate implementations in `HeroGalleryForm.cs` and `SelectHeroPresenter.cs`.
+- **Shared Utilities Extracted**:
+  - Extracted `IsCustomSet()` (detecting custom/mixed skin sets from file patterns) and `FormatHeroIdAsName()` to the shared `HeroModelMapper` utility.
+  - Consolidated all hero cache cleanup logic into `HeroCacheHelper.Cleanup()`, removing duplicate cleanup procedures in `SelectHero.cs` and `SelectHeroPresenter.cs`.
+- **Dead Code Removal**: Cleaned up orphaned event handlers and dead design bindings in `SelectHero.Designer.cs`.
+
+### 🐛 Fixed
+
+- **Preset Loading Fix**: Corrected a layout bug in `SelectHero.LoadPresetFromFile` where the selector queried active rows from `ScrollContainer` instead of `RowsFlow` controls, fixing preset activation.
+
+### 🧪 Testing
+
+- Added a comprehensive unit test suite in `HeroModelMapperTests.cs` validating `MapFromSummaries`, `IsCustomSet`, and `FormatHeroIdAsName` helper functions across 17 distinct scenarios.
+
+## [2.1.24-beta] (Build 2129)
+
+### ♻️ Refactoring
+
+- **Feature Gating Consolidation**: Replaced duplicate inline feature access checks in `MainFormPresenter` (2× ~18-line try/catch blocks) and `NavigationPresenter` (1× ~40-line method) with a single shared `CheckFeatureAsync()` helper.
+- All feature gating now flows through `FeatureAccessService.CheckFeatureAsync()` → `FeatureCheckResult` → presenter decision, eliminating code duplication and ensuring consistent behavior.
+
+### 🧪 Testing
+
+- Added 8 new unit tests for `CheckFeatureAsync`, `FeatureCheckResult` model, and `IsDevMode` accessor.
+
 ## [2.1.24-beta] (Build 2128)
 
 ### ✨ Added

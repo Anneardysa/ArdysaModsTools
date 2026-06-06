@@ -341,52 +341,34 @@ namespace ArdysaModsTools.UI.Presenters
         }
 
         /// <summary>
-        /// Checks if a feature is accessible via remote R2 config.
-        /// Shows a message and returns false if the feature is disabled.
+        /// Checks if a feature is accessible via the shared FeatureAccessService.
+        /// Shows FeatureUnavailableDialog and returns false if the feature is disabled.
+        /// Respects dev mode bypass (AMT_DEV_MODE=true in .env).
         /// Fail-open: returns true if config cannot be fetched.
         /// </summary>
         /// <param name="featureName">Feature name constant from FeatureAccessService.</param>
         /// <returns>True if access is allowed, false if blocked.</returns>
         private async Task<bool> CheckFeatureAccessAsync(string featureName)
         {
-            try
+            var result = await FeatureAccessService.CheckFeatureAsync(featureName);
+
+            if (result.IsDevModeBypass)
             {
-                // Do NOT use ConfigureAwait(false) here — we need to return to 
-                // the UI thread to safely call _view.ShowMessageBox() below.
-                var config = await FeatureAccessService.GetConfigAsync();
-                var feature = featureName switch
-                {
-                    FeatureAccessService.SkinSelectorFeature => config.SkinSelector,
-                    FeatureAccessService.MiscellaneousFeature => config.Miscellaneous,
-                    _ => new FeatureAccess()
-                };
-
-                if (!feature.Enabled)
-                {
-                    // Map feature constant to friendly display name
-                    var displayName = featureName switch
-                    {
-                        FeatureAccessService.SkinSelectorFeature => "Skin Selector",
-                        FeatureAccessService.MiscellaneousFeature => "Miscellaneous",
-                        _ => featureName
-                    };
-
-                    FeatureUnavailableDialog.Show(
-                        _view as IWin32Window,
-                        displayName,
-                        feature.GetDisplayMessage());
-                    _logger.Log($"[ACCESS] {featureName} is disabled by remote config");
-                    return false;
-                }
-
+                _logger.Log($"[DEV] Bypassed feature gate: {result.FeatureDisplayName}");
                 return true;
             }
-            catch (Exception ex)
+
+            if (!result.IsAllowed)
             {
-                // Fail-open: if access check itself fails, allow the feature
-                _logger.Log($"[ACCESS] Check failed for {featureName}: {ex.Message} — allowing access");
-                return true;
+                FeatureUnavailableDialog.Show(
+                    _view as IWin32Window,
+                    result.FeatureDisplayName,
+                    result.BlockedMessage!);
+                _logger.Log($"[ACCESS] {featureName} is disabled by remote config");
+                return false;
             }
+
+            return true;
         }
 
         private void LogGenerationResult(ModGenerationResult result)

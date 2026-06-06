@@ -877,7 +877,7 @@ namespace ArdysaModsTools.Core.Services
             // Archives are now expected to be unprotected - no password required
             var readerOptions = new SharpCompress.Readers.ReaderOptions();
             
-            using (var archive = ArchiveFactory.Open(memoryStream, readerOptions))
+            using (var archive = ArchiveFactory.OpenArchive(memoryStream, readerOptions))
             {
                 foreach (var entry in archive.Entries)
                 {

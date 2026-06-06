@@ -229,7 +229,7 @@ namespace ArdysaModsTools.UI.Forms
                 }
 
                 // Convert to JavaScript-friendly format
-                _heroes = ConvertToHeroModels(heroSummaries);
+                _heroes = HeroModelMapper.MapFromSummaries(heroSummaries);
 
                 var jsHeroes = _heroes.Select(h => new
                 {
@@ -242,7 +242,7 @@ namespace ArdysaModsTools.UI.Forms
                     {
                         name = kvp.Key,
                         index = idx,
-                        isCustom = IsCustomSet(kvp.Value),
+                        isCustom = HeroModelMapper.IsCustomSet(kvp.Value),
                         thumbnailUrl = kvp.Value?.FirstOrDefault(u => 
                             u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                             u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
@@ -339,7 +339,7 @@ namespace ArdysaModsTools.UI.Forms
                     return new
                     {
                         heroId = u.HeroId,
-                        heroName = hero?.DisplayName ?? hero?.Name ?? FormatHeroIdAsName(u.HeroId),
+                        heroName = hero?.DisplayName ?? hero?.Name ?? HeroModelMapper.FormatHeroIdAsName(u.HeroId),
                         heroThumbnail = heroThumbnail,
                         setName = u.SetName,
                         setIndex = setIndex,
@@ -371,65 +371,6 @@ namespace ArdysaModsTools.UI.Forms
         }
 
         /// <summary>
-        /// Format a hero ID like "npc_dota_hero_crystal_maiden" to "Crystal Maiden".
-        /// </summary>
-        private static string FormatHeroIdAsName(string heroId)
-        {
-            var name = heroId.Replace("npc_dota_hero_", "").Replace("_", " ");
-            return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name);
-        }
-
-
-        /// <summary>
-        /// Convert HeroSummary list to HeroModel list (same logic as SelectHero).
-        /// </summary>
-        private List<HeroModel> ConvertToHeroModels(List<HeroSummary> summaries)
-        {
-            var result = new List<HeroModel>();
-
-            foreach (var hs in summaries)
-            {
-                var internalId = !string.IsNullOrWhiteSpace(hs.UsedByHeroes) ? hs.UsedByHeroes : hs.Name ?? "";
-                var friendlyName = hs.Name ?? internalId;
-
-                var hm = new HeroModel
-                {
-                    HeroId = internalId,  // This is the npc_dota_hero_xxx ID
-                    Name = internalId,     // Keep for backwards compatibility  
-                    LocalizedName = friendlyName,
-                    PrimaryAttribute = !string.IsNullOrWhiteSpace(hs.PrimaryAttr) ? hs.PrimaryAttr.ToLowerInvariant() : "universal"
-                };
-
-                // Copy sets
-                if (hs.Sets != null && hs.Sets.Count > 0)
-                {
-                    hm.Sets = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var kvp in hs.Sets)
-                    {
-                        hm.Sets[kvp.Key] = kvp.Value?.ToList() ?? new List<string>();
-                    }
-                }
-
-                // Extract item IDs (parse from string array)
-                if (hs.Ids != null && hs.Ids.Length > 0)
-                {
-                    hm.ItemIds.Clear();
-                    var parsedIds = hs.Ids
-                        .Select(id => int.TryParse(id, out var n) ? n : (int?)null)
-                        .Where(n => n.HasValue)
-                        .Select(n => n!.Value)
-                        .Distinct()
-                        .OrderBy(x => x);
-                    hm.ItemIds.AddRange(parsedIds);
-                }
-
-                result.Add(hm);
-            }
-
-            return result;
-        }
-
-        /// <summary>
         /// Get thumbnail URL for a hero - always use Dota 2 CDN for default portrait.
         /// </summary>
         private string GetHeroThumbnail(HeroModel hero)
@@ -437,40 +378,6 @@ namespace ArdysaModsTools.UI.Forms
             // Always use Dota 2 CDN for default hero portrait (not set thumbnails)
             var heroName = hero.Name?.Replace("npc_dota_hero_", "") ?? "";
             return $"https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/{heroName}.png";
-        }
-
-        /// <summary>
-        /// Determines if a set is a "Custom Set" by checking whether its zip/archive filename starts with "mix_".
-        /// </summary>
-        private static bool IsCustomSet(List<string>? assetUrls)
-        {
-            if (assetUrls == null || assetUrls.Count == 0) return false;
-
-            // Find the first zip/rar URL and check its filename
-            var archiveUrl = assetUrls.FirstOrDefault(u =>
-                u.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-                u.EndsWith(".rar", StringComparison.OrdinalIgnoreCase) ||
-                u.EndsWith(".zip.001", StringComparison.OrdinalIgnoreCase));
-
-            if (string.IsNullOrEmpty(archiveUrl)) return false;
-
-            // Extract filename from URL
-            try
-            {
-                var fileName = Path.GetFileName(new Uri(archiveUrl).LocalPath);
-                return fileName.StartsWith("mix_", StringComparison.OrdinalIgnoreCase);
-            }
-            catch
-            {
-                // Fallback: just check the URL string directly
-                var lastSlash = archiveUrl.LastIndexOf('/');
-                if (lastSlash >= 0 && lastSlash < archiveUrl.Length - 1)
-                {
-                    var fileName = archiveUrl.Substring(lastSlash + 1);
-                    return fileName.StartsWith("mix_", StringComparison.OrdinalIgnoreCase);
-                }
-                return false;
-            }
         }
 
         /// <summary>

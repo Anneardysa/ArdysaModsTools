@@ -279,7 +279,6 @@ namespace ArdysaModsTools.UI.Forms
             modernSearchBox.SearchText = "";
             modernSearchBox.Size = new Size(260, 40);
             modernSearchBox.TabIndex = 0;
-            modernSearchBox.Load += modernSearchBox_Load_1;
             // 
             // CategoryFlow
             // 

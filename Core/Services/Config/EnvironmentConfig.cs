@@ -138,6 +138,18 @@ namespace ArdysaModsTools.Core.Services.Config
                 StringComparison.OrdinalIgnoreCase);
         
         /// <summary>
+        /// Whether developer mode is active.
+        /// Activated by setting AMT_DEV_MODE=true in .env file (gitignored).
+        /// When active, feature access gating is bypassed so the developer
+        /// can access Skin Selector and Miscellaneous even when disabled remotely.
+        /// </summary>
+        public static bool IsDevMode =>
+            string.Equals(
+                Environment.GetEnvironmentVariable("AMT_DEV_MODE"),
+                "true",
+                StringComparison.OrdinalIgnoreCase);
+        
+        /// <summary>
         /// Optional GitHub Personal Access Token for higher rate limits.
         /// Without token: 60 requests/hour. With token: 5000 requests/hour.
         /// Only needs "public_repo" scope for public repository access.

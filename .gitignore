@@ -96,3 +96,4 @@ docs/samples/
 .auto-claude/
 .agent/
 .trains/
+/.train

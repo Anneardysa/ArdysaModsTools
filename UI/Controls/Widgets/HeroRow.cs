@@ -261,37 +261,10 @@ namespace ArdysaModsTools.UI.Controls.Widgets
 
         /// <summary>
         /// Returns true if the set's archive filename starts with "mix_" (case-insensitive), indicating a custom/mixed set.
-        /// Checks the zip/rar URLs in the set's asset list.
+        /// Delegates to shared <see cref="ArdysaModsTools.Core.Services.HeroModelMapper.IsCustomSet(Dictionary{string, List{string}}?, string)"/>.
         /// </summary>
         private static bool IsCustomSet(Dictionary<string, List<string>>? sets, string skinName)
-        {
-            if (sets == null || string.IsNullOrWhiteSpace(skinName)) return false;
-            if (!sets.TryGetValue(skinName, out var urls) || urls == null || urls.Count == 0) return false;
-
-            // Find the first archive URL and check its filename
-            var archiveUrl = urls.FirstOrDefault(u =>
-                u.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
-                u.EndsWith(".rar", StringComparison.OrdinalIgnoreCase) ||
-                u.EndsWith(".zip.001", StringComparison.OrdinalIgnoreCase));
-
-            if (string.IsNullOrEmpty(archiveUrl)) return false;
-
-            try
-            {
-                var fileName = Path.GetFileName(new Uri(archiveUrl).LocalPath);
-                return fileName.StartsWith("mix_", StringComparison.OrdinalIgnoreCase);
-            }
-            catch
-            {
-                var lastSlash = archiveUrl.LastIndexOf('/');
-                if (lastSlash >= 0 && lastSlash < archiveUrl.Length - 1)
-                {
-                    var fileName = archiveUrl.Substring(lastSlash + 1);
-                    return fileName.StartsWith("mix_", StringComparison.OrdinalIgnoreCase);
-                }
-                return false;
-            }
-        }
+            => ArdysaModsTools.Core.Services.HeroModelMapper.IsCustomSet(sets, skinName);
 
         /// <summary>
         /// Creates a styled category header label for the tiles flow panel.

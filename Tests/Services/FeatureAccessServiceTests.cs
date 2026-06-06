@@ -285,5 +285,119 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         #endregion
+
+        #region CheckFeatureAsync Tests
+
+        [Test]
+        public async Task CheckFeatureAsync_SkinSelector_ReturnsResult()
+        {
+            // Arrange
+            FeatureAccessService.InvalidateCache();
+
+            // Act
+            var result = await FeatureAccessService.CheckFeatureAsync(
+                FeatureAccessService.SkinSelectorFeature);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.FeatureDisplayName, Is.EqualTo("Skin Selector"));
+            // IsAllowed depends on remote config or dev mode, but should not throw
+        }
+
+        [Test]
+        public async Task CheckFeatureAsync_Miscellaneous_ReturnsResult()
+        {
+            // Arrange
+            FeatureAccessService.InvalidateCache();
+
+            // Act
+            var result = await FeatureAccessService.CheckFeatureAsync(
+                FeatureAccessService.MiscellaneousFeature);
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.FeatureDisplayName, Is.EqualTo("Miscellaneous"));
+        }
+
+        [Test]
+        public async Task CheckFeatureAsync_UnknownFeature_ReturnsAllowed_FailOpen()
+        {
+            // Act
+            var result = await FeatureAccessService.CheckFeatureAsync("UnknownFeature");
+
+            // Assert
+            Assert.That(result.IsAllowed, Is.True,
+                "Unknown feature should be allowed (fail-open)");
+            Assert.That(result.FeatureDisplayName, Is.EqualTo("UnknownFeature"));
+        }
+
+        #endregion
+
+        #region FeatureCheckResult Model Tests
+
+        [Test]
+        public void FeatureCheckResult_Allowed_HasCorrectState()
+        {
+            // Act
+            var result = FeatureCheckResult.Allowed("Skin Selector");
+
+            // Assert
+            Assert.That(result.IsAllowed, Is.True);
+            Assert.That(result.IsDevModeBypass, Is.False);
+            Assert.That(result.FeatureDisplayName, Is.EqualTo("Skin Selector"));
+            Assert.That(result.BlockedMessage, Is.Null);
+        }
+
+        [Test]
+        public void FeatureCheckResult_Allowed_DevMode_HasBypassFlag()
+        {
+            // Act
+            var result = FeatureCheckResult.Allowed("Skin Selector", devModeBypass: true);
+
+            // Assert
+            Assert.That(result.IsAllowed, Is.True);
+            Assert.That(result.IsDevModeBypass, Is.True);
+            Assert.That(result.FeatureDisplayName, Is.EqualTo("Skin Selector"));
+        }
+
+        [Test]
+        public void FeatureCheckResult_Blocked_HasCorrectState()
+        {
+            // Act
+            var result = FeatureCheckResult.Blocked("Skin Selector", "Under maintenance");
+
+            // Assert
+            Assert.That(result.IsAllowed, Is.False);
+            Assert.That(result.IsDevModeBypass, Is.False);
+            Assert.That(result.FeatureDisplayName, Is.EqualTo("Skin Selector"));
+            Assert.That(result.BlockedMessage, Is.EqualTo("Under maintenance"));
+        }
+
+        [Test]
+        public void FeatureCheckResult_Blocked_NullMessage_IsNotAllowed()
+        {
+            // Act — edge case: blocked with empty message
+            var result = FeatureCheckResult.Blocked("Miscellaneous", "");
+
+            // Assert
+            Assert.That(result.IsAllowed, Is.False);
+            Assert.That(result.BlockedMessage, Is.EqualTo(""));
+        }
+
+        #endregion
+
+        #region IsDevMode Tests
+
+        [Test]
+        public void IsDevMode_ReturnsBoolean()
+        {
+            // Act — just verify it doesn't throw and returns a valid bool
+            var devMode = FeatureAccessService.IsDevMode;
+
+            // Assert
+            Assert.That(devMode, Is.TypeOf<bool>());
+        }
+
+        #endregion
     }
 }

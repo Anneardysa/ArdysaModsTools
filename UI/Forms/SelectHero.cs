@@ -148,279 +148,9 @@ namespace ArdysaModsTools.UI.Forms
                     var list = await _heroService.LoadHeroesAsync();
                     if (list != null && list.Count > 0)
                     {
-                        // Map HeroSummary -> your UI's HeroModel (preserve original shape)
+                        // Map HeroSummary → HeroModel using shared mapper (replaces 270-line reflection block)
                         heroList.Clear();
-                        // Robust mapping (fixed) starts here
-                        foreach (var hs in list)
-                        {
-                            // prefer used_by_heroes (npc string) as the internal id; fallback to Name
-                            var internalId = !string.IsNullOrWhiteSpace(hs.UsedByHeroes) ? hs.UsedByHeroes : hs.Name ?? "";
-
-                            // friendly display name
-                            var friendlyName = hs.Name ?? internalId;
-
-                            // detect primary attribute via reflection (try common property names)
-                            string primaryAttr = "universal";
-                            try
-                            {
-                                var paProp = hs.GetType().GetProperty("PrimaryAttribute")
-                                             ?? hs.GetType().GetProperty("primary_attr")
-                                             ?? hs.GetType().GetProperty("primaryAttr")
-                                             ?? hs.GetType().GetProperty("PrimaryAttr");
-
-                                if (paProp != null)
-                                {
-                                    var paVal = paProp.GetValue(hs) as string;
-                                    if (!string.IsNullOrWhiteSpace(paVal)) primaryAttr = paVal;
-                                }
-                            }
-                            catch { /* best-effort */ }
-
-                            var hm = new HeroModel
-                            {
-                                Name = internalId,           // keep compatibility where HeroModel.Id returns Name
-                                LocalizedName = friendlyName,
-                                PrimaryAttribute = string.IsNullOrWhiteSpace(primaryAttr) ? "universal" : primaryAttr.ToLowerInvariant()
-                            };
-
-                            // --- 1) copy 'sets' robustly ---
-                            try
-                            {
-                                hm.Sets = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-
-                                var setsProp = hs.GetType().GetProperty("Sets") ?? hs.GetType().GetProperty("sets");
-                                if (setsProp != null)
-                                {
-                                    var setsVal = setsProp.GetValue(hs);
-                                    if (setsVal != null)
-                                    {
-                                        // IDictionary-like (most common)
-                                        if (setsVal is System.Collections.IDictionary dict)
-                                        {
-                                            foreach (var keyObj in dict.Keys)
-                                            {
-                                                var keyName = keyObj?.ToString();
-                                                if (string.IsNullOrEmpty(keyName)) continue;
-
-                                                var valuesObj = dict[keyObj!];
-                                                var valuesList = new List<string>();
-                                                if (valuesObj is System.Collections.IEnumerable enumVal && !(valuesObj is string))
-                                                {
-                                                    foreach (var v in enumVal)
-                                                    {
-                                                        var sVal = v?.ToString();
-                                                        if (!string.IsNullOrEmpty(sVal)) valuesList.Add(sVal);
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    var sVal = valuesObj?.ToString();
-                                                    if (!string.IsNullOrEmpty(sVal)) valuesList.Add(sVal);
-                                                }
-
-                                                if (valuesList.Count > 0) hm.Sets[keyName] = valuesList;
-                                            }
-                                        }
-                                        // enumerable of JsonProperty or KV pairs (JsonElement or reflection)
-                                        else if (setsVal is System.Collections.IEnumerable enumSets && !(setsVal is string))
-                                        {
-                                            foreach (var kv in enumSets)
-                                            {
-                                                if (kv == null) continue;
-                                                var kvType = kv.GetType();
-
-                                                // JsonProperty case (from System.Text.Json when enumerating an object)
-                                                if (kvType.Name == "JsonProperty")
-                                                {
-                                                    var nm = kvType.GetProperty("Name")?.GetValue(kv)?.ToString();
-                                                    var rawVal = kvType.GetProperty("Value")?.GetValue(kv);
-                                                    if (string.IsNullOrEmpty(nm) || rawVal == null) continue;
-
-                                                    if (rawVal is System.Text.Json.JsonElement je)
-                                                    {
-                                                        var valuesList = new List<string>();
-                                                        if (je.ValueKind == System.Text.Json.JsonValueKind.Array)
-                                                        {
-                                                            foreach (var el in je.EnumerateArray())
-                                                            {
-                                                                if (el.ValueKind == System.Text.Json.JsonValueKind.String) valuesList.Add(el.GetString() ?? "");
-                                                                else valuesList.Add(el.ToString());
-                                                            }
-                                                        }
-                                                        else if (je.ValueKind == System.Text.Json.JsonValueKind.String)
-                                                        {
-                                                            valuesList.Add(je.GetString() ?? "");
-                                                        }
-
-                                                        if (valuesList.Count > 0) hm.Sets[nm] = valuesList;
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    // KeyValuePair-like (Key and Value props)
-                                                    var keyProp = kvType.GetProperty("Key") ?? kvType.GetProperty("Name");
-                                                    var valueProp = kvType.GetProperty("Value");
-                                                    if (keyProp != null && valueProp != null)
-                                                    {
-                                                        var k = keyProp.GetValue(kv)?.ToString();
-                                                        var v = valueProp.GetValue(kv);
-                                                        if (string.IsNullOrEmpty(k) || v == null) continue;
-
-                                                        var valuesList = new List<string>();
-                                                        if (v is System.Collections.IEnumerable ev && !(v is string))
-                                                        {
-                                                            foreach (var eitem in ev)
-                                                            {
-                                                                var s = eitem?.ToString();
-                                                                if (!string.IsNullOrEmpty(s)) valuesList.Add(s);
-                                                            }
-                                                        }
-                                                        else
-                                                        {
-                                                            var s = v?.ToString();
-                                                            if (!string.IsNullOrEmpty(s)) valuesList.Add(s);
-                                                        }
-
-                                                        if (valuesList.Count > 0) hm.Sets[k] = valuesList;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        // JsonElement fallback
-                                        else if (setsVal is System.Text.Json.JsonElement jeRoot && jeRoot.ValueKind == System.Text.Json.JsonValueKind.Object)
-                                        {
-                                            foreach (var prop in jeRoot.EnumerateObject())
-                                            {
-                                                var valuesList = new List<string>();
-                                                if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.Array)
-                                                {
-                                                    foreach (var el in prop.Value.EnumerateArray())
-                                                    {
-                                                        if (el.ValueKind == System.Text.Json.JsonValueKind.String) valuesList.Add(el.GetString() ?? "");
-                                                        else valuesList.Add(el.ToString());
-                                                    }
-                                                }
-                                                else if (prop.Value.ValueKind == System.Text.Json.JsonValueKind.String)
-                                                {
-                                                    valuesList.Add(prop.Value.GetString() ?? "");
-                                                }
-
-                                                if (valuesList.Count > 0) hm.Sets[prop.Name] = valuesList;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                catch
-                {
-                    // Debug logging only in DEBUG builds
-                }
-
-                            // fallback if sets empty: attempt to coerce into "Default Set"
-                            if (hm.Sets == null || hm.Sets.Count == 0)
-                            {
-                                try
-                                {
-                                    var fallbackItems = new List<string>();
-                                    var maybeSets = hs.GetType().GetProperty("Sets")?.GetValue(hs) ?? hs.GetType().GetProperty("sets")?.GetValue(hs);
-                                    if (maybeSets is System.Collections.IEnumerable enumMaybe && !(maybeSets is string))
-                                    {
-                                        foreach (var v in enumMaybe)
-                                        {
-                                            var s = v?.ToString();
-                                            if (!string.IsNullOrEmpty(s)) fallbackItems.Add(s);
-                                        }
-                                    }
-
-                                    if (fallbackItems.Count > 0)
-                                    {
-                                        hm.Sets = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
-                {
-                    { "Default Set", fallbackItems }
-                };
-                                    }
-                                }
-                                catch { /* swallow fallback errors */ }
-                            }
-
-                            // --- 2) extract numeric item IDs ---
-                            var foundIds = new List<int>();
-                            var propNames = new[] { "ItemIds", "Ids", "id", "ids", "ID", "item_ids", "itemIds" };
-                            foreach (var pn in propNames)
-                            {
-                                var pi = hs.GetType().GetProperty(pn);
-                                if (pi == null) continue;
-                                var val = pi.GetValue(hs);
-                                if (val == null) continue;
-
-                                if (val is System.Collections.IEnumerable enumVal && !(val is string))
-                                {
-                                    foreach (var it in enumVal)
-                                    {
-                                        if (it == null) continue;
-                                        if (it is int ii) { foundIds.Add(ii); continue; }
-                                        if (it is long ll) { foundIds.Add((int)ll); continue; }
-                                        if (it is string s)
-                                        {
-                                            if (int.TryParse(s, out var p)) foundIds.Add(p);
-                                            continue;
-                                        }
-                                        if (it is System.Text.Json.JsonElement je)
-                                        {
-                                            try
-                                            {
-                                                if (je.ValueKind == System.Text.Json.JsonValueKind.Number && je.TryGetInt32(out var jn))
-                                                    foundIds.Add(jn);
-                                                else if (je.ValueKind == System.Text.Json.JsonValueKind.String)
-                                                {
-                                                    var st = je.GetString();
-                                                    if (int.TryParse(st, out var pn2)) foundIds.Add(pn2);
-                                                }
-                                            }
-                                            catch { }
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    if (val is int vi) foundIds.Add(vi);
-                                    else if (val is long vl) foundIds.Add((int)vl);
-                                    else if (val is string vs && int.TryParse(vs, out var vp)) foundIds.Add(vp);
-                                    else if (val is System.Text.Json.JsonElement je)
-                                    {
-                                        try
-                                        {
-                                            if (je.ValueKind == System.Text.Json.JsonValueKind.Number && je.TryGetInt32(out var jn))
-                                                foundIds.Add(jn);
-                                            else if (je.ValueKind == System.Text.Json.JsonValueKind.String)
-                                            {
-                                                var st = je.GetString();
-                                                if (int.TryParse(st, out var pn2)) foundIds.Add(pn2);
-                                            }
-                                        }
-                                        catch { }
-                                    }
-                                }
-
-                                if (foundIds.Count > 0) break;
-                            }
-
-                            if (foundIds.Count > 0)
-                            {
-                                hm.ItemIds.Clear();
-                                hm.ItemIds.AddRange(foundIds.Distinct().OrderBy(x => x));
-                            }
-                            else
-                            {
-#if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"[SelectHero] Warning: hero '{hm.DisplayName}' ({internalId}) has no item IDs from HeroService — generator will fail unless heroes.json provides 'id'.");
-#endif
-                            }
-
-                            // Add to final list
-                            heroList.Add(hm);
-                        }
-                        // Robust mapping ends here
+                        heroList.AddRange(HeroModelMapper.MapFromSummaries(list));
 
                         AppendDebug($"Loaded {heroList.Count} heroes from heroes.json.");
                     }
@@ -706,7 +436,7 @@ namespace ArdysaModsTools.UI.Forms
             finally
             {
                 // Cleanup hero download cache
-                CleanupHeroCache();
+                HeroCacheHelper.Cleanup();
                 
                 // Re-enable UI
                 SetUiEnabled(true);
@@ -1032,7 +762,7 @@ namespace ArdysaModsTools.UI.Forms
             selectedByHero.Clear();
             foreach (var kv in dict) selectedByHero[kv.Key] = kv.Value;
 
-            foreach (HeroRow row in ScrollContainer.Controls.OfType<HeroRow>())
+            foreach (HeroRow row in RowsFlow.Controls.OfType<HeroRow>())
             {
                 if (!string.IsNullOrEmpty(row.HeroId) && selectedByHero.TryGetValue(row.HeroId, out var sel))
                     row.ApplySelection(sel);
@@ -1095,48 +825,21 @@ namespace ArdysaModsTools.UI.Forms
         }
 
         /// <summary>
-        /// Safe status setter — only updates lbl_Status if it exists on the form.
-        /// Falls back to Debug.WriteLine if the control is not present.
+        /// Updates the status label text. Uses direct field access (lbl_Status is a Designer field).
         /// </summary>
         private void SetStatus(string text)
         {
-            try
+            if (lbl_Status == null || lbl_Status.IsDisposed) return;
+
+            if (lbl_Status.InvokeRequired)
             {
-                var fi = this.GetType().GetField("lbl_Status", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
-                if (fi != null)
-                {
-                    var lbl = fi.GetValue(this) as System.Windows.Forms.Label;
-                    if (lbl != null && !lbl.IsDisposed)
-                    {
-                        if (lbl.InvokeRequired)
-                        {
-                            lbl.Invoke(new Action(() => { lbl.Text = text; lbl.Refresh(); }));
-                        }
-                        else
-                        {
-                            lbl.Text = text;
-                            lbl.Refresh();
-                        }
-                        return;
-                    }
-                }
-
-                // If no label exists, write to debug output
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("[Status] " + text);
-#endif
+                lbl_Status.Invoke(new Action(() => { lbl_Status.Text = text; lbl_Status.Refresh(); }));
             }
-            catch
+            else
             {
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("[Status] (error updating) " + text);
-#endif
+                lbl_Status.Text = text;
+                lbl_Status.Refresh();
             }
-        }
-
-        private void modernSearchBox_Load(object sender, EventArgs e)
-        {
-
         }
 
         #region Selection Persistence
@@ -1227,52 +930,7 @@ namespace ArdysaModsTools.UI.Forms
             return Path.Combine(appFolder, "hero_selections.json");
         }
 
-        /// <summary>
-        /// Cleans up all hero download cache folders to prevent game errors.
-        /// </summary>
-        private static void CleanupHeroCache()
-        {
-            try
-            {
-                var tempPath = Path.GetTempPath();
-
-                var selectHeroTemp = Path.Combine(tempPath, "ArdysaSelectHero");
-                if (Directory.Exists(selectHeroTemp))
-                {
-                    Directory.Delete(selectHeroTemp, true);
-                }
-
-                foreach (var dir in Directory.GetDirectories(tempPath, "ArdysaHero_*"))
-                {
-                    try
-                    {
-                        Directory.Delete(dir, true);
-                    }
-                    catch { /* Ignore individual failures */ }
-                }
-
-                var setsCache = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cache", "sets");
-                if (Directory.Exists(setsCache))
-                {
-                    Directory.Delete(setsCache, true);
-                }
-
-#if DEBUG
-                System.Diagnostics.Debug.WriteLine("[SelectHero] Hero cache cleanup completed");
-#endif
-            }
-            catch
-            {
-                // Silently ignore cleanup failures
-            }
-        }
-
         #endregion
-
-        private void modernSearchBox_Load_1(object sender, EventArgs e)
-        {
-
-        }
     }
 }
 

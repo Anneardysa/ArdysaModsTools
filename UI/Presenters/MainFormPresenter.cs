@@ -935,7 +935,12 @@ namespace ArdysaModsTools.UI.Presenters
             {
                 var version = System.Reflection.Assembly.GetExecutingAssembly()
                     .GetName().Version?.ToString() ?? "Unknown";
-                _view.SetVersion($"Version: {version}");
+                
+                var versionText = FeatureAccessService.IsDevMode
+                    ? $"Version: {version} [DEV]"
+                    : $"Version: {version}";
+                
+                _view.SetVersion(versionText);
             }
             catch
             {
@@ -1417,24 +1422,21 @@ namespace ArdysaModsTools.UI.Presenters
         {
             if (string.IsNullOrEmpty(_targetPath)) return;
 
-            // Check remote feature access control
-            try
+            // Check feature access (shared helper — handles dev mode bypass + remote config)
+            var miscAccess = await FeatureAccessService.CheckFeatureAsync(
+                FeatureAccessService.MiscellaneousFeature);
+            if (!miscAccess.IsAllowed)
             {
-                var accessConfig = await FeatureAccessService.GetConfigAsync();
-                if (!accessConfig.Miscellaneous.Enabled)
-                {
-                    FeatureUnavailableDialog.Show(
-                        _view as IWin32Window,
-                        "Miscellaneous",
-                        accessConfig.Miscellaneous.GetDisplayMessage());
-                    _logger.Log($"[ACCESS] Miscellaneous is disabled by remote config");
-                    return;
-                }
+                FeatureUnavailableDialog.Show(
+                    _view as IWin32Window,
+                    miscAccess.FeatureDisplayName,
+                    miscAccess.BlockedMessage!);
+                _logger.Log($"[ACCESS] Miscellaneous is disabled by remote config");
+                return;
             }
-            catch (Exception ex)
+            if (miscAccess.IsDevModeBypass)
             {
-                // Fail-open: if access check fails, allow the feature
-                _logger.Log($"[ACCESS] Check failed for Miscellaneous: {ex.Message} — allowing access");
+                _logger.Log($"[DEV] Bypassed feature gate: {miscAccess.FeatureDisplayName}");
             }
 
             // Show Misc Form and get result
@@ -1472,24 +1474,21 @@ namespace ArdysaModsTools.UI.Presenters
                 return;
             }
 
-            // Check remote feature access control
-            try
+            // Check feature access (shared helper — handles dev mode bypass + remote config)
+            var skinAccess = await FeatureAccessService.CheckFeatureAsync(
+                FeatureAccessService.SkinSelectorFeature);
+            if (!skinAccess.IsAllowed)
             {
-                var accessConfig = await FeatureAccessService.GetConfigAsync();
-                if (!accessConfig.SkinSelector.Enabled)
-                {
-                    FeatureUnavailableDialog.Show(
-                        _view as IWin32Window,
-                        "Skin Selector",
-                        accessConfig.SkinSelector.GetDisplayMessage());
-                    _logger.Log($"[ACCESS] SkinSelector is disabled by remote config");
-                    return;
-                }
+                FeatureUnavailableDialog.Show(
+                    _view as IWin32Window,
+                    skinAccess.FeatureDisplayName,
+                    skinAccess.BlockedMessage!);
+                _logger.Log($"[ACCESS] SkinSelector is disabled by remote config");
+                return;
             }
-            catch (Exception ex)
+            if (skinAccess.IsDevModeBypass)
             {
-                // Fail-open: if access check fails, allow the feature
-                _logger.Log($"[ACCESS] Check failed for SkinSelector: {ex.Message} — allowing access");
+                _logger.Log($"[DEV] Bypassed feature gate: {skinAccess.FeatureDisplayName}");
             }
 
             // Check GitHub access before opening form

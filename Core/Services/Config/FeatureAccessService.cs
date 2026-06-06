@@ -25,6 +25,43 @@ using ArdysaModsTools.Core.Models;
 namespace ArdysaModsTools.Core.Services.Config
 {
     /// <summary>
+    /// Result of a feature access check.
+    /// Used by presenters to determine whether to allow access, show dialog, or log bypass.
+    /// </summary>
+    public sealed class FeatureCheckResult
+    {
+        /// <summary>Whether the feature is allowed (either enabled or bypassed by dev mode).</summary>
+        public bool IsAllowed { get; init; }
+
+        /// <summary>Whether access was granted via dev mode bypass (AMT_DEV_MODE=true in .env).</summary>
+        public bool IsDevModeBypass { get; init; }
+
+        /// <summary>Human-readable feature name (e.g., "Skin Selector").</summary>
+        public string FeatureDisplayName { get; init; } = "";
+
+        /// <summary>Message to show when feature is blocked. Null when allowed.</summary>
+        public string? BlockedMessage { get; init; }
+
+        /// <summary>Creates an "allowed" result.</summary>
+        public static FeatureCheckResult Allowed(
+            string displayName, bool devModeBypass = false) => new()
+        {
+            IsAllowed = true,
+            IsDevModeBypass = devModeBypass,
+            FeatureDisplayName = displayName
+        };
+
+        /// <summary>Creates a "blocked" result with a message for the user.</summary>
+        public static FeatureCheckResult Blocked(
+            string displayName, string message) => new()
+        {
+            IsAllowed = false,
+            FeatureDisplayName = displayName,
+            BlockedMessage = message
+        };
+    }
+
+    /// <summary>
     /// Service to fetch and cache feature access configuration from R2 CDN.
     /// Controls which features (Skin Selector, Miscellaneous) are accessible.
     /// 
@@ -33,6 +70,7 @@ namespace ArdysaModsTools.Core.Services.Config
     /// - 5-minute cache to balance freshness vs. request volume
     /// - Static service (same pattern as SubsGoalService)
     /// - Thread-safe via lock on cache operations
+    /// - Dev mode (.env): bypasses gating for developer
     /// </summary>
     public static class FeatureAccessService
     {
@@ -160,6 +198,56 @@ namespace ArdysaModsTools.Core.Services.Config
             var config = await GetConfigAsync().ConfigureAwait(false);
             return GetFeatureAccess(config, featureName).GetDisplayMessage();
         }
+
+        /// <summary>
+        /// Checks if a feature is accessible. Single entry point for all feature gating.
+        /// Handles dev mode bypass, remote config fetch, and fail-open.
+        /// Both NavigationPresenter and MainFormPresenter should use this.
+        /// </summary>
+        /// <param name="featureName">Feature name constant (SkinSelectorFeature or MiscellaneousFeature).</param>
+        /// <returns>Result with allowed/blocked state, display name, and optional message.</returns>
+        public static async Task<FeatureCheckResult> CheckFeatureAsync(string featureName)
+        {
+            var displayName = featureName switch
+            {
+                SkinSelectorFeature => "Skin Selector",
+                MiscellaneousFeature => "Miscellaneous",
+                _ => featureName
+            };
+
+            // Dev mode bypass — AMT_DEV_MODE=true in .env (gitignored)
+            if (IsDevMode)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[DEV] Bypassing feature gate for {displayName}");
+                return FeatureCheckResult.Allowed(displayName, devModeBypass: true);
+            }
+
+            try
+            {
+                var config = await GetConfigAsync().ConfigureAwait(false);
+                var feature = GetFeatureAccess(config, featureName);
+
+                if (!feature.Enabled)
+                {
+                    return FeatureCheckResult.Blocked(
+                        displayName, feature.GetDisplayMessage());
+                }
+
+                return FeatureCheckResult.Allowed(displayName);
+            }
+            catch
+            {
+                // Fail-open: if access check fails, allow the feature
+                return FeatureCheckResult.Allowed(displayName);
+            }
+        }
+
+        /// <summary>
+        /// Whether dev mode is currently active (AMT_DEV_MODE=true in .env).
+        /// Convenience accessor for UI layer.
+        /// </summary>
+        public static bool IsDevMode => EnvironmentConfig.IsDevMode;
 
         /// <summary>
         /// Force cache invalidation to re-fetch on next access.

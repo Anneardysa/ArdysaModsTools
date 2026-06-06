@@ -95,7 +95,7 @@ namespace ArdysaModsTools.UI.Presenters
                 
                 if (heroSummaries != null && heroSummaries.Count > 0)
                 {
-                    _heroList = MapHeroSummariesToModels(heroSummaries);
+                    _heroList = HeroModelMapper.MapFromSummaries(heroSummaries);
                     _heroLookup = _heroList.ToDictionary(h => h.Id, h => h, StringComparer.OrdinalIgnoreCase);
                     
                     _view.AppendDebug($"Loaded {_heroList.Count} heroes.");
@@ -118,55 +118,6 @@ namespace ArdysaModsTools.UI.Presenters
                 _view.AppendDebug($"Failed to load heroes: {ex.Message}");
                 _view.SetStatus("Failed to load heroes.");
             }
-        }
-
-        private List<HeroModel> MapHeroSummariesToModels(List<HeroSummary> summaries)
-        {
-            var models = new List<HeroModel>();
-
-            foreach (var hs in summaries)
-            {
-                var internalId = !string.IsNullOrWhiteSpace(hs.UsedByHeroes) 
-                    ? hs.UsedByHeroes 
-                    : hs.Name ?? "";
-                var friendlyName = hs.Name ?? internalId;
-
-                var hm = new HeroModel
-                {
-                    Name = internalId,
-                    LocalizedName = friendlyName,
-                    PrimaryAttribute = string.IsNullOrWhiteSpace(hs.PrimaryAttr) 
-                        ? "universal" 
-                        : hs.PrimaryAttr.ToLowerInvariant()
-                };
-
-                // Copy sets
-                if (hs.Sets != null && hs.Sets.Count > 0)
-                {
-                    hm.Sets = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-                    foreach (var kvp in hs.Sets)
-                    {
-                        hm.Sets[kvp.Key] = new List<string>(kvp.Value);
-                    }
-                }
-
-                // Copy item IDs from Ids property (convert string to int)
-                if (hs.Ids != null && hs.Ids.Length > 0)
-                {
-                    hm.ItemIds.Clear();
-                    foreach (var idStr in hs.Ids)
-                    {
-                        if (int.TryParse(idStr, out int id))
-                        {
-                            hm.ItemIds.Add(id);
-                        }
-                    }
-                }
-
-                models.Add(hm);
-            }
-
-            return models;
         }
 
         #endregion
@@ -493,22 +444,8 @@ namespace ArdysaModsTools.UI.Presenters
 
         private void CleanupHeroCache()
         {
-            try
-            {
-                var targetPath = _configService.GetLastTargetPath();
-                if (string.IsNullOrEmpty(targetPath))
-                    return;
-
-                var heroDownloadDir = Path.Combine(targetPath, "_hero_downloads");
-                if (Directory.Exists(heroDownloadDir))
-                {
-                    Directory.Delete(heroDownloadDir, true);
-                }
-            }
-            catch (Exception ex)
-            {
-                _view.AppendDebug($"Cache cleanup failed: {ex.Message}");
-            }
+            var targetPath = _configService.GetLastTargetPath();
+            HeroCacheHelper.Cleanup(targetPath);
         }
 
         #endregion
