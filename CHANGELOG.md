@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.25-beta] (Build 2131)
+
+### ✨ Added
+
+- **UI**: Added a 4-section layout in Hero Skin Selection modal (Legacy Sets, Custom Sets, Items, Base Heroes) with custom category styling.
+- **Model**: Added `HeroSelectionState` model to represent structured selections (Sets, Items, and Base Heroes) with JSON serialization.
+- **Core**: Added `SkinCategory` enum and classification utilities to categorize sets based on filename prefixes (`mix_`, `item_`, `base_`).
+- **Core**: Added support for mapping and tracking Base Hero assets under the `hero_base` item slot.
+- **Tooling**: Added Mode 4 (Category Overview) to the Python model patching script (`2-patch_models.py`) to summarize hero assets by category in terminal output.
+
+### 🛠️ Changed
+
+- **UI**: Implemented selection exclusivity logic: Set (Legacy/Custom) mutual exclusion, single-select Base Heroes, and multi-select Items.
+- **Generator**: Re-engineered the mod generation pipeline into a 3-tier priority merging pipeline applying selections in order: Set → Items → Base Hero.
+- **Persistence**: Simplified selection saving to persist only highlighted hero IDs, while providing backward compatibility parsing for older selection schemas.
+- **Refactor**: Standardized category classification logic across C# (`HeroModelMapper.cs`) and Python (`2-patch_models.py`) using filename prefixes.
+
+---
+
 ## [2.1.24-beta] (Build 2130)
 
 ### 🚀 Improved & Refactored

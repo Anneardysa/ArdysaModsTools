@@ -138,6 +138,90 @@ public static class HeroModelMapper
     }
 
     /// <summary>
+    /// Classification categories for hero skin entries.
+    /// Determined by archive filename prefix in the set's asset URLs.
+    /// </summary>
+    public enum SkinCategory
+    {
+        /// <summary>Default category — set name does NOT start with mix_, item_, or base_.</summary>
+        LegacySet,
+        /// <summary>Archive filename starts with "mix_".</summary>
+        CustomSet,
+        /// <summary>Archive filename starts with "item_".</summary>
+        Item,
+        /// <summary>Archive filename starts with "base_".</summary>
+        BaseHero
+    }
+
+    /// <summary>
+    /// Classifies a set entry based on the archive filename prefix in its asset URLs.
+    /// Rules: item_ → Item, base_ → BaseHero, mix_ → CustomSet, else → LegacySet.
+    /// </summary>
+    public static SkinCategory ClassifySet(List<string>? assetUrls)
+    {
+        if (assetUrls == null || assetUrls.Count == 0)
+            return SkinCategory.LegacySet;
+
+        var archiveFileName = ExtractArchiveFileName(assetUrls);
+        if (string.IsNullOrEmpty(archiveFileName))
+            return SkinCategory.LegacySet;
+
+        if (archiveFileName.StartsWith("item_", StringComparison.OrdinalIgnoreCase))
+            return SkinCategory.Item;
+        if (archiveFileName.StartsWith("base_", StringComparison.OrdinalIgnoreCase))
+            return SkinCategory.BaseHero;
+        if (archiveFileName.StartsWith("mix_", StringComparison.OrdinalIgnoreCase))
+            return SkinCategory.CustomSet;
+
+        return SkinCategory.LegacySet;
+    }
+
+    /// <summary>
+    /// Classifies a named set within a hero's sets dictionary.
+    /// </summary>
+    public static SkinCategory ClassifySet(Dictionary<string, List<string>>? sets, string setName)
+    {
+        if (sets == null || string.IsNullOrWhiteSpace(setName))
+            return SkinCategory.LegacySet;
+        if (!sets.TryGetValue(setName, out var urls))
+            return SkinCategory.LegacySet;
+        return ClassifySet(urls);
+    }
+
+    /// <summary>Returns true if the set is an Item (archive filename starts with "item_").</summary>
+    public static bool IsItemSet(List<string>? assetUrls) => ClassifySet(assetUrls) == SkinCategory.Item;
+
+    /// <summary>Returns true if the set is a Base Hero (archive filename starts with "base_").</summary>
+    public static bool IsBaseHeroSet(List<string>? assetUrls) => ClassifySet(assetUrls) == SkinCategory.BaseHero;
+
+    /// <summary>
+    /// Extracts the archive filename from a set's asset URL list.
+    /// Looks for .zip, .rar, or .zip.001 URLs and returns just the filename.
+    /// </summary>
+    private static string? ExtractArchiveFileName(List<string> assetUrls)
+    {
+        var archiveUrl = assetUrls.FirstOrDefault(u =>
+            u.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+            u.EndsWith(".rar", StringComparison.OrdinalIgnoreCase) ||
+            u.EndsWith(".zip.001", StringComparison.OrdinalIgnoreCase));
+
+        if (string.IsNullOrEmpty(archiveUrl))
+            return null;
+
+        try
+        {
+            return Path.GetFileName(new Uri(archiveUrl).LocalPath);
+        }
+        catch
+        {
+            var lastSlash = archiveUrl.LastIndexOf('/');
+            if (lastSlash >= 0 && lastSlash < archiveUrl.Length - 1)
+                return archiveUrl.Substring(lastSlash + 1);
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Formats a hero ID like "npc_dota_hero_crystal_maiden" to "Crystal Maiden".
     /// Used as fallback display name when no localized name is available.
     /// </summary>

@@ -47,7 +47,7 @@ namespace ArdysaModsTools.UI.Forms
 
         // Data
         private List<HeroModel> _heroes = new();
-        private Dictionary<string, int> _selections = new(); // heroId -> setIndex
+        private Dictionary<string, HeroSelectionState> _selections = new(); // heroId -> structured selection
         private HashSet<string> _favorites = new(StringComparer.OrdinalIgnoreCase);
         private readonly HeroService _heroService;
         private readonly IConfigService _configService;
@@ -243,6 +243,7 @@ namespace ArdysaModsTools.UI.Forms
                         name = kvp.Key,
                         index = idx,
                         isCustom = HeroModelMapper.IsCustomSet(kvp.Value),
+                        category = HeroModelMapper.ClassifySet(kvp.Value).ToString().ToLowerInvariant(),
                         thumbnailUrl = kvp.Value?.FirstOrDefault(u => 
                             u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                             u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
@@ -634,10 +635,25 @@ namespace ArdysaModsTools.UI.Forms
             {
                 foreach (var prop in selectionsEl.EnumerateObject())
                 {
-                    if (prop.Value.TryGetInt32(out var setIndex))
+                    var state = new HeroSelectionState();
+
+                    if (prop.Value.TryGetProperty("set", out var setEl) && setEl.ValueKind == JsonValueKind.Number)
+                        state.SetIndex = setEl.GetInt32();
+
+                    if (prop.Value.TryGetProperty("items", out var itemsEl) && itemsEl.ValueKind == JsonValueKind.Array)
                     {
-                        _selections[prop.Name] = setIndex;
+                        foreach (var item in itemsEl.EnumerateArray())
+                        {
+                            if (item.TryGetInt32(out var idx))
+                                state.ItemIndices.Add(idx);
+                        }
                     }
+
+                    if (prop.Value.TryGetProperty("base", out var baseEl) && baseEl.ValueKind == JsonValueKind.Number)
+                        state.BaseIndex = baseEl.GetInt32();
+
+                    if (state.HasAnySelection)
+                        _selections[prop.Name] = state;
                 }
             }
         }
@@ -669,20 +685,7 @@ namespace ArdysaModsTools.UI.Forms
         {
             try
             {
-                // Get current selections from message
-                Dictionary<string, int> selectionsToSave = new();
-                if (message.TryGetProperty("selections", out var selectionsEl))
-                {
-                    foreach (var prop in selectionsEl.EnumerateObject())
-                    {
-                        if (prop.Value.TryGetInt32(out var setIndex))
-                        {
-                            selectionsToSave[prop.Name] = setIndex;
-                        }
-                    }
-                }
-
-                if (selectionsToSave.Count == 0)
+                if (_selections.Count == 0)
                 {
                     await UpdateStatusAsync("No selections to save");
                     return;
@@ -699,9 +702,9 @@ namespace ArdysaModsTools.UI.Forms
 
                 if (sfd.ShowDialog(this) == DialogResult.OK)
                 {
-                    var json = JsonSerializer.Serialize(selectionsToSave, new JsonSerializerOptions { WriteIndented = true });
+                    var json = JsonSerializer.Serialize(_selections, new JsonSerializerOptions { WriteIndented = true });
                     await File.WriteAllTextAsync(sfd.FileName, json);
-                    await UpdateStatusAsync($"Saved {selectionsToSave.Count} selection(s)");
+                    await UpdateStatusAsync($"Saved {_selections.Count} selection(s)");
                 }
             }
             catch (Exception ex)
@@ -728,7 +731,7 @@ namespace ArdysaModsTools.UI.Forms
                 if (ofd.ShowDialog(this) == DialogResult.OK)
                 {
                     var json = await File.ReadAllTextAsync(ofd.FileName);
-                    var loadedSelections = JsonSerializer.Deserialize<Dictionary<string, int>>(json);
+                    var loadedSelections = JsonSerializer.Deserialize<Dictionary<string, HeroSelectionState>>(json);
 
                     if (loadedSelections != null && loadedSelections.Count > 0)
                     {
@@ -761,7 +764,8 @@ namespace ArdysaModsTools.UI.Forms
 
             try
             {
-                // Build selections list
+                // Build priority-ordered selections list
+                // Priority: 1=Set (Legacy/Custom), 2=Items, 3=Base Hero
                 var heroesWithSets = new List<(HeroModel hero, string setName)>();
 
                 foreach (var kvp in _selections)
@@ -769,12 +773,37 @@ namespace ArdysaModsTools.UI.Forms
                     var hero = _heroes.FirstOrDefault(h => 
                         string.Equals(h.Id, kvp.Key, StringComparison.OrdinalIgnoreCase));
                     
-                    if (hero?.Sets == null || hero.Sets.Count <= kvp.Value) continue;
+                    if (hero?.Sets == null) continue;
 
-                    var setName = hero.Sets.Keys.ElementAtOrDefault(kvp.Value);
-                    if (string.IsNullOrEmpty(setName)) continue;
+                    var state = kvp.Value;
+                    var setKeys = hero.Sets.Keys.ToList();
 
-                    heroesWithSets.Add((hero, setName));
+                    // Priority 1: Selected Set (Legacy or Custom)
+                    if (state.SetIndex.HasValue && state.SetIndex.Value < setKeys.Count)
+                    {
+                        var setName = setKeys[state.SetIndex.Value];
+                        if (!string.IsNullOrEmpty(setName))
+                            heroesWithSets.Add((hero, setName));
+                    }
+
+                    // Priority 2: Selected Items (multi-select)
+                    foreach (var itemIdx in state.ItemIndices)
+                    {
+                        if (itemIdx < setKeys.Count)
+                        {
+                            var setName = setKeys[itemIdx];
+                            if (!string.IsNullOrEmpty(setName))
+                                heroesWithSets.Add((hero, setName));
+                        }
+                    }
+
+                    // Priority 3: Selected Base Hero
+                    if (state.BaseIndex.HasValue && state.BaseIndex.Value < setKeys.Count)
+                    {
+                        var setName = setKeys[state.BaseIndex.Value];
+                        if (!string.IsNullOrEmpty(setName))
+                            heroesWithSets.Add((hero, setName));
+                    }
                 }
 
                 if (heroesWithSets.Count == 0)
@@ -943,7 +972,9 @@ namespace ArdysaModsTools.UI.Forms
             try
             {
                 var path = GetSettingsPath();
-                var json = JsonSerializer.Serialize(_selections, _jsonOptions);
+                // Save only highlighted hero IDs (not specific selections)
+                var highlightedHeroes = _selections.Keys.ToList();
+                var json = JsonSerializer.Serialize(highlightedHeroes, _jsonOptions);
                 await File.WriteAllTextAsync(path, json);
             }
             catch (Exception ex)
@@ -953,7 +984,8 @@ namespace ArdysaModsTools.UI.Forms
         }
 
         /// <summary>
-        /// Restore selections from settings file.
+        /// Restore highlighted heroes from settings file.
+        /// Only restores which heroes are highlighted, not specific selections.
         /// </summary>
         private async Task RestoreSelectionsAsync()
         {
@@ -963,14 +995,31 @@ namespace ArdysaModsTools.UI.Forms
                 if (!File.Exists(path)) return;
 
                 var json = await File.ReadAllTextAsync(path);
-                var selections = JsonSerializer.Deserialize<Dictionary<string, int>>(json) 
-                    ?? new Dictionary<string, int>();
 
-                _selections = selections;
+                // Try new format (list of hero IDs)
+                List<string>? heroIds = null;
+                try
+                {
+                    heroIds = JsonSerializer.Deserialize<List<string>>(json);
+                }
+                catch
+                {
+                    // Backward compat: try old format { heroId: setIndex }
+                    try
+                    {
+                        var oldFormat = JsonSerializer.Deserialize<Dictionary<string, int>>(json);
+                        if (oldFormat != null)
+                            heroIds = oldFormat.Keys.ToList();
+                    }
+                    catch { }
+                }
 
-                // Send to JavaScript
-                var selectionsJson = JsonSerializer.Serialize(_selections, _jsonOptions);
-                await ExecuteScriptAsync($"loadSelections({selectionsJson})");
+                if (heroIds != null && heroIds.Count > 0)
+                {
+                    // Send highlighted heroes to JavaScript
+                    var heroIdsJson = JsonSerializer.Serialize(heroIds, _jsonOptions);
+                    await ExecuteScriptAsync($"loadHighlightedHeroes({heroIdsJson})");
+                }
             }
             catch (Exception ex)
             {

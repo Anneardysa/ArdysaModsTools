@@ -397,20 +397,66 @@
             height: 1px;
             background: linear-gradient(to right, rgba(167, 139, 250, 0.3), transparent);
          }
+         .set-category-header.item .category-label {
+            color: #22c55e;
+         }
+         .set-category-header.item .category-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, rgba(34, 197, 94, 0.3), transparent);
+         }
+         .set-category-header.basehero .category-label {
+            color: #f97316;
+         }
+         .set-category-header.basehero .category-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, rgba(249, 115, 22, 0.3), transparent);
+         }
          .set-category-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             gap: 16px;
          }
-         @media (min-width: 640px) {
-            .set-category-grid {
-               grid-template-columns: repeat(3, 1fr);
-            }
+         /* Toggle indicator for items and base hero */
+         .set-tile .toggle-indicator {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease-out;
+            background: rgba(0, 0, 0, 0.5);
          }
-         @media (min-width: 768px) {
-            .set-category-grid {
-               grid-template-columns: repeat(4, 1fr);
-            }
+         .set-tile.selected .toggle-indicator {
+            border-color: #00d4ff;
+            background: #00d4ff;
+         }
+         .set-tile.selected .toggle-indicator svg {
+            opacity: 1;
+         }
+         .set-tile .toggle-indicator svg {
+            opacity: 0;
+            width: 10px;
+            height: 10px;
+            color: black;
+         }
+         /* Item tile selected with green */
+         .set-tile.item-tile.selected {
+            box-shadow:
+               0 0 0 2px #22c55e,
+               0 0 15px rgba(34, 197, 94, 0.4);
+         }
+         /* Base hero tile selected with orange */
+         .set-tile.base-tile.selected {
+            box-shadow:
+               0 0 0 2px #f97316,
+               0 0 15px rgba(249, 115, 22, 0.4);
          }
       </style>
    </head>
@@ -989,12 +1035,49 @@
          // ============================================
          let heroes = [];
          let filteredHeroes = []; // Currently visible heroes after filtering
+         // Structured selections: { heroId: { set: idx|null, items: [idx...], base: idx|null } }
          let selections = {};
          let favorites = new Set();
          let currentFilter = "all";
          let searchQuery = "";
          let currentModalHeroId = null;
          let focusedSetIndex = 0;
+
+         // ============================================
+         // Selection Helpers
+         // ============================================
+         function getHeroSelection(heroId) {
+            if (!selections[heroId]) {
+               selections[heroId] = { set: null, items: [], base: null };
+            }
+            return selections[heroId];
+         }
+
+         function hasAnySelection(heroId) {
+            const s = selections[heroId];
+            if (!s) return false;
+            return s.set !== null || (s.items && s.items.length > 0) || s.base !== null;
+         }
+
+         function getSelectionSummary(hero) {
+            const s = selections[hero.id];
+            if (!s) return null;
+            const parts = [];
+            if (s.set !== null && hero.sets && hero.sets[s.set]) {
+               parts.push(hero.sets[s.set].name);
+            }
+            if (s.items && s.items.length > 0) {
+               parts.push(`${s.items.length} item${s.items.length > 1 ? 's' : ''}`);
+            }
+            if (s.base !== null) {
+               parts.push('Base');
+            }
+            return parts.length > 0 ? parts.join(' + ') : null;
+         }
+
+         function getSetCategory(set) {
+            return (set && set.category) || 'legacyset';
+         }
 
          // ============================================
          // C# Interop Functions
@@ -1042,6 +1125,20 @@
          function loadSelections(selectionsJson) {
             selections =
                typeof selectionsJson === "string" ? JSON.parse(selectionsJson) : selectionsJson;
+            updateSelectionCount();
+            renderHeroes();
+         }
+
+         // Called from C# to restore highlighted heroes (simplified persistence)
+         function loadHighlightedHeroes(heroIdsJson) {
+            const heroIds = typeof heroIdsJson === "string" ? JSON.parse(heroIdsJson) : heroIdsJson;
+            if (!Array.isArray(heroIds)) return;
+            // Mark heroes as highlighted with empty selection state
+            heroIds.forEach(id => {
+               if (!selections[id]) {
+                  selections[id] = { set: null, items: [], base: null };
+               }
+            });
             updateSelectionCount();
             renderHeroes();
          }
@@ -1372,6 +1469,21 @@
             document.getElementById("alertModal").classList.remove("hidden");
          }
 
+         function requestGenerate() {
+            // Filter to only heroes with actual selections
+            const activeSelections = {};
+            for (const [id, sel] of Object.entries(selections)) {
+               if (hasAnySelection(id)) activeSelections[id] = sel;
+            }
+            if (Object.keys(activeSelections).length === 0) {
+               updateStatus("Please select at least one hero");
+               return;
+            }
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "generate", selections: activeSelections });
+            }
+         }
+
          function closeAlert() {
             document.getElementById("alertModal").classList.add("hidden");
             // Notify C# that alert was dismissed
@@ -1441,15 +1553,17 @@
 
             grid.innerHTML = filteredHeroes
                .map((hero, index) => {
-                  const isSelected = selections[hero.id] !== undefined && selections[hero.id] >= 0;
+                  const isSelected = hasAnySelection(hero.id);
                   const isFavorite = favorites.has(hero.id);
-                  const selectedSetIndex = isSelected ? selections[hero.id] : -1;
-                  const selectedSet = isSelected && hero.sets ? hero.sets[selectedSetIndex] : null;
+                  const summary = getSelectionSummary(hero);
                   const hasSets = hero.sets && hero.sets.length > 0;
 
+                  // Determine display thumbnail: use selected set's thumb if available
                   let displayThumb = hero.thumbnail;
-                  if (isSelected && selectedSet && selectedSet.thumbnailUrl) {
-                     displayThumb = selectedSet.thumbnailUrl;
+                  const sel = selections[hero.id];
+                  if (isSelected && sel && sel.set !== null && hero.sets && hero.sets[sel.set]) {
+                     const setThumb = hero.sets[sel.set].thumbnailUrl;
+                     if (setThumb) displayThumb = setThumb;
                   }
 
                   return `
@@ -1486,8 +1600,8 @@
                               hero.displayName || hero.name
                            }</h3>
                            ${
-                              isSelected && selectedSet
-                                 ? `<p class="text-[10px] text-amt-accent truncate">${selectedSet.name}</p>`
+                              summary
+                                 ? `<p class="text-[10px] text-amt-accent truncate">${summary}</p>`
                                  : hasSets
                                    ? `<p class="text-[10px] text-gray-500">${hero.sets.length} set${
                                         hero.sets.length > 1 ? "s" : ""
@@ -1514,7 +1628,7 @@
             }
 
             currentModalHeroId = heroId;
-            focusedSetIndex = selections[heroId] !== undefined ? selections[heroId] : 0;
+            focusedSetIndex = 0;
 
             const modal = document.getElementById("setModal");
             document.getElementById("modalHeroImg").src = hero.thumbnail;
@@ -1528,25 +1642,61 @@
             return set && set.isCustom === true;
          }
 
-         function renderSetTile(set, idx, hero, currentSelection) {
-            const isSelected = currentSelection === idx;
+         // Render a set/item/base tile with appropriate styling
+         function renderSetTile(set, idx, hero, heroSel, tileType) {
+            let isSelected = false;
+            if (tileType === 'set') {
+               isSelected = heroSel.set === idx;
+            } else if (tileType === 'item') {
+               isSelected = heroSel.items && heroSel.items.includes(idx);
+            } else if (tileType === 'base') {
+               isSelected = heroSel.base === idx;
+            }
             const isFocused = focusedSetIndex === idx;
             const thumbUrl = set.thumbnailUrl || hero.thumbnail;
+            const tileClass = tileType === 'item' ? 'item-tile' : tileType === 'base' ? 'base-tile' : '';
+
+            // Click handler depends on type
+            let clickFn;
+            if (tileType === 'set') {
+               clickFn = `selectSet('${currentModalHeroId}', ${idx})`;
+            } else if (tileType === 'item') {
+               clickFn = `toggleItem('${currentModalHeroId}', ${idx})`;
+            } else {
+               clickFn = `toggleBase('${currentModalHeroId}', ${idx})`;
+            }
+
+            // Status label
+            let statusHtml = '';
+            if (isSelected) {
+               const statusColor = tileType === 'item' ? 'text-green-400' : tileType === 'base' ? 'text-orange-400' : 'text-amt-accent';
+               statusHtml = `<p class="text-xs ${statusColor} mt-1">✓ Selected</p>`;
+            }
+
+            // Toggle indicator for items and base
+            const showToggle = tileType === 'item' || tileType === 'base';
+            const toggleHtml = showToggle ? `
+               <div class="toggle-indicator">
+                  <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                  </svg>
+               </div>` : '';
 
             return `
-            <div class="set-tile ${isSelected ? "selected" : ""} ${
-               isFocused ? "focused" : ""
-            } bg-amt-card rounded-xl overflow-hidden border border-amt-border cursor-pointer"
+            <div class="set-tile ${tileClass} ${isSelected ? 'selected' : ''} ${
+               isFocused ? 'focused' : ''
+            } bg-amt-card rounded-xl overflow-hidden border border-amt-border cursor-pointer relative"
                  data-set-index="${idx}"
-                 onclick="selectSetFromModal('${currentModalHeroId}', ${idx})">
-               <div class="aspect-square overflow-hidden">
+                 onclick="${clickFn}">
+               <div class="aspect-square overflow-hidden relative">
                   <img src="${thumbUrl}" alt="${set.name}" 
                        class="w-full h-full object-cover"
                        onerror="this.src='${hero.thumbnail}'" />
+                  ${toggleHtml}
                </div>
                <div class="p-3">
                   <p class="text-sm font-medium truncate">${set.name || `Set ${idx + 1}`}</p>
-                  ${isSelected ? '<p class="text-xs text-amt-accent mt-1">✓ Selected</p>' : ""}
+                  ${statusHtml}
                </div>
             </div>
             `;
@@ -1556,54 +1706,57 @@
             const hero = heroes.find((h) => h.id === currentModalHeroId);
             if (!hero) return;
 
-            const currentSelection = selections[currentModalHeroId];
+            const heroSel = getHeroSelection(currentModalHeroId);
             const setsGrid = document.getElementById("modalSetsGrid");
 
-            // Partition sets into Legacy and Custom, keeping original indices
+            // Partition sets into 4 categories, keeping original indices
             const legacySets = [];
             const customSets = [];
+            const itemSets = [];
+            const baseSets = [];
             hero.sets.forEach((set, idx) => {
-               if (isCustomSet(set)) {
+               const cat = getSetCategory(set);
+               if (cat === 'item') {
+                  itemSets.push({ set, idx });
+               } else if (cat === 'basehero') {
+                  baseSets.push({ set, idx });
+               } else if (cat === 'customset') {
                   customSets.push({ set, idx });
                } else {
                   legacySets.push({ set, idx });
                }
             });
 
-            const hasBothCategories = legacySets.length > 0 && customSets.length > 0;
+            const totalCategories = [legacySets, customSets, itemSets, baseSets].filter(c => c.length > 0).length;
+            const showHeaders = totalCategories > 1;
             let html = '';
 
-            // Legacy section (top)
-            if (legacySets.length > 0) {
-               html += '<div class="set-category-section">';
-               if (hasBothCategories) {
-                  html += `
-                  <div class="set-category-header legacy">
-                     <span class="category-label">Legacy Set</span>
+            // Section builder helper
+            function buildSection(entries, headerClass, label, tileType) {
+               if (entries.length === 0) return '';
+               let s = '<div class="set-category-section">';
+               if (showHeaders) {
+                  s += `
+                  <div class="set-category-header ${headerClass}">
+                     <span class="category-label">${label}</span>
                      <div class="category-line"></div>
-                     <span class="category-count">${legacySets.length}</span>
+                     <span class="category-count">${entries.length}</span>
                   </div>`;
                }
-               html += '<div class="set-category-grid">';
-               html += legacySets.map(({ set, idx }) => renderSetTile(set, idx, hero, currentSelection)).join('');
-               html += '</div></div>';
+               s += '<div class="set-category-grid">';
+               s += entries.map(({ set, idx }) => renderSetTile(set, idx, hero, heroSel, tileType)).join('');
+               s += '</div></div>';
+               return s;
             }
 
-            // Custom section (bottom)
-            if (customSets.length > 0) {
-               html += '<div class="set-category-section">';
-               if (hasBothCategories) {
-                  html += `
-                  <div class="set-category-header custom">
-                     <span class="category-label">Custom Set</span>
-                     <div class="category-line"></div>
-                     <span class="category-count">${customSets.length}</span>
-                  </div>`;
-               }
-               html += '<div class="set-category-grid">';
-               html += customSets.map(({ set, idx }) => renderSetTile(set, idx, hero, currentSelection)).join('');
-               html += '</div></div>';
-            }
+            // 1. Legacy Sets
+            html += buildSection(legacySets, 'legacy', 'Legacy Set', 'set');
+            // 2. Custom Sets
+            html += buildSection(customSets, 'custom', 'Custom Set', 'set');
+            // 3. Items
+            html += buildSection(itemSets, 'item', 'Items', 'item');
+            // 4. Base Hero
+            html += buildSection(baseSets, 'basehero', 'Base Hero', 'base');
 
             setsGrid.innerHTML = html;
          }
@@ -1671,8 +1824,17 @@
             closeModal();
          }
 
-         function selectSetFromModal(heroId, setIndex) {
-            selections[heroId] = setIndex;
+         // Rule A: Selecting a set (Legacy or Custom) — mutually exclusive
+         // Selecting a Legacy Set deselects Custom, and vice versa.
+         function selectSet(heroId, setIndex) {
+            const sel = getHeroSelection(heroId);
+            // Toggle off if already selected
+            if (sel.set === setIndex) {
+               sel.set = null;
+            } else {
+               sel.set = setIndex;
+            }
+            cleanupEmptySelection(heroId);
             focusedSetIndex = setIndex;
             updateSelectionCount();
             notifySelectionChanged();
@@ -1680,8 +1842,53 @@
             renderHeroes();
          }
 
+         // Rule C: Toggle an item ON/OFF (multi-select)
+         function toggleItem(heroId, setIndex) {
+            const sel = getHeroSelection(heroId);
+            const idx = sel.items.indexOf(setIndex);
+            if (idx >= 0) {
+               sel.items.splice(idx, 1); // turn OFF
+            } else {
+               sel.items.push(setIndex); // turn ON
+            }
+            cleanupEmptySelection(heroId);
+            focusedSetIndex = setIndex;
+            updateSelectionCount();
+            notifySelectionChanged();
+            renderModalSets();
+            renderHeroes();
+         }
+
+         // Rule B: Toggle base hero — only one active at a time
+         function toggleBase(heroId, setIndex) {
+            const sel = getHeroSelection(heroId);
+            if (sel.base === setIndex) {
+               sel.base = null; // turn OFF
+            } else {
+               sel.base = setIndex; // turn ON (auto-deselects previous)
+            }
+            cleanupEmptySelection(heroId);
+            focusedSetIndex = setIndex;
+            updateSelectionCount();
+            notifySelectionChanged();
+            renderModalSets();
+            renderHeroes();
+         }
+
+         // Legacy compat: redirect old calls
+         function selectSetFromModal(heroId, setIndex) {
+            selectSet(heroId, setIndex);
+         }
+
+         // Remove hero from selections if nothing is selected
+         function cleanupEmptySelection(heroId) {
+            if (!hasAnySelection(heroId)) {
+               delete selections[heroId];
+            }
+         }
+
          function deselectHero() {
-            if (currentModalHeroId && selections[currentModalHeroId] !== undefined) {
+            if (currentModalHeroId && selections[currentModalHeroId]) {
                delete selections[currentModalHeroId];
                updateSelectionCount();
                notifySelectionChanged();
@@ -1710,14 +1917,15 @@
                return;
             }
 
-            // Build the list of selected heroes and sets
+            // Build the list of selected heroes with summaries
             const selectedItems = [];
-            for (const [heroId, setIndex] of Object.entries(selections)) {
+            for (const [heroId, sel] of Object.entries(selections)) {
                const hero = heroes.find((h) => h.id === heroId);
-               if (hero && hero.sets && hero.sets[setIndex]) {
+               if (hero) {
+                  const summary = getSelectionSummary(hero) || 'Selected';
                   selectedItems.push({
                      heroName: hero.displayName || hero.name,
-                     setName: hero.sets[setIndex].name || `Set ${setIndex + 1}`,
+                     setName: summary,
                      thumbnail: hero.thumbnail,
                   });
                }
@@ -1792,7 +2000,9 @@
          }
 
          function updateSelectionCount() {
-            document.getElementById("selectionCount").textContent = Object.keys(selections).length;
+            // Count heroes that have any actual selection
+            const count = Object.keys(selections).filter(id => hasAnySelection(id)).length;
+            document.getElementById("selectionCount").textContent = count;
          }
 
          // ============================================
@@ -1816,15 +2026,6 @@
             }
          }
 
-         function requestGenerate() {
-            if (Object.keys(selections).length === 0) {
-               updateStatus("Please select at least one hero");
-               return;
-            }
-            if (window.chrome && window.chrome.webview) {
-               window.chrome.webview.postMessage({ type: "generate", selections: selections });
-            }
-         }
 
          function requestClose() {
             if (window.chrome && window.chrome.webview) {
@@ -1966,7 +2167,10 @@
                   attribute: "agi",
                   thumbnail:
                      "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/antimage.png",
-                  sets: [{ name: "Default Set" }, { name: "Mage Slayer" }],
+                  sets: [
+                     { name: "Default Set", category: "legacyset" },
+                     { name: "Mage Slayer", category: "legacyset" },
+                  ],
                },
                {
                   id: "axe",
@@ -1975,7 +2179,11 @@
                   attribute: "str",
                   thumbnail:
                      "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/axe.png",
-                  sets: [{ name: "Default Set" }, { name: "Red Mist Reaper" }],
+                  sets: [
+                     { name: "Default Set", category: "legacyset" },
+                     { name: "Red Mist Reaper", category: "legacyset" },
+                     { name: "Custom Axe Mix", category: "customset", isCustom: true },
+                  ],
                },
                {
                   id: "crystal_maiden",
@@ -1985,9 +2193,13 @@
                   thumbnail:
                      "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/crystal_maiden.png",
                   sets: [
-                     { name: "Default Set" },
-                     { name: "Frost Avalanche" },
-                     { name: "Yulsaria's Glacier" },
+                     { name: "Default Set", category: "legacyset" },
+                     { name: "Frost Avalanche", category: "legacyset" },
+                     { name: "Yulsaria's Glacier", category: "legacyset" },
+                     { name: "Custom CM Arcana Mix", category: "customset", isCustom: true },
+                     { name: "Immortal Staff", category: "item" },
+                     { name: "Immortal Cape", category: "item" },
+                     { name: "CM Arcana Base", category: "basehero" },
                   ],
                },
                {
@@ -1997,7 +2209,11 @@
                   attribute: "universal",
                   thumbnail:
                      "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/invoker.png",
-                  sets: [{ name: "Default Set" }, { name: "Dark Artistry" }],
+                  sets: [
+                     { name: "Default Set", category: "legacyset" },
+                     { name: "Dark Artistry", category: "legacyset" },
+                     { name: "Persona Base", category: "basehero" },
+                  ],
                },
             ];
             loadHeroes(demoHeroes);
