@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🐛 Fixed
 
 - **Preset Loading Fix**: Corrected a layout bug in `SelectHero.LoadPresetFromFile` where the selector queried active rows from `ScrollContainer` instead of `RowsFlow` controls, fixing preset activation.
+- **Dependency Conflicts Resolution**: Reverted `SixLabors.ImageSharp` back to stable `3.1.12` and test frameworks back to original versions to resolve build-blocking licensing restrictions and `NUnit` compile ambiguity errors.
 
 ### 🧪 Testing
 

@@ -92,8 +92,8 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
     
     <!-- Compression & Parsing -->
-    <PackageReference Include="SharpCompress" Version="0.40.0" />
-    <PackageReference Include="ValveKeyValue" Version="0.13.1.398" />
+    <PackageReference Include="SharpCompress" Version="0.49.1" />
+    <PackageReference Include="ValveKeyValue" Version="0.20.0.417" />
     
     <!-- Image Processing (WebP support) -->
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
