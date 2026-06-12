@@ -225,8 +225,13 @@ namespace ArdysaModsTools.Core.Services
                     continue;
                 }
 
+                // Overlay the authored index.txt block VERBATIM (no re-ordering / re-serialization),
+                // carrying over only vanilla-only top-level keys (e.g. hero_presets) the index omits.
+                // This keeps the modder's block structure and key positions exactly as authored.
+                var overlaidBlock = KeyValuesBlockHelper.OverlayBlockPreservingStructure(existingBlock, replacementBlock);
+
                 // Normalize indentation to match items_game.txt format before replacing
-                var normalizedBlock = NormalizeBlockIndentation(replacementBlock, original);
+                var normalizedBlock = NormalizeBlockIndentation(overlaidBlock, original);
                 original = KeyValuesBlockHelper.ReplaceIdBlock(original, idStr, normalizedBlock, out bool didReplace, heroId);
                 
                 if (didReplace)
@@ -355,8 +360,12 @@ namespace ArdysaModsTools.Core.Services
                     continue;
                 }
 
+                // Overlay the index.txt block VERBATIM, carrying over only vanilla-only top-level
+                // keys the index omits — preserves the authored structure and key positions.
+                var overlaidBlock = KeyValuesBlockHelper.OverlayBlockPreservingStructure(existingBlock, replacementBlock);
+
                 // Normalize indentation and replace the block
-                var normalizedBlock = NormalizeBlockIndentation(replacementBlock, original);
+                var normalizedBlock = NormalizeBlockIndentation(overlaidBlock, original);
                 original = KeyValuesBlockHelper.ReplaceIdBlock(original, idStr, normalizedBlock, out bool didReplace, heroId);
                 if (didReplace)
                 {
@@ -381,8 +390,7 @@ namespace ArdysaModsTools.Core.Services
         /// <summary>
         /// Validates that the replacement block matches critical fields.
         /// 1. ID must match
-        /// 2. Both must have "prefab" "default_item"
-        /// 3. Both must have same "used_by_heroes" hero
+        /// 2. Existing block must have same "used_by_heroes" hero
         /// </summary>
         private static (bool isValid, string error) ValidateBlockMatch(
             string existingBlock, string replacementBlock, string heroId, string expectedId)
@@ -393,34 +401,14 @@ namespace ArdysaModsTools.Core.Services
                 return (false, $"ID {expectedId} not found in replacement block");
             }
 
-            // Check both have "prefab" "default_item"
-            bool existingHasPrefab = existingBlock.Contains("\"prefab\"") && 
-                                      existingBlock.Contains("\"default_item\"");
-            bool replacementHasPrefab = replacementBlock.Contains("\"prefab\"") && 
-                                         replacementBlock.Contains("\"default_item\"");
-            
-            if (!existingHasPrefab)
-            {
-                return (false, "existing block missing prefab/default_item");
-            }
-            if (!replacementHasPrefab)
-            {
-                return (false, "replacement block missing prefab/default_item");
-            }
-
-            // Check both have "used_by_heroes" with the same hero
+            // Check existing block has "used_by_heroes" with the same hero
+            // This ensures we are patching an actual item block and not some random config ID.
             bool existingHasHero = existingBlock.Contains("\"used_by_heroes\"") && 
                                     existingBlock.Contains($"\"{heroId}\"");
-            bool replacementHasHero = replacementBlock.Contains("\"used_by_heroes\"") && 
-                                       replacementBlock.Contains($"\"{heroId}\"");
             
             if (!existingHasHero)
             {
                 return (false, $"existing block not for hero {heroId}");
-            }
-            if (!replacementHasHero)
-            {
-                return (false, $"replacement block not for hero {heroId}");
             }
 
             return (true, string.Empty);

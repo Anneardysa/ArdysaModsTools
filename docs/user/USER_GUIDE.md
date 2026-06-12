@@ -251,7 +251,7 @@ The Hero Set Generator:
    - Select sets and customizations for as many heroes as you like.
 6. **Generate**:
    - Click the **Generate** button.
-   - The priorities in the merging pipeline are automatically handled: `Set → Persona → Items (skipped if Persona) → Base Hero (skipped if Persona)`.
+   - The priorities in the merging pipeline are automatically handled: `Set / Custom Set / Persona → Selected Items → Base Hero` (so base hero overrides items, and items override sets/personas).
    - Monitor progress via the sidebar preview panel on the progress overlay.
 
 #### Batch Generation

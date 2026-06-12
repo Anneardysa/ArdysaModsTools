@@ -16,8 +16,10 @@
  */
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using ValveKeyValue;
 
 namespace ArdysaModsTools.Core.Helpers
 {
@@ -494,6 +496,527 @@ namespace ArdysaModsTools.Core.Helpers
 
             return result.ToString();
         }
+
+        /// <summary>
+        /// [AMT:PRO] Deep merges two KV blocks, preferring fields from block2 over block1, 
+        /// but keeping complex structures like 'visuals', 'portraits', and handling multiple duplicate keys like 'asset_modifier'.
+        /// Ensures correct dummy object preservation and Source 2 formatting.
+        /// </summary>
+        public static string MergeBlocks(string blockA, string blockB, bool preferRightSideStrongly = false)
+        {
+            if (string.IsNullOrEmpty(blockA)) return blockB;
+            if (string.IsNullOrEmpty(blockB)) return blockA;
+
+            var kv = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
+            
+            using var msA = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(blockA));
+            var docA = kv.Deserialize(msA);
+            
+            using var msB = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(blockB));
+            var docB = kv.Deserialize(msB);
+
+            var mergedRoot = MergeObjects(docA, docB, preferRightSideStrongly);
+            
+            using var msOut = new MemoryStream();
+            kv.Serialize(msOut, mergedRoot);
+            var mergedText = System.Text.Encoding.UTF8.GetString(msOut.ToArray());
+            return FormatBlockToDoubleTabs(mergedText);
+        }
+
+        private static KVObject MergeObjects(KVObject a, KVObject b, bool preferRightSideStrongly = false)
+        {
+            if (a == null) return b;
+            if (b == null) return a;
+
+            if (a.Value.ValueType == KVValueType.Collection && b.Value.ValueType != KVValueType.Collection)
+                return a;
+            if (b.Value.ValueType == KVValueType.Collection && a.Value.ValueType != KVValueType.Collection)
+                return b;
+
+            if (a.Value.ValueType == KVValueType.Collection && b.Value.ValueType == KVValueType.Collection)
+            {
+                var childrenA = ((IEnumerable<KVObject>)a.Value).ToList();
+                var childrenB = ((IEnumerable<KVObject>)b.Value).ToList();
+
+                var mergedList = new List<KVObject>();
+                var processedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var multiKeys = new[] { "asset_modifier", "particle_combined" };
+
+                foreach (var mk in multiKeys)
+                {
+                    var mka = childrenA.Where(c => string.Equals(c.Name, mk, StringComparison.OrdinalIgnoreCase)).ToList();
+                    var mkb = childrenB.Where(c => string.Equals(c.Name, mk, StringComparison.OrdinalIgnoreCase)).ToList();
+
+                    if (mka.Count > 0 || mkb.Count > 0)
+                    {
+                        var mergedModifiers = new List<KVObject>();
+                        foreach (var vanilla in mka)
+                        {
+                            var overrideByB = mkb.FirstOrDefault(modB => IsModifierOverride(vanilla, modB));
+                            if (overrideByB != null)
+                            {
+                                mergedModifiers.Add(overrideByB);
+                            }
+                            else
+                            {
+                                mergedModifiers.Add(vanilla);
+                            }
+                        }
+                        foreach (var modB in mkb)
+                        {
+                            var overridesA = mka.Any(vanilla => IsModifierOverride(vanilla, modB));
+                            if (!overridesA)
+                            {
+                                if (!ContainsModifier(mergedModifiers, modB))
+                                    mergedModifiers.Add(modB);
+                            }
+                        }
+                        mergedList.AddRange(mergedModifiers);
+                        processedKeys.Add(mk);
+                    }
+                }
+
+                var allKeys = childrenA.Select(c => c.Name)
+                    .Concat(childrenB.Select(c => c.Name))
+                    .Where(k => !processedKeys.Contains(k))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                foreach (var key in allKeys)
+                {
+                    var itemA = childrenA.FirstOrDefault(c => string.Equals(c.Name, key, StringComparison.OrdinalIgnoreCase));
+                    var itemB = childrenB.FirstOrDefault(c => string.Equals(c.Name, key, StringComparison.OrdinalIgnoreCase));
+
+                    if (itemA != null && itemB != null)
+                    {
+                        if (itemA.Value.ValueType == KVValueType.Collection && itemB.Value.ValueType == KVValueType.Collection)
+                        {
+                            mergedList.Add(MergeObjects(itemA, itemB, preferRightSideStrongly));
+                        }
+                        else
+                        {
+                            mergedList.Add(ChoosePreferredProperty(key, itemA, itemB, preferRightSideStrongly));
+                        }
+                    }
+                    else if (itemA != null)
+                    {
+                        mergedList.Add(itemA);
+                    }
+                    else if (itemB != null)
+                    {
+                        mergedList.Add(itemB);
+                    }
+                }
+
+                return new KVObject(a.Name, mergedList.ToArray());
+            }
+            else
+            {
+                return b;
+            }
+        }
+
+        private static bool ContainsModifier(List<KVObject> list, KVObject item)
+        {
+            if (item.Value.ValueType != KVValueType.Collection) return false;
+            var itemProps = ((IEnumerable<KVObject>)item.Value)
+                .ToDictionary(p => p.Name, p => p.Value.ToString(), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var existing in list)
+            {
+                if (existing.Value.ValueType != KVValueType.Collection) continue;
+                var existingProps = ((IEnumerable<KVObject>)existing.Value)
+                    .ToDictionary(p => p.Name, p => p.Value.ToString(), StringComparer.OrdinalIgnoreCase);
+
+                if (itemProps.Count != existingProps.Count) continue;
+
+                bool match = true;
+                foreach (var kvp in itemProps)
+                {
+                    if (!existingProps.TryGetValue(kvp.Key, out var existingVal) || !string.Equals(kvp.Value, existingVal, StringComparison.OrdinalIgnoreCase))
+                    {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) return true;
+            }
+            return false;
+        }
+
+        private static KVObject ChoosePreferredProperty(string key, KVObject a, KVObject b, bool preferRightSideStrongly)
+        {
+            var valA = a.Value.ToString();
+            var valB = b.Value.ToString();
+
+            if (string.Equals(key, "skip_model_combine", StringComparison.OrdinalIgnoreCase))
+            {
+                if (valA == "1" || valB == "1")
+                    return new KVObject(key, "1");
+            }
+
+            if (preferRightSideStrongly)
+            {
+                return b;
+            }
+
+            if (string.Equals(key, "image_inventory", StringComparison.OrdinalIgnoreCase))
+            {
+                if (IsVanillaValue("image_inventory", valB) && !string.IsNullOrEmpty(valA))
+                    return a;
+            }
+            if (string.Equals(key, "item_name", StringComparison.OrdinalIgnoreCase))
+            {
+                if (IsVanillaValue("item_name", valB) && !string.IsNullOrEmpty(valA))
+                    return a;
+            }
+            if (string.Equals(key, "item_type_name", StringComparison.OrdinalIgnoreCase))
+            {
+                if (IsVanillaValue("item_type_name", valB) && !string.IsNullOrEmpty(valA))
+                    return a;
+            }
+            return b;
+        }
+
+        private static bool IsModifierOverride(KVObject a, KVObject b)
+        {
+            if (a.Value.ValueType != KVValueType.Collection || b.Value.ValueType != KVValueType.Collection) return false;
+
+            var propsA = ((IEnumerable<KVObject>)a.Value).ToDictionary(p => p.Name, p => p.Value.ToString(), StringComparer.OrdinalIgnoreCase);
+            var propsB = ((IEnumerable<KVObject>)b.Value).ToDictionary(p => p.Name, p => p.Value.ToString(), StringComparer.OrdinalIgnoreCase);
+
+            propsA.TryGetValue("type", out var typeA);
+            propsB.TryGetValue("type", out var typeB);
+
+            if (!string.Equals(typeA, typeB, StringComparison.OrdinalIgnoreCase)) return false;
+            
+            if (string.Equals(typeB, "particle_create", StringComparison.OrdinalIgnoreCase))
+            {
+                propsA.TryGetValue("required_arcana_level", out var reqA);
+                propsB.TryGetValue("required_arcana_level", out var reqB);
+                if (!string.IsNullOrEmpty(reqA) || !string.IsNullOrEmpty(reqB))
+                {
+                    return string.Equals(reqA, reqB, StringComparison.OrdinalIgnoreCase);
+                }
+                
+                // If neither has required_arcana_level, assume one particle_create overrides another
+                return true;
+            }
+            
+            propsA.TryGetValue("asset", out var assetA);
+            propsB.TryGetValue("asset", out var assetB);
+
+            if (!string.IsNullOrEmpty(assetA) && !string.IsNullOrEmpty(assetB))
+            {
+                return string.Equals(assetA, assetB, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return false;
+        }
+
+        private static bool IsVanillaValue(string key, string? val)
+        {
+            if (string.IsNullOrEmpty(val)) return false;
+
+            if (string.Equals(key, "image_inventory", StringComparison.OrdinalIgnoreCase))
+            {
+                if (val.Contains("econ/heroes/", StringComparison.OrdinalIgnoreCase) && 
+                    !val.Contains("econ/items/", StringComparison.OrdinalIgnoreCase) && 
+                    !val.Contains("econ/sets/", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+                if (val.EndsWith("/base", StringComparison.OrdinalIgnoreCase) || val.EndsWith("/default", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+                return false;
+            }
+            if (string.Equals(key, "item_name", StringComparison.OrdinalIgnoreCase))
+            {
+                if (val.StartsWith("#DOTA_Item_", StringComparison.OrdinalIgnoreCase))
+                {
+                    var suffixes = new[] { "_Bracers", "_Arms", "_Shoulders", "_Head", "_Belt", "_Back", "_Weapon", "_Offhand", "_Legs", "_Tail", "_Armor", "_Mount", "_Misc", "_Neck", "_Body", "_Hands", "_Base", "_base", "_default" };
+                    foreach (var s in suffixes)
+                    {
+                        if (val.EndsWith(s, StringComparison.OrdinalIgnoreCase)) return true;
+                    }
+                }
+                if (val.Contains("_Base", StringComparison.OrdinalIgnoreCase) || val.Contains("_base", StringComparison.OrdinalIgnoreCase) || val.Contains("_default", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+                return false;
+            }
+            if (string.Equals(key, "item_type_name", StringComparison.OrdinalIgnoreCase))
+            {
+                if (val.StartsWith("#DOTA_WearableType_", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+                return false;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Formats a serialized KV block to match Source 2 items_game.txt LF-only double-tab strict requirements.
+        /// </summary>
+        public static string FormatBlockToDoubleTabs(string block)
+        {
+            var lines = block.Replace("\r\n", "\n").Split('\n');
+            var result = new System.Text.StringBuilder(block.Length);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    if (i < lines.Length - 1) result.Append('\n');
+                    continue;
+                }
+
+                int firstQuote = line.IndexOf('"');
+                if (firstQuote >= 0)
+                {
+                    int secondQuote = line.IndexOf('"', firstQuote + 1);
+                    if (secondQuote >= 0)
+                    {
+                        int thirdQuote = line.IndexOf('"', secondQuote + 1);
+                        if (thirdQuote >= 0)
+                        {
+                            var indentAndKey = line.Substring(0, secondQuote + 1);
+                            var value = line.Substring(thirdQuote);
+                            line = indentAndKey + "\t\t" + value;
+                        }
+                    }
+                }
+                result.Append(line);
+                if (i < lines.Length - 1) result.Append('\n');
+            }
+            return result.ToString();
+        }
+
+        #region Structure-Preserving Overlay
+
+        /// <summary>
+        /// Top-level keys that are structurally essential for the game to load and identify
+        /// an item. If (and only if) the authored index block omits one of these, it is
+        /// carried over from the vanilla block. Cosmetic/metadata keys (creation_date,
+        /// image_inventory, item_rarity, …) are NEVER carried over — the index block is the
+        /// source of truth for everything else.
+        /// </summary>
+        private static readonly HashSet<string> EssentialVanillaKeys =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "used_by_heroes",
+                "hero_presets",
+                "item_slot",
+                "prefab",
+            };
+
+        /// <summary>
+        /// Replaces an existing (vanilla) items_game.txt block with an authored index.txt
+        /// block VERBATIM — no re-serialization, no re-ordering.
+        ///
+        /// The index block is the source of truth: its key order, values, nested structure,
+        /// and duplicate/numbered modifier ordering (asset_modifier25, asset_modifier28, …)
+        /// are preserved exactly as the modder authored them. The ONLY thing carried over
+        /// from vanilla is a structurally essential key (<see cref="EssentialVanillaKeys"/>
+        /// — e.g. <c>used_by_heroes</c>, <c>hero_presets</c>, <c>item_slot</c>) that the
+        /// index block does not already define, appended just before its closing brace so
+        /// the item still loads/equips correctly. Cosmetic vanilla keys are dropped.
+        ///
+        /// This is the patch-time replacement for <see cref="MergeBlocks"/>, which mangled
+        /// structure/position by round-tripping through the KV serializer.
+        /// </summary>
+        /// <param name="vanillaBlock">Existing block from items_game.txt.</param>
+        /// <param name="indexBlock">Authored block from index.txt (used verbatim).</param>
+        /// <returns>The index block, plus any essential vanilla-only keys it lacked.</returns>
+        public static string OverlayBlockPreservingStructure(string vanillaBlock, string indexBlock)
+        {
+            if (string.IsNullOrEmpty(indexBlock)) return vanillaBlock;
+            if (string.IsNullOrEmpty(vanillaBlock)) return indexBlock;
+
+            // Work in LF only — Source 2 crashes on CRLF in items_game.txt.
+            indexBlock = indexBlock.Replace("\r\n", "\n").Replace('\r', '\n');
+            string vanillaLf = vanillaBlock.Replace("\r\n", "\n").Replace('\r', '\n');
+
+            var indexChildren = EnumerateTopLevelChildren(indexBlock);
+
+            // If the index block can't be parsed reliably, still prefer it verbatim
+            // over re-ordering — never fall back to the lossy serializer merge.
+            if (indexChildren.Count == 0) return indexBlock;
+
+            var vanillaChildren = EnumerateTopLevelChildren(vanillaLf);
+            var indexKeys = new HashSet<string>(indexChildren.Select(c => c.Key), StringComparer.OrdinalIgnoreCase);
+
+            // Carry over ONLY structurally essential keys the index block is missing.
+            var vanillaOnly = vanillaChildren
+                .Where(c => EssentialVanillaKeys.Contains(c.Key) && !indexKeys.Contains(c.Key))
+                .ToList();
+
+            // Nothing vanilla-only to carry over → index block is used byte-for-byte.
+            if (vanillaOnly.Count == 0) return indexBlock;
+
+            // Match the indentation the index block uses for its depth-1 children.
+            string childIndent = LeadingWhitespace(indexChildren[0].RawText);
+
+            int braceStart = IndexOfTopLevelBrace(indexBlock);
+            int braceEnd = ExtractBalancedBlockEnd(indexBlock, braceStart); // index AFTER '}'
+            if (braceStart < 0 || braceEnd < 0) return indexBlock;
+            int closeLineStart = FindLineStart(indexBlock, braceEnd - 1);
+
+            var appended = new System.Text.StringBuilder();
+            foreach (var child in vanillaOnly)
+            {
+                appended.Append(ReindentChild(child.RawText, childIndent));
+                appended.Append('\n');
+            }
+
+            string before = indexBlock.Substring(0, closeLineStart);
+            string after = indexBlock.Substring(closeLineStart);
+            if (!before.EndsWith("\n")) before += "\n";
+
+            return before + appended.ToString() + after;
+        }
+
+        /// <summary>A depth-1 child of a KV block, captured verbatim with its indentation.</summary>
+        private readonly struct TopLevelChild
+        {
+            public readonly string Key;
+            public readonly string RawText;
+            public TopLevelChild(string key, string rawText) { Key = key; RawText = rawText; }
+        }
+
+        /// <summary>
+        /// Enumerates the depth-1 children of a KV block (the keys directly inside the
+        /// outer "id" { ... } braces). Each child's <see cref="TopLevelChild.RawText"/> is
+        /// the verbatim slice from the start of its key line through the end of its value
+        /// or matching closing brace — order and formatting preserved.
+        /// </summary>
+        private static List<TopLevelChild> EnumerateTopLevelChildren(string block)
+        {
+            var result = new List<TopLevelChild>();
+            if (string.IsNullOrEmpty(block)) return result;
+
+            int braceStart = IndexOfTopLevelBrace(block);
+            if (braceStart < 0) return result;
+
+            int braceEnd = ExtractBalancedBlockEnd(block, braceStart); // index AFTER closing '}'
+            if (braceEnd < 0) return result;
+            int bodyEnd = braceEnd - 1; // the closing '}' index
+
+            int pos = braceStart + 1;
+            while (pos < bodyEnd)
+            {
+                int keyQuote = block.IndexOf('"', pos);
+                if (keyQuote < 0 || keyQuote >= bodyEnd) break;
+
+                int keyQuoteEnd = FindClosingQuote(block, keyQuote);
+                if (keyQuoteEnd < 0 || keyQuoteEnd >= bodyEnd) break;
+
+                string key = block.Substring(keyQuote + 1, keyQuoteEnd - keyQuote - 1);
+                int lineStart = FindLineStart(block, keyQuote);
+
+                int afterKey = SkipWhitespace(block, keyQuoteEnd + 1);
+                if (afterKey >= bodyEnd) break;
+
+                int spanEnd;
+                if (block[afterKey] == '{')
+                {
+                    int subEnd = ExtractBalancedBlockEnd(block, afterKey);
+                    if (subEnd < 0) break;
+                    spanEnd = subEnd;
+                }
+                else if (block[afterKey] == '"')
+                {
+                    int valEnd = FindClosingQuote(block, afterKey);
+                    if (valEnd < 0) break;
+                    spanEnd = valEnd + 1;
+                }
+                else
+                {
+                    // Unexpected token — stop rather than risk corrupting output.
+                    break;
+                }
+
+                result.Add(new TopLevelChild(key, block.Substring(lineStart, spanEnd - lineStart)));
+                pos = spanEnd;
+            }
+
+            return result;
+        }
+
+        /// <summary>Finds the first top-level '{' (quote/escape aware).</summary>
+        private static int IndexOfTopLevelBrace(string s)
+        {
+            bool inQuote = false, escape = false;
+            for (int i = 0; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (escape) { escape = false; continue; }
+                if (c == '\\') { escape = true; continue; }
+                if (c == '"') { inQuote = !inQuote; continue; }
+                if (!inQuote && c == '{') return i;
+            }
+            return -1;
+        }
+
+        /// <summary>Finds the closing quote for the quote at <paramref name="openQuoteIdx"/> (escape aware).</summary>
+        private static int FindClosingQuote(string s, int openQuoteIdx)
+        {
+            bool escape = false;
+            for (int i = openQuoteIdx + 1; i < s.Length; i++)
+            {
+                char c = s[i];
+                if (escape) { escape = false; continue; }
+                if (c == '\\') { escape = true; continue; }
+                if (c == '"') return i;
+            }
+            return -1;
+        }
+
+        /// <summary>Returns the leading tabs/spaces of the first line of <paramref name="text"/>.</summary>
+        private static string LeadingWhitespace(string text)
+        {
+            int firstNl = text.IndexOf('\n');
+            string first = firstNl < 0 ? text : text.Substring(0, firstNl);
+            int i = 0;
+            while (i < first.Length && (first[i] == '\t' || first[i] == ' ')) i++;
+            return first.Substring(0, i);
+        }
+
+        /// <summary>
+        /// Re-bases a child's indentation so its first line sits at <paramref name="targetIndent"/>,
+        /// shifting every nested line by the same amount to preserve relative structure.
+        /// </summary>
+        private static string ReindentChild(string raw, string targetIndent)
+        {
+            var lines = raw.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            string baseIndent = LeadingWhitespace(lines.Length > 0 ? lines[0] : raw);
+
+            var sb = new System.Text.StringBuilder(raw.Length + 16);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+                if (line.Length == 0)
+                {
+                    if (i < lines.Length - 1) sb.Append('\n');
+                    continue;
+                }
+
+                if (baseIndent.Length > 0 && line.StartsWith(baseIndent, StringComparison.Ordinal))
+                    line = line.Substring(baseIndent.Length);
+                else
+                    line = line.TrimStart('\t', ' ');
+
+                sb.Append(targetIndent).Append(line);
+                if (i < lines.Length - 1) sb.Append('\n');
+            }
+            return sb.ToString();
+        }
+
+        #endregion
 
         /// <summary>
         /// Check if content appears to be one-liner format (very few newlines for file size).

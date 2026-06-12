@@ -627,6 +627,365 @@ namespace ArdysaModsTools.Tests.Helpers
             Assert.That(result, Does.Not.Contain("\r"), "No CRLF in final output");
         }
 
+        #region MergeBlocks Tests
+
+        [Test]
+        public void MergeBlocks_DeepMergesDuplicateIDs_PreferringSecondBlock()
+        {
+            var arcanaBlock = @"""855""
+{
+	""name""		""Earthshaker's Base""
+	""prefab""		""default_item""
+	""creation_date""		""2019-05-24""
+	""image_inventory""		""econ/items/earthshaker/arcana/earthshaker_arcana_style1""
+	""item_name""		""#DOTA_Item_Planetfall""
+	""item_rarity""		""arcana""
+	""item_slot""		""hero_base""
+	""portraits""
+	{
+		""game""
+		{
+			""cameras""
+			{
+				""default""
+				{
+					""PortraitPosition""		""215.323151 -70.693619 233.642761""
+					""PortraitFOV""		""20""
+				}
+			}
+		}
+	}
+	""visuals""
+	{
+		""skip_model_combine""		""1""
+		""asset_modifier""
+		{
+			""type""		""arcana_level""
+			""level""		""2""
+		}
+		""asset_modifier""
+		{
+			""type""		""particle""
+			""asset""		""particles/units/heroes/hero_earthshaker/earthshaker_echoslam_start.vpcf""
+			""modifier""		""particles/econ/items/earthshaker/earthshaker_arcana/earthshaker_arcana_echoslam_start_v2.vpcf""
+		}
+	}
+}";
+
+            var vanillaBlock = @"""855""
+{
+	""name""		""Earthshaker's Base""
+	""prefab""		""default_item""
+	""creation_date""		""2025-07-20""
+	""image_inventory""		""econ/heroes/earthshaker/base""
+	""item_name""		""#DOTA_Item_Earthshakers_Base""
+	""item_slot""		""hero_base""
+	""item_type_name""		""#DOTA_WearableType_Base""
+	""used_by_heroes""
+	{
+		""npc_dota_hero_earthshaker""		""1""
+	}
+	""visuals""
+	{
+		""skip_model_combine""		""0""
+	}
+}";
+
+            var merged = KeyValuesBlockHelper.MergeBlocks(vanillaBlock, arcanaBlock, preferRightSideStrongly: true);
+            
+            // Prefer arcana block's specifics but merge vanilla's used_by_heroes and type_name
+            Assert.That(merged, Does.Contain("\"item_rarity\"\t\t\"arcana\""));
+            Assert.That(merged, Does.Contain("\"image_inventory\"\t\t\"econ/items/earthshaker/arcana/earthshaker_arcana_style1\""));
+            Assert.That(merged, Does.Contain("\"item_name\"\t\t\"#DOTA_Item_Planetfall\""));
+            Assert.That(merged, Does.Contain("\"skip_model_combine\"\t\t\"1\""));
+            Assert.That(merged, Does.Contain("\"portraits\""));
+            Assert.That(merged, Does.Contain("\"arcana_level\""));
+            Assert.That(merged, Does.Contain("\"used_by_heroes\""));
+            Assert.That(merged, Does.Contain("\"npc_dota_hero_earthshaker\""));
+        }
+
+        [Test]
+        public void MergeBlocks_EarthshakersBracers_PrefersModOverVanilla()
+        {
+            var vanillaBlock = @"""460""
+{
+	""name""		""Earthshaker's Bracers""
+	""prefab""		""default_item""
+	""creation_date""		""2013-06-26""
+	""image_inventory""		""econ/heroes/earthshaker/bracers""
+	""item_name""		""#DOTA_Item_Earthshakers_Bracers""
+	""item_slot""		""arms""
+	""item_type_name""		""#DOTA_WearableType_Bracer""
+	""used_by_heroes""
+	{
+		""npc_dota_hero_earthshaker""		""1""
+	}
+	""visuals""
+	{
+		""skip_model_combine""		""0""
+        ""asset_modifier""
+        {
+            ""type""      ""particle_create""
+            ""modifier""  ""particles/foo.vpcf""
+        }
+	}
+}";
+
+            var modBlock = @"""460""
+{
+	""name""		""Earthshaker's Bracers""
+	""prefab""		""default_item""
+	""creation_date""		""2013-06-26""
+	""event_id""		""EVENT_ID_INTERNATIONAL_2016""
+	""image_inventory""		""econ/items/earthshaker/ti6_immortal_bracer/mesh/ti6_immortal_bracer_style1""
+	""item_description""		""This item has been modded...""
+	""item_name""		""#DOTA_Item_Bracers_of_the_Cavern_Luminar""
+	""item_rarity""		""immortal""
+	""item_slot""		""arms""
+	""item_type_name""		""#DOTA_WearableType_Bracer""
+	""model_player""		""models/heroes/earthshaker/bracers.vmdl""
+    ""visuals""
+    {
+        ""skip_model_combine""  ""1""
+        ""asset_modifier""
+        {
+            ""type""      ""particle_create""
+            ""modifier""  ""particles/bar.vpcf""
+        }
+    }
+}";
+
+            var merged = KeyValuesBlockHelper.MergeBlocks(vanillaBlock, modBlock, preferRightSideStrongly: true);
+
+            // Assert mod properties override vanilla
+            Assert.That(merged, Does.Contain("\"image_inventory\"\t\t\"econ/items/earthshaker/ti6_immortal_bracer/mesh/ti6_immortal_bracer_style1\""));
+            Assert.That(merged, Does.Contain("\"item_name\"\t\t\"#DOTA_Item_Bracers_of_the_Cavern_Luminar\""));
+            Assert.That(merged, Does.Contain("\"item_rarity\"\t\t\"immortal\""));
+            Assert.That(merged, Does.Contain("\"event_id\"\t\t\"EVENT_ID_INTERNATIONAL_2016\""));
+            Assert.That(merged, Does.Contain("\"model_player\"\t\t\"models/heroes/earthshaker/bracers.vmdl\""));
+            
+            // Asset modifiers should override
+            Assert.That(merged, Does.Contain("\"particles/bar.vpcf\""));
+            Assert.That(merged, Does.Not.Contain("\"particles/foo.vpcf\""));
+            
+            // Skip model combine logic
+            Assert.That(merged, Does.Contain("\"skip_model_combine\"\t\t\"1\""));
+            
+            // Preserved base properties
+            Assert.That(merged, Does.Contain("\"used_by_heroes\""));
+            Assert.That(merged, Does.Contain("\"npc_dota_hero_earthshaker\""));
+        }
+
+        [Test]
+        public void MergeBlocks_WithNullOrEmpty_ReturnsOther()
+        {
+            var blockA = @"""855"" { ""name"" ""A"" }";
+            Assert.That(KeyValuesBlockHelper.MergeBlocks(blockA, null), Is.EqualTo(blockA));
+            Assert.That(KeyValuesBlockHelper.MergeBlocks(null, blockA), Is.EqualTo(blockA));
+        }
+
+        [Test]
+        public void MergeBlocks_FullReal460Blocks_MergesCorrectly()
+        {
+            var vanillaBlock = @"""460""
+{
+	""name""		""Earthshaker's Bracers""
+	""prefab""		""default_item""
+	""creation_date""		""2013-06-26""
+	""image_inventory""		""econ/heroes/earthshaker/bracers""
+	""item_name""		""#DOTA_Item_Earthshakers_Bracers""
+	""item_slot""		""arms""
+	""item_type_name""		""#DOTA_WearableType_Bracer""
+	""hero_presets""
+	{
+		""npc_dota_hero_earthshaker""
+		{
+			""1""
+			{
+				""asset_modifier""
+				{
+					""type""		""particle_create""
+					""modifier""		""particles/units/heroes/hero_earthshaker/earthshaker_totem_cast.vpcf""
+				}
+			}
+		}
+	}
+	""used_by_heroes""
+	{
+		""npc_dota_hero_earthshaker""		""1""
+	}
+	""visuals""
+	{
+		""skip_model_combine""		""0""
+		""asset_modifier0""
+		{
+			""type""		""particle_create""
+			""modifier""		""particles/units/heroes/hero_earthshaker/earthshaker_totem_cast.vpcf""
+		}
+	}
+}";
+
+            var modBlock = @"""460""
+{
+	""name""		""Earthshaker's Bracers""
+	""prefab""		""default_item""
+	""creation_date""		""2013-06-26""
+	""event_id""		""EVENT_ID_INTERNATIONAL_2016""
+	""image_inventory""		""econ/items/earthshaker/ti6_immortal_bracer/mesh/ti6_immortal_bracer_style1""
+	""item_description""		""This item has been modded...""
+	""item_name""		""#DOTA_Item_Bracers_of_the_Cavern_Luminar""
+	""item_rarity""		""immortal""
+	""item_slot""		""arms""
+	""item_type_name""		""#DOTA_WearableType_Bracer""
+	""model_player""		""models/heroes/earthshaker/bracers.vmdl""
+	""visuals""
+	{
+		""skip_model_combine""		""1""
+		""asset_modifier""
+		{
+			""type""		""arcana_level""
+			""level""		""2""
+		}
+		""asset_modifier""
+		{
+			""type""		""particle_create""
+			""modifier""		""particles/econ/items/earthshaker/earthshaker_arcana/earthshaker_arcana_totem_cast_v2.vpcf""
+		}
+	}
+}";
+
+            var merged = KeyValuesBlockHelper.MergeBlocks(vanillaBlock, modBlock, preferRightSideStrongly: true);
+
+            // Modded identity fields
+            Assert.That(merged, Does.Contain("\"image_inventory\"\t\t\"econ/items/earthshaker/ti6_immortal_bracer/mesh/ti6_immortal_bracer_style1\""));
+            Assert.That(merged, Does.Contain("\"item_name\"\t\t\"#DOTA_Item_Bracers_of_the_Cavern_Luminar\""));
+            Assert.That(merged, Does.Contain("\"item_rarity\"\t\t\"immortal\""));
+            Assert.That(merged, Does.Contain("\"item_type_name\""));
+            
+            // Vanilla-only structure preserved
+            Assert.That(merged, Does.Contain("\"hero_presets\""));
+            
+            // Both particle_create arcana levels present (the one in asset_modifier and the one in asset_modifier0)
+            Assert.That(merged, Does.Contain("\"arcana_level\""));
+            Assert.That(merged, Does.Contain("\"asset_modifier\""));
+            
+            // asset_modifier0 preserved
+            Assert.That(merged, Does.Contain("\"asset_modifier0\""));
+            
+            // no \r
+            Assert.That(merged, Does.Not.Contain("\r"));
+        }
+
+        #endregion
+
+        #region OverlayBlockPreservingStructure Tests
+
+        /// <summary>
+        /// When the index block defines every top-level key the vanilla block has,
+        /// the overlay must return the index block byte-for-byte (no re-ordering).
+        /// </summary>
+        [Test]
+        public void Overlay_NoVanillaOnlyKeys_ReturnsIndexBlockVerbatim()
+        {
+            var indexBlock = "\t\"140\"\n\t{\n\t\t\"name\"\t\t\"PA Weapon\"\n\t\t\"item_rarity\"\t\t\"arcana\"\n\t\t\"used_by_heroes\"\n\t\t{\n\t\t\t\"npc_dota_hero_phantom_assassin\"\t\t\"1\"\n\t\t}\n\t}";
+            var vanillaBlock = "\t\"140\"\n\t{\n\t\t\"name\"\t\t\"Vanilla\"\n\t\t\"item_rarity\"\t\t\"mythical\"\n\t\t\"used_by_heroes\"\n\t\t{\n\t\t\t\"npc_dota_hero_phantom_assassin\"\t\t\"1\"\n\t\t}\n\t}";
+
+            var result = KeyValuesBlockHelper.OverlayBlockPreservingStructure(vanillaBlock, indexBlock);
+
+            Assert.That(result, Is.EqualTo(indexBlock), "Index block must be used verbatim when no vanilla-only keys exist");
+        }
+
+        /// <summary>
+        /// Essential vanilla-only keys (hero_presets) the index omits must be carried over,
+        /// but cosmetic ones (creation_date) must be dropped — the index block is the source
+        /// of truth for everything else.
+        /// </summary>
+        [Test]
+        public void Overlay_CarriesEssentialKeys_DropsCosmetic()
+        {
+            var indexBlock = "\t\"140\"\n\t{\n\t\t\"name\"\t\t\"PA Weapon\"\n\t\t\"item_rarity\"\t\t\"arcana\"\n\t\t\"used_by_heroes\"\n\t\t{\n\t\t\t\"npc_dota_hero_phantom_assassin\"\t\t\"1\"\n\t\t}\n\t}";
+            var vanillaBlock = "\t\"140\"\n\t{\n\t\t\"name\"\t\t\"Vanilla\"\n\t\t\"hero_presets\"\n\t\t{\n\t\t\t\"npc_dota_hero_phantom_assassin\"\n\t\t\t{\n\t\t\t\t\"1\"\t\t\"x\"\n\t\t\t}\n\t\t}\n\t\t\"creation_date\"\t\t\"2020-09-28\"\n\t}";
+
+            var result = KeyValuesBlockHelper.OverlayBlockPreservingStructure(vanillaBlock, indexBlock);
+
+            // Index identity preserved
+            Assert.That(result, Does.Contain("\"item_rarity\"\t\t\"arcana\""));
+            // Essential vanilla-only key carried over (with its sub-structure)
+            Assert.That(result, Does.Contain("\"hero_presets\""));
+            // Cosmetic vanilla-only key dropped
+            Assert.That(result, Does.Not.Contain("\"creation_date\""));
+            // Carried child lands inside the block (before its final brace)
+            Assert.That(result.TrimEnd().EndsWith("}"), Is.True);
+        }
+
+        /// <summary>
+        /// When the index block already defines every essential key, the result is the index
+        /// block byte-for-byte even if vanilla has extra cosmetic keys (e.g. creation_date).
+        /// This is the real Phantom Assassin arcana case.
+        /// </summary>
+        [Test]
+        public void Overlay_IndexHasEssentials_IgnoresVanillaCosmetic_ReturnsVerbatim()
+        {
+            var indexBlock = "\t\"140\"\n\t{\n\t\t\"image_inventory\"\t\t\"econ/items/phantom_assassin/manifold_paradox/arcana_pa_style2\"\n\t\t\"item_name\"\t\t\"#DOTA_Item_Manifold_Paradox\"\n\t\t\"item_rarity\"\t\t\"arcana\"\n\t\t\"prefab\"\t\t\"default_item\"\n\t\t\"used_by_heroes\"\n\t\t{\n\t\t\t\"npc_dota_hero_phantom_assassin\"\t\t\"1\"\n\t\t}\n\t}";
+            var vanillaBlock = "\t\"140\"\n\t{\n\t\t\"image_inventory\"\t\t\"econ/items/phantom_assassin/assassination_of_dark_feather_weapon/assassination_of_dark_feather_weapon\"\n\t\t\"item_name\"\t\t\"#DOTA_Item_Darkfeather_Factioneer__Weapon\"\n\t\t\"item_rarity\"\t\t\"mythical\"\n\t\t\"prefab\"\t\t\"default_item\"\n\t\t\"used_by_heroes\"\n\t\t{\n\t\t\t\"npc_dota_hero_phantom_assassin\"\t\t\"1\"\n\t\t}\n\t\t\"creation_date\"\t\t\"2020-09-28\"\n\t}";
+
+            var result = KeyValuesBlockHelper.OverlayBlockPreservingStructure(vanillaBlock, indexBlock);
+
+            Assert.That(result, Is.EqualTo(indexBlock), "Index block must be used verbatim, ignoring vanilla cosmetic keys");
+            Assert.That(result, Does.Not.Contain("dark_feather"));
+            Assert.That(result, Does.Not.Contain("\"creation_date\""));
+        }
+
+        /// <summary>
+        /// The overlay must NOT re-order the index block's keys: item_rarity authored
+        /// before item_type_name must remain in that order (the deep-merge bug pushed
+        /// these to the bottom).
+        /// </summary>
+        [Test]
+        public void Overlay_PreservesIndexKeyOrder()
+        {
+            var indexBlock = "\t\"140\"\n\t{\n\t\t\"item_rarity\"\t\t\"arcana\"\n\t\t\"item_type_name\"\t\t\"#DOTA_WearableType_Parallel_Blades\"\n\t\t\"used_by_heroes\"\n\t\t{\n\t\t\t\"npc_dota_hero_phantom_assassin\"\t\t\"1\"\n\t\t}\n\t}";
+            var vanillaBlock = "\t\"140\"\n\t{\n\t\t\"item_type_name\"\t\t\"#DOTA_WearableType_weapon\"\n\t\t\"item_rarity\"\t\t\"mythical\"\n\t\t\"used_by_heroes\"\n\t\t{\n\t\t\t\"npc_dota_hero_phantom_assassin\"\t\t\"1\"\n\t\t}\n\t\t\"creation_date\"\t\t\"2020-09-28\"\n\t}";
+
+            var result = KeyValuesBlockHelper.OverlayBlockPreservingStructure(vanillaBlock, indexBlock);
+
+            int rarityPos = result.IndexOf("\"item_rarity\"", StringComparison.Ordinal);
+            int typePos = result.IndexOf("\"item_type_name\"", StringComparison.Ordinal);
+            Assert.That(rarityPos, Is.GreaterThan(-1));
+            Assert.That(typePos, Is.GreaterThan(rarityPos), "item_rarity must stay before item_type_name (index order)");
+            // Modded values win — vanilla rarity must be gone
+            Assert.That(result, Does.Contain("\"item_rarity\"\t\t\"arcana\""));
+            Assert.That(result, Does.Not.Contain("\"item_rarity\"\t\t\"mythical\""));
+        }
+
+        /// <summary>
+        /// Regression: overlay output must never contain CRLF (Source 2 requirement).
+        /// </summary>
+        [Test]
+        public void Overlay_NeverProducesCRLF()
+        {
+            var indexBlock = "\t\"140\"\r\n\t{\r\n\t\t\"name\"\t\t\"PA\"\r\n\t}";
+            var vanillaBlock = "\t\"140\"\r\n\t{\r\n\t\t\"name\"\t\t\"Vanilla\"\r\n\t\t\"item_slot\"\t\t\"weapon\"\r\n\t}";
+
+            var result = KeyValuesBlockHelper.OverlayBlockPreservingStructure(vanillaBlock, indexBlock);
+
+            Assert.That(result, Does.Not.Contain("\r"), "Overlay must emit LF-only line endings");
+            Assert.That(result, Does.Contain("\"item_slot\""), "Essential key carried over");
+        }
+
+        /// <summary>
+        /// Null/empty guards: empty index returns vanilla, empty vanilla returns index.
+        /// </summary>
+        [Test]
+        public void Overlay_NullOrEmpty_ReturnsOther()
+        {
+            var block = "\t\"140\"\n\t{\n\t\t\"name\"\t\t\"X\"\n\t}";
+            Assert.That(KeyValuesBlockHelper.OverlayBlockPreservingStructure(block, null), Is.EqualTo(block));
+            Assert.That(KeyValuesBlockHelper.OverlayBlockPreservingStructure(null, block), Is.EqualTo(block));
+        }
+
+        #endregion
+
         #endregion
     }
 }

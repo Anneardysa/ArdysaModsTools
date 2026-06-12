@@ -181,127 +181,174 @@ namespace ArdysaModsTools.Core.Services
                     var mergedBlocks = new Dictionary<string, (string block, string heroId)>();
 
                     stageProgress?.Report((20, "Processing"));
-                    for (int i = 0; i < heroesToProcess.Count; i++)
-                    {
-                        ct.ThrowIfCancellationRequested();
-                        
-                        var (hero, setName) = heroesToProcess[i];
-                        int current = i + 1;
-                        
-                        // Calculate progress: 20% + (40% spread across heroes)
-                        int heroProgress = 20 + (int)((current * 40.0) / totalHeroes);
-                        
-                        // Log first, then update progress for sync
-                        log($"[{current}/{totalHeroes}] Processing {hero.DisplayName}...");
-                        stageProgress?.Report((heroProgress, $"Processing {hero.DisplayName}"));
-                        progress?.Report((current, totalHeroes, hero.DisplayName));
 
-                        try
+                    // Group selections by hero to process all layers of each hero in the correct priority order
+                    var heroGroups = heroesToProcess.GroupBy(x => x.hero.Id).ToList();
+                    int processedSelectionsCount = 0;
+                    int totalSelections = heroesToProcess.Count;
+
+                    for (int g = 0; g < heroGroups.Count; g++)
+                    {
+                        var group = heroGroups[g];
+                        var firstItem = group.First();
+                        var hero = firstItem.hero;
+
+                        // Download all selections for this hero
+                        var extractedList = new List<(HeroModel hero, string setName, HeroModelMapper.SkinCategory category, string folderPath)>();
+
+                        foreach (var item in group)
                         {
-                            if (hero == null)
+                            ct.ThrowIfCancellationRequested();
+                            processedSelectionsCount++;
+
+                            if (item.hero == null)
                             {
                                 failedHeroes.Add(("Unknown", "Hero is null"));
                                 continue;
                             }
 
-                            if (string.IsNullOrWhiteSpace(setName))
+                            // Calculate progress: 20% + (40% spread across selections)
+                            int progressPercent = 20 + (int)((processedSelectionsCount * 40.0) / totalSelections);
+
+                            log($"[{processedSelectionsCount}/{totalSelections}] Processing {item.hero.DisplayName} - {item.setName}...");
+                            stageProgress?.Report((progressPercent, $"Processing {item.hero.DisplayName}"));
+                            progress?.Report((processedSelectionsCount, totalSelections, item.hero.DisplayName));
+
+                            if (string.IsNullOrWhiteSpace(item.setName))
                             {
-                                failedHeroes.Add((hero.DisplayName, "No set selected"));
+                                failedHeroes.Add((item.hero.DisplayName, "No set selected"));
                                 continue;
                             }
 
-                            // Note: Default Set already filtered out in FilterHeroesForProcessing
-
-                            if (hero.Sets == null || !hero.Sets.TryGetValue(setName, out var setUrls) || setUrls == null || setUrls.Count == 0)
+                            if (item.hero.Sets == null || !item.hero.Sets.TryGetValue(item.setName, out var setUrls) || setUrls == null || setUrls.Count == 0)
                             {
-                                failedHeroes.Add((hero.DisplayName, $"Set '{setName}' not found"));
+                                failedHeroes.Add((item.hero.DisplayName, $"Set '{item.setName}' not found"));
                                 continue;
                             }
 
-                            // Find zip URL in set
-                            var zipUrl = setUrls.FirstOrDefault(u =>
-                                u != null && u.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
-
+                            var zipUrl = setUrls.FirstOrDefault(u => u != null && u.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
                             if (string.IsNullOrWhiteSpace(zipUrl))
                             {
-                                failedHeroes.Add((hero.DisplayName, $"No .zip file found for set '{setName}'"));
+                                failedHeroes.Add((item.hero.DisplayName, $"No .zip file found for set '{item.setName}'"));
                                 continue;
                             }
 
-                            if (hero.ItemIds == null || hero.ItemIds.Count == 0)
+                            if (item.hero.ItemIds == null || item.hero.ItemIds.Count == 0)
                             {
-                                failedHeroes.Add((hero.DisplayName, "No item IDs defined"));
+                                failedHeroes.Add((item.hero.DisplayName, "No item IDs defined"));
                                 continue;
                             }
 
-                            // Download & Extract set zip (speedProgress will show bytes during download)
                             string setFolder;
                             try
                             {
-                                // Convert raw GitHub URL to CDN for faster downloads
                                 var fastZipUrl = Core.Services.Config.EnvironmentConfig.ConvertToFastUrl(zipUrl);
-                                
                                 setFolder = await _downloader.DownloadAndExtractAsync(
-                                    hero.Id, setName, fastZipUrl, log, ct, speedProgress).ConfigureAwait(false);
-#if DEBUG
-                                System.Diagnostics.Debug.WriteLine($"[DEBUG] setFolder = {setFolder}");
-#endif
-                                // After download complete, restore file count progress
+                                    item.hero.Id, item.setName, fastZipUrl, log, ct, speedProgress).ConfigureAwait(false);
+
                                 speedProgress?.Report(new ArdysaModsTools.Core.Models.SpeedMetrics 
                                 { 
-                                    CurrentFile = current,
-                                    TotalFiles = totalHeroes
+                                    CurrentFile = processedSelectionsCount,
+                                    TotalFiles = totalSelections
                                 });
                             }
                             catch (Exception ex)
                             {
-                                failedHeroes.Add((hero.DisplayName, $"Download failed: {ex.Message}"));
+                                failedHeroes.Add((item.hero.DisplayName, $"Download failed for {item.setName}: {ex.Message}"));
                                 continue;
                             }
 
-                            // Merge set assets into extracted folder and track files
-                            var (contentRoot, copiedFiles) = await MergeSetAssetsAsync(setFolder, extractDir, ct).ConfigureAwait(false);
-#if DEBUG
-                            System.Diagnostics.Debug.WriteLine($"[DEBUG] Merged {copiedFiles.Count} files from contentRoot: {contentRoot}");
-#endif
+                            var category = HeroModelMapper.ClassifySet(item.hero.Sets, item.setName);
+                            extractedList.Add((item.hero, item.setName, category, setFolder));
+                        }
 
-                            // Parse index.txt and collect blocks for merged patching
-                            // Pass setFolder as fallback in case index.txt is at zip root, not in contentRoot
-                            var heroBlocks = _patcher.ParseIndexFile(contentRoot, hero.Id, hero.ItemIds, setFolder);
-                            if (heroBlocks != null)
+                        if (extractedList.Count == 0)
+                            continue;
+
+                        // Check base hero item slot logic
+                        var baseSelection = extractedList.FirstOrDefault(x => x.category == HeroModelMapper.SkinCategory.BaseHero);
+                        bool hasHeroBaseSlot = false;
+                        if (baseSelection != default)
+                        {
+                            var baseContentRoot = FindContentRoot(baseSelection.folderPath);
+                            hasHeroBaseSlot = IndexFileHasHeroBaseSlot(baseContentRoot) || IndexFileHasHeroBaseSlot(baseSelection.folderPath);
+                            if (hasHeroBaseSlot)
                             {
-                                foreach (var kvp in heroBlocks)
+                                log($"[Patcher] Base Hero mod for {hero.DisplayName} has item_slot hero_base — Base takes top priority (Base > Sets > Items).");
+                            }
+                            else
+                            {
+                                log($"[Patcher] Base Hero mod for {hero.DisplayName} does not have item_slot hero_base — Base is lowest priority (Sets > Items > Base).");
+                            }
+                        }
+
+                        // Order selections for correct merge priority
+                        var orderedList = extractedList
+                            .OrderBy(x => GetSortWeight(x.category, hasHeroBaseSlot))
+                            .ToList();
+
+                        bool heroSucceeded = false;
+                        try
+                        {
+                            foreach (var selection in orderedList)
+                            {
+                                ct.ThrowIfCancellationRequested();
+
+                                var (contentRoot, copiedFiles) = await MergeSetAssetsAsync(selection.folderPath, extractDir, ct).ConfigureAwait(false);
+
+                                var heroBlocks = _patcher.ParseIndexFile(contentRoot, hero.Id, hero.ItemIds, selection.folderPath);
+                                if (heroBlocks != null)
                                 {
-                                    mergedBlocks[kvp.Key] = kvp.Value;
+                                    foreach (var kvp in heroBlocks)
+                                    {
+                                        if (mergedBlocks.TryGetValue(kvp.Key, out var existing))
+                                        {
+                                            var mergedBlockString = KeyValuesBlockHelper.MergeBlocks(existing.block, kvp.Value.block, preferRightSideStrongly: true);
+                                            mergedBlocks[kvp.Key] = (mergedBlockString, kvp.Value.heroId);
+                                        }
+                                        else
+                                        {
+                                            mergedBlocks[kvp.Key] = kvp.Value;
+                                        }
+                                    }
                                 }
+
+                                extractionLog.InstalledSets.Add(new HeroSetEntry
+                                {
+                                    HeroId = hero.Id,
+                                    SetName = selection.setName,
+                                    Files = copiedFiles
+                                });
+
+                                heroSucceeded = true;
                             }
 
-                            // Add to extraction log
-                            extractionLog.InstalledSets.Add(new HeroSetEntry
+                            if (heroSucceeded)
                             {
-                                HeroId = hero.Id,
-                                SetName = setName,
-                                Files = copiedFiles
-                            });
-
-                            successfulHeroes.Add(hero.DisplayName);
-                            
-                            // Cleanup downloaded set folder to free memory
-                            try
-                            {
-                                if (Directory.Exists(setFolder))
-                                    Directory.Delete(setFolder, true);
+                                successfulHeroes.Add(hero.DisplayName);
                             }
-                            catch { }
                         }
                         catch (Exception ex)
                         {
                             failedHeroes.Add((hero.DisplayName, ex.Message));
-                            _logger?.Log($"Error processing {hero?.DisplayName}: {ex}");
+                            _logger?.Log($"Error merging assets for {hero.DisplayName}: {ex}");
                         }
-                        
+                        finally
+                        {
+                            // Clean up folders
+                            foreach (var selection in extractedList)
+                            {
+                                try
+                                {
+                                    if (Directory.Exists(selection.folderPath))
+                                        Directory.Delete(selection.folderPath, true);
+                                }
+                                catch { }
+                            }
+                        }
+
                         // Force GC after each hero to prevent memory buildup
-                        if (i % 3 == 2) // Every 3 heroes
+                        if (g % 3 == 2)
                         {
                             GC.Collect();
                             GC.WaitForPendingFinalizers();
@@ -412,13 +459,6 @@ namespace ArdysaModsTools.Core.Services
                         if (Directory.Exists(tempRoot))
                             Directory.Delete(tempRoot, true);
                         
-                        // Cleanup ArdysaSelectHero folder
-                        // Cleanup ArdysaSelectHero folder
-                        var selectHeroTemp = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero");
-                        if (Directory.Exists(selectHeroTemp))
-                            Directory.Delete(selectHeroTemp, true);
-                        
-                        // Cleanup hero set cache folder (individual hero downloads)
                         // Cleanup hero set cache folder (individual hero downloads)
                         var setsCache = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero", "cache", "sets");
                         if (Directory.Exists(setsCache))
@@ -597,6 +637,61 @@ namespace ArdysaModsTools.Core.Services
             }
 
             return result;
+        }
+
+        internal static int GetSortWeight(HeroModelMapper.SkinCategory category, bool baseHasHeroBaseSlot)
+        {
+            switch (category)
+            {
+                case HeroModelMapper.SkinCategory.BaseHero:
+                    return baseHasHeroBaseSlot ? 3 : 1;            // hero_base → Base wins; else Base lowest
+                case HeroModelMapper.SkinCategory.LegacySet:
+                case HeroModelMapper.SkinCategory.CustomSet:
+                case HeroModelMapper.SkinCategory.Persona:
+                    return baseHasHeroBaseSlot ? 2 : 3;            // Sets win when no hero_base
+                case HeroModelMapper.SkinCategory.Item:
+                    return baseHasHeroBaseSlot ? 1 : 2;
+                default:
+                    return 0;                                       // unknown → applied first, never wins
+            }
+        }
+
+        internal static bool IndexFileHasHeroBaseSlot(string folder)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+                    return false;
+
+                string? indexPath = null;
+                var rootIndex = Path.Combine(folder, "index.txt");
+                if (File.Exists(rootIndex))
+                {
+                    indexPath = rootIndex;
+                }
+                else
+                {
+                    var candidates = Directory.EnumerateFiles(folder, "*.txt", SearchOption.AllDirectories)
+                        .Where(p => Path.GetFileName(p).Contains("index", StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    if (candidates.Count > 0)
+                        indexPath = candidates[0];
+                    else
+                        indexPath = Directory.EnumerateFiles(folder, "*.txt", SearchOption.AllDirectories).FirstOrDefault();
+                }
+
+                if (indexPath == null) return false;
+
+                var text = File.ReadAllText(indexPath, System.Text.Encoding.UTF8);
+                return System.Text.RegularExpressions.Regex.IsMatch(text, 
+                    @"""item_slot""\s+""hero_base""", 
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
     }

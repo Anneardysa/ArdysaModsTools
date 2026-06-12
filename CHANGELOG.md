@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] (Build 2133)
+## [2.1.26-beta] (Build 2134)
 
 ### 🐛 Fixed
 
+- **Patcher**: Fixed `items_game.txt` generation so the authored `index.txt` block is applied **verbatim** — preserving its exact key order, values, nested structure, and numbered modifiers (`asset_modifier25/27/28`). The previous serializer-based deep-merge re-ordered keys and let vanilla identity fields/modifiers (e.g. Dark Feather `image_inventory`, generic `ambient_blade`, duplicate `particle_create` entries) leak into the output. Only structurally essential vanilla keys the index omits (`used_by_heroes`, `hero_presets`, `item_slot`, `prefab`) are now carried over; cosmetic vanilla keys are dropped.
+- **Generator**: Fixed inverted layer sort weights in `HeroGenerationService` causing incorrect merge priority. Priority now correctly enforces Base > Sets > Items (when `hero_base` is present) and Sets > Items > Base (otherwise), resolving visual bugs.
+- **Generator**: Fixed an issue where merging multiple mods with the same item ID (e.g. Base Hero replacements and Sets) would simply overwrite the ID block, causing important fields like 'used_by_heroes' or multiple 'asset_modifier' dummy objects to be stripped. Implemented deep merging logic for KeyValues blocks to preserve nested data.
 - **UI**: Fixed Settings form top-right close ("✕") button not working due to mouse capture during drag initialization (`onmousedown`) swallowing the click event.
 
 ### ✨ Added
@@ -18,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Core**: Added `Persona` to `SkinCategory` enum for handling full hero model replacement mods (`persona_` prefix).
 - **Core**: Added `ExtractItemTag()` to parse slot tags from item archives (e.g., extracting "shoulder" from `item_shoulder_pauldrons_1.zip`).
 - **UI**: Added a 5th "Persona" section to the Hero Skin Selection modal with a distinct magenta/pink theme and glowing selection state.
+- **UI**: Added a professional "Cosmetic Compatibility Alert" confirmation prompt when a Base Hero modification is selected without a corresponding Set to warn about potential visual conflicts.
 - **UI**: Item tiles now display their slot tags as small green badges (`[shoulder]`, `[weapon]`, etc.).
 - **Model**: Added `PersonaIndex` to `HeroSelectionState` to support persisting and generating persona selections.
 - **Tooling**: Updated `2-patch_models.py` to classify and summarize `persona_` archives and display extracted item tags in Mode 4 overview.
@@ -34,7 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **UI**: Implemented tag-based mutual exclusion for Items — selecting an item automatically deselects any currently active item sharing the same slot tag.
 - **UI**: Implemented Persona mutual exclusion — selecting a Persona automatically clears and disables all Items and Base Hero selections, as Personas act as full model replacements.
-- **Generator**: Updated the merging priority pipeline to accommodate Personas: Set → Persona → Items (skipped if Persona) → Base Hero (skipped if Persona).
+- **Generator**: Fixed deep merging of KeyValues blocks (e.g. `visuals` fields, `portraits` hierarchies, `asset_modifier` tracking) instead of replacing sub-trees.
+- **Generator**: Reordered the merging priority pipeline to apply selections in sequence: Sets/Custom Sets/Personas (lowest) → Selected Items (middle) → Base Hero (highest), ensuring custom base models correctly override set and item assets.
+- **Patcher**: Replaced the items_game.txt block patcher with a structure-preserving overlay (`KeyValuesBlockHelper.OverlayBlockPreservingStructure`) that applies the custom `index.txt` block verbatim and carries over only essential base keys the index omits, instead of round-tripping both blocks through the KeyValues serializer.
 
 ---
 
@@ -63,8 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Hero Mapping Consolidation**: Extracted a unified `HeroModelMapper.MapFromSummaries(List<HeroSummary>)` service to map raw hero configurations to full `HeroModel` objects, replacing the legacy 270-line reflection-based mapping monster in `SelectHero.cs` and duplicate implementations in `HeroGalleryForm.cs` and `SelectHeroPresenter.cs`.
 - **Shared Utilities Extracted**:
-  - Extracted `IsCustomSet()` (detecting custom/mixed skin sets from file patterns) and `FormatHeroIdAsName()` to the shared `HeroModelMapper` utility.
-  - Consolidated all hero cache cleanup logic into `HeroCacheHelper.Cleanup()`, removing duplicate cleanup procedures in `SelectHero.cs` and `SelectHeroPresenter.cs`.
+   - Extracted `IsCustomSet()` (detecting custom/mixed skin sets from file patterns) and `FormatHeroIdAsName()` to the shared `HeroModelMapper` utility.
+   - Consolidated all hero cache cleanup logic into `HeroCacheHelper.Cleanup()`, removing duplicate cleanup procedures in `SelectHero.cs` and `SelectHeroPresenter.cs`.
 - **Dead Code Removal**: Cleaned up orphaned event handlers and dead design bindings in `SelectHero.Designer.cs`.
 
 ### 🐛 Fixed

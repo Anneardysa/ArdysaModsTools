@@ -44,6 +44,7 @@ namespace ArdysaModsTools.UI.Forms
         private bool _initialized;
         private bool _isGenerating;
         private TaskCompletionSource<bool>? _alertDismissed;
+        private TaskCompletionSource<bool>? _confirmBaseNoSet;
 
         // Data
         private List<HeroModel> _heroes = new();
@@ -617,6 +618,17 @@ namespace ArdysaModsTools.UI.Forms
                         // Signal that the alert was dismissed
                         _alertDismissed?.TrySetResult(true);
                         break;
+
+                    case "baseNoSetConfirmed":
+                        if (message.TryGetProperty("confirmed", out var confirmedEl) && confirmedEl.ValueKind == JsonValueKind.True)
+                        {
+                            _confirmBaseNoSet?.TrySetResult(true);
+                        }
+                        else
+                        {
+                            _confirmBaseNoSet?.TrySetResult(false);
+                        }
+                        break;
                 }
             }
             catch (Exception ex)
@@ -765,8 +777,45 @@ namespace ArdysaModsTools.UI.Forms
 
             try
             {
+                // Check if any hero has a base hero selected but no set selected
+                var heroesWithBaseNoSet = new List<string>();
+                foreach (var kvp in _selections)
+                {
+                    var hero = _heroes.FirstOrDefault(h => 
+                        string.Equals(h.Id, kvp.Key, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (hero?.Sets == null) continue;
+
+                    var state = kvp.Value;
+                    if (state.BaseIndex.HasValue && !state.SetIndex.HasValue)
+                    {
+                        heroesWithBaseNoSet.Add(hero.DisplayName);
+                    }
+                }
+
+                if (heroesWithBaseNoSet.Count > 0)
+                {
+                    string heroNames = string.Join(", ", heroesWithBaseNoSet);
+                    string message = $"A <b>Base Hero</b> model modification has been selected for <b>{heroNames}</b> without an active <b>Sets</b> selection.<br/><br/>" +
+                                     "Generating a base model mod without a corresponding custom set can lead to texture clipping or visual conflicts with default equipment.<br/><br/>" +
+                                     "Are you sure you want to proceed with the current configuration?";
+
+                    _confirmBaseNoSet = new TaskCompletionSource<bool>();
+                    
+                    // Call JS to show the confirmation dialog
+                    var escapedMessage = message.Replace("'", "\\'").Replace("\n", "\\n");
+                    await _webView!.CoreWebView2.ExecuteScriptAsync($"showConfirmBaseNoSet('Cosmetic Compatibility Alert', '{escapedMessage}')");
+                    
+                    var userProceed = await _confirmBaseNoSet.Task;
+                    if (!userProceed)
+                    {
+                        await UpdateStatusAsync("Generation cancelled");
+                        return;
+                    }
+                }
+
                 // Build priority-ordered selections list
-                // Priority: 1=Set (Legacy/Custom), 2=Items, 3=Base Hero
+                // Priority of application: Set/Custom Set/Persona (applied first/lowest) -> Items (applied second/middle) -> Base Hero (applied third/highest)
                 var heroesWithSets = new List<(HeroModel hero, string setName)>();
 
                 foreach (var kvp in _selections)
@@ -779,7 +828,7 @@ namespace ArdysaModsTools.UI.Forms
                     var state = kvp.Value;
                     var setKeys = hero.Sets.Keys.ToList();
 
-                    // Priority 1: Selected Set (Legacy, Custom, or Persona)
+                    // Priority 1 (Applied First / Lowest): Selected Set (Legacy, Custom, or Persona)
                     if (state.SetIndex.HasValue && state.SetIndex.Value < setKeys.Count)
                     {
                         var setName = setKeys[state.SetIndex.Value];
@@ -787,7 +836,7 @@ namespace ArdysaModsTools.UI.Forms
                             heroesWithSets.Add((hero, setName));
                     }
 
-                    // Priority 2: Selected Items (multi-select)
+                    // Priority 2 (Applied Second / Middle): Selected Items (multi-select)
                     foreach (var itemIdx in state.ItemIndices)
                     {
                         if (itemIdx < setKeys.Count)
@@ -798,7 +847,7 @@ namespace ArdysaModsTools.UI.Forms
                         }
                     }
 
-                    // Priority 3: Selected Base Hero
+                    // Priority 3 (Applied Third / Highest): Selected Base Hero
                     if (state.BaseIndex.HasValue && state.BaseIndex.Value < setKeys.Count)
                     {
                         var setName = setKeys[state.BaseIndex.Value];

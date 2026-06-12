@@ -2129,8 +2129,10 @@
 
          // Confirmation modal state
          let confirmCallback = null;
+         let confirmType = "clearAll"; // "clearAll" or "baseNoSet"
 
          function showConfirm(title, message) {
+            confirmType = "clearAll";
             document.getElementById("confirmTitle").textContent = title;
             document.getElementById("confirmMessage").innerHTML = message;
             document.getElementById("confirmSelectionList").classList.add("hidden");
@@ -2138,7 +2140,24 @@
             document.getElementById("confirmModal").classList.remove("hidden");
          }
 
+         function showConfirmBaseNoSet(title, message) {
+            confirmType = "baseNoSet";
+            document.getElementById("confirmTitle").textContent = title;
+            document.getElementById("confirmMessage").innerHTML = message;
+            document.getElementById("confirmSelectionList").classList.add("hidden");
+            document.getElementById("confirmSelectionList").innerHTML = "";
+            
+            // Customize Yes button text for confirmation flow
+            const yesBtn = document.querySelector("#confirmModal button[onclick='closeConfirm(true)']");
+            if (yesBtn) {
+               yesBtn.textContent = "Continue";
+            }
+            
+            document.getElementById("confirmModal").classList.remove("hidden");
+         }
+
          function showConfirmWithList(title, message, items) {
+            confirmType = "clearAll";
             document.getElementById("confirmTitle").textContent = title;
             document.getElementById("confirmMessage").innerHTML = message;
 
@@ -2175,8 +2194,24 @@
 
          function closeConfirm(confirmed) {
             document.getElementById("confirmModal").classList.add("hidden");
-            if (confirmed) {
-               doClearAllSelections();
+            
+            // Restore default Yes button text
+            const yesBtn = document.querySelector("#confirmModal button[onclick='closeConfirm(true)']");
+            if (yesBtn) {
+               yesBtn.textContent = "Yes, Clear All";
+            }
+
+            if (confirmType === "clearAll") {
+               if (confirmed) {
+                  doClearAllSelections();
+               }
+            } else if (confirmType === "baseNoSet") {
+               if (window.chrome && window.chrome.webview) {
+                  window.chrome.webview.postMessage({
+                     type: "baseNoSetConfirmed",
+                     confirmed: confirmed
+                  });
+               }
             }
          }
 
