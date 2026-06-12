@@ -131,6 +131,20 @@ Unified read-only query layer for all active mods. Combines `HeroExtractionLog` 
 
 ---
 
+### ModsPackUpdateService
+
+**File:** `Core/Services/Mods/ModsPackUpdateService.cs`
+
+Checks whether a newer ModsPack is available on the remote server compared to the local installation.
+
+#### Key Methods
+
+| Method                                      | Description                                                            | Returns        |
+| ------------------------------------------- | ---------------------------------------------------------------------- | -------------- |
+| `CheckForUpdateAsync(targetPath, ct)`       | Compares local and remote hashes. Triggers only for existing installs. | `Task<bool>`   |
+
+---
+
 ## Hero Generation Services
 
 ### HeroGenerationService
@@ -221,6 +235,29 @@ Patches localization files (tooltips, ability descriptions) for custom sets.
 
 ---
 
+### HeroService
+
+**File:** `Core/Services/Hero/HeroService.cs`
+
+Loads, saves, and manages the local `heroes.json` configuration file, caching all hero data and available sets.
+
+#### Key Methods
+
+| Method                         | Description                                            | Returns                    |
+| ------------------------------ | ------------------------------------------------------ | -------------------------- |
+| `LoadHeroesAsync(ct)`          | Loads hero metadata and sets list from local json/cache | `Task<List<HeroModel>>`    |
+| `GetHeroById(heroId)`          | Retrieves hero details by ID                           | `HeroModel?`               |
+
+---
+
+### HeroModelMapper
+
+**File:** `Core/Services/Hero/HeroModelMapper.cs`
+
+Converts raw hero configurations and category definitions into structured models, managing `SkinCategory` classification (`Legacy`, `Custom`, `Items`, `Base`, `Persona`).
+
+---
+
 ## Misc Mod Services
 
 ### MiscGenerationService
@@ -266,6 +303,39 @@ Applies asset modifications based on user selections. Handles:
 **File:** `Core/Services/Misc/RemoteMiscConfigService.cs`
 
 Fetches misc mod configuration from remote server. Returns `RemoteMiscConfig` with available options.
+
+---
+
+### CourierPatcherService
+
+**File:** `Core/Services/Misc/CourierPatcherService.cs`
+
+Parses courier blocks, extracts courier visuals and styles, and applies Ethereal particle effect modifications to the default courier in `items_game.txt`.
+
+---
+
+### WardPatcherService
+
+**File:** `Core/Services/Misc/WardPatcherService.cs`
+
+Parses custom ward blocks, extracts visual model paths, and maps them to replace the default ward (`default_ward.vmdl_c`). Supports custom styles, skin settings, and ambient particle injections.
+
+---
+
+### AutoexecService
+
+**File:** `Core/Services/Misc/AutoexecService.cs`  
+**Interface:** `IAutoexecService`
+
+Parses, edits, and saves Dota 2 `autoexec.cfg` configurations to apply performance tweaks, FPS caps, visual toggles, and latency improvements. Uses `FileTransactionService` for writing.
+
+#### Key Methods
+
+| Method                                       | Description                                                             | Returns        |
+| -------------------------------------------- | ----------------------------------------------------------------------- | -------------- |
+| `LoadCurrentSettingsAsync(gamePath, ct)`     | Parses variables and values from the current `autoexec.cfg`.           | `Task<Dictionary<string, string>>` |
+| `ApplySettingsAsync(gamePath, settings, ct)` | Writes performance settings atomically to `autoexec.cfg` via transaction | `Task`         |
+| `ExportCfgAsync(exportPath, settings, ct)`   | Exports settings to a custom file path.                                 | `Task`         |
 
 ---
 
@@ -411,13 +481,14 @@ FallbackLogger.Log($"UnhandledException: {ex}");
 
 ## Configuration Services
 
-| Service               | Purpose            | Storage Location                           |
-| --------------------- | ------------------ | ------------------------------------------ |
-| `ConfigService`       | General app config | `game/_ArdysaMods/_temp/config.json`       |
-| `UserSettingsService` | User preferences   | `game/_ArdysaMods/_temp/settings.json`     |
-| `FavoritesStore`      | Favorite heroes    | `%AppData%/ArdysaModsTools/favorites.json` |
-| `MainConfigService`   | Window state       | `game/_ArdysaMods/_temp/main.json`         |
-| `CdnConfig`           | CDN URL management | Static class with multi-CDN fallback       |
+| Service               | Purpose                                      | Storage Location                           |
+| --------------------- | -------------------------------------------- | ------------------------------------------ |
+| `ConfigService`       | General app config                           | `game/_ArdysaMods/_temp/config.json`       |
+| `UserSettingsService` | User preferences                             | `game/_ArdysaMods/_temp/settings.json`     |
+| `FavoritesStore`      | Favorite heroes                              | `%AppData%/ArdysaModsTools/favorites.json` |
+| `MainConfigService`   | Window state                                 | `game/_ArdysaMods/_temp/main.json`         |
+| `CdnConfig`           | CDN URL management                           | Static class with multi-CDN fallback       |
+| `FeatureAccessService`| Remote feature flags and dev mode check-gate | Remote R2 CDN config (`feature_access.json`)|
 
 ---
 

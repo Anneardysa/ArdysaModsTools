@@ -83,7 +83,7 @@ namespace ArdysaModsTools.UI.Forms
             this.SuspendLayout();
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(420, 480);
+            this.ClientSize = new System.Drawing.Size(420, 640);
             this.Name = "SettingsFormWebView";
             this.Text = "Settings - AMT 2.0";
             this.ResumeLayout(false);
@@ -327,7 +327,7 @@ namespace ArdysaModsTools.UI.Forms
             }
             finally
             {
-                await ExecuteScriptAsync("resetButton('btnCheckUpdates', '🔄', 'Check Updates')");
+                await ExecuteScriptAsync("resetCheckUpdatesButton()");
             }
         }
 

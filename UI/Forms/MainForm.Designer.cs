@@ -411,7 +411,7 @@ namespace ArdysaModsTools
             mainConsoleBox.Dock = DockStyle.Fill;
             mainConsoleBox.EnableGlow = true;
             mainConsoleBox.EnableScanlines = true;
-            mainConsoleBox.Font = new Font("JetBrains Mono", 8F, FontStyle.Bold);
+            mainConsoleBox.Font = new Font("JetBrains Mono", 8F);
             mainConsoleBox.GlowRadius = 1;
             mainConsoleBox.Location = new Point(12, 10);
             mainConsoleBox.MaxLines = 500;
@@ -499,15 +499,15 @@ namespace ArdysaModsTools
             // 
             // btnTweak
             // 
-            btnTweak.BackColor = Color.FromArgb(147, 51, 234);
+            btnTweak.BackColor = Color.Transparent;
             btnTweak.Cursor = Cursors.Hand;
             btnTweak.Font = new Font("JetBrains Mono", 7F, FontStyle.Bold);
-            btnTweak.ForeColor = Color.White;
-            btnTweak.Location = new Point(478, 8);
+            btnTweak.ForeColor = Color.FromArgb(68, 68, 68);
+            btnTweak.Location = new Point(508, 6);
             btnTweak.Name = "btnTweak";
-            btnTweak.Size = new Size(52, 24);
+            btnTweak.Size = new Size(29, 29);
             btnTweak.TabIndex = 4;
-            btnTweak.Text = "Tweak";
+            btnTweak.Text = string.Empty;
             btnTweak.TextAlign = ContentAlignment.MiddleCenter;
             btnTweak.Click += BtnTweak_Click;
             btnTweak.MouseEnter += BtnTweak_MouseEnter;
@@ -555,11 +555,12 @@ namespace ArdysaModsTools
             btnSettings.Name = "btnSettings";
             btnSettings.Size = new Size(29, 29);
             btnSettings.TabIndex = 3;
-            btnSettings.Text = "⚙";
+            btnSettings.Text = string.Empty;
             btnSettings.TextAlign = ContentAlignment.MiddleCenter;
             btnSettings.Click += BtnSettings_Click;
             btnSettings.MouseEnter += BtnSettings_MouseEnter;
             btnSettings.MouseLeave += BtnSettings_MouseLeave;
+            btnSettings.Paint += BtnSettings_Paint;
             // 
             // btnClose
             // 

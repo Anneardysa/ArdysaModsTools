@@ -4,7 +4,13 @@
   "folders": [
     "docs",
     "Core",
-    "skills"
+    "UI",
+    "Tests",
+    "Assets",
+    "Helpers",
+    "Installer",
+    "scripts",
+    ".agent"
   ],
   "excludeFolders": [
     "bin",
@@ -13,17 +19,20 @@
     "Tests/obj",
     ".vs",
     "packages",
-    "node_modules"
+    "node_modules",
+    ".fallow"
   ],
   "excludeFiles": [
     "*.designer.cs",
     "*.g.cs"
   ],
   "rules": [
-    "Use Microsoft.Extensions.DependencyInjection for all service resolution",
-    "All async methods must accept CancellationToken as last parameter",
-    "Return OperationResult for fallible operations instead of throwing",
-    "Use IAppLogger for all logging, never Console.WriteLine",
-    "Read extraction logs via HeroExtractionLog.Load() and MiscExtractionLog.Load()"
+    "Strictly follow the MVP (Model-View-Presenter) pattern: WinForms are View-only (no business logic/service calls), Presenters handle UI logic, Services handle business logic.",
+    "Use Microsoft.Extensions.DependencyInjection for all service resolution via constructor injection.",
+    "All async methods must accept CancellationToken as the last parameter and propagate it.",
+    "All file writes to the Dota 2 installation folder must go through FileTransactionService with rollback on failure.",
+    "Return OperationResult or OperationResult<T> for fallible operations instead of throwing.",
+    "Use IAppLogger for all logging, never Console.WriteLine, Debug.Print, or direct Trace statements.",
+    "JavaScript/C# communication in WebView2 hybrid forms must only go through CoreWebView2.WebMessageReceived using structured JSON messages."
   ]
 }

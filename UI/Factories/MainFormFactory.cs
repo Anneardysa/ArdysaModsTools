@@ -51,6 +51,7 @@ namespace ArdysaModsTools.UI.Factories
                 detectionService,
                 modInstallerService,
                 statusService,
+                _serviceProvider,
                 startMinimized);
         }
     }

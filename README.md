@@ -8,7 +8,7 @@
 
 _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one click._
 
-![Version](https://img.shields.io/badge/Version-2.1.22--beta-00d4ff?style=for-the-badge&logo=v)
+![Version](https://img.shields.io/badge/Version-2.1.26--beta-00d4ff?style=for-the-badge&logo=v)
 ![Build](https://img.shields.io/github/actions/workflow/status/Anneardysa/ArdysaModsTools/release.yml?style=for-the-badge&logo=github&label=Build)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
@@ -41,9 +41,9 @@ _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one c
 | Feature                        | Description                                                                                               |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------- |
 | **One-Click ModsPack Install** | Download and install the complete mod pack from CDN with a single click                                   |
-| **Skin Selector**              | Browse and choose custom cosmetic sets for individual heroes via a gallery UI                             |
+| **Skin & Persona Selector**    | Browse and select hero sets, individual item pieces (with slot-based mutual exclusion), and full hero Personas (with model-wide exclusion) via a gallery UI |
 | **Miscellaneous Mods**         | Toggle weather, terrain, HUD, cursors, music, battle effects, couriers, wards, and special mods           |
-| **Performance Tweaker**        | Tune Dota 2 FPS, visuals, quality, engine, VSync, and network cvars + launch options via a WebView2 panel |
+| **Performance Tweaker**        | Tune Dota 2 FPS, cvars, and launch options via WebView2, saved atomically using transactions              |
 | **Auto-Patching**              | Automatically detects Dota 2 updates and re-applies your mods — no manual work needed                     |
 | **Manual VPK Install**         | Import your own custom `.vpk` mod files directly                                                          |
 | **Safe & Reversible**          | Click "Disable Mods" to instantly restore vanilla Dota 2 — no files are permanently altered               |
@@ -53,9 +53,10 @@ _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one c
 - **Multi-CDN Download Strategy** — Primary: Cloudflare R2, fallback: jsDelivr → GitHub Raw → GFW proxy mirrors
 - **Smart CDN Selection** — Automatic latency benchmarking picks the fastest CDN per user
 - **Resumable Downloads** — HTTP Range-based chunk streaming with cross-CDN failover without losing progress
-- **Atomic File Operations** — Extract-then-swap pattern prevents broken installs if interrupted
+- **Model Exclusivity Engine** — Handles tag-based mutual exclusion for items and model-wide exclusions for Personas
+- **Atomic File Operations** — Extract-then-swap pattern (and transaction wrapper for `autoexec.cfg` saving) prevents corruption
 - **SHA-256 Hash Verification** — Downloads are verified against remote hashes for integrity
-- **PatchWatcher** — Background file watcher detects Dota 2 updates in real-time
+- **PatchWatcher** — Background file watcher detects Dota 2 updates in real-time by monitoring key system manifests
 - **Remote Feature Control** — Features can be remotely enabled/disabled via Cloudflare R2 config
 - **Self-Contained Build** — .NET 8 runtime is bundled; no external runtime installation needed
 - **480+ Unit Tests** — Comprehensive test coverage for core services
@@ -122,7 +123,7 @@ Click **"Disable Mods"** to restore vanilla Dota 2. This safely removes all modi
 
 | Type               | Description                           | Examples                                             |
 | ------------------ | ------------------------------------- | ---------------------------------------------------- |
-| **Hero Sets**      | Custom cosmetic sets per hero         | Arcanas, collectors' cache sets, immortals           |
+| **Hero Sets & Personas** | Custom cosmetic sets and full hero replacement models | Arcanas, Personas, cache sets, immortals |
 | **Weather**        | Weather visual effects                | Rain, snow, moonbeam, aurora                         |
 | **Terrain**        | Custom map skins                      | TI terrains, seasonal maps                           |
 | **HUD**            | Interface themes                      | Custom HUD skins and overlays                        |

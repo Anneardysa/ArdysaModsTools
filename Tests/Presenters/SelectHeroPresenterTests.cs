@@ -19,6 +19,7 @@ using NUnit.Framework;
 using System.Windows.Forms;
 using ArdysaModsTools.UI.Interfaces;
 using ArdysaModsTools.UI.Presenters;
+using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Models;
 
 namespace ArdysaModsTools.Tests.Presenters
@@ -31,11 +32,13 @@ namespace ArdysaModsTools.Tests.Presenters
     public class SelectHeroPresenterTests
     {
         private Mock<ISelectHeroView> _viewMock = null!;
+        private Mock<IConfigService> _configMock = null!;
 
         [SetUp]
         public void Setup()
         {
             _viewMock = new Mock<ISelectHeroView>();
+            _configMock = new Mock<IConfigService>();
 
             // Setup default view behavior
             _viewMock.Setup(v => v.InvokeOnUIThread(It.IsAny<Action>()))
@@ -51,14 +54,14 @@ namespace ArdysaModsTools.Tests.Presenters
         public void Constructor_WithNullView_ThrowsArgumentNullException()
         {
             // Arrange, Act & Assert
-            Assert.Throws<ArgumentNullException>(() => new SelectHeroPresenter(null!));
+            Assert.Throws<ArgumentNullException>(() => new SelectHeroPresenter(null!, _configMock.Object));
         }
 
         [Test]
         public void Constructor_WithValidView_CreatesInstance()
         {
             // Arrange & Act
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Assert
             Assert.That(presenter, Is.Not.Null);
@@ -72,7 +75,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void SetSelection_WithValidData_StoresSelection()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Act
             presenter.SetSelection("npc_dota_hero_juggernaut", "Bladeform Legacy");
@@ -86,7 +89,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void SetSelection_WithEmptySetName_RemovesSelection()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
             presenter.SetSelection("npc_dota_hero_juggernaut", "Set1");
 
             // Act
@@ -101,7 +104,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void GetSelection_WhenNotSet_ReturnsNull()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Act
             var selection = presenter.GetSelection("nonexistent_hero");
@@ -114,7 +117,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void ClearSelections_RemovesAllSelections()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
             presenter.SetSelection("hero1", "set1");
             presenter.SetSelection("hero2", "set2");
 
@@ -134,7 +137,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void ToggleFavorite_WhenNotFavorite_AddsFavorite()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Act
             var result = presenter.ToggleFavorite("npc_dota_hero_juggernaut");
@@ -148,7 +151,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void ToggleFavorite_WhenFavorite_RemovesFavorite()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
             presenter.ToggleFavorite("npc_dota_hero_juggernaut"); // Add
 
             // Act
@@ -163,7 +166,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void IsFavorite_WithEmptyId_ReturnsFalse()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Act & Assert
             Assert.That(presenter.IsFavorite(""), Is.False);
@@ -177,7 +180,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void SetCategoryFilter_UpdatesFilter()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Act
             presenter.SetCategoryFilter("strength");
@@ -190,7 +193,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void SetSearchFilter_UpdatesFilter()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Act
             presenter.SetSearchFilter("jugg");
@@ -203,7 +206,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void SetSearchFilter_WithNull_UsesEmptyString()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Act
             presenter.SetSearchFilter(null!);
@@ -220,7 +223,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public async Task GenerateAsync_WhenNoSelections_ShowsWarning()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Act
             var result = await presenter.GenerateAsync();
@@ -238,7 +241,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void IsGenerating_Initially_IsFalse()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Assert
             Assert.That(presenter.IsGenerating, Is.False);
@@ -252,7 +255,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public void Dispose_CanBeCalledMultipleTimes()
         {
             // Arrange
-            var presenter = new SelectHeroPresenter(_viewMock.Object);
+            var presenter = new SelectHeroPresenter(_viewMock.Object, _configMock.Object);
 
             // Act & Assert
             Assert.DoesNotThrow(() =>

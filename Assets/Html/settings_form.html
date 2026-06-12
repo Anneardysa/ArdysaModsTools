@@ -36,6 +36,7 @@
             user-select: none;
             -webkit-user-select: none;
             position: relative;
+            border: 1px solid var(--border);
          }
 
          /* Animated Wave Background */
@@ -129,37 +130,21 @@
 
          /* Main Content */
          .main-content {
-            padding: 28px;
+            padding: 20px 24px;
             height: calc(100vh - 52px - 60px);
-            overflow-y: auto;
-         }
-
-         .main-content::-webkit-scrollbar {
-            width: 4px;
-         }
-
-         .main-content::-webkit-scrollbar-track {
-            background: transparent;
-         }
-
-         .main-content::-webkit-scrollbar-thumb {
-            background: var(--border);
-         }
-
-         .main-content::-webkit-scrollbar-thumb:hover {
-            background: var(--text-muted);
+            overflow: hidden;
          }
 
          /* Section */
          .section {
-            margin-bottom: 28px;
+            margin-bottom: 24px;
          }
 
          .section-header {
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
          }
 
          .section-title {
@@ -188,7 +173,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 18px 20px;
+            padding: 14px 18px;
             transition: background 0.15s ease;
             border-bottom: 1px solid var(--border-light);
          }
@@ -265,8 +250,8 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            padding: 24px 16px;
+            gap: 6px;
+            padding: 18px 12px;
             background: transparent;
             border: 1px solid var(--border-light);
             color: var(--text-secondary);
@@ -296,16 +281,16 @@
          }
 
          .action-btn-icon {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
          }
 
          .action-btn-icon svg {
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             stroke: var(--text-secondary);
             stroke-width: 1.5;
             fill: none;
@@ -325,8 +310,8 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            margin-top: 16px;
-            padding: 14px;
+            margin-top: 14px;
+            padding: 12px;
             border: 1px solid var(--border-light);
             background: transparent;
          }
@@ -468,7 +453,7 @@
          <div class="header-left">
             <span class="header-title">Settings</span>
          </div>
-         <div class="header-close" onclick="closeForm()">✕</div>
+         <div class="header-close" onclick="closeForm()" onmousedown="event.stopPropagation()">✕</div>
       </div>
 
       <div class="main-content">
@@ -630,6 +615,15 @@
             if (btn) {
                btn.innerHTML =
                   '<span class="action-btn-icon"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></span><span class="action-btn-text">Clear Cache</span>';
+               btn.disabled = false;
+            }
+         }
+
+         function resetCheckUpdatesButton() {
+            const btn = document.getElementById("btnCheckUpdates");
+            if (btn) {
+               btn.innerHTML =
+                  '<span class="action-btn-icon"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.83 1.04 6.5 2.72"/><polyline points="21 3 21 9 15 9"/></svg></span><span class="action-btn-text">Check Updates</span>';
                btn.disabled = false;
             }
          }

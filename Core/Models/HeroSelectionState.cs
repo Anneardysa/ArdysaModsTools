@@ -21,13 +21,14 @@ namespace ArdysaModsTools.Core.Models;
 
 /// <summary>
 /// Structured per-hero selection state for the Skin Selector.
-/// Tracks independently selectable layers: one set (Legacy OR Custom),
+/// Tracks independently selectable layers: one set (Legacy, Custom, OR Persona),
 /// multiple items, and one base hero override.
+/// When the selected set is a Persona, Items and Base are blocked by the frontend.
 /// </summary>
 public class HeroSelectionState
 {
     /// <summary>
-    /// Index of the selected Legacy or Custom set (mutually exclusive).
+    /// Index of the selected Legacy, Custom, or Persona set (mutually exclusive).
     /// Null means no set is selected.
     /// </summary>
     [JsonPropertyName("set")]

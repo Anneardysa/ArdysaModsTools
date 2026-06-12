@@ -23,6 +23,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Models;
 using ArdysaModsTools.UI.Interfaces;
@@ -39,7 +40,7 @@ namespace ArdysaModsTools.UI.Presenters
 
         private readonly ISelectHeroView _view;
         private readonly HeroService _heroService;
-        private readonly ConfigService _configService;
+        private readonly IConfigService _configService;
         
         private List<HeroModel> _heroList = new();
         private Dictionary<string, HeroModel> _heroLookup = new(StringComparer.OrdinalIgnoreCase);
@@ -64,13 +65,14 @@ namespace ArdysaModsTools.UI.Presenters
         /// Creates a new SelectHeroPresenter.
         /// </summary>
         /// <param name="view">The view to control</param>
-        public SelectHeroPresenter(ISelectHeroView view)
+        /// <param name="configService">Configuration service for reading app settings</param>
+        public SelectHeroPresenter(ISelectHeroView view, IConfigService configService)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
+            _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             
             var baseFolder = AppDomain.CurrentDomain.BaseDirectory;
             _heroService = new HeroService(baseFolder);
-            _configService = new ConfigService();
             
             // Load favorites
             var loaded = FavoritesStore.Load();

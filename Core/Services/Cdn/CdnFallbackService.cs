@@ -125,6 +125,22 @@ namespace ArdysaModsTools.Core.Services.Cdn
         #region Public API
 
         /// <summary>
+        /// Download an asset as a UTF-8 string with automatic CDN fallback.
+        /// </summary>
+        public async Task<string?> DownloadStringWithFallbackAsync(string url, CancellationToken ct = default)
+        {
+            var result = await DownloadWithFallbackAsync(url, ct).ConfigureAwait(false);
+            if (result.Success && result.Data != null)
+            {
+                // Remove UTF-8 BOM if present
+                if (result.Data.Length >= 3 && result.Data[0] == 0xEF && result.Data[1] == 0xBB && result.Data[2] == 0xBF)
+                    return System.Text.Encoding.UTF8.GetString(result.Data, 3, result.Data.Length - 3);
+                return System.Text.Encoding.UTF8.GetString(result.Data);
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Download an asset with automatic CDN fallback.
         /// Tries each CDN in priority order until one succeeds.
         /// </summary>

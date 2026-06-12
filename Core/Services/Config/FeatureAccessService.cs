@@ -21,6 +21,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Services.Cdn;
 
 namespace ArdysaModsTools.Core.Services.Config
 {
@@ -134,16 +135,14 @@ namespace ArdysaModsTools.Core.Services.Config
             {
                 var url = $"{CdnConfig.R2BaseUrl}/{ConfigPath}";
                 using var cts = new CancellationTokenSource(RequestTimeout);
-                var response = await _httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
+                var json = await CdnFallbackService.Instance.DownloadStringWithFallbackAsync(url, cts.Token).ConfigureAwait(false);
 
-                if (!response.IsSuccessStatusCode)
+                if (string.IsNullOrEmpty(json))
                 {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[FeatureAccess] R2 returned {response.StatusCode}");
+                    System.Diagnostics.Debug.WriteLine("[FeatureAccess] Failed to download config from all CDNs");
                     return GetCachedOrDefault();
                 }
 
-                var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                 var config = JsonSerializer.Deserialize<FeatureAccessConfig>(json, _jsonOptions);
 
                 if (config != null)

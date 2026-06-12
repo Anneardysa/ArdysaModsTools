@@ -60,6 +60,7 @@ namespace ArdysaModsTools.Core.DependencyInjection
             
             // Configuration (singleton - shared state)
             services.AddSingleton<IConfigService, MainConfigService>();
+            services.AddTransient<IAutoexecService, Services.Misc.AutoexecService>();
             
             // File Transactions (transient - each user gets new factory)
             services.AddTransient<IFileTransactionFactory, FileTransactionFactory>();
@@ -108,6 +109,13 @@ namespace ArdysaModsTools.Core.DependencyInjection
             services.AddTransient<IModOperationsPresenter, UI.Presenters.ModOperationsPresenter>();
             services.AddTransient<IPatchPresenter, UI.Presenters.PatchPresenter>();
             services.AddTransient<INavigationPresenter, UI.Presenters.NavigationPresenter>();
+            
+            services.AddTransient<Func<UI.Interfaces.IDota2PerformanceView, string?, UI.Presenters.Dota2PerformancePresenter>>(
+                provider => (view, path) => new UI.Presenters.Dota2PerformancePresenter(
+                    view,
+                    provider.GetRequiredService<IAutoexecService>(),
+                    provider.GetRequiredService<IAppLogger>(),
+                    path));
             
             return services;
         }

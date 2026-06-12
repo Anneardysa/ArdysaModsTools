@@ -132,6 +132,7 @@ namespace ArdysaModsTools.Core.Services.Config
                     // No data to save, delete config file if exists
                     if (File.Exists(_configFile))
                         File.Delete(_configFile);
+                    _isDirty = false;
                     return;
                 }
 

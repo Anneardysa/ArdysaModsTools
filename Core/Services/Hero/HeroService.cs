@@ -65,15 +65,20 @@ namespace ArdysaModsTools.Core.Services
             {
                 string raw;
                 
-                // Try loading from GitHub first
+                // Try loading from CDN with fallback first
                 try
                 {
-                    var client = HttpClientProvider.Client;
                     using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    var json = await ArdysaModsTools.Core.Services.Cdn.CdnFallbackService.Instance.DownloadStringWithFallbackAsync(GitHubSetUpdatesUrl, cts.Token).ConfigureAwait(false);
                     
-                    var response = await client.GetAsync(GitHubSetUpdatesUrl, cts.Token).ConfigureAwait(false);
-                    response.EnsureSuccessStatusCode();
-                    raw = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    if (!string.IsNullOrEmpty(json))
+                    {
+                        raw = json;
+                    }
+                    else
+                    {
+                        throw new Exception("CDN download returned empty");
+                    }
                 }
                 catch
                 {
@@ -178,17 +183,19 @@ namespace ArdysaModsTools.Core.Services
         }
 
         /// <summary>
-        /// Load heroes.json from GitHub URL.
+        /// Load heroes.json from GitHub URL with CDN fallback.
         /// </summary>
         private async Task<string> LoadFromGitHubAsync()
         {
-            var client = HttpClientProvider.Client;
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var json = await ArdysaModsTools.Core.Services.Cdn.CdnFallbackService.Instance.DownloadStringWithFallbackAsync(GitHubHeroesUrl, cts.Token).ConfigureAwait(false);
             
-            var response = await client.GetAsync(GitHubHeroesUrl, cts.Token).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+            if (string.IsNullOrEmpty(json))
+            {
+                throw new Exception("Failed to download heroes.json from all CDNs.");
+            }
             
-            return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            return json;
         }
 
         private List<HeroSummary> ParseHeroesJson(string raw)

@@ -18,6 +18,13 @@ classDiagram
         +IReadOnlyList Skins
     }
 
+    class HeroSelectionState {
+        +int? SetIndex
+        +List~int~ ItemIndices
+        +int? BaseIndex
+        +bool HasAnySelection
+    }
+
     class MiscOption {
         +string Id
         +string DisplayName
@@ -25,6 +32,11 @@ classDiagram
         +List~string~ Choices
         +string SelectedChoice
         +string ThumbnailUrlPattern
+    }
+
+    class FeatureAccessConfig {
+        +FeatureAccess SkinSelector
+        +FeatureAccess Miscellaneous
     }
 
     class OperationResult {
@@ -57,6 +69,7 @@ classDiagram
     HeroModel "1" --> "*" MiscOption : generates
     HeroExtractionLog --> HeroModel : tracks
     MiscExtractionLog --> MiscOption : tracks
+    HeroSelectionState --> HeroModel : selects
 ```
 
 ---
@@ -119,6 +132,62 @@ public sealed class HeroModel
       "Default": [],
       "Mage Slayer": ["https://cdn.example.com/sets/am_mageslayer.zip"]
    }
+}
+```
+
+---
+
+### HeroSelectionState
+
+**File:** `Core/Models/HeroSelectionState.cs`
+
+Tracks the selection configuration for a hero, supporting layers of customization including Legacy/Custom sets, individual items, and base hero overrides.
+
+```csharp
+public class HeroSelectionState
+{
+    // Index of the selected Set (Legacy/Custom/Persona)
+    [JsonPropertyName("set")]
+    public int? SetIndex { get; set; }
+
+    // Indices of selected items
+    [JsonPropertyName("items")]
+    public List<int> ItemIndices { get; set; } = new();
+
+    // Index of the selected Base Hero override
+    [JsonPropertyName("base")]
+    public int? BaseIndex { get; set; }
+
+    [JsonIgnore]
+    public bool HasAnySelection { get; }
+}
+```
+
+---
+
+### FeatureAccessConfig
+
+**File:** `Core/Models/FeatureAccessConfig.cs`
+
+Configuration settings model for R2 CDN remote feature gating.
+
+```csharp
+public class FeatureAccessConfig
+{
+    [JsonPropertyName("skinSelector")]
+    public FeatureAccess SkinSelector { get; set; } = new();
+
+    [JsonPropertyName("miscellaneous")]
+    public FeatureAccess Miscellaneous { get; set; } = new();
+}
+
+public class FeatureAccess
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("disabledMessage")]
+    public string? DisabledMessage { get; set; }
 }
 ```
 

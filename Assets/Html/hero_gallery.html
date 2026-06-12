@@ -458,6 +458,58 @@
                0 0 0 2px #f97316,
                0 0 15px rgba(249, 115, 22, 0.4);
          }
+         /* Persona tile selected with pink/magenta */
+         .set-tile.persona-tile.selected {
+            box-shadow:
+               0 0 0 2px #ec4899,
+               0 0 15px rgba(236, 72, 153, 0.4);
+         }
+         /* Persona category header */
+         .set-category-header.persona .category-label {
+            color: #ec4899;
+         }
+         .set-category-header.persona .category-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, rgba(236, 72, 153, 0.3), transparent);
+         }
+         /* Item tag badge */
+         .item-tag-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            margin-top: 2px;
+         }
+         /* Persona exclusion warning */
+         .exclusion-notice {
+            font-size: 10px;
+            color: #f59e0b;
+            opacity: 0.8;
+            padding: 4px 0;
+         }
+
+         /* Has Sets toggle pill */
+         .toggle-pill {
+            transition: all 0.2s ease;
+            user-select: none;
+         }
+         .toggle-pill.active {
+            background: rgba(0, 212, 255, 0.12);
+            color: #00d4ff;
+            border-color: rgba(0, 212, 255, 0.4);
+            font-weight: 600;
+         }
+         .toggle-pill .toggle-dot {
+            display: inline-block;
+            transition: all 0.2s ease;
+         }
       </style>
    </head>
 
@@ -611,6 +663,13 @@
                   data-category="favorites"
                >
                   ⭐ Favorites
+               </button>
+               <button
+                  id="hasSetsToggle"
+                  class="toggle-pill px-4 py-1.5 text-xs uppercase tracking-wider text-gray-500 rounded-full border border-amt-border hover:border-amt-accent/50 hover:text-gray-300 transition-all whitespace-nowrap flex items-center gap-1.5"
+                  title="Show only heroes that have custom sets"
+               >
+                  <span class="toggle-dot">○</span> Has Sets
                </button>
             </div>
          </div>
@@ -1040,6 +1099,7 @@
          let favorites = new Set();
          let currentFilter = "all";
          let searchQuery = "";
+         let showOnlyWithSets = false;
          let currentModalHeroId = null;
          let focusedSetIndex = 0;
 
@@ -1059,12 +1119,23 @@
             return s.set !== null || (s.items && s.items.length > 0) || s.base !== null;
          }
 
+         // Check if the currently selected set is a Persona category
+         function isPersonaActive(heroId) {
+            const s = selections[heroId];
+            if (!s || s.set === null) return false;
+            const hero = heroes.find(h => h.id === heroId);
+            if (!hero || !hero.sets || !hero.sets[s.set]) return false;
+            return getSetCategory(hero.sets[s.set]) === 'persona';
+         }
+
          function getSelectionSummary(hero) {
             const s = selections[hero.id];
             if (!s) return null;
             const parts = [];
             if (s.set !== null && hero.sets && hero.sets[s.set]) {
-               parts.push(hero.sets[s.set].name);
+               const setName = hero.sets[s.set].name;
+               const isPersona = getSetCategory(hero.sets[s.set]) === 'persona';
+               parts.push(isPersona ? `Persona: ${setName}` : setName);
             }
             if (s.items && s.items.length > 0) {
                parts.push(`${s.items.length} item${s.items.length > 1 ? 's' : ''}`);
@@ -1077,6 +1148,33 @@
 
          function getSetCategory(set) {
             return (set && set.category) || 'legacyset';
+         }
+
+         // Extract the slot tag from an item set's archive URL filename.
+         // Format: item_{tag}_{name}[_{N}].zip → returns the tag segment.
+         // Falls back to the 'tag' field sent from C# if available.
+         function extractItemTag(set) {
+            // Use pre-computed tag from C# if available
+            if (set && set.tag) return set.tag;
+            return null;
+         }
+
+         // Find all item indices that share the same tag as the given index.
+         function getItemsWithSameTag(hero, targetIdx) {
+            if (!hero || !hero.sets) return [];
+            const targetSet = hero.sets[targetIdx];
+            if (!targetSet) return [];
+            const targetTag = extractItemTag(targetSet);
+            if (!targetTag) return [];
+
+            const sameTag = [];
+            hero.sets.forEach((set, idx) => {
+               if (idx !== targetIdx && getSetCategory(set) === 'item') {
+                  const tag = extractItemTag(set);
+                  if (tag && tag === targetTag) sameTag.push(idx);
+               }
+            });
+            return sameTag;
          }
 
          // ============================================
@@ -1514,6 +1612,15 @@
             return true;
          }
 
+         // Check if a hero has at least one set that is NOT "Default Set"
+         function heroHasCustomSets(hero) {
+            if (!hero.sets || hero.sets.length === 0) return false;
+            return hero.sets.some(s => {
+               const name = (s.name || "").toLowerCase();
+               return name !== "default set" && name !== "default";
+            });
+         }
+
          // ============================================
          // Rendering
          // ============================================
@@ -1537,6 +1644,12 @@
                      return false;
                   }
                }
+
+               // Has Sets toggle filter
+               if (showOnlyWithSets && !heroHasCustomSets(hero)) {
+                  return false;
+               }
+
                return true;
             });
 
@@ -1642,10 +1755,10 @@
             return set && set.isCustom === true;
          }
 
-         // Render a set/item/base tile with appropriate styling
+         // Render a set/item/base/persona tile with appropriate styling
          function renderSetTile(set, idx, hero, heroSel, tileType) {
             let isSelected = false;
-            if (tileType === 'set') {
+            if (tileType === 'set' || tileType === 'persona') {
                isSelected = heroSel.set === idx;
             } else if (tileType === 'item') {
                isSelected = heroSel.items && heroSel.items.includes(idx);
@@ -1654,11 +1767,12 @@
             }
             const isFocused = focusedSetIndex === idx;
             const thumbUrl = set.thumbnailUrl || hero.thumbnail;
-            const tileClass = tileType === 'item' ? 'item-tile' : tileType === 'base' ? 'base-tile' : '';
+            const tileClass = tileType === 'item' ? 'item-tile' : tileType === 'base' ? 'base-tile' : tileType === 'persona' ? 'persona-tile' : '';
 
             // Click handler depends on type
+            // Persona uses selectSet — it shares the set slot
             let clickFn;
-            if (tileType === 'set') {
+            if (tileType === 'set' || tileType === 'persona') {
                clickFn = `selectSet('${currentModalHeroId}', ${idx})`;
             } else if (tileType === 'item') {
                clickFn = `toggleItem('${currentModalHeroId}', ${idx})`;
@@ -1669,12 +1783,21 @@
             // Status label
             let statusHtml = '';
             if (isSelected) {
-               const statusColor = tileType === 'item' ? 'text-green-400' : tileType === 'base' ? 'text-orange-400' : 'text-amt-accent';
-               statusHtml = `<p class="text-xs ${statusColor} mt-1">✓ Selected</p>`;
+               const statusColor = tileType === 'item' ? 'text-green-400' : tileType === 'base' ? 'text-orange-400' : tileType === 'persona' ? 'text-pink-400' : 'text-amt-accent';
+               statusHtml = `<p class="text-xs ${statusColor} mt-1">\u2713 Selected</p>`;
             }
 
-            // Toggle indicator for items and base
-            const showToggle = tileType === 'item' || tileType === 'base';
+            // Item tag badge
+            let tagHtml = '';
+            if (tileType === 'item') {
+               const tag = extractItemTag(set);
+               if (tag) {
+                  tagHtml = `<span class="item-tag-badge">${tag}</span>`;
+               }
+            }
+
+            // Toggle indicator for items, base, and persona
+            const showToggle = tileType === 'item' || tileType === 'base' || tileType === 'persona';
             const toggleHtml = showToggle ? `
                <div class="toggle-indicator">
                   <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
@@ -1696,6 +1819,7 @@
                </div>
                <div class="p-3">
                   <p class="text-sm font-medium truncate">${set.name || `Set ${idx + 1}`}</p>
+                  ${tagHtml}
                   ${statusHtml}
                </div>
             </div>
@@ -1709,14 +1833,17 @@
             const heroSel = getHeroSelection(currentModalHeroId);
             const setsGrid = document.getElementById("modalSetsGrid");
 
-            // Partition sets into 4 categories, keeping original indices
+            // Partition sets into 5 categories, keeping original indices
             const legacySets = [];
             const customSets = [];
+            const personaSets = [];
             const itemSets = [];
             const baseSets = [];
             hero.sets.forEach((set, idx) => {
                const cat = getSetCategory(set);
-               if (cat === 'item') {
+               if (cat === 'persona') {
+                  personaSets.push({ set, idx });
+               } else if (cat === 'item') {
                   itemSets.push({ set, idx });
                } else if (cat === 'basehero') {
                   baseSets.push({ set, idx });
@@ -1727,12 +1854,14 @@
                }
             });
 
-            const totalCategories = [legacySets, customSets, itemSets, baseSets].filter(c => c.length > 0).length;
+            const totalCategories = [legacySets, customSets, personaSets, itemSets, baseSets].filter(c => c.length > 0).length;
             const showHeaders = totalCategories > 1;
+            const personaActive = isPersonaActive(currentModalHeroId);
+            const hasItemsSelected = heroSel.items && heroSel.items.length > 0;
             let html = '';
 
             // Section builder helper
-            function buildSection(entries, headerClass, label, tileType) {
+            function buildSection(entries, headerClass, label, tileType, notice) {
                if (entries.length === 0) return '';
                let s = '<div class="set-category-section">';
                if (showHeaders) {
@@ -1742,6 +1871,9 @@
                      <div class="category-line"></div>
                      <span class="category-count">${entries.length}</span>
                   </div>`;
+               }
+               if (notice) {
+                  s += `<div class="exclusion-notice">${notice}</div>`;
                }
                s += '<div class="set-category-grid">';
                s += entries.map(({ set, idx }) => renderSetTile(set, idx, hero, heroSel, tileType)).join('');
@@ -1753,10 +1885,15 @@
             html += buildSection(legacySets, 'legacy', 'Legacy Set', 'set');
             // 2. Custom Sets
             html += buildSection(customSets, 'custom', 'Custom Set', 'set');
-            // 3. Items
-            html += buildSection(itemSets, 'item', 'Items', 'item');
-            // 4. Base Hero
-            html += buildSection(baseSets, 'basehero', 'Base Hero', 'base');
+            // 3. Persona (shares set slot — selecting one deselects sets and vice versa)
+            const personaNotice = hasItemsSelected ? '\u26a0 Selecting a persona will clear items and base' : null;
+            html += buildSection(personaSets, 'persona', 'Persona', 'persona', personaNotice);
+            // 4. Items
+            const itemNotice = personaActive ? '\u26a0 Items are disabled while a persona is active' : null;
+            html += buildSection(itemSets, 'item', 'Items', 'item', itemNotice);
+            // 5. Base Hero
+            const baseNotice = personaActive ? '\u26a0 Base is disabled while a persona is active' : null;
+            html += buildSection(baseSets, 'basehero', 'Base Hero', 'base', baseNotice);
 
             setsGrid.innerHTML = html;
          }
@@ -1824,15 +1961,22 @@
             closeModal();
          }
 
-         // Rule A: Selecting a set (Legacy or Custom) — mutually exclusive
-         // Selecting a Legacy Set deselects Custom, and vice versa.
+         // Rule A: Selecting a set (Legacy, Custom, or Persona) — mutually exclusive
+         // Selecting a Legacy Set deselects Custom/Persona, and vice versa.
+         // When a Persona is selected, items and base are cleared (persona replaces base).
          function selectSet(heroId, setIndex) {
             const sel = getHeroSelection(heroId);
+            const hero = heroes.find(h => h.id === heroId);
             // Toggle off if already selected
             if (sel.set === setIndex) {
                sel.set = null;
             } else {
                sel.set = setIndex;
+               // If the newly selected set is a Persona, clear items and base
+               if (hero && hero.sets[setIndex] && getSetCategory(hero.sets[setIndex]) === 'persona') {
+                  sel.items = [];
+                  sel.base = null;
+               }
             }
             cleanupEmptySelection(heroId);
             focusedSetIndex = setIndex;
@@ -1842,13 +1986,30 @@
             renderHeroes();
          }
 
-         // Rule C: Toggle an item ON/OFF (multi-select)
+         // Rule C: Toggle an item ON/OFF (multi-select, tag-exclusive)
+         // - Blocked if a Persona set is active (persona cannot combine with items)
+         // - Selecting an item deselects any other item with the same tag
          function toggleItem(heroId, setIndex) {
             const sel = getHeroSelection(heroId);
+            const hero = heroes.find(h => h.id === heroId);
+
+            // Block if persona is active — user must deselect persona first
+            if (isPersonaActive(heroId)) {
+               return;
+            }
+
             const idx = sel.items.indexOf(setIndex);
             if (idx >= 0) {
                sel.items.splice(idx, 1); // turn OFF
             } else {
+               // Tag exclusivity: deselect items with the same tag
+               if (hero) {
+                  const sameTagItems = getItemsWithSameTag(hero, setIndex);
+                  sameTagItems.forEach(conflictIdx => {
+                     const ci = sel.items.indexOf(conflictIdx);
+                     if (ci >= 0) sel.items.splice(ci, 1);
+                  });
+               }
                sel.items.push(setIndex); // turn ON
             }
             cleanupEmptySelection(heroId);
@@ -1862,6 +2023,12 @@
          // Rule B: Toggle base hero — only one active at a time
          function toggleBase(heroId, setIndex) {
             const sel = getHeroSelection(heroId);
+
+            // Block if persona is active — persona replaces base
+            if (isPersonaActive(heroId)) {
+               return;
+            }
+
             if (sel.base === setIndex) {
                sel.base = null; // turn OFF
             } else {
@@ -1908,6 +2075,20 @@
             }
             renderHeroes();
             notifyFavoritesChanged();
+         }
+
+         function toggleHasSets() {
+            showOnlyWithSets = !showOnlyWithSets;
+            const btn = document.getElementById('hasSetsToggle');
+            const dot = btn.querySelector('.toggle-dot');
+            if (showOnlyWithSets) {
+               btn.classList.add('active');
+               dot.textContent = '●';
+            } else {
+               btn.classList.remove('active');
+               dot.textContent = '○';
+            }
+            renderHeroes();
          }
 
          function clearAllSelections() {
@@ -2091,6 +2272,7 @@
          document.getElementById("loadPresetBtn").addEventListener("click", requestLoadPreset);
          document.getElementById("clearAllBtn").addEventListener("click", clearAllSelections);
          document.getElementById("generateBtn").addEventListener("click", requestGenerate);
+         document.getElementById("hasSetsToggle").addEventListener("click", toggleHasSets);
          document.getElementById("prevHeroBtn").addEventListener("click", () => navigateHero(-1));
          document.getElementById("nextHeroBtn").addEventListener("click", () => navigateHero(1));
 
@@ -2197,8 +2379,9 @@
                      { name: "Frost Avalanche", category: "legacyset" },
                      { name: "Yulsaria's Glacier", category: "legacyset" },
                      { name: "Custom CM Arcana Mix", category: "customset", isCustom: true },
-                     { name: "Immortal Staff", category: "item" },
-                     { name: "Immortal Cape", category: "item" },
+                     { name: "Shoulder Pauldrons 1", category: "item", tag: "shoulder" },
+                     { name: "Shoulder Guard 2", category: "item", tag: "shoulder" },
+                     { name: "Weapon Crystal Staff", category: "item", tag: "weapon" },
                      { name: "CM Arcana Base", category: "basehero" },
                   ],
                },
@@ -2212,6 +2395,9 @@
                   sets: [
                      { name: "Default Set", category: "legacyset" },
                      { name: "Dark Artistry", category: "legacyset" },
+                     { name: "Acolyte of the Lost Arts", category: "persona" },
+                     { name: "Head Crown", category: "item", tag: "head" },
+                     { name: "Weapon Cataract", category: "item", tag: "weapon" },
                      { name: "Persona Base", category: "basehero" },
                   ],
                },

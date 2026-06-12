@@ -61,18 +61,16 @@ namespace ArdysaModsTools.Core.Services.Update
                 DefaultProxyCredentials = CredentialCache.DefaultCredentials,
                 MaxConnectionsPerServer = 4,
             };
-            var client = new HttpClient(handler, disposeHandler: true)
+
+            var gitHubHandler = new GitHubTokenHandler(handler);
+
+            var client = new HttpClient(gitHubHandler, disposeHandler: true)
             {
                 Timeout = Timeout.InfiniteTimeSpan // Per-request CTS handles this
             };
 
             // Critical: GitHub throttles requests without User-Agent
             client.DefaultRequestHeaders.Add("User-Agent", "ArdysaModsTools/1.0");
-
-            // GitHub token for higher rate limits and faster downloads
-            var token = EnvironmentConfig.GitHubToken;
-            if (!string.IsNullOrEmpty(token))
-                client.DefaultRequestHeaders.Add("Authorization", $"token {token}");
 
             return client;
         });

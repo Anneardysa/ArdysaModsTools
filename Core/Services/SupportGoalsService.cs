@@ -21,6 +21,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services;
@@ -58,15 +59,13 @@ public sealed class SupportGoalsService
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(5));
 
-            var response = await HttpClientProvider.Client
-                .GetAsync(url, cts.Token).ConfigureAwait(false);
+            var json = await CdnFallbackService.Instance.DownloadStringWithFallbackAsync(url, cts.Token).ConfigureAwait(false);
 
-            if (!response.IsSuccessStatusCode)
+            if (string.IsNullOrEmpty(json))
             {
                 return _cachedConfig; // Return stale cache on error
             }
 
-            var json = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
             var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true

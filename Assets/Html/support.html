@@ -30,23 +30,21 @@
             --accent-glow: rgba(41, 171, 224, 0.15);
             --yt-glow: rgba(255, 50, 50, 0.15);
 
-            /* ═══ FLUID SPACING TOKENS (auto-scale with viewport height) ═══ */
-            --sp-xs:  clamp(4px,  0.8vh,  8px);      /* extra-small gap */
-            --sp-sm:  clamp(6px,  1.2vh,  12px);      /* small gap */
-            --sp-md:  clamp(10px, 2vh,   20px);       /* medium gap */
-            --sp-lg:  clamp(14px, 2.8vh, 28px);       /* large gap */
-            --sp-xl:  clamp(16px, 3.2vh, 32px);       /* extra-large gap */
+            /* ═══ SPACING TOKENS ═══ */
+            --sp-xs: 6px;
+            --sp-sm: 10px;
+            --sp-md: 16px;
+            --sp-lg: 20px;
+            --sp-xl: 24px;
 
-            /* ═══ FLUID FONT TOKENS ═══ */
-            --fs-xs:  clamp(9px,  1.5vh,  10px);      /* tiny labels */
-            --fs-sm:  clamp(10px, 1.7vh,  11px);      /* secondary text */
-            --fs-md:  clamp(11px, 1.9vh,  13px);      /* body / card titles */
-            --fs-lg:  clamp(16px, 3vh,   22px);       /* main title */
+            /* ═══ FONT TOKENS ═══ */
+            --fs-xs: 11px;
+            --fs-sm: 13px;
+            --fs-md: 15px;
+            --fs-lg: 22px;
 
-            /* ═══ FLUID ELEMENT TOKENS ═══ */
-            --icon-card: clamp(24px, 5vh, 36px);      /* donation card icons */
-            --icon-goal: clamp(14px, 2.5vh, 18px);    /* goal row icons */
-            --bar-h:     clamp(6px, 1.4vh, 10px);     /* progress bar height */
+            /* ═══ ELEMENT TOKENS ═══ */
+            --icon-card: 32px;
          }
 
          body {
@@ -94,13 +92,13 @@
          /* ═══ MAIN LAYOUT ═══ */
          .container {
             flex: 1;
-            padding: 0 clamp(24px, 5vw, 48px) var(--sp-xl);
+            padding: 0 40px var(--sp-xl);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             gap: 0;
-            overflow-y: auto;
+            overflow: hidden;
          }
 
          /* ═══ BADGE ═══ */
@@ -110,7 +108,7 @@
             color: var(--text);
             background: var(--surface);
             border: 1px solid var(--border);
-            padding: var(--sp-xs) clamp(12px, 2.5vw, 20px);
+            padding: var(--sp-xs) 20px;
             letter-spacing: 2px;
             animation: fadeSlideIn 0.3s ease-out both;
          }
@@ -143,7 +141,7 @@
             flex: 1;
             background: var(--surface);
             border: 1px solid var(--border-dim);
-            padding: var(--sp-md) clamp(8px, 2vw, 16px);
+            padding: var(--sp-md) 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.25s ease;
@@ -157,18 +155,39 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: linear-gradient(90deg, transparent, var(--kofi-blue), transparent);
             opacity: 0;
             transition: opacity 0.3s;
          }
          .card:hover {
             background: var(--surface-hover);
-            border-color: var(--border);
             transform: translateY(-3px);
-            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
          }
          .card:hover::before {
             opacity: 1;
+         }
+
+         .card-paypal::before {
+            background: linear-gradient(90deg, transparent, #0070ba, transparent);
+         }
+         .card-paypal:hover {
+            box-shadow: 0 8px 28px rgba(0, 112, 186, 0.15);
+            border-color: rgba(0, 112, 186, 0.4);
+         }
+
+         .card-kofi::before {
+            background: linear-gradient(90deg, transparent, #29abe0, transparent);
+         }
+         .card-kofi:hover {
+            box-shadow: 0 8px 28px rgba(41, 171, 224, 0.15);
+            border-color: rgba(41, 171, 224, 0.4);
+         }
+
+         .card-sociabuzz::before {
+            background: linear-gradient(90deg, transparent, #00e676, transparent);
+         }
+         .card-sociabuzz:hover {
+            box-shadow: 0 8px 28px rgba(0, 230, 118, 0.15);
+            border-color: rgba(0, 230, 118, 0.4);
          }
 
          .card:nth-child(1) {
@@ -215,94 +234,7 @@
             animation: fadeSlideIn 0.3s ease-out 0.4s both;
          }
 
-         /* ═══ GOAL SECTION ═══ */
-         .goals-row {
-            display: flex;
-            gap: var(--sp-md);
-            margin-top: var(--sp-md);
-            width: 100%;
-         }
-         .goal-card {
-            flex: 1;
-            background: var(--surface);
-            border: 1px solid var(--border-dim);
-            padding: var(--sp-sm) var(--sp-md);
-            cursor: pointer;
-            transition: all 0.25s ease;
-         }
-         .goal-card:hover {
-            background: var(--surface-hover);
-            border-color: var(--border);
-         }
-         .goal-card:nth-child(1) {
-            animation: fadeSlideIn 0.4s ease-out 0.45s both;
-         }
-         .goal-card:nth-child(2) {
-            animation: fadeSlideIn 0.4s ease-out 0.52s both;
-         }
 
-         .goal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: var(--sp-sm);
-         }
-         .goal-header-left {
-            display: flex;
-            align-items: center;
-            gap: var(--sp-sm);
-         }
-         .goal-icon {
-            width: var(--icon-goal);
-            height: var(--icon-goal);
-            opacity: 0.85;
-         }
-         .goal-title {
-            font-size: var(--fs-sm);
-            font-weight: 700;
-            letter-spacing: 1.5px;
-         }
-         .goal-value {
-            font-size: var(--fs-md);
-            font-weight: 600;
-         }
-         .goal-value.kofi {
-            color: var(--kofi-blue);
-         }
-         .goal-value.yt {
-            color: var(--yt-red);
-         }
-
-         /* Progress bar */
-         .progress-track {
-            width: 100%;
-            height: var(--bar-h);
-            background: #1a1a1a;
-            border-radius: 5px;
-            overflow: hidden;
-         }
-         .progress-fill {
-            height: 100%;
-            border-radius: 5px;
-            width: 0%;
-            transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
-         }
-         .progress-fill.kofi {
-            background: linear-gradient(90deg, var(--kofi-dark), var(--kofi-blue));
-            box-shadow: 0 0 14px var(--accent-glow);
-         }
-         .progress-fill.yt {
-            background: linear-gradient(90deg, var(--yt-dark), var(--yt-red));
-            box-shadow: 0 0 14px var(--yt-glow);
-         }
-
-         .goal-footer {
-            font-size: var(--fs-xs);
-            color: var(--text-muted);
-            margin-top: var(--sp-xs);
-            text-align: center;
-            letter-spacing: 0.5px;
-         }
 
          /* ═══ CLOSE BUTTON ═══ */
          .close-btn {
@@ -326,7 +258,6 @@
             border-color: var(--text-dim);
          }
 
-         /* ═══ ANIMATIONS ═══ */
          @keyframes fadeSlideIn {
             from {
                opacity: 0;
@@ -336,11 +267,6 @@
                opacity: 1;
                transform: translateY(0);
             }
-         }
-
-         /* Hidden state for goals (before data loads) */
-         .goal-card.hidden {
-            display: none;
          }
       </style>
    </head>
@@ -363,31 +289,31 @@
          </div>
 
          <!-- Donation cards -->
-         <div class="cards-row">
-            <div class="card" onclick="openUrl('https://paypal.me/ardysa')">
-               <img
-                  class="card-icon"
-                  src="https://cdn.simpleicons.org/paypal/ffffff"
-                  alt="PayPal"
-               />
-               <div class="card-title">PAYPAL</div>
-               <div class="card-sub">One-time donation</div>
-            </div>
-            <div class="card" onclick="openUrl('https://ko-fi.com/ardysa')">
-               <img class="card-icon" src="https://cdn.simpleicons.org/kofi/ffffff" alt="Ko-fi" />
-               <div class="card-title">KO-FI</div>
-               <div class="card-sub">One-time / monthly</div>
-            </div>
-            <div class="card" onclick="openUrl('https://sociabuzz.com/ardysa/support')">
-               <img
-                  class="card-icon"
-                  src="https://cdn.simpleicons.org/simpleicons/ffffff"
-                  alt="Sociabuzz"
-               />
-               <div class="card-title">SOCIABUZZ</div>
-               <div class="card-sub">One-time donation</div>
-            </div>
-         </div>
+          <div class="cards-row">
+             <div class="card card-paypal" onclick="openUrl('https://paypal.me/ardysa')">
+                <img
+                   class="card-icon"
+                   src="https://cdn.simpleicons.org/paypal/ffffff"
+                   alt="PayPal"
+                />
+                <div class="card-title">PAYPAL</div>
+                <div class="card-sub">One-time donation</div>
+             </div>
+             <div class="card card-kofi" onclick="openUrl('https://ko-fi.com/ardysa')">
+                <img class="card-icon" src="https://cdn.simpleicons.org/kofi/ffffff" alt="Ko-fi" />
+                <div class="card-title">KO-FI</div>
+                <div class="card-sub">One-time / monthly</div>
+             </div>
+             <div class="card card-sociabuzz" onclick="openUrl('https://sociabuzz.com/ardysa/support')">
+                <img
+                   class="card-icon"
+                   src="https://cdn.simpleicons.org/simpleicons/ffffff"
+                   alt="Sociabuzz"
+                />
+                <div class="card-title">SOCIABUZZ</div>
+                <div class="card-sub">One-time donation</div>
+             </div>
+          </div>
 
          <!-- Footer message -->
          <div class="footer-msg">❤ Every contribution helps improve the tool for everyone ❤</div>
@@ -395,52 +321,13 @@
          <!-- Separator -->
          <div class="separator"></div>
 
-         <!-- Goal sections -->
-         <div class="goals-row">
-            <!-- Ko-fi Donation Goal -->
-            <div class="goal-card hidden" id="kofiGoal" onclick="openGoalUrl('kofi')">
-               <div class="goal-header">
-                  <div class="goal-header-left">
-                     <img class="goal-icon" src="https://cdn.simpleicons.org/kofi/29ABE0" alt="" />
-                     <span class="goal-title" id="kofiTitle">DONATION GOAL</span>
-                  </div>
-                  <span class="goal-value kofi" id="kofiValue">—</span>
-               </div>
-               <div class="progress-track">
-                  <div class="progress-fill kofi" id="kofiFill"></div>
-               </div>
-               <div class="goal-footer">Powered by Ko-fi</div>
-            </div>
 
-            <!-- YouTube Subscriber Goal -->
-            <div class="goal-card hidden" id="subsGoal" onclick="openGoalUrl('subs')">
-               <div class="goal-header">
-                  <div class="goal-header-left">
-                     <img
-                        class="goal-icon"
-                        src="https://cdn.simpleicons.org/youtube/ff0000"
-                        alt=""
-                     />
-                     <span class="goal-title">SUBSCRIBE GOAL</span>
-                  </div>
-                  <span class="goal-value yt" id="subsValue">—</span>
-               </div>
-               <div class="progress-track">
-                  <div class="progress-fill yt" id="subsFill"></div>
-               </div>
-               <div class="goal-footer">Updated daily at 0:00 GMT</div>
-            </div>
-         </div>
 
          <!-- Close button -->
          <button class="close-btn" onclick="sendMessage('close')">[ CLOSE ]</button>
       </div>
 
       <script>
-         // Goal URLs (updated from C#)
-         let _kofiUrl = "https://ko-fi.com/ardysa/goal?g=0";
-         let _subsUrl = "https://youtube.com/@ArdysaMods";
-
          // C# → JS interop (with window.close() fallback)
          function sendMessage(type, data = {}) {
             if (window.chrome && window.chrome.webview) {
@@ -452,54 +339,6 @@
 
          function openUrl(url) {
             sendMessage("openUrl", { url });
-         }
-
-         function openGoalUrl(goal) {
-            if (goal === "kofi") openUrl(_kofiUrl);
-            else openUrl(_subsUrl);
-         }
-
-         // Called from C# after data loads
-         function loadGoals(jsonString) {
-            const data = JSON.parse(jsonString);
-
-            // Ko-fi goal
-            if (data.kofiGoal && data.kofiGoal.enabled) {
-               const kg = data.kofiGoal;
-               _kofiUrl = kg.goalUrl || _kofiUrl;
-
-               document.getElementById("kofiTitle").textContent = (
-                  kg.title || "DONATION GOAL"
-               ).toUpperCase();
-               document.getElementById("kofiValue").textContent =
-                  "$" + kg.raisedAmount.toLocaleString() + " / $" + kg.goalAmount.toLocaleString();
-               document.getElementById("kofiGoal").classList.remove("hidden");
-
-               // Animate progress bar after reveal
-               requestAnimationFrame(() => {
-                  setTimeout(() => {
-                     document.getElementById("kofiFill").style.width = kg.progressPercent + "%";
-                  }, 200);
-               });
-            }
-
-            // Subscriber goal
-            if (data.subsGoal && data.subsGoal.enabled) {
-               const sg = data.subsGoal;
-               _subsUrl = sg.channelUrl || _subsUrl;
-
-               document.getElementById("subsValue").textContent =
-                  sg.currentSubs.toLocaleString() + " / " + sg.goalSubs.toLocaleString();
-               document.getElementById("subsGoal").classList.remove("hidden");
-
-               const subsPct =
-                  sg.goalSubs > 0 ? Math.min(100, (sg.currentSubs / sg.goalSubs) * 100) : 0;
-               requestAnimationFrame(() => {
-                  setTimeout(() => {
-                     document.getElementById("subsFill").style.width = subsPct + "%";
-                  }, 300);
-               });
-            }
          }
 
          // ESC to close

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased] (Build 2133)
+
+### 🐛 Fixed
+
+- **UI**: Fixed Settings form top-right close ("✕") button not working due to mouse capture during drag initialization (`onmousedown`) swallowing the click event.
+
+### ✨ Added
+
+- **Core**: Added `Persona` to `SkinCategory` enum for handling full hero model replacement mods (`persona_` prefix).
+- **Core**: Added `ExtractItemTag()` to parse slot tags from item archives (e.g., extracting "shoulder" from `item_shoulder_pauldrons_1.zip`).
+- **UI**: Added a 5th "Persona" section to the Hero Skin Selection modal with a distinct magenta/pink theme and glowing selection state.
+- **UI**: Item tiles now display their slot tags as small green badges (`[shoulder]`, `[weapon]`, etc.).
+- **Model**: Added `PersonaIndex` to `HeroSelectionState` to support persisting and generating persona selections.
+- **Tooling**: Updated `2-patch_models.py` to classify and summarize `persona_` archives and display extracted item tags in Mode 4 overview.
+
+### 🛠️ Changed
+
+- **Documentation**: Re-aligned all 7 Architecture Decision Records (ADRs) to perfectly reflect the actual .NET 8 codebase patterns, file paths, interop method names, multi-CDN fallback proxies, and WebView2 templates.
+- **UI**: Resized the Support Dialog panel to a more compact, reliable size (760x460) with no scrollbars, optimized CSS spacing/typography tokens for maximum legibility, and added unique branding hover glow effects to each donation card.
+- **UI**: Changed the font style of the main and miscellaneous consoles from JetBrains Mono Bold to Regular for cleaner terminal styling.
+- **UI**: Replaced the text-based Tweak and unicode gear (⚙) buttons in the MainForm header with custom, high-visibility minimalist vector icons drawn natively via GDI+ paths, aligning them geometrically with minimize/close buttons.
+- **UI**: Resized and compacted the Settings page layout to fit perfectly inside the 420x540 container, completely eliminating the need for vertical scrollbars, and added a 1px border frame around the page.
+- **Architecture**: Refactored `Dota2PerformanceForm` to adhere to the MVP pattern. Decoupled business logic into `AutoexecService` and UI state orchestration into `Dota2PerformancePresenter`.
+- **Security**: Upgraded `autoexec.cfg` saving to use `FileTransactionService` ensuring atomic writes and automatic rollback on failure.
+
+- **UI**: Implemented tag-based mutual exclusion for Items — selecting an item automatically deselects any currently active item sharing the same slot tag.
+- **UI**: Implemented Persona mutual exclusion — selecting a Persona automatically clears and disables all Items and Base Hero selections, as Personas act as full model replacements.
+- **Generator**: Updated the merging priority pipeline to accommodate Personas: Set → Persona → Items (skipped if Persona) → Base Hero (skipped if Persona).
+
+---
+
 ## [2.1.25-beta] (Build 2131)
 
 ### ✨ Added

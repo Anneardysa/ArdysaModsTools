@@ -90,10 +90,10 @@ CHANGELOG_RELEASE.md
 # PERSONAL/INTERNAL DOCUMENTATION
 docs/samples/
 *.trx
-/docs/adr
 
 # AI ASSISTANT TOOLS
 .auto-claude/
 .agent/
+.antigravity
 .trains/
 /.train

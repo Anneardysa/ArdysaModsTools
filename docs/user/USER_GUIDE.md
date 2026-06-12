@@ -93,9 +93,17 @@ When a new version is available:
 
 ## Getting Started
 
-### First Launch
+### First Launch & Onboarding Guide
 
-When you first launch ArdysaModsTools, follow these steps:
+When you first launch ArdysaModsTools, the **Newcomer Onboarding Guide** will automatically trigger. This interactive step-by-step visual spotlight highlights each critical control on the main dashboard to help you get situated.
+
+The guide will walk you through:
+1. **Auto Detect / Manual Detect**: Finding your Dota 2 installation.
+2. **Skin Selector & Miscellaneous**: Navigating to mod categories.
+3. **Install & Patch Update**: Applying and maintaining your mods.
+4. **Console Logs & Settings**: Inspecting errors and clearing caches.
+
+*Note: You can re-run the Onboarding Guide anytime from the Settings page by clicking the "Show Guide" button.*
 
 #### Step 1: Detect Dota 2 Installation
 
@@ -138,13 +146,14 @@ The mods are now installed! Launch Dota 2 normally and enjoy your customized gam
 
 ## Features Overview
 
-ArdysaModsTools offers three main features:
+ArdysaModsTools offers four core features:
 
-| Feature           | Description                                  | Button Color |
-| ----------------- | -------------------------------------------- | ------------ |
-| **Install Mods**  | Download and install the main mod pack       | Blue         |
-| **Select Hero**   | Create custom hero skins from community sets | Purple       |
-| **Miscellaneous** | Customize weather, terrain, HUD, and more    | Orange       |
+| Feature               | Description                                  | Access Point |
+| --------------------- | -------------------------------------------- | ------------ |
+| **Install Mods**      | Download and install the main mod pack       | Main Button (Blue) |
+| **Select Hero**       | Create custom hero skins from community sets | Main Button (Purple) |
+| **Miscellaneous**     | Customize weather, terrain, HUD, and more    | Main Button (Orange) |
+| **Performance Tweak** | Optimize Dota 2 cvar & autoexec settings     | Header Icon (🔧) |
 
 ---
 
@@ -222,22 +231,28 @@ The Hero Set Generator:
 
 #### Using Hero Set Generation
 
-1. **Click Select Hero** button from main window
+1. **Click Select Hero** button from the main window.
 2. **Browse Heroes**:
-   - Scroll through the grid of hero portraits
-   - Use the search bar to find specific heroes
-   - Click the star icon to favorite heroes
-3. **Select Sets**:
-   - Click a hero card
-   - Choose a set from the dropdown menu
-   - Available sets are displayed with names
-4. **Add Multiple Heroes**:
-   - Select as many heroes as you want
-   - Each hero can have one active set
-5. **Generate**:
-   - Click the **Generate** button
-   - Wait for the process to complete (may take several minutes)
-   - Monitor progress in the console
+   - Scroll through the grid of hero portraits.
+   - Use the search bar to find specific heroes.
+   - Click the star icon to favorite heroes (favorites stay pinned to the top).
+3. **Configure Customization Layers**:
+   When you click on a hero card, a modal will show the available options divided into categories:
+   * **Legacy Sets**: Classical, curated full-body hero sets from the server.
+   * **Custom Sets**: Mixed set variations compiled by the community.
+   * **Items**: Individual cosmetic items (e.g., custom weapons, shoulders).
+   * **Base Heroes**: Basic default model modifications.
+   * **Persona** *(Magenta/Pink themed)*: Full model replacement sets (e.g., Baby Invoker, female Anti-Mage).
+
+4. **Mutual Exclusion & Slot Verification**:
+   * **Slot Tag Exclusion**: Selecting an individual item automatically deselects any currently active item that shares the same slot tag (e.g., you cannot equip two weapons). Equipped items display their slot tags as green badges (e.g., `[shoulder]`, `[weapon]`).
+   * **Persona Exclusion**: Selecting a **Persona** acts as a full model override. It will automatically clear and disable all individual Items and Base Hero selections for that hero to prevent model clipping and crashes.
+5. **Add Multiple Heroes**:
+   - Select sets and customizations for as many heroes as you like.
+6. **Generate**:
+   - Click the **Generate** button.
+   - The priorities in the merging pipeline are automatically handled: `Set → Persona → Items (skipped if Persona) → Base Hero (skipped if Persona)`.
+   - Monitor progress via the sidebar preview panel on the progress overlay.
 
 #### Batch Generation
 
@@ -339,6 +354,26 @@ Customize additional game elements beyond hero skins.
 
 > [!NOTE]
 > Clean Generate takes longer but ensures a clean slate. Use Add to Current for quick additions.
+
+---
+
+### 🔧 Performance Tweak (Autoexec Optimizer)
+
+Optimize Dota 2 launch parameters and custom game settings to get the maximum frames per second (FPS) and minimum latency.
+
+#### How to Use
+
+1. Click the **Tweak** (🔧) button located in the top-right corner of the MainForm header.
+2. This opens the **Performance Tweaker** dialog.
+3. Configure your settings across these tabs:
+   * **FPS & Display**: Cap gameplay and UI frame rates, modify viewport scaling, and set screen brightness.
+   * **Visual Toggles**: Enable/disable expensive rendering options (e.g., portrait animations, normal maps, grass quality, wind effects on trees, and ambient creatures) to boost FPS.
+   * **Quality**: Customize texture streaming mip bias and particle fallback modes.
+   * **Engine Tweaks**: Adjust particle simulation limits and disable background sleeps.
+   * **VSync & Latency**: Optimize latency sleeps and lag limiters.
+   * **Network**: Adjust transmission rate, cl_updaterate, and cl_interp_ratio to improve connection stability.
+4. Click **Apply Settings** to save these CVAR configurations directly to `autoexec.cfg` in your game files. AMT saves this file using atomic file transactions to prevent config corruption.
+5. You can also export the settings to a custom `.cfg` file using the **Export Config** option.
 
 ---
 

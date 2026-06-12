@@ -34,7 +34,6 @@ namespace ArdysaModsTools.UI.Forms
     {
         private WebView2? _webView;
         private bool _initialized;
-        private readonly SupportGoalsService _goalsService = new();
 
         // P/Invoke for window dragging
         [System.Runtime.InteropServices.DllImport("user32.dll")]
@@ -63,8 +62,8 @@ namespace ArdysaModsTools.UI.Forms
             // Responsive sizing: cap at 820×620 but scale down on small monitors
             var screen = Screen.FromControl(this) ?? Screen.PrimaryScreen;
             var workArea = screen!.WorkingArea;
-            int width = Math.Min(820, (int)(workArea.Width * 0.85));
-            int height = Math.Min(620, (int)(workArea.Height * 0.85));
+            int width = Math.Min(760, (int)(workArea.Width * 0.85));
+            int height = Math.Min(460, (int)(workArea.Height * 0.85));
             this.Size = new System.Drawing.Size(width, height);
 
             _webView = new WebView2
@@ -125,9 +124,6 @@ namespace ArdysaModsTools.UI.Forms
 
                 if (_initialized) return;
                 _initialized = true;
-
-                // Load goal data from R2 CDN
-                await LoadGoalsAsync();
             }
             catch (Exception ex)
             {
@@ -136,26 +132,7 @@ namespace ArdysaModsTools.UI.Forms
             }
         }
 
-        private async Task LoadGoalsAsync()
-        {
-            try
-            {
-                var config = await _goalsService.GetConfigAsync();
-                if (config != null)
-                {
-                    var json = JsonSerializer.Serialize(config, new JsonSerializerOptions
-                    {
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                    });
-                    var escaped = json.Replace("'", "\\'");
-                    await ExecuteScriptAsync($"loadGoals('{escaped}')");
-                }
-            }
-            catch
-            {
-                // Silent fail — goals section stays hidden
-            }
-        }
+
 
         private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
         {

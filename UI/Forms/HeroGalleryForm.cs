@@ -244,6 +244,7 @@ namespace ArdysaModsTools.UI.Forms
                         index = idx,
                         isCustom = HeroModelMapper.IsCustomSet(kvp.Value),
                         category = HeroModelMapper.ClassifySet(kvp.Value).ToString().ToLowerInvariant(),
+                        tag = HeroModelMapper.ExtractItemTag(kvp.Value),
                         thumbnailUrl = kvp.Value?.FirstOrDefault(u => 
                             u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                             u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
@@ -778,7 +779,7 @@ namespace ArdysaModsTools.UI.Forms
                     var state = kvp.Value;
                     var setKeys = hero.Sets.Keys.ToList();
 
-                    // Priority 1: Selected Set (Legacy or Custom)
+                    // Priority 1: Selected Set (Legacy, Custom, or Persona)
                     if (state.SetIndex.HasValue && state.SetIndex.Value < setKeys.Count)
                     {
                         var setName = setKeys[state.SetIndex.Value];

@@ -43,6 +43,7 @@ namespace ArdysaModsTools.UI.Forms
         private System.Windows.Forms.Label lbl_Agility;
         private System.Windows.Forms.Label lbl_Intelligence;
         private System.Windows.Forms.Label lbl_Universal;
+        private System.Windows.Forms.Label lbl_HasSets;
         private ArdysaModsTools.UI.Controls.ModernSearchBox modernSearchBox;
 
         // Separator
@@ -85,6 +86,7 @@ namespace ArdysaModsTools.UI.Forms
             lbl_Agility = new Label();
             lbl_Intelligence = new Label();
             lbl_Universal = new Label();
+            lbl_HasSets = new Label();
             Separator = new Panel();
             ScrollContainer = new Panel();
             RowsFlow = new FlowLayoutPanel();
@@ -291,6 +293,7 @@ namespace ArdysaModsTools.UI.Forms
             CategoryFlow.Controls.Add(lbl_Agility);
             CategoryFlow.Controls.Add(lbl_Intelligence);
             CategoryFlow.Controls.Add(lbl_Universal);
+            CategoryFlow.Controls.Add(lbl_HasSets);
             CategoryFlow.Dock = DockStyle.Left;
             CategoryFlow.Location = new Point(0, 0);
             CategoryFlow.Name = "CategoryFlow";
@@ -376,6 +379,17 @@ namespace ArdysaModsTools.UI.Forms
             lbl_Universal.Size = new Size(112, 18);
             lbl_Universal.TabIndex = 5;
             lbl_Universal.Text = "[ Universal ]";
+            // 
+            // lbl_HasSets
+            // 
+            lbl_HasSets.AutoSize = true;
+            lbl_HasSets.Cursor = Cursors.Hand;
+            lbl_HasSets.Font = new Font("JetBrains Mono", 10F);
+            lbl_HasSets.ForeColor = Color.FromArgb(100, 100, 100);
+            lbl_HasSets.Margin = new Padding(20, 3, 20, 3);
+            lbl_HasSets.Name = "lbl_HasSets";
+            lbl_HasSets.TabIndex = 6;
+            lbl_HasSets.Text = "○ Has Sets";
             // 
             // Separator
             // 

@@ -37,6 +37,7 @@ namespace ArdysaModsTools.UI.Forms
         private readonly HashSet<string> favorites;
         private string _currentCategory = "all";
         private string _searchFilter = ""; // Track current search filter
+        private bool _showOnlyWithSets = false; // Toggle: show only heroes with custom sets
         // start empty — we'll populate from heroes.json on first shown
         private readonly List<HeroModel> heroList = new List<HeroModel>();
 
@@ -188,6 +189,7 @@ namespace ArdysaModsTools.UI.Forms
             lbl_Agility.Click += (s, e) => ApplyCategoryFilter("agility");
             lbl_Intelligence.Click += (s, e) => ApplyCategoryFilter("intelligence");
             lbl_Universal.Click += (s, e) => ApplyCategoryFilter("universal");
+            lbl_HasSets.Click += (s, e) => ToggleHasSetsFilter();
         }
 
         private void SelectHero_KeyDown(object? sender, KeyEventArgs e)
@@ -457,6 +459,7 @@ namespace ArdysaModsTools.UI.Forms
             lbl_Agility.Enabled = enabled;
             lbl_Intelligence.Enabled = enabled;
             lbl_Universal.Enabled = enabled;
+            lbl_HasSets.Enabled = enabled;
 
             // Disable all HeroRow controls
             foreach (var row in RowsFlow.Controls.OfType<HeroRow>())
@@ -535,8 +538,15 @@ namespace ArdysaModsTools.UI.Forms
                         heroModel.Name?.ToLowerInvariant().Contains(searchLower) == true;
                 }
 
-                // 3) Show only if matches both filters
-                hr.Visible = matchesCategory && matchesSearch;
+                // 3) Check "has sets" toggle filter
+                bool matchesHasSets = true;
+                if (_showOnlyWithSets && _heroLookup.TryGetValue(hr.HeroId, out var heroForSets))
+                {
+                    matchesHasSets = HasCustomSets(heroForSets);
+                }
+
+                // 4) Show only if matches all filters
+                hr.Visible = matchesCategory && matchesSearch && matchesHasSets;
             }
 
             RowsFlow.ResumeLayout(true);
@@ -587,6 +597,38 @@ namespace ArdysaModsTools.UI.Forms
 
             // 2) Apply both category and search filters
             ApplyFilters();
+        }
+
+        /// <summary>
+        /// Toggles the "Has Sets" filter on/off.
+        /// When ON, only heroes with custom (non-Default) sets are shown.
+        /// </summary>
+        private void ToggleHasSetsFilter()
+        {
+            _showOnlyWithSets = !_showOnlyWithSets;
+
+            // Update toggle visual
+            if (_showOnlyWithSets)
+            {
+                lbl_HasSets.Text = "● Has Sets";
+                lbl_HasSets.ForeColor = Color.FromArgb(0, 255, 255); // Cyan when active
+            }
+            else
+            {
+                lbl_HasSets.Text = "○ Has Sets";
+                lbl_HasSets.ForeColor = Color.FromArgb(100, 100, 100); // Muted when inactive
+            }
+
+            ApplyFilters();
+        }
+
+        /// <summary>
+        /// Returns true if the hero has at least one set that is NOT "Default Set".
+        /// </summary>
+        private static bool HasCustomSets(HeroModel hero)
+        {
+            if (hero.Sets == null || hero.Sets.Count == 0) return false;
+            return hero.Sets.Keys.Any(k => !k.Equals("Default Set", StringComparison.OrdinalIgnoreCase));
         }
 
         private void PopulateHeroes()

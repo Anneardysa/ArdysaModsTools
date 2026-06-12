@@ -14,6 +14,7 @@ graph TB
         HGF[HeroGalleryForm\nWebView2]
         MiscF[MiscForm]
         PO[ProgressOverlay]
+        D2PF[Dota2PerformanceForm\nWebView2]
     end
 
     subgraph Factories["Factories"]
@@ -22,7 +23,11 @@ graph TB
 
     subgraph Presenters["Presenters (MVP)"]
         MFP[MainFormPresenter]
+        MOP[ModOperationsPresenter]
+        PP[PatchPresenter]
+        NP[NavigationPresenter]
         SHP[SelectHeroPresenter]
+        D2PP[Dota2PerformancePresenter]
     end
 
     subgraph Controls["Custom Controls"]
@@ -43,7 +48,11 @@ graph TB
     MF .-> IMFV
     SH .-> ISHV
     MF --> MFP
+    MFP --> MOP
+    MFP --> PP
+    MFP --> NP
     SH --> SHP
+    D2PF --> D2PP
 ```
 
 ---
@@ -330,23 +339,51 @@ Simple console output control.
 
 **File:** `UI/Presenters/MainFormPresenter.cs`
 
-Business logic for MainForm.
+Root coordinator presenter that delegates operations to specialized presenters for Single Responsibility Principle (SRP).
 
 #### Responsibilities
 
-- Dota 2 detection coordination
-- Install/disable orchestration
-- Status management
-- Update checking
+- Coordinates sub-presenter lifecycle
+- Syncs main form views and general logs
+- Startup update checks
+
+---
+
+### ModOperationsPresenter
+
+**File:** `UI/Presenters/ModOperationsPresenter.cs`
+
+Handles mod installation, reinstallation, and removal logic.
 
 #### Key Methods
 
-| Method             | Description                 |
-| ------------------ | --------------------------- |
-| `DetectDota2Async` | Find Dota 2 installation    |
-| `InstallModsAsync` | Coordinate mod installation |
-| `DisableModsAsync` | Handle mod removal          |
-| `CheckStatusAsync` | Validate and update status  |
+| Method                  | Description                                            |
+| ----------------------- | ------------------------------------------------------ |
+| `InstallModsAsync()`    | Triggers ModsPack download and transaction setup       |
+| `DisableModsAsync()`    | Removes gameinfo patches and active mods               |
+
+---
+
+### PatchPresenter
+
+**File:** `UI/Presenters/PatchPresenter.cs`
+
+Coordinates patch checking, file verification, auto-patching watcher, and game update patches.
+
+#### Key Methods
+
+| Method                  | Description                                            |
+| ----------------------- | ------------------------------------------------------ |
+| `PatchUpdateAsync()`    | Initiates update patching for Dota 2 changes           |
+| `VerifyModsAsync()`     | Runs the 4-step status checks (VPK, Signatures, etc.)  |
+
+---
+
+### NavigationPresenter
+
+**File:** `UI/Presenters/NavigationPresenter.cs`
+
+Coordinates form transitions and navigation between the Main Form and secondary forms (Hero Selector, Performance Tweaker, Support, etc.).
 
 ---
 
@@ -362,6 +399,14 @@ Business logic for SelectHero form.
 - Generation pipeline coordination
 - Preset management
 - Selection state persistence
+
+---
+
+### Dota2PerformancePresenter
+
+**File:** `UI/Presenters/Dota2PerformancePresenter.cs`
+
+Coordinates performance tweak selections and CVAR configurations, communicating with `AutoexecService`.
 
 ---
 

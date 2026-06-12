@@ -20,6 +20,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Data;
@@ -1043,9 +1044,18 @@ namespace ArdysaModsTools.Core.Services
                 if (result != null) return result;
                 _logger?.Log($"Primary CDN returned null: {primaryUrl}");
             }
+            catch (OperationCanceledException) when (!CancellationToken.None.IsCancellationRequested)
+            {
+                // Timeout on primary CDN — continue to fallbacks
+                _logger?.Log($"Primary CDN timed out: {primaryUrl}");
+            }
             catch (HttpRequestException ex)
             {
                 _logger?.Log($"Primary CDN failed ({ex.StatusCode}): {primaryUrl} — {ex.Message}");
+            }
+            catch (Exception ex) when (ex is System.Net.Sockets.SocketException or IOException)
+            {
+                _logger?.Log($"Primary CDN connection error: {primaryUrl} — {ex.Message}");
             }
 
             if (fallbackUrls != null)
@@ -1059,9 +1069,17 @@ namespace ArdysaModsTools.Core.Services
                         if (result != null) return result;
                         _logger?.Log($"Fallback CDN returned null: {fallback}");
                     }
+                    catch (OperationCanceledException) when (!CancellationToken.None.IsCancellationRequested)
+                    {
+                        _logger?.Log($"Fallback CDN timed out: {fallback}");
+                    }
                     catch (HttpRequestException ex)
                     {
                         _logger?.Log($"Fallback CDN failed ({ex.StatusCode}): {fallback} — {ex.Message}");
+                    }
+                    catch (Exception ex) when (ex is System.Net.Sockets.SocketException or IOException)
+                    {
+                        _logger?.Log($"Fallback CDN connection error: {fallback} — {ex.Message}");
                     }
                 }
             }
@@ -1096,6 +1114,15 @@ namespace ArdysaModsTools.Core.Services
                 {
                     _logger?.Log($"Failed to download string after {retries} attempts: {ex.Message} — {url}");
                     return null;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+                {
+                    // Catch timeouts, socket errors, IO errors — return null to let fallback logic handle it
+                    _logger?.Log($"Download error (attempt {i + 1}/{retries}): {ex.GetType().Name}: {ex.Message} — {url}");
+                    if (i < retries - 1)
+                        await Task.Delay(500 * (i + 1), ct).ConfigureAwait(false);
+                    else
+                        return null;
                 }
             }
             return null;
@@ -1134,6 +1161,14 @@ namespace ArdysaModsTools.Core.Services
                     _logger?.Log($"Failed to download bytes after {retries} attempts: {ex.Message} — {url}");
                     return null;
                 }
+                catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+                {
+                    _logger?.Log($"Download error (attempt {i + 1}/{retries}): {ex.GetType().Name}: {ex.Message} — {url}");
+                    if (i < retries - 1)
+                        await Task.Delay(500 * (i + 1), ct).ConfigureAwait(false);
+                    else
+                        return null;
+                }
             }
             return null;
         }
@@ -1164,6 +1199,14 @@ namespace ArdysaModsTools.Core.Services
                 {
                     _logger?.Log($"Failed to download after {retries} attempts: {ex.Message}");
                     return null;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+                {
+                    _logger?.Log($"Download error (attempt {i + 1}/{retries}): {ex.GetType().Name}: {ex.Message} — {url}");
+                    if (i < retries - 1)
+                        await Task.Delay(500 * (i + 1), ct).ConfigureAwait(false);
+                    else
+                        return null;
                 }
             }
             return null;

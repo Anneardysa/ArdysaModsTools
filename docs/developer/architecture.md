@@ -34,6 +34,7 @@ graph TB
         PP[PatchPresenter]
         NP[NavigationPresenter]
         SHP[SelectHeroPresenter]
+        D2PP[Dota2PerformancePresenter]
     end
 
     subgraph Core["Core Layer"]
@@ -44,6 +45,9 @@ graph TB
             SS[StatusService]
             FAS[FeatureAccessService]
             SGS[SupportGoalsService]
+            AES[AutoexecService]
+            MPUS[ModsPackUpdateService]
+            HMS[HeroService]
         end
         subgraph MiscServices["Misc Patchers"]
             CPS[CourierPatcherService]
@@ -72,9 +76,16 @@ graph TB
     MFP --> PP
     MFP --> NP
     SH --> SHP
+    D2PF --> D2PP
+    D2PP --> AES
     MOP --> MIS
     PP --> SS
     SHP --> HGS
+    SHP --> HMS
+    HGF --> HMS
+    SH --> HMS
+    MFP --> MPUS
+    MPUS --> MIS
     MGS --> CPS
     MGS --> WPS
     MGS --> AMS
@@ -331,6 +342,7 @@ graph TB
         SS[StatusService]
         DVS[DotaVersionService]
         FAS[FeatureAccessService]
+        MPUS[ModsPackUpdateService]
     end
 
     subgraph "Generation Services"
@@ -341,6 +353,8 @@ graph TB
         AMS[AssetModifierService]
         CPS[CourierPatcherService]
         WPS[WardPatcherService]
+        HMS[HeroService]
+        HMM[HeroModelMapper]
     end
 
     subgraph "CDN Services"
@@ -362,15 +376,19 @@ graph TB
         CS[ConfigService]
         LS[Logger]
         SGS[SupportGoalsService]
+        AES[AutoexecService]
     end
 
     MIS --> VES
     MIS --> SS
     MIS --> RDS
+    MPUS --> MIS
     HGS --> HSDS
     HGS --> HSPS
     HGS --> VRS
     HGS --> OVS
+    HGS --> HMM
+    HMM --> HMS
     HSDS --> SCS
     MGS --> AMS
     MGS --> CPS

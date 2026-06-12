@@ -18,6 +18,7 @@ using System.Net.Http;
 using System.Text.Json;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services.Misc
@@ -53,18 +54,19 @@ namespace ArdysaModsTools.Core.Services.Misc
             // Try to load from remote
             try
             {
-                var client = HttpClientProvider.Client;
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                var response = await client.GetAsync(ConfigUrl, cts.Token).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                config = JsonSerializer.Deserialize<RemoteMiscConfig>(json);
-
-                if (config != null)
+                var json = await CdnFallbackService.Instance.DownloadStringWithFallbackAsync(ConfigUrl, cts.Token).ConfigureAwait(false);
+                
+                if (!string.IsNullOrEmpty(json))
                 {
-                    // Save to cache for offline use
-                    await SaveCacheAsync(json).ConfigureAwait(false);
-                    System.Diagnostics.Debug.WriteLine("RemoteMiscConfigService: Loaded config from remote");
+                    config = JsonSerializer.Deserialize<RemoteMiscConfig>(json);
+
+                    if (config != null)
+                    {
+                        // Save to cache for offline use
+                        await SaveCacheAsync(json).ConfigureAwait(false);
+                        System.Diagnostics.Debug.WriteLine("RemoteMiscConfigService: Loaded config from remote");
+                    }
                 }
             }
             catch (Exception ex)

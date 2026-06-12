@@ -54,7 +54,7 @@ ArdysaModsTools/
 ├── Core/              # Business logic layer
 │   ├── Constants/     # CdnConfig, AppConstants
 │   ├── DependencyInjection/  # DI setup
-│   ├── Interfaces/    # Service contracts (16 interfaces)
+│   ├── Interfaces/    # Service contracts (17 interfaces)
 │   ├── Models/        # Domain models & DTOs
 │   └── Services/      # Service implementations
 │       ├── App/       # App lifecycle
@@ -76,10 +76,10 @@ ArdysaModsTools/
 │   ├── Factories/     # IMainFormFactory
 │   ├── Forms/         # WinForms + WebView2 hybrid forms
 │   ├── Interfaces/    # View contracts
-│   └── Presenters/    # MVP presenters (5 specialized)
+│   └── Presenters/    # MVP presenters (6 specialized)
 ├── Helpers/           # Utility classes
 ├── Assets/            # Static resources (HTML, fonts)
-├── Tests/             # Unit tests (480+, NUnit + Moq)
+├── Tests/             # Unit tests (510+, NUnit + Moq)
 └── tools/             # External binaries (HLExtract, vpk.exe)
 ```
 

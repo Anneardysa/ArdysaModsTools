@@ -299,7 +299,7 @@ namespace ArdysaModsTools
             ConsoleLogBox.Dock = DockStyle.Fill;
             ConsoleLogBox.EnableGlow = true;
             ConsoleLogBox.EnableScanlines = true;
-            ConsoleLogBox.Font = new Font("JetBrains Mono", 8F, FontStyle.Bold);
+            ConsoleLogBox.Font = new Font("JetBrains Mono", 8F);
             ConsoleLogBox.GlowRadius = 1;
             ConsoleLogBox.Location = new Point(10, 8);
             ConsoleLogBox.MaxLines = 500;

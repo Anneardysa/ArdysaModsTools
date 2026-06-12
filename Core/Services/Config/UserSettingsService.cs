@@ -21,7 +21,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using ArdysaModsTools.Core.Services; // assuming ConfigService lives here
+using ArdysaModsTools.Core.Services.Config;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -31,7 +31,8 @@ namespace ArdysaModsTools.Core.Services
         {
             try
             {
-                var configService = new ConfigService();
+                // Use the shared singleton config service to avoid data model conflicts
+                var configService = new MainConfigService();
                 string? savedPath = configService.GetLastTargetPath();
 
                 if (!string.IsNullOrEmpty(savedPath) && Directory.Exists(savedPath))

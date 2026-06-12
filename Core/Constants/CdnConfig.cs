@@ -14,6 +14,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System;
+using System.Linq;
+
 namespace ArdysaModsTools.Core.Constants
 {
     /// <summary>
@@ -156,23 +159,42 @@ namespace ArdysaModsTools.Core.Constants
         }
 
         /// <summary>
-        /// Extract the asset path from a full CDN URL.
-        /// Example: "https://cdn.jsdelivr.net/gh/.../Assets/models/Abaddon/skin.zip" 
-        ///          → "Assets/models/Abaddon/skin.zip"
+        /// Extract the asset or configuration path from a full CDN URL.
+        /// Example 1: "https://cdn.jsdelivr.net/gh/.../Assets/models/Abaddon/skin.zip" → "Assets/models/Abaddon/skin.zip"
+        /// Example 2: "https://cdn.ardysamods.my.id/config/misc_config.json" → "config/misc_config.json"
         /// </summary>
         /// <param name="url">Full CDN URL.</param>
-        /// <returns>Asset path, or null if not a valid asset URL.</returns>
+        /// <returns>Relative path, or null if not a valid URL.</returns>
         public static string? ExtractAssetPath(string url)
         {
             if (string.IsNullOrEmpty(url))
                 return null;
 
-            int assetsIndex = url.IndexOf(AssetsMarker);
-            if (assetsIndex == -1)
-                return null;
+            // 1. Try legacy marker approach first for fast path matching
+            int assetsIndex = url.IndexOf(AssetsMarker, StringComparison.OrdinalIgnoreCase);
+            if (assetsIndex != -1)
+            {
+                return url.Substring(assetsIndex + 1); // Skip the leading "/"
+            }
 
-            // Include "Assets/" in the path
-            return url.Substring(assetsIndex + 1); // Skip the leading "/"
+            // 2. Match against known base URLs (longest first to avoid partial matches)
+            var baseUrls = GetCdnBaseUrls().OrderByDescending(b => b.Length).ToList();
+            
+            // We want to match the URL without query params, but return the path WITH query params
+            int queryIndex = url.IndexOf('?');
+            string urlWithoutQuery = queryIndex != -1 ? url.Substring(0, queryIndex) : url;
+
+            foreach (var baseUrl in baseUrls)
+            {
+                if (urlWithoutQuery.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase))
+                {
+                    string path = url.Substring(baseUrl.Length).TrimStart('/');
+                    if (!string.IsNullOrEmpty(path))
+                        return path;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>

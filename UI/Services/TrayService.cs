@@ -79,7 +79,7 @@ namespace ArdysaModsTools.UI.Services
         public bool MinimizeToTrayEnabled
         {
             get => _configService.GetValue(ConfigKeyMinimizeToTray, false);
-            set => _configService.SetValue(ConfigKeyMinimizeToTray, value);
+            set { _configService.SetValue(ConfigKeyMinimizeToTray, value); _configService.Save(); }
         }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace ArdysaModsTools.UI.Services
         public bool NotificationsEnabled
         {
             get => _configService.GetValue(ConfigKeyShowNotifications, true);
-            set => _configService.SetValue(ConfigKeyShowNotifications, value);
+            set { _configService.SetValue(ConfigKeyShowNotifications, value); _configService.Save(); }
         }
 
         /// <summary>

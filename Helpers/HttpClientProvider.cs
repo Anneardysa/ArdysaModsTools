@@ -23,6 +23,33 @@ using ArdysaModsTools.Core.Services.Config;
 namespace ArdysaModsTools.Helpers
 {
     /// <summary>
+    /// Intercepts requests and appends the Authorization header only if the target host is a GitHub domain.
+    /// This prevents token leakage to third-party CDNs like Cloudflare R2, which can also reject the request with 401/403.
+    /// </summary>
+    public class GitHubTokenHandler : DelegatingHandler
+    {
+        public GitHubTokenHandler(HttpMessageHandler innerHandler) : base(innerHandler)
+        {
+        }
+
+        protected override async System.Threading.Tasks.Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, System.Threading.CancellationToken cancellationToken)
+        {
+            var token = EnvironmentConfig.GitHubToken;
+            if (!string.IsNullOrEmpty(token) && request.RequestUri != null)
+            {
+                var host = request.RequestUri.Host.ToLowerInvariant();
+                if (host == "github.com" || host == "api.github.com" || host.EndsWith(".githubusercontent.com"))
+                {
+                    // Add token just for this request
+                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", token);
+                }
+            }
+
+            return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     /// Centralized, reusable HttpClient configuration.
     /// Use HttpClientProvider.Client anywhere instead of creating new HttpClient.
     /// </summary>
@@ -42,19 +69,14 @@ namespace ArdysaModsTools.Helpers
                 DefaultProxyCredentials = CredentialCache.DefaultCredentials,
             };
 
-            var c = new HttpClient(handler, disposeHandler: true)
+            var gitHubHandler = new GitHubTokenHandler(handler);
+
+            var c = new HttpClient(gitHubHandler, disposeHandler: true)
             {
                 Timeout = TimeSpan.FromMinutes(5)
             };
 
             c.DefaultRequestHeaders.Add("User-Agent", "ArdysaModsTools/1.0");
-            
-            // Add GitHub token if configured (for higher rate limits: 5000/hour vs 60/hour)
-            var token = EnvironmentConfig.GitHubToken;
-            if (!string.IsNullOrEmpty(token))
-            {
-                c.DefaultRequestHeaders.Add("Authorization", $"token {token}");
-            }
             
             return c;
         });

@@ -75,6 +75,8 @@ namespace ArdysaModsTools
         // Onboarding guide
         private readonly OnboardingService _onboardingService;
 
+        private readonly IServiceProvider _serviceProvider;
+
         /// <summary>
         /// Default constructor is disabled. Use MainFormFactory.Create() for proper DI.
         /// </summary>
@@ -98,8 +100,10 @@ namespace ArdysaModsTools
             IDetectionService detectionService,
             IModInstallerService modInstallerService,
             IStatusService statusService,
+            IServiceProvider serviceProvider,
             bool startMinimized = false)
         {
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             _startMinimized = startMinimized;
             // Store injected dependencies
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -108,7 +112,7 @@ namespace ArdysaModsTools
             InitializeComponent();
 
             // Use embedded JetBrains Mono font for console
-            mainConsoleBox.Font = FontHelper.CreateMono(8F, FontStyle.Bold);
+            mainConsoleBox.Font = FontHelper.CreateMono(8F, FontStyle.Regular);
 
             // Apply rounded corners to form
             ApplyRoundedForm();
@@ -1146,7 +1150,7 @@ namespace ArdysaModsTools
                     gamePath = targetPath;
                 }
 
-                using var perfForm = new UI.Forms.Dota2PerformanceForm(gamePath);
+                using var perfForm = Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<UI.Forms.Dota2PerformanceForm>(_serviceProvider, gamePath ?? (object)string.Empty);
                 perfForm.ShowDialog(this);
             }
             catch (Exception ex)
@@ -1157,12 +1161,12 @@ namespace ArdysaModsTools
 
         private void BtnTweak_MouseEnter(object? sender, EventArgs e)
         {
-            if (sender is Label lbl) lbl.BackColor = Color.FromArgb(126, 34, 206); // darker purple on hover
+            if (sender is Label lbl) lbl.ForeColor = Color.FromArgb(147, 51, 234); // purple on hover
         }
 
         private void BtnTweak_MouseLeave(object? sender, EventArgs e)
         {
-            if (sender is Label lbl) lbl.BackColor = Color.FromArgb(147, 51, 234); // original purple
+            if (sender is Label lbl) lbl.ForeColor = Color.FromArgb(68, 68, 68); // grey on leave
         }
 
         private void BtnTweak_Paint(object? sender, PaintEventArgs e)
@@ -1171,22 +1175,61 @@ namespace ArdysaModsTools
             var g = e.Graphics;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
 
-            int radius = 12;
-            var rect = new Rectangle(0, 0, lbl.Width - 1, lbl.Height - 1);
-            using var path = new System.Drawing.Drawing2D.GraphicsPath();
-            path.AddArc(rect.X, rect.Y, radius, radius, 180, 90);
-            path.AddArc(rect.Right - radius, rect.Y, radius, radius, 270, 90);
-            path.AddArc(rect.Right - radius, rect.Bottom - radius, radius, radius, 0, 90);
-            path.AddArc(rect.X, rect.Bottom - radius, radius, radius, 90, 90);
-            path.CloseFigure();
+            Color iconColor = lbl.ForeColor;
+            
+            // Draw 3 minimalist horizontal sliders (Tweak Icon)
+            using var linePen = new Pen(Color.FromArgb(100, iconColor), 2f); // semi-transparent tracks
+            using var knobBrush = new SolidBrush(iconColor); // solid knobs
+            using var knobPen = new Pen(lbl.Parent?.BackColor ?? Color.Black, 1.5f); // outline separator
 
-            lbl.Region = new Region(path);
-            using var brush = new SolidBrush(lbl.BackColor);
-            g.FillPath(brush, path);
+            // Slider 1: y = 9
+            g.DrawLine(linePen, 6.5f, 9f, 22.5f, 9f);
+            g.FillEllipse(knobBrush, 11f - 3f, 9f - 3f, 6f, 6f);
+            g.DrawEllipse(knobPen, 11f - 3f, 9f - 3f, 6f, 6f);
 
-            // Draw text centered
-            TextRenderer.DrawText(g, lbl.Text, lbl.Font, rect, lbl.ForeColor,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            // Slider 2: y = 14.5 (Center)
+            g.DrawLine(linePen, 6.5f, 14.5f, 22.5f, 14.5f);
+            g.FillEllipse(knobBrush, 18f - 3f, 14.5f - 3f, 6f, 6f);
+            g.DrawEllipse(knobPen, 18f - 3f, 14.5f - 3f, 6f, 6f);
+
+            // Slider 3: y = 20
+            g.DrawLine(linePen, 6.5f, 20f, 22.5f, 20f);
+            g.FillEllipse(knobBrush, 13f - 3f, 20f - 3f, 6f, 6f);
+            g.DrawEllipse(knobPen, 13f - 3f, 20f - 3f, 6f, 6f);
+        }
+
+        private void BtnSettings_Paint(object? sender, PaintEventArgs e)
+        {
+            if (sender is not Label lbl) return;
+            var g = e.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            float cx = lbl.Width / 2f;
+            float cy = lbl.Height / 2f;
+            Color iconColor = lbl.ForeColor;
+
+            using var pen = new Pen(iconColor, 2f);
+            
+            // Draw core ring
+            g.DrawEllipse(pen, cx - 5.5f, cy - 5.5f, 11f, 11f);
+            
+            // Draw 6 spokes/teeth
+            int teethCount = 6;
+            for (int i = 0; i < teethCount; i++)
+            {
+                float angle = i * 60f;
+                g.TranslateTransform(cx, cy);
+                g.RotateTransform(angle);
+                
+                // Draw tooth at the top
+                using var brush = new SolidBrush(iconColor);
+                g.FillRectangle(brush, -2f, -10f, 4f, 4f);
+                
+                g.ResetTransform();
+            }
+            
+            // Draw inner small hole
+            g.FillEllipse(new SolidBrush(iconColor), cx - 2f, cy - 2f, 4f, 4f);
         }
 
         #endregion

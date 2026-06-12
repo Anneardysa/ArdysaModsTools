@@ -143,10 +143,12 @@ public static class HeroModelMapper
     /// </summary>
     public enum SkinCategory
     {
-        /// <summary>Default category — set name does NOT start with mix_, item_, or base_.</summary>
+        /// <summary>Default category — set name does NOT start with mix_, item_, persona_, or base_.</summary>
         LegacySet,
         /// <summary>Archive filename starts with "mix_".</summary>
         CustomSet,
+        /// <summary>Archive filename starts with "persona_".</summary>
+        Persona,
         /// <summary>Archive filename starts with "item_".</summary>
         Item,
         /// <summary>Archive filename starts with "base_".</summary>
@@ -166,6 +168,8 @@ public static class HeroModelMapper
         if (string.IsNullOrEmpty(archiveFileName))
             return SkinCategory.LegacySet;
 
+        if (archiveFileName.StartsWith("persona_", StringComparison.OrdinalIgnoreCase))
+            return SkinCategory.Persona;
         if (archiveFileName.StartsWith("item_", StringComparison.OrdinalIgnoreCase))
             return SkinCategory.Item;
         if (archiveFileName.StartsWith("base_", StringComparison.OrdinalIgnoreCase))
@@ -188,11 +192,46 @@ public static class HeroModelMapper
         return ClassifySet(urls);
     }
 
+    /// <summary>Returns true if the set is a Persona (archive filename starts with "persona_").</summary>
+    public static bool IsPersonaSet(List<string>? assetUrls) => ClassifySet(assetUrls) == SkinCategory.Persona;
+
     /// <summary>Returns true if the set is an Item (archive filename starts with "item_").</summary>
     public static bool IsItemSet(List<string>? assetUrls) => ClassifySet(assetUrls) == SkinCategory.Item;
 
     /// <summary>Returns true if the set is a Base Hero (archive filename starts with "base_").</summary>
     public static bool IsBaseHeroSet(List<string>? assetUrls) => ClassifySet(assetUrls) == SkinCategory.BaseHero;
+
+    /// <summary>
+    /// Extracts the slot tag from an Item set's archive filename.
+    /// Format: item_{tag}_{name}[_{N}].zip → returns the tag segment.
+    /// Example: "item_shoulder_pauldrons_1.zip" → "shoulder".
+    /// Returns null for non-item sets or if no tag segment is found.
+    /// </summary>
+    public static string? ExtractItemTag(List<string>? assetUrls)
+    {
+        if (assetUrls == null || assetUrls.Count == 0)
+            return null;
+
+        var archiveFileName = ExtractArchiveFileName(assetUrls);
+        if (string.IsNullOrEmpty(archiveFileName))
+            return null;
+
+        // Strip extension to get basename
+        var basename = Path.GetFileNameWithoutExtension(archiveFileName);
+        if (!basename.StartsWith("item_", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        // Strip "item_" prefix → "shoulder_pauldrons_1"
+        var afterPrefix = basename.Substring(5);
+        if (string.IsNullOrEmpty(afterPrefix))
+            return null;
+
+        // First segment before '_' is the tag
+        var underscoreIdx = afterPrefix.IndexOf('_');
+        return underscoreIdx > 0
+            ? afterPrefix.Substring(0, underscoreIdx).ToLowerInvariant()
+            : afterPrefix.ToLowerInvariant();
+    }
 
     /// <summary>
     /// Extracts the archive filename from a set's asset URL list.
