@@ -281,6 +281,12 @@ namespace ArdysaModsTools.UI.Interfaces
         /// </summary>
         void SetPatchDetectedStatus();
 
+        /// <summary>
+        /// Shows or hides the "close Dota 2 before modifying" warning banner.
+        /// </summary>
+        /// <param name="isRunning">True if Dota 2 is currently running.</param>
+        void SetDotaRunningState(bool isRunning);
+
         #endregion
 
         #region Application Control

@@ -64,7 +64,9 @@ namespace ArdysaModsTools.UI.Presenters
 
         private string? _targetPath;
         private CancellationTokenSource? _operationCts;
-        private Task<(bool Success, bool IsUpToDate)>? _ongoingOperationTask;
+        // Completes when the currently running operation finishes. Lets ShutdownAsync
+        // wait for an in-flight install/patch to unwind before the form closes.
+        private TaskCompletionSource<bool>? _operationGate;
         private bool _disposed;
         private ModStatusInfo? _currentStatus;
 
@@ -76,8 +78,9 @@ namespace ArdysaModsTools.UI.Presenters
 
         /// <summary>
         /// Gets whether an operation is currently running.
+        /// True between a <see cref="StartOperation"/> and its matching <see cref="EndOperation"/>.
         /// </summary>
-        public bool IsOperationRunning => _ongoingOperationTask != null;
+        public bool IsOperationRunning => _operationCts != null;
 
         /// <summary>
         /// Gets the UpdaterService instance for use by other components (e.g., Settings).
@@ -952,6 +955,9 @@ namespace ArdysaModsTools.UI.Presenters
         {
             _view.InvokeOnUIThread(() =>
             {
+                // Update the "close Dota 2" warning banner.
+                _view.SetDotaRunningState(isRunning);
+
                 if (isRunning)
                 {
                     _view.DisableAllButtons();
@@ -964,9 +970,15 @@ namespace ArdysaModsTools.UI.Presenters
                 else
                 {
                     if (!string.IsNullOrEmpty(_targetPath))
+                    {
                         _view.EnableAllButtons();
+                        // Dota may have updated while running — refresh mod status.
+                        _ = CheckModsStatusAsync();
+                    }
                     else
+                    {
                         _view.EnableDetectionButtonsOnly();
+                    }
                 }
             });
         }
@@ -1076,7 +1088,11 @@ namespace ArdysaModsTools.UI.Presenters
             }
             catch { }
 
+            // Release any stale gate before opening a new one so a prior waiter never hangs.
+            _operationGate?.TrySetResult(true);
+
             _operationCts = new CancellationTokenSource();
+            _operationGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             _view.DisableAllButtons();
             return _operationCts;
         }
@@ -1089,6 +1105,10 @@ namespace ArdysaModsTools.UI.Presenters
             }
             catch { }
             _operationCts = null;
+
+            // Signal completion so ShutdownAsync (if waiting) can proceed.
+            _operationGate?.TrySetResult(true);
+            _operationGate = null;
 
             if (string.IsNullOrEmpty(_targetPath))
                 _view.EnableDetectionButtonsOnly();
@@ -1271,59 +1291,6 @@ namespace ArdysaModsTools.UI.Presenters
         }
 
         /// <summary>
-        /// Handles the patch button click with status-aware behavior.
-        /// Shows menu or takes direct action based on current status.
-        /// </summary>
-        public async Task HandlePatchButtonClickAsync()
-        {
-            if (string.IsNullOrEmpty(_targetPath))
-                return;
-
-            // Get fresh status before making decisions
-            _view.ShowCheckingState();
-            var freshStatus = await _status.ForceRefreshAsync(_targetPath);
-            _view.SetModsStatusDetailed(freshStatus);
-
-            // Take action based on status
-            switch (freshStatus.Status)
-            {
-                case ModStatus.NeedUpdate:
-                    // Show styled dialog asking user to patch
-                    if (_view.ShowPatchRequiredDialog(freshStatus.Description))
-                    {
-                        await ExecutePatchAsync();
-                    }
-                    break;
-
-                case ModStatus.Ready:
-                    // Show options menu
-                    _view.ShowPatchMenu();
-                    break;
-
-                case ModStatus.Disabled:
-                    // Show styled dialog asking user to enable/patch
-                    if (_view.ShowPatchRequiredDialog("Mods are currently disabled.\n\nClick 'Patch Now' to enable them."))
-                    {
-                        await ExecutePatchAsync();
-                    }
-                    break;
-
-                case ModStatus.NotInstalled:
-                    _view.ShowMessageBox(
-                        "Please install mods first using the 'Skin Selector' or 'Miscellaneous' buttons.",
-                        "Mods Not Installed",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                    break;
-
-                default:
-                    // Default: show menu
-                    _view.ShowPatchMenu();
-                    break;
-            }
-        }
-
-        /// <summary>
         /// Shows status details in a dedicated form.
         /// </summary>
         public void ShowStatusDetails()
@@ -1384,9 +1351,9 @@ namespace ArdysaModsTools.UI.Presenters
             if (string.IsNullOrEmpty(_targetPath)) return;
 
             _view.ShowCheckingState();
-            // Force refresh status
-            await CheckModsStatusAsync();
-            
+            // Force refresh status so the decision below uses live state, not a cached value.
+            await CheckModsStatusAsync(force: true);
+
             if (_currentStatus?.Status == ModStatus.NeedUpdate)
             {
                  var result = _view.ShowMessageBox(
@@ -1640,13 +1607,14 @@ namespace ArdysaModsTools.UI.Presenters
         {
             // Signal cancellation
             _operationCts?.Cancel();
-            
-            // Wait for ongoing operation to complete (with timeout)
-            if (_ongoingOperationTask != null)
+
+            // Wait for the in-flight operation to unwind (with timeout so we never hang the close).
+            var gate = _operationGate;
+            if (gate != null)
             {
                 try
                 {
-                    await Task.WhenAny(_ongoingOperationTask, Task.Delay(5000));
+                    await Task.WhenAny(gate.Task, Task.Delay(5000));
                 }
                 catch { /* Ignore errors during shutdown */ }
             }

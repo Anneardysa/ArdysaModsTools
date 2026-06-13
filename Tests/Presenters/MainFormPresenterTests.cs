@@ -156,6 +156,41 @@ namespace ArdysaModsTools.Tests.Presenters
 
         #endregion
 
+        #region Shutdown Tests
+
+        [Test]
+        public async Task ShutdownAsync_WhenIdle_CompletesPromptlyAndDisposes()
+        {
+            // Arrange
+            var presenter = new MainFormPresenter(_viewMock.Object, _logger, _configMock.Object);
+
+            // Act — with no operation in flight there is no gate to await, so this must
+            // not hang on the 5s shutdown timeout. Guard against a regression in the
+            // operation-gate logic that would block the form's close path.
+            var shutdown = presenter.ShutdownAsync();
+            var finished = await Task.WhenAny(shutdown, Task.Delay(2000)) == shutdown;
+
+            // Assert
+            Assert.That(finished, Is.True, "ShutdownAsync should complete promptly when idle.");
+            Assert.That(presenter.IsOperationRunning, Is.False);
+
+            // Dispose is idempotent and already invoked by ShutdownAsync.
+            Assert.DoesNotThrow(() => presenter.Dispose());
+        }
+
+        [Test]
+        public async Task ShutdownAsync_CanBeCalledWithoutPriorOperation()
+        {
+            // Arrange
+            var presenter = new MainFormPresenter(_viewMock.Object, _logger, _configMock.Object);
+
+            // Act & Assert
+            Assert.DoesNotThrowAsync(async () => await presenter.ShutdownAsync());
+            await Task.CompletedTask;
+        }
+
+        #endregion
+
         #region View Interaction Tests
 
         [Test]

@@ -67,6 +67,28 @@ namespace ArdysaModsTools
             versionLabel.Text = version;
         }
 
+        /// <summary>
+        /// Shows or hides the "close Dota 2 before modifying" warning banner.
+        /// Button enable/disable state is driven separately by the presenter.
+        /// </summary>
+        public void SetDotaRunningState(bool isRunning)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => SetDotaRunningState(isRunning)));
+                return;
+            }
+
+            lblDotaWarning.Visible = isRunning;
+            lblDotaWarning.Enabled = true;
+
+            if (isRunning)
+            {
+                lblDotaWarning.Text = "/// ⚠ CLOSE DOTA 2 BEFORE MODIFYING ⚠ ///";
+                lblDotaWarning.BackColor = System.Drawing.Color.FromArgb(180, 70, 70);
+            }
+        }
+
         #endregion
 
         #region IMainFormView - Button States

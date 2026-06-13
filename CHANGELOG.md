@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.27-beta] (Build 2139)
+
+### 🐛 Fixed
+
+- **MainForm**: Fixed graceful shutdown never triggering on close. `MainFormPresenter.IsOperationRunning` was backed by `_ongoingOperationTask`, a field that was never assigned, so it was always `false` — the window could close mid-install/patch without cancelling or waiting for the in-flight file operation. Operation state is now tracked via `_operationCts` + an `_operationGate` (`TaskCompletionSource`), so `ShutdownAsync` actually awaits the running operation (bounded by the existing 5s timeout) before closing.
+- **MainForm**: Fixed a resource leak — the presenter (and therefore the Dota 2 patch watcher's `FileSystemWatcher`, the process monitor, and the operation `CancellationTokenSource`) plus `TrayService` were never disposed on a normal close, because disposal was gated behind the always-false `IsOperationRunning`. Added `MainForm_FormClosed` to dispose them unconditionally (idempotent).
+- **MainForm**: Fixed `Form1_Load` reporting presenter/CDN initialization failures as *"Error loading social media icons"* and swallowing them — presenter init now has isolated error handling and icon loading moved to a best-effort `LoadSocialMediaIcons()`.
+- **MainForm**: Fixed `HandlePatcherClickAsync` acting on a cached status despite its "force refresh" comment — it now refreshes with `force: true` before deciding to prompt or show the menu.
+- **MainForm**: Fixed the `--update` self-replace cleanup surfacing its error dialog and exiting from a background thread — the error path now marshals to the UI thread.
+
+### 🛠️ Changed
+
+- **MainForm / MVP**: Consolidated Dota 2 process monitoring into `MainFormPresenter` as the single owner. The form previously started a *second* `Dota2Monitor` with its own handler and duplicate status checks; it now only reflects state through the new `IMainFormView.SetDotaRunningState` callback. Removed the form's duplicate `Dota2Monitor`, `StatusService`, `DotaStateChanged`, and `CheckModsStatus`.
+- **MainForm**: Removed dead code (`MainFormPresenter.HandlePatchButtonClickAsync`, no-op `OnPaint`/`WndProc` overrides) and extracted the `--update` handshake into `RunPendingUpdateCleanup()`.
+- **Tests**: Added `MainFormPresenter` shutdown regression tests (idle `ShutdownAsync` completes promptly and disposes; safe without a prior operation). Full suite: 582 passing.
+
+---
+
 ## [2.1.27-beta] (Build 2138)
 
 ### ✨ Added

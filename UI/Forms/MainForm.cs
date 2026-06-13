@@ -57,11 +57,11 @@ namespace ArdysaModsTools
         // Note: UpdaterService is now handled by MainFormPresenter
         private readonly ModInstallerService _modInstaller;
         private readonly IDetectionService _detection;
-        private readonly StatusService _status;
         private readonly DotaVersionService _versionService;
         private readonly IConfigService _configService;
-        private Dota2Monitor _dotaMonitor;
-        
+        // Note: Dota 2 process monitoring and mod-status checks are owned solely by
+        // MainFormPresenter. The form only reflects state via IMainFormView callbacks.
+
         // Presenter for MVP pattern
         private readonly UI.Presenters.MainFormPresenter _presenter;
         private bool _modFileWarningLogged; // Prevent duplicate logging
@@ -119,6 +119,7 @@ namespace ArdysaModsTools
             this.Resize += (s, e) => ApplyRoundedForm();
 
             this.FormClosing += MainForm_FormClosing;
+            this.FormClosed += MainForm_FormClosed;
 
             this.KeyPreview = true;
             this.KeyDown += MainForm_KeyDown;
@@ -147,15 +148,10 @@ namespace ArdysaModsTools
             _modInstaller.SetLogger(_logger);
 
             // PRESENTER INITIALIZATION (MVP Pattern)
+            // The presenter owns the Dota 2 process monitor and the mod-status pipeline.
             _presenter = new UI.Presenters.MainFormPresenter(this, _logger, _configService);
 
-            _status = statusService as StatusService 
-                ?? new StatusService(_logger);
             _versionService = new DotaVersionService(_logger);
-
-            _dotaMonitor = new Dota2Monitor();
-            _dotaMonitor.OnDota2StateChanged += DotaStateChanged;
-            _dotaMonitor.Start();
 
             // Initialize services for Settings
             _lifecycleService = new AppLifecycleService();
@@ -229,33 +225,7 @@ namespace ArdysaModsTools
                 _logger.Log($"Error loading banner: {ex.Message}");
             }
 
-            string[] args = Environment.GetCommandLineArgs();
-            if (args.Length >= 6 && args[1] == "--update")
-            {
-                string currentExe = args[2];
-                string backupExe = args[3];
-                string tempArchive = args[4];
-                string tempDir = args[5];
-
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await Task.Delay(2000);
-                        if (File.Exists(backupExe)) File.Delete(backupExe);
-                        string thisExe = Process.GetCurrentProcess().MainModule!.FileName;
-                        File.Move(thisExe, currentExe, true);
-                        if (File.Exists(tempArchive)) File.Delete(tempArchive);
-                        if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Log($"Update cleanup failed: {ex.Message}");
-                        MessageBox.Show($"Update cleanup failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        Application.Exit();
-                    }
-                });
-            }
+            RunPendingUpdateCleanup();
 
             statusModsDotLabel.BackColor = Color.FromArgb(150, 150, 150);
             statusModsTextLabel.Text = "Not Checked";
@@ -271,6 +241,48 @@ namespace ArdysaModsTools
             UI.FontHelper.ApplyToForm(this);
 
             EnableDetectionButtonsOnly();
+        }
+
+        /// <summary>
+        /// Finalizes a self-update when the app was relaunched with the "--update" handshake.
+        /// The freshly downloaded build (running now) replaces the original exe, then removes
+        /// the backup and temp artifacts left by the updater. Runs off the UI thread so the
+        /// short settle delay does not block form construction.
+        /// </summary>
+        private void RunPendingUpdateCleanup()
+        {
+            string[] args = Environment.GetCommandLineArgs();
+            if (args.Length < 6 || args[1] != "--update")
+                return;
+
+            string currentExe = args[2];
+            string backupExe = args[3];
+            string tempArchive = args[4];
+            string tempDir = args[5];
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(2000);
+                    if (File.Exists(backupExe)) File.Delete(backupExe);
+                    string thisExe = Process.GetCurrentProcess().MainModule!.FileName;
+                    File.Move(thisExe, currentExe, true);
+                    if (File.Exists(tempArchive)) File.Delete(tempArchive);
+                    if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log($"Update cleanup failed: {ex.Message}");
+                    // Surface the error and exit on the UI thread.
+                    InvokeOnUIThread(() =>
+                    {
+                        MessageBox.Show(this, $"Update cleanup failed: {ex.Message}", "Error",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        Application.Exit();
+                    });
+                }
+            });
         }
 
         private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
@@ -289,6 +301,17 @@ namespace ArdysaModsTools
                 await _presenter.ShutdownAsync();
                 BeginInvoke(new Action(() => Close()));
             });
+        }
+
+        /// <summary>
+        /// Releases long-lived resources once the form has closed.
+        /// Disposing the presenter stops the Dota 2 patch watcher, the process monitor,
+        /// and any pending operation token. Idempotent — the presenter guards double-dispose.
+        /// </summary>
+        private void MainForm_FormClosed(object? sender, FormClosedEventArgs e)
+        {
+            try { _presenter.Dispose(); } catch (Exception ex) { _logger.Log($"Presenter dispose failed: {ex.Message}"); }
+            try { _trayService?.Dispose(); } catch (Exception ex) { _logger.Log($"TrayService dispose failed: {ex.Message}"); }
         }
 
 
@@ -323,52 +346,68 @@ namespace ArdysaModsTools
         private async void Form1_Load(object sender, EventArgs e)
         {
             _logger.FlushBufferedLogs();
+
+            // Presenter initialization (MVP). Isolated so a failure here is reported accurately
+            // and does not get mislabeled as an asset-loading error.
             try
             {
-                // Presenter Initialization (MVP)
                 await _presenter.InitializeAsync();
-                
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Presenter initialization failed: {ex.Message}");
+            }
 
+            // Initialize smart CDN selector (tests CDN speeds in background, fire-and-forget)
+            _ = SmartCdnSelector.Instance.InitializeAsync();
 
-                // Initialize smart CDN selector (tests CDN speeds in background)
-                _ = SmartCdnSelector.Instance.InitializeAsync();
+            // Load embedded social media icons (non-critical — a failure must not block startup)
+            LoadSocialMediaIcons();
 
-                using (Stream? discordStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ArdysaModsTools.dc.png"))
+            EnableDetectionButtonsOnly();
+
+            // If launched with --minimized flag (Windows startup), go straight to tray.
+            // Skip popups (SupportDialog, donation reminder) for a silent background start.
+            if (_startMinimized && _trayService != null)
+            {
+                _trayService.MinimizeToTray();
+                return;
+            }
+
+            // Show Support Dialog on startup
+            ShowSupportDialogOnStartup();
+
+            // Show onboarding guide for first-time users
+            ShowOnboardingGuide();
+
+            // Show donation reminder notification (always on startup)
+            _trayService?.ShowDonationReminder();
+        }
+
+        /// <summary>
+        /// Loads the embedded Discord/YouTube/PayPal icons. Best-effort: a missing or
+        /// unreadable resource is logged but never blocks startup.
+        /// </summary>
+        private void LoadSocialMediaIcons()
+        {
+            try
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+
+                using (Stream? discordStream = assembly.GetManifestResourceStream("ArdysaModsTools.dc.png"))
                 {
-                    if (discordStream == null) { }
-                    else { discordPictureBox.Image = Image.FromStream(discordStream); }
+                    if (discordStream != null) discordPictureBox.Image = Image.FromStream(discordStream);
                 }
 
-                using (Stream? youtubeStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ArdysaModsTools.yt.png"))
+                using (Stream? youtubeStream = assembly.GetManifestResourceStream("ArdysaModsTools.yt.png"))
                 {
-                    if (youtubeStream == null) { }
-                    else { youtubePictureBox.Image = Image.FromStream(youtubeStream); }
+                    if (youtubeStream != null) youtubePictureBox.Image = Image.FromStream(youtubeStream);
                 }
 
-                using (Stream? paypalStream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ArdysaModsTools.paypal.png"))
+                using (Stream? paypalStream = assembly.GetManifestResourceStream("ArdysaModsTools.paypal.png"))
                 {
-                    if (paypalStream == null) { }
-                    else { paypalPictureBox.Image = Image.FromStream(paypalStream); }
+                    if (paypalStream != null) paypalPictureBox.Image = Image.FromStream(paypalStream);
                 }
-
-                EnableDetectionButtonsOnly();
-
-                // If launched with --minimized flag (Windows startup), go straight to tray
-                // Skip popups (SupportDialog, donation reminder) for a silent background start
-                if (_startMinimized && _trayService != null)
-                {
-                    _trayService.MinimizeToTray();
-                    return;
-                }
-
-                // Show Support Dialog on startup
-                ShowSupportDialogOnStartup();
-
-                // Show onboarding guide for first-time users
-                ShowOnboardingGuide();
-                
-                // Show donation reminder notification (always on startup)
-                _trayService?.ShowDonationReminder();
             }
             catch (Exception ex)
             {
@@ -518,24 +557,6 @@ namespace ArdysaModsTools
         }
 
 
-
-        private async Task CheckModsStatus()
-        {
-            try
-            {
-                var statusInfo = await _status.GetDetailedStatusAsync(targetPath);
-                SetModsStatusDetailed(statusInfo);
-                UpdatePatchButtonStatus(statusInfo?.Status);
-            }
-            catch (Exception ex)
-            {
-                _logger.Log($"[STATUS] Error: {ex.Message}");
-                statusModsDotLabel.BackColor = Color.FromArgb(255, 80, 80);
-                statusModsTextLabel.Text = "Error";
-                statusModsTextLabel.ForeColor = Color.FromArgb(255, 80, 80);
-                UpdatePatchButtonStatus(null, isError: true);
-            }
-        }
 
         /// <summary>
         /// Updates the Patch Update button colors based on mod status.
@@ -790,42 +811,6 @@ namespace ArdysaModsTools
         // Note: UpdateVersionLabelAsync removed - version updates now handled by MainFormPresenter
         // via IMainFormView.SetVersion() and UpdaterService.OnVersionChanged event
 
-        private void DotaStateChanged(bool isRunning)
-        {
-            if (InvokeRequired)
-            {
-                BeginInvoke(new Action(() => DotaStateChanged(isRunning)));
-                return;
-            }
-
-            lblDotaWarning.Visible = isRunning;
-
-            if (isRunning)
-            {
-                lblDotaWarning.Text = "/// ⚠ CLOSE DOTA 2 BEFORE MODIFYING ⚠ ///";
-                lblDotaWarning.BackColor = Color.FromArgb(180, 70, 70);
-            }
-
-            // Tray functionality removed - no longer minimize to tray when Dota runs
-
-            // Disable/enable all action buttons when Dota 2 is running
-            installButton.Enabled = !isRunning;
-            disableButton.Enabled = !isRunning;
-            autoDetectButton.Enabled = !isRunning;
-            manualDetectButton.Enabled = !isRunning;
-            updatePatcherButton.Enabled = !isRunning;
-            miscellaneousButton.Enabled = !isRunning;
-            btn_OpenSelectHero.Enabled = !isRunning;
-
-            lblDotaWarning.Enabled = true;
-            
-            // Refresh status when Dota closes (might have updated)
-            if (!isRunning && !string.IsNullOrEmpty(targetPath))
-            {
-                _ = CheckModsStatus();
-            }
-        }
-
         #region Enhanced Status Display
 
         private ToolTip? _statusTooltip;
@@ -1004,23 +989,6 @@ namespace ArdysaModsTools
             int radius = 20;
             this.Region = Region.FromHrgn(
                 CreateRoundRectRgn(0, 0, Width, Height, radius, radius));
-        }
-
-        /// <summary>
-        /// Draw cyan border on top of everything
-        /// </summary>
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            base.OnPaint(e);
-        }
-
-        /// <summary>
-        /// Override WndProc for custom handling
-        /// </summary>
-        protected override void WndProc(ref Message m)
-        {
-            base.WndProc(ref m);
-            // Border removed - no custom drawing
         }
 
         // P/Invoke for reliable window dragging
