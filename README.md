@@ -8,7 +8,7 @@
 
 _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one click._
 
-![Version](https://img.shields.io/badge/Version-2.1.26--beta-00d4ff?style=for-the-badge&logo=v)
+![Version](https://img.shields.io/badge/Version-2.1.27--beta-00d4ff?style=for-the-badge&logo=v)
 ![Build](https://img.shields.io/github/actions/workflow/status/Anneardysa/ArdysaModsTools/release.yml?style=for-the-badge&logo=github&label=Build)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
@@ -17,7 +17,7 @@ _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one c
 ![Downloads](https://img.shields.io/github/downloads/Anneardysa/ArdysaModsTools/total?style=flat-square&color=FF6B6B&logo=github&label=Downloads)
 ![Stars](https://img.shields.io/github/stars/Anneardysa/ArdysaModsTools?style=flat-square&color=yellow)
 ![Last Commit](https://img.shields.io/github/last-commit/Anneardysa/ArdysaModsTools?style=flat-square&color=blue)
-![Tests](https://img.shields.io/badge/Tests-480+-brightgreen?style=flat-square)
+![Tests](https://img.shields.io/badge/Tests-660+-brightgreen?style=flat-square)
 
 [📥 Download](#-installation) · [🚀 Quick Start](#-quick-start) · [🎨 Features](#-features) · [🏗️ Architecture](#%EF%B8%8F-architecture) · [❓ FAQ](#-faq)
 
@@ -43,7 +43,7 @@ _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one c
 | **One-Click ModsPack Install** | Download and install the complete mod pack from CDN with a single click                                   |
 | **Skin & Persona Selector**    | Browse and select hero sets, individual item pieces (with slot-based mutual exclusion), and full hero Personas (with model-wide exclusion) via a gallery UI |
 | **Miscellaneous Mods**         | Toggle weather, terrain, HUD, cursors, music, battle effects, couriers, wards, and special mods           |
-| **Performance Tweaker**        | Tune Dota 2 FPS, cvars, and launch options via WebView2, saved atomically using transactions              |
+| **Performance Tweaker**        | Tune Dota 2 FPS and cvars (saved to `autoexec.cfg` atomically via transactions) plus copy-ready launch options (remembered across sessions) via WebView2 |
 | **Auto-Patching**              | Automatically detects Dota 2 updates and re-applies your mods — no manual work needed                     |
 | **Manual VPK Install**         | Import your own custom `.vpk` mod files directly                                                          |
 | **Safe & Reversible**          | Click "Disable Mods" to instantly restore vanilla Dota 2 — no files are permanently altered               |
@@ -56,10 +56,14 @@ _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one c
 - **Model Exclusivity Engine** — Handles tag-based mutual exclusion for items and model-wide exclusions for Personas
 - **Atomic File Operations** — Extract-then-swap pattern (and transaction wrapper for `autoexec.cfg` saving) prevents corruption
 - **SHA-256 Hash Verification** — Downloads are verified against remote hashes for integrity
+- **Persistent Thumbnail Cache** — Gallery thumbnails are served from a local `%LocalAppData%` asset cache via a WebView2 resource interceptor, so they download once and survive restarts, temp cleanup, and app updates
+- **Background Asset Preloader** — A "Launching State" preloader warms the thumbnail cache on startup (throttled, cancellable) so the Skin Selector and Miscellaneous panels open instantly and work offline
+- **Known-Missing Asset Tracking** — Definitive `404`/`403` responses are remembered (7-day TTL) and no longer trip the CDN circuit breaker, eliminating request storms for absent thumbnails
+- **Live `items_game.txt` Extraction** — Skin generation sources `items_game.txt` directly from your installed game's `pak01_dir.vpk` each run, keeping mods aligned with the current patch
 - **PatchWatcher** — Background file watcher detects Dota 2 updates in real-time by monitoring key system manifests
 - **Remote Feature Control** — Features can be remotely enabled/disabled via Cloudflare R2 config
 - **Self-Contained Build** — .NET 8 runtime is bundled; no external runtime installation needed
-- **480+ Unit Tests** — Comprehensive test coverage for core services
+- **660+ Unit Tests** — Comprehensive test coverage for core services
 
 ---
 
@@ -158,11 +162,11 @@ ArdysaModsTools/
 ├── Core/                      # Business logic & services
 │   ├── Constants/             # Shared constants (paths, URLs, CDN config)
 │   ├── DependencyInjection/   # DI container setup
-│   ├── Interfaces/            # Service contracts (16 interfaces)
+│   ├── Interfaces/            # Service contracts (18 interfaces)
 │   ├── Models/                # Data models & DTOs
 │   ├── Services/
 │   │   ├── App/               # App lifecycle, update service
-│   │   ├── Cache/             # Cache cleaning service
+│   │   ├── Cache/             # Cache cleaning, persistent asset cache & background preloader
 │   │   ├── Cdn/               # CDN config, SmartCdnSelector, fallback
 │   │   ├── Config/            # Settings, favorites, feature access
 │   │   ├── Conflict/          # Mod conflict detection & resolution
@@ -175,16 +179,17 @@ ArdysaModsTools/
 │   │   ├── Mods/              # ModsPack install, disable, patch
 │   │   ├── Security/          # Anti-tamper & integrity checks
 │   │   ├── Update/            # Auto-update, PatchWatcher, resumable DL
-│   │   └── Vpk/               # VPK extraction & recompilation
-│   └── Helpers/               # Utility classes
+│   │   └── Vpk/               # VPK extraction, recompilation & live items_game.txt extraction
+│   └── Helpers/               # Utility classes (incl. WebView2 environment helper)
 ├── UI/                        # Presentation layer
-│   ├── Forms/                 # WinForms + WebView2 hybrid forms (37 files)
-│   ├── Presenters/            # MVP presenters (5 specialized presenters)
+│   ├── Forms/                 # WinForms + WebView2 hybrid forms (33 files)
+│   ├── Presenters/            # MVP presenters (7 presenters)
+│   ├── Helpers/               # WebView2 asset interceptor
 │   ├── Controls/              # Custom UI controls
 │   └── Styles/                # Theme & styling
 ├── Installer/                 # WPF-based installer project
 ├── Assets/                    # Icons, HTML templates, fonts, images
-├── Tests/                     # Unit tests (480+)
+├── Tests/                     # Unit tests (660+)
 ├── scripts/                   # Build & automation scripts
 ├── tools/                     # VPK tools, .NET runtime, WebView2
 └── docs/                      # Developer & user documentation

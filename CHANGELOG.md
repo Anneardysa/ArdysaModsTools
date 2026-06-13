@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.27-beta] (Build 2147)
+
+### 🐛 Fixed
+
+- **Dota 2 Performance / autoexec.cfg**: `ApplySettingsAsync` no longer rolls the file transaction back twice on failure. `IFileTransaction.ExecuteAsync` already rolls back internally, so the extra manual `RollbackAsync` ran the rollback a second time; the failure is now just logged and surfaced. Additionally, when an explicit game path is supplied but contains no `cfg` folder, the resolver no longer silently falls back to the default `Program Files (x86)\Steam\…\dota 2 beta\…\cfg` install — which could write `autoexec.cfg` into an unrelated Dota 2 installation. An explicit-but-invalid path now reports not-found (Apply throws) instead.
+- **Dota 2 Performance**: Toast notifications are now awaited (`ShowToastAsync`) rather than fire-and-forget `async void`, so load/apply/export messages can't be lost or race the next navigation. WebView2 bridge payloads (settings JSON, toast text) are passed as `JsonSerializer`-encoded literals so quotes, newlines, and U+2028/U+2029 line separators are escaped safely instead of breaking the injected JS string, and bridge-handler failures are now logged via `IAppLogger` instead of `Debug.WriteLine`. The "no autoexec.cfg" message now states that a recommended preset is shown (matching the grid) rather than claiming raw defaults.
+
+### 🛠️ Changed
+
+- **Dota 2 Performance / Launch Options**: Your launch-options selection (enabled flags + custom entries) is now remembered across sessions via `localStorage` in the persistent WebView2 user-data folder. The panel also makes explicit that launch options are copy-only — they are **not** written by [ APPLY ], since the app cannot edit Steam's launch options.
+
+---
+
 ## [2.1.27-beta] (Build 2146)
 
 ### 🐛 Fixed
