@@ -184,7 +184,7 @@ namespace ArdysaModsTools.UI.Forms
                 }
                 _webView.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
 
-                var timeoutTask = Task.Delay(10000);
+                var timeoutTask = Task.Delay(15000);
                 var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
                 if (completedTask == timeoutTask)
                 {

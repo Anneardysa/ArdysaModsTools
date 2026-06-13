@@ -203,7 +203,7 @@ namespace ArdysaModsTools.UI.Forms
                 _webView.CoreWebView2.NavigateToString(html);
 
                 // Wait with timeout
-                var timeoutTask = Task.Delay(5000);
+                var timeoutTask = Task.Delay(15000);
                 var completedTask = await Task.WhenAny(navigationComplete.Task, timeoutTask);
                 
                 if (completedTask == timeoutTask)

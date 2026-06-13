@@ -987,5 +987,75 @@ namespace ArdysaModsTools.Tests.Helpers
         #endregion
 
         #endregion
+
+        #region TryGetTopLevelValue / AnyBlockHasItemSlot Tests
+
+        /// <summary>
+        /// A top-level item_slot is read back; this is the precise signal used to gate base priority.
+        /// </summary>
+        [Test]
+        public void TryGetTopLevelValue_TopLevelKey_ReturnsValue()
+        {
+            var block = "\"855\"\n{\n\t\"name\"\t\t\"Earthshaker's Base\"\n\t\"item_slot\"\t\t\"hero_base\"\n}";
+
+            bool ok = KeyValuesBlockHelper.TryGetTopLevelValue(block, "item_slot", out var value);
+
+            Assert.That(ok, Is.True);
+            Assert.That(value, Is.EqualTo("hero_base"));
+        }
+
+        /// <summary>
+        /// A key that only appears as a nested sub-block child must NOT be reported as top-level.
+        /// </summary>
+        [Test]
+        public void TryGetTopLevelValue_NestedKey_NotReturned()
+        {
+            var block = "\"855\"\n{\n\t\"item_slot\"\t\t\"weapon\"\n\t\"visuals\"\n\t{\n\t\t\"item_slot\"\t\t\"hero_base\"\n\t}\n}";
+
+            bool ok = KeyValuesBlockHelper.TryGetTopLevelValue(block, "item_slot", out var value);
+
+            Assert.That(ok, Is.True);
+            Assert.That(value, Is.EqualTo("weapon"), "Top-level item_slot wins over the nested one");
+        }
+
+        [Test]
+        public void TryGetTopLevelValue_EmptyOrMalformed_ReturnsFalse()
+        {
+            Assert.That(KeyValuesBlockHelper.TryGetTopLevelValue("", "item_slot", out _), Is.False);
+            Assert.That(KeyValuesBlockHelper.TryGetTopLevelValue("\"855\"\n{\n\t\"item_slot\"", "item_slot", out _), Is.False);
+        }
+
+        /// <summary>
+        /// The whole-file scan only fires on a real top-level item_slot of the requested value.
+        /// </summary>
+        [Test]
+        public void AnyBlockHasItemSlot_TopLevelMatch_ReturnsTrue()
+        {
+            var index = "\"460\"\n{\n\t\"item_slot\"\t\t\"arms\"\n}\n\"855\"\n{\n\t\"item_slot\"\t\t\"hero_base\"\n}";
+
+            Assert.That(KeyValuesBlockHelper.AnyBlockHasItemSlot(index, "hero_base"), Is.True);
+        }
+
+        /// <summary>
+        /// The regression this change fixes: hero_base appearing only inside a nested sub-block
+        /// must NOT be treated as a base-slot item (the old whole-file regex returned true here).
+        /// </summary>
+        [Test]
+        public void AnyBlockHasItemSlot_NestedOnly_ReturnsFalse()
+        {
+            var index = "\"460\"\n{\n\t\"item_slot\"\t\t\"arms\"\n\t\"visuals\"\n\t{\n\t\t\"asset\"\t\t\"hero_base\"\n\t}\n}";
+
+            Assert.That(KeyValuesBlockHelper.AnyBlockHasItemSlot(index, "hero_base"), Is.False);
+        }
+
+        [Test]
+        public void AnyBlockHasItemSlot_NoMatch_ReturnsFalse()
+        {
+            var index = "\"460\"\n{\n\t\"item_slot\"\t\t\"weapon\"\n}";
+
+            Assert.That(KeyValuesBlockHelper.AnyBlockHasItemSlot(index, "hero_base"), Is.False);
+        }
+
+        #endregion
     }
 }

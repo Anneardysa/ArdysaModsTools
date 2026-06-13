@@ -55,6 +55,11 @@ namespace ArdysaModsTools.Models
         [JsonPropertyName("primary_attr")]
         public string PrimaryAttribute { get; set; } = "universal";
 
+        // Optional explicit base-priority method: 1 = Base wins (Base > Sets > Items),
+        // 2 = Base last (Sets > Items > Base). Null → item_slot hero_base auto-detection.
+        [JsonPropertyName("method")]
+        public int? Method { get; set; }
+
         // sets map: setName -> list of asset URLs/paths
         [JsonPropertyName("sets")]
         public Dictionary<string, List<string>> Sets { get; set; } = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);

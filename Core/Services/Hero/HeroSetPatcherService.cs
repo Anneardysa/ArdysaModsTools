@@ -233,7 +233,10 @@ namespace ArdysaModsTools.Core.Services
                 // Normalize indentation to match items_game.txt format before replacing
                 var normalizedBlock = NormalizeBlockIndentation(overlaidBlock, original);
                 original = KeyValuesBlockHelper.ReplaceIdBlock(original, idStr, normalizedBlock, out bool didReplace, heroId);
-                
+
+                // DEBUG (Visual Studio Output window): per-block patch outcome.
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] Patch id={idStr} hero={heroId} replaced={didReplace}");
+
                 if (didReplace)
                 {
                     replacedCount++;

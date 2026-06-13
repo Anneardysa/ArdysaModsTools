@@ -267,25 +267,56 @@ namespace ArdysaModsTools.Core.Services
 
                         // Check base hero item slot logic
                         var baseSelection = extractedList.FirstOrDefault(x => x.category == HeroModelMapper.SkinCategory.BaseHero);
-                        bool hasHeroBaseSlot = false;
+                        bool detectedHeroBase = false;
                         if (baseSelection != default)
                         {
                             var baseContentRoot = FindContentRoot(baseSelection.folderPath);
-                            hasHeroBaseSlot = IndexFileHasHeroBaseSlot(baseContentRoot) || IndexFileHasHeroBaseSlot(baseSelection.folderPath);
-                            if (hasHeroBaseSlot)
-                            {
-                                log($"[Patcher] Base Hero mod for {hero.DisplayName} has item_slot hero_base — Base takes top priority (Base > Sets > Items).");
-                            }
-                            else
-                            {
-                                log($"[Patcher] Base Hero mod for {hero.DisplayName} does not have item_slot hero_base — Base is lowest priority (Sets > Items > Base).");
-                            }
+                            detectedHeroBase = IndexFileHasHeroBaseSlot(baseContentRoot) || IndexFileHasHeroBaseSlot(baseSelection.folderPath);
                         }
 
-                        // Order selections for correct merge priority
+                        // Explicit per-hero method (heroes.json) overrides auto-detection when present.
+                        bool hasHeroBaseSlot = ResolveBaseWins(hero.Method, detectedHeroBase);
+
+                        // Always-on: states whether the heroes.json method actually reached generation.
+                        // If this says "auto-detection" for a hero you set a method on, the method never
+                        // arrived (stale app build or stale/cached CDN heroes.json) — fix that first.
+                        log($"[Patcher] {hero.DisplayName}: priority source = " +
+                            (hero.Method is 1 or 2
+                                ? $"heroes.json method {hero.Method}"
+                                : "auto-detection (no method in heroes.json)") +
+                            $"; baseWins={hasHeroBaseSlot}.");
+
+                        // DEBUG (Visual Studio Output window): surface the inputs and resolved priority decision.
+                        // method=null here means the heroes.json method never reached generation.
+                        System.Diagnostics.Debug.WriteLine(
+                            $"[DEBUG] Priority {hero.DisplayName}: method={(hero.Method?.ToString() ?? "null")}, " +
+                            $"detectedHeroBase={detectedHeroBase}, baseWins={hasHeroBaseSlot} -> " +
+                            (hasHeroBaseSlot ? "Base > Sets/Custom/Persona > Items" : "Sets/Custom/Persona > Items > Base"));
+
+                        if (hero.Method == 1 || hero.Method == 2)
+                        {
+                            log($"[Patcher] {hero.DisplayName}: explicit method {hero.Method} from heroes.json overrides detection — " +
+                                (hasHeroBaseSlot ? "Base takes top priority (Base > Sets > Items)." : "Base is lowest priority (Sets > Items > Base)."));
+                        }
+                        else if (baseSelection != default)
+                        {
+                            log(hasHeroBaseSlot
+                                ? $"[Patcher] Base Hero mod for {hero.DisplayName} has item_slot hero_base — Base takes top priority (Base > Sets > Items)."
+                                : $"[Patcher] Base Hero mod for {hero.DisplayName} does not have item_slot hero_base — Base is lowest priority (Sets > Items > Base).");
+                        }
+
+                        // Apply as layers, foundation→top (weight 3 → 2 → 1). Combined with the last-writer-wins
+                        // merge below, every layer is applied and a later (lower-weight) layer — e.g. a specific
+                        // Item — overrides earlier ones on the slots it provides. Nothing is skipped.
                         var orderedList = extractedList
-                            .OrderBy(x => GetSortWeight(x.category, hasHeroBaseSlot))
+                            .OrderByDescending(x => GetSortWeight(x.category, hasHeroBaseSlot))
                             .ToList();
+
+                        // DEBUG: selections foundation→top; the LAST line that defines a given item id wins it.
+                        foreach (var sel in orderedList)
+                            System.Diagnostics.Debug.WriteLine(
+                                $"[DEBUG] Order {hero.DisplayName}: weight={GetSortWeight(sel.category, hasHeroBaseSlot)} " +
+                                $"category={sel.category} set={sel.setName}");
 
                         bool heroSucceeded = false;
                         try
@@ -297,19 +328,28 @@ namespace ArdysaModsTools.Core.Services
                                 var (contentRoot, copiedFiles) = await MergeSetAssetsAsync(selection.folderPath, extractDir, ct).ConfigureAwait(false);
 
                                 var heroBlocks = _patcher.ParseIndexFile(contentRoot, hero.Id, hero.ItemIds, selection.folderPath);
+                                if (heroBlocks == null || heroBlocks.Count == 0)
+                                {
+                                    // A selection that contributes no patchable blocks can never win a conflict — its
+                                    // index.txt item-ids aren't in this hero's id list (heroes.json). Surface it.
+                                    log($"[Patcher] WARNING {hero.DisplayName}: {selection.category} '{selection.setName}' " +
+                                        $"contributed 0 patchable blocks — none of its index.txt ids are in this hero's id list (it cannot win).");
+                                    System.Diagnostics.Debug.WriteLine(
+                                        $"[DEBUG] WARNING {hero.DisplayName}: {selection.category} '{selection.setName}' contributed 0 patchable blocks (ids not in hero id list)");
+                                }
                                 if (heroBlocks != null)
                                 {
                                     foreach (var kvp in heroBlocks)
                                     {
-                                        if (mergedBlocks.TryGetValue(kvp.Key, out var existing))
-                                        {
-                                            var mergedBlockString = KeyValuesBlockHelper.MergeBlocks(existing.block, kvp.Value.block, preferRightSideStrongly: true);
-                                            mergedBlocks[kvp.Key] = (mergedBlockString, kvp.Value.heroId);
-                                        }
-                                        else
-                                        {
-                                            mergedBlocks[kvp.Key] = kvp.Value;
-                                        }
+                                        // Layered apply (last-writer-wins): selections run foundation→top
+                                        // (GetSortWeight descending — Base first, Items last). EVERY selection's
+                                        // block is applied; a later, lower-layer selection (e.g. a specific Item)
+                                        // overrides an earlier one for the same item id, so nothing is skipped and
+                                        // the most specific pick shows on its slot. Verbatim block, no deep-merge.
+                                        if (mergedBlocks.ContainsKey(kvp.Key))
+                                            System.Diagnostics.Debug.WriteLine(
+                                                $"[DEBUG] Override {hero.DisplayName}: item {kvp.Key} -> {selection.category} (overrides earlier higher-layer block)");
+                                        mergedBlocks[kvp.Key] = kvp.Value;
                                     }
                                 }
 
@@ -524,13 +564,16 @@ namespace ArdysaModsTools.Core.Services
                     continue;
 
                 var destPath = Path.Combine(extractDir, relativePath);
-                
+
                 var destFolder = Path.GetDirectoryName(destPath);
                 if (!string.IsNullOrEmpty(destFolder))
                     Directory.CreateDirectory(destFolder);
-                
+
+                // Last-writer-wins: selections are merged foundation→top (Base first, Items last), so a
+                // later, lower-layer selection's files overwrite earlier ones — consistent with the
+                // last-writer-wins items_game.txt blocks above.
                 File.Copy(file, destPath, overwrite: true);
-                
+
                 // Track file path for extraction log (use forward slashes for consistency)
                 copiedFiles.Add(relativePath.Replace('\\', '/'));
             }
@@ -639,6 +682,10 @@ namespace ArdysaModsTools.Core.Services
             return result;
         }
 
+        // method 1 → Base wins (true); method 2 → Base last (false); else fall back to detection.
+        internal static bool ResolveBaseWins(int? method, bool detectedHeroBase)
+            => method == 1 ? true : method == 2 ? false : detectedHeroBase;
+
         internal static int GetSortWeight(HeroModelMapper.SkinCategory category, bool baseHasHeroBaseSlot)
         {
             switch (category)
@@ -684,9 +731,9 @@ namespace ArdysaModsTools.Core.Services
                 if (indexPath == null) return false;
 
                 var text = File.ReadAllText(indexPath, System.Text.Encoding.UTF8);
-                return System.Text.RegularExpressions.Regex.IsMatch(text, 
-                    @"""item_slot""\s+""hero_base""", 
-                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                // VKV-aware: only true when an item block has a top-level item_slot == hero_base,
+                // not when "hero_base" merely appears somewhere in the file (e.g. a nested visual block).
+                return KeyValuesBlockHelper.AnyBlockHasItemSlot(text, "hero_base");
             }
             catch
             {

@@ -92,6 +92,21 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public void MapFromSummaries_CopiesMethod()
+        {
+            var summaries = new List<HeroSummary>
+            {
+                new HeroSummary { Name = "Abaddon", UsedByHeroes = "npc_dota_hero_abaddon", Method = 1 },
+                new HeroSummary { Name = "Axe", UsedByHeroes = "npc_dota_hero_axe", Method = null }
+            };
+
+            var result = HeroModelMapper.MapFromSummaries(summaries);
+
+            Assert.That(result[0].Method, Is.EqualTo(1));
+            Assert.That(result[1].Method, Is.Null);
+        }
+
+        [Test]
         public void MapFromSummaries_MissingSets_UsesEmptyDictionary()
         {
             // Arrange

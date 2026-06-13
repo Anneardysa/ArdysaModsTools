@@ -36,6 +36,10 @@ namespace ArdysaModsTools.Core.Services
         public string PrimaryAttr { get; init; } = "universal";
         public string[] Ids { get; init; } = Array.Empty<string>();
         public Dictionary<string, string[]> Sets { get; init; } = new();
+
+        // Optional explicit base-priority method (1 = Base wins, 2 = Base last).
+        // Null → fall back to item_slot hero_base auto-detection during generation.
+        public int? Method { get; init; }
     }
 
     public class HeroService
@@ -244,12 +248,15 @@ namespace ArdysaModsTools.Core.Services
                 string primaryAttr = "universal";
                 string[] ids = Array.Empty<string>();
                 var sets = new Dictionary<string, string[]>();
+                int? method = null;
 
                 if (el.TryGetProperty("name", out var ne) && ne.ValueKind == JsonValueKind.String) name = ne.GetString();
                 if (el.TryGetProperty("used_by_heroes", out var ue) && ue.ValueKind == JsonValueKind.String) used = ue.GetString();
                 if (el.TryGetProperty("prefab", out var pe) && pe.ValueKind == JsonValueKind.String) prefab = pe.GetString();
-                if (el.TryGetProperty("primary_attr", out var pae) && pae.ValueKind == JsonValueKind.String) 
+                if (el.TryGetProperty("primary_attr", out var pae) && pae.ValueKind == JsonValueKind.String)
                     primaryAttr = pae.GetString() ?? "universal";
+                if (el.TryGetProperty("method", out var me) && me.ValueKind == JsonValueKind.Number && me.TryGetInt32(out var m))
+                    method = m;
 
                 if (el.TryGetProperty("id", out var idEl))
                 {
@@ -304,7 +311,8 @@ namespace ArdysaModsTools.Core.Services
                     Prefab = prefab ?? "",
                     PrimaryAttr = string.IsNullOrWhiteSpace(primaryAttr) ? "universal" : primaryAttr.ToLowerInvariant(),
                     Ids = ids,
-                    Sets = sets
+                    Sets = sets,
+                    Method = method
                 };
             }
             catch

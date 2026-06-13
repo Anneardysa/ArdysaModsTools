@@ -96,4 +96,5 @@ docs/samples/
 .agent/
 .antigravity
 .trains/
+.claude/
 /.train

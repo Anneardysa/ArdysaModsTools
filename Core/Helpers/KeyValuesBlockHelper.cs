@@ -235,6 +235,64 @@ namespace ArdysaModsTools.Core.Helpers
         }
 
         /// <summary>
+        /// Reads the value of a top-level key from a single KV block (e.g. the "id" { ... }
+        /// text returned by <see cref="ParseKvBlocks"/>). Nested occurrences of the key
+        /// inside sub-blocks like 'visuals' or 'asset_modifier' are ignored — only the
+        /// block's direct children are considered.
+        /// </summary>
+        /// <param name="block">A single KV block including its id/name line.</param>
+        /// <param name="key">The top-level key to look up (case-insensitive).</param>
+        /// <param name="value">The matched value, or null when not found.</param>
+        /// <returns>True when a top-level scalar key matched; false otherwise.</returns>
+        public static bool TryGetTopLevelValue(string block, string key, out string? value)
+        {
+            value = null;
+            if (string.IsNullOrWhiteSpace(block)) return false;
+
+            try
+            {
+                var kv = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
+                using var ms = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(block));
+                var doc = kv.Deserialize(ms); // root = the "id" object; its children are the block's top-level keys
+                if (doc.Value.ValueType != KVValueType.Collection) return false;
+
+                var child = ((IEnumerable<KVObject>)doc.Value)
+                    .FirstOrDefault(c => string.Equals(c.Name, key, StringComparison.OrdinalIgnoreCase));
+                if (child == null || child.Value.ValueType == KVValueType.Collection) return false;
+
+                value = child.Value.ToString();
+                return true;
+            }
+            catch
+            {
+                // Malformed block → treat as no match (matches the tolerance of the surrounding parsers).
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Determines whether any numeric-ID item block in an index.txt body declares a
+        /// top-level "item_slot" equal to <paramref name="slotValue"/>. This is a VKV-aware
+        /// replacement for a raw whole-file regex: it only fires on a real top-level
+        /// item_slot key, never on the value appearing inside a nested sub-block or comment.
+        /// </summary>
+        /// <param name="indexText">Full index.txt content.</param>
+        /// <param name="slotValue">The item_slot value to match (case-insensitive, e.g. "hero_base").</param>
+        public static bool AnyBlockHasItemSlot(string indexText, string slotValue)
+        {
+            if (string.IsNullOrWhiteSpace(indexText)) return false;
+
+            foreach (var block in ParseKvBlocks(indexText).Values)
+            {
+                if (TryGetTopLevelValue(block, "item_slot", out var v) &&
+                    string.Equals(v, slotValue, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Balanced block extraction with proper quote/escape handling.
         /// </summary>
         public static int ExtractBalancedBlockEnd(string text, int firstBraceIdx)

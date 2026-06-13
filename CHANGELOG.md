@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Generator**: Fixed inverted layer sort weights in `HeroGenerationService` causing incorrect merge priority. Priority now correctly enforces Base > Sets > Items (when `hero_base` is present) and Sets > Items > Base (otherwise), resolving visual bugs.
 - **Generator**: Fixed an issue where merging multiple mods with the same item ID (e.g. Base Hero replacements and Sets) would simply overwrite the ID block, causing important fields like 'used_by_heroes' or multiple 'asset_modifier' dummy objects to be stripped. Implemented deep merging logic for KeyValues blocks to preserve nested data.
 - **UI**: Fixed Settings form top-right close ("✕") button not working due to mouse capture during drag initialization (`onmousedown`) swallowing the click event.
+- **UI**: Increased WebView2 navigation timeouts in `ProgressOverlay` and `HeroGalleryForm` to 15 seconds to prevent installation and loading timeouts on slower client machines.
 
 ### ✨ Added
 

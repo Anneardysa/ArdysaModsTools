@@ -55,7 +55,8 @@ public static class HeroModelMapper
                 LocalizedName = friendlyName,
                 PrimaryAttribute = !string.IsNullOrWhiteSpace(hs.PrimaryAttr)
                     ? hs.PrimaryAttr.ToLowerInvariant()
-                    : "universal"
+                    : "universal",
+                Method = hs.Method
             };
 
             // Copy sets (dictionary of setName → asset URLs)
