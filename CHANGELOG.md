@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.27-beta] (Build 2141)
+
+### 🐛 Fixed
+
+- **Miscellaneous / Skin Selector**: Fixed user-cancelled generation being reported as a failure. Services returned the message `"Canceled by user."` while the forms compared against `"Operation cancelled by user."` (different spelling/wording), so cancelling popped a *"Generation Failed"* dialog. Replaced the magic-string compare with an explicit `OperationResult.WasCanceled` flag, set by all generation services and `ProgressOperationRunner` and honoured by `MiscForm`, `MiscFormWebView`, `SelectHero`, and `HeroGalleryForm`.
+- **Miscellaneous**: Fixed the WebView UI (`MiscFormWebView`) silently failing on critical mod conflicts. It never inspected `RequiresConflictResolution`, so a critical conflict fell through to a generic error with no way to resolve it. The WebView host now shows the `ConflictResolutionDialog` + retry loop, matching the classic `MiscForm`.
+- **Miscellaneous**: Fixed conflict resolution being a no-op on the generated VPK. `MiscController` detected and "resolved" conflicts but always generated from the original selection set, so the losing mod was still written (and a critical conflict could retry indefinitely). Resolution outcomes now feed back into the selection set via `ApplyResolutionsToSelections` — the losing selection is dropped (unless it won another conflict) for both auto-resolve and user-resolve paths.
+- **Miscellaneous**: Fixed *Add to Current* mode fully extracting `pak01_dir.vpk` (potentially several GB) just to test for the `version/_ArdysaMods` signature file. `VerifyExistingVpkAsync` now reuses `IModInstallerService.ValidateVpkAsync`, which lists the VPK index (`HLExtract -l`) without extracting — removing the redundant extraction and its temp directory.
+- **Miscellaneous**: Fixed `CancellationTokenSource` leaks — `MiscFormWebView._generationCts` is now disposed after each run and on form dispose, and `MiscForm`'s per-generation source is scoped with `using`.
+
+### 🛠️ Changed
+
+- **Core**: `MiscController.ApplyConflictResolutionsAsync` now takes the current selections and returns the adjusted set alongside the result, so callers retry generation with the losing mods removed.
+- **Core**: `MiscController` now depends on `IModInstallerService` for VPK signature verification (injectable; defaults preserved for the parameterless constructor).
+- **Tests**: Added `MiscControllerResolutionTests` covering the resolution→selection mapping (loser dropped, winner/unrelated retained; failed resolution drops nothing).
+
+---
+
+## [2.1.27-beta] (Build 2140)
+
+### 🐛 Fixed
+
+- **Skin Selector**: Fixed generation reading a stale side-channel selection field. `HeroGalleryForm` ignored the `selections` payload on the `generate` message and instead trusted whatever the last `selectionChanged` message had cached — any missed update could generate (and save as a preset) the wrong skins. The generate handler now parses the payload as the authoritative snapshot.
+- **Skin Selector**: Fixed the "Base Hero without a set" confirmation being able to hang generation forever. The `await` on the JS callback had no timeout (unlike the success alert), so a missing/failed `baseNoSetConfirmed` callback left the operation stuck and the Generate button permanently disabled. Bridge confirmation/alert waits now share a bounded 60s timeout.
+- **Skin Selector**: Hardened selection-index handling — a negative ("deselect") or out-of-range index from the web UI is now ignored instead of risking an `IndexOutOfRangeException`, and a set assigned to more than one slot is de-duplicated so it is no longer downloaded and merged twice for an identical result.
+
+### 🛠️ Changed
+
+- **Skin Selector / MVP**: Extracted the generation flow out of `HeroGalleryForm` into a new `HeroGalleryPresenter` (`IHeroGalleryView`). The form is now a thin WebView2 host; generation orchestration, validation, and result mapping are testable in isolation. Removed the misleading "priority-ordered" selection list from the form — layer priority is resolved downstream in `HeroGenerationService` (category + heroes.json `method`), not by the form's list order.
+- **Tests**: Added `HeroGalleryPresenterTests` (19 tests) covering plan building (bounds, de-dup, base-without-set) and the generate flow (no-selection, decline, no-path, default-only, preview-decline, success, failure, cancel, re-entrancy).
+
+---
+
 ## [2.1.27-beta] (Build 2139)
 
 ### 🐛 Fixed

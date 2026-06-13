@@ -157,7 +157,7 @@ namespace ArdysaModsTools.UI
             catch (OperationCanceledException)
             {
                 overlay.Close();
-                return new OperationResult { Success = false, Message = "Operation cancelled by user." };
+                return OperationResult.Canceled("Operation cancelled by user.");
             }
             catch (Exception ex)
             {

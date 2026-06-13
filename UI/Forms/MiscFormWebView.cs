@@ -657,6 +657,7 @@ namespace ArdysaModsTools.UI.Forms
                 };
 
                 var controller = new MiscController();
+                _generationCts?.Dispose();
                 _generationCts = new CancellationTokenSource();
 
                 var result = await controller.GenerateModsAsync(
@@ -666,6 +667,10 @@ namespace ArdysaModsTools.UI.Forms
                     logAction,
                     _generationCts.Token,
                     null);
+
+                // Surface any critical conflicts to the user and retry until resolved or aborted.
+                result = await ResolveConflictsAndRetryAsync(
+                    controller, result, selectedMode, logAction, _generationCts.Token);
 
                 var elapsed = DateTime.Now - startTime;
                 await AppendConsoleAsync("");
@@ -717,7 +722,7 @@ namespace ArdysaModsTools.UI.Forms
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }
-                else if (result.Message != "Operation cancelled by user.")
+                else if (!result.WasCanceled)
                 {
                     // Store failed result
                     GenerationResult = new ModGenerationResult
@@ -759,7 +764,63 @@ namespace ArdysaModsTools.UI.Forms
                 await ExecuteScriptAsync("setGenerating(false)");
                 await ExecuteScriptAsync("hideProgress()");
                 await ExecuteScriptAsync("setStatus('Ready')");
+
+                _generationCts?.Dispose();
+                _generationCts = null;
             }
+        }
+
+        /// <summary>
+        /// Handles critical conflicts returned by the controller. Shows the resolution dialog for
+        /// each conflict, applies the user's choices (dropping losing selections), and retries
+        /// generation until the result no longer requires resolution or the user aborts.
+        /// </summary>
+        private async Task<OperationResult> ResolveConflictsAndRetryAsync(
+            MiscController controller,
+            OperationResult result,
+            MiscGenerationMode selectedMode,
+            Action<string> logAction,
+            CancellationToken ct)
+        {
+            while (result.RequiresConflictResolution && result.Conflicts != null)
+            {
+                await AppendConsoleAsync("");
+                await AppendConsoleAsync("Resolving conflicts...");
+
+                var userChoices = new Dictionary<string, ConflictResolutionOption>();
+                foreach (var conflict in result.Conflicts)
+                {
+                    using var dialog = new ConflictResolutionDialog(conflict);
+                    if (dialog.ShowDialog(this) == DialogResult.OK && dialog.SelectedOption != null)
+                    {
+                        userChoices[conflict.Id] = dialog.SelectedOption;
+                        logAction($"User chose: {dialog.SelectedOption.Strategy} for {conflict.Description}");
+                    }
+                    else
+                    {
+                        // User cancelled the dialog — abort without surfacing a failure.
+                        logAction("Conflict resolution cancelled by user.");
+                        return OperationResult.Canceled("Conflict resolution cancelled by user.");
+                    }
+                }
+
+                var (applyResult, adjustedSelections) = await controller.ApplyConflictResolutionsAsync(
+                    result.Conflicts, userChoices, _selections, _targetPath!, logAction, ct);
+
+                if (!applyResult.Success)
+                {
+                    logAction($"Failed to apply resolutions: {applyResult.Message}");
+                    return applyResult;
+                }
+
+                // Retry generation with the losing selections removed.
+                _selections = adjustedSelections;
+                await AppendConsoleAsync("Retrying generation with resolved conflicts...");
+                result = await controller.GenerateModsAsync(
+                    _targetPath!, _selections, selectedMode, logAction, ct, null);
+            }
+
+            return result;
         }
 
         private async Task HandleLoadPresetAsync()
@@ -869,6 +930,16 @@ namespace ArdysaModsTools.UI.Forms
             var folder = Path.Combine(appData, "ArdysaModsTools");
             Directory.CreateDirectory(folder);
             return Path.Combine(folder, "misc_selections.json");
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _generationCts?.Dispose();
+                _generationCts = null;
+            }
+            base.Dispose(disposing);
         }
     }
 }

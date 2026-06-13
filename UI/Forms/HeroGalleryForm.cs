@@ -31,20 +31,26 @@ using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Cache;
 using ArdysaModsTools.Models;
+using ArdysaModsTools.UI.Interfaces;
+using ArdysaModsTools.UI.Presenters;
 
 namespace ArdysaModsTools.UI.Forms
 {
     /// <summary>
     /// Modern WebView2-based hero selection gallery with Tailwind CSS styling.
     /// Replaces the traditional WinForms SelectHero form with a beautiful web UI.
+    /// This form is a thin WebView2 host; all generation logic lives in
+    /// <see cref="HeroGalleryPresenter"/>.
     /// </summary>
-    public partial class HeroGalleryForm : Form
+    public partial class HeroGalleryForm : Form, IHeroGalleryView
     {
         private WebView2? _webView;
         private bool _initialized;
-        private bool _isGenerating;
         private TaskCompletionSource<bool>? _alertDismissed;
         private TaskCompletionSource<bool>? _confirmBaseNoSet;
+
+        // Timeout guard so a missing JS callback can never hang an awaiting bridge call.
+        private static readonly TimeSpan DialogCallbackTimeout = TimeSpan.FromSeconds(60);
 
         // Data
         private List<HeroModel> _heroes = new();
@@ -52,8 +58,7 @@ namespace ArdysaModsTools.UI.Forms
         private HashSet<string> _favorites = new(StringComparer.OrdinalIgnoreCase);
         private readonly HeroService _heroService;
         private readonly IConfigService _configService;
-        private DateTime _generationStartTime;
-        private int _heroCount;
+        private readonly HeroGalleryPresenter _presenter;
 
         /// <summary>
         /// Result of the generation operation. Check after form closes.
@@ -86,6 +91,10 @@ namespace ArdysaModsTools.UI.Forms
 
             var baseFolder = AppDomain.CurrentDomain.BaseDirectory;
             _heroService = new HeroService(baseFolder);
+
+            // Presenter owns the generation flow; this form only reflects state via IHeroGalleryView.
+            _presenter = new HeroGalleryPresenter(new HeroGenerationService(), _configService);
+            _presenter.SetView(this);
 
             // Load favorites
             var loadedFav = FavoritesStore.Load();
@@ -585,7 +594,8 @@ namespace ArdysaModsTools.UI.Forms
                 switch (type)
                 {
                     case "selectionChanged":
-                        HandleSelectionChanged(message);
+                        if (message.TryGetProperty("selections", out var changedEl))
+                            _selections = ParseSelections(changedEl);
                         break;
 
                     case "favoritesChanged":
@@ -593,7 +603,12 @@ namespace ArdysaModsTools.UI.Forms
                         break;
 
                     case "generate":
-                        await HandleGenerateAsync();
+                        // Use the payload's selections as the authoritative snapshot rather than
+                        // trusting the cached field — this keeps generation and the saved preset
+                        // consistent even if a selectionChanged message was ever missed.
+                        if (message.TryGetProperty("selections", out var generateEl))
+                            _selections = ParseSelections(generateEl);
+                        await _presenter.GenerateAsync(_heroes, _selections);
                         break;
 
                     case "close":
@@ -638,37 +653,35 @@ namespace ArdysaModsTools.UI.Forms
         }
 
         /// <summary>
-        /// Handle selection changes from JavaScript.
+        /// Parse the structured per-hero selections object sent from JavaScript
+        /// ({ heroId: { set, items, base } }) into the typed model, keeping only heroes
+        /// that have an active selection.
         /// </summary>
-        private void HandleSelectionChanged(JsonElement message)
+        private static Dictionary<string, HeroSelectionState> ParseSelections(JsonElement selectionsEl)
         {
-            _selections.Clear();
+            var result = new Dictionary<string, HeroSelectionState>();
 
-            if (message.TryGetProperty("selections", out var selectionsEl))
+            if (selectionsEl.ValueKind != JsonValueKind.Object)
+                return result;
+
+            foreach (var prop in selectionsEl.EnumerateObject())
             {
-                foreach (var prop in selectionsEl.EnumerateObject())
+                HeroSelectionState? state;
+                try
                 {
-                    var state = new HeroSelectionState();
-
-                    if (prop.Value.TryGetProperty("set", out var setEl) && setEl.ValueKind == JsonValueKind.Number)
-                        state.SetIndex = setEl.GetInt32();
-
-                    if (prop.Value.TryGetProperty("items", out var itemsEl) && itemsEl.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var item in itemsEl.EnumerateArray())
-                        {
-                            if (item.TryGetInt32(out var idx))
-                                state.ItemIndices.Add(idx);
-                        }
-                    }
-
-                    if (prop.Value.TryGetProperty("base", out var baseEl) && baseEl.ValueKind == JsonValueKind.Number)
-                        state.BaseIndex = baseEl.GetInt32();
-
-                    if (state.HasAnySelection)
-                        _selections[prop.Name] = state;
+                    // HeroSelectionState carries [JsonPropertyName] for set/items/base.
+                    state = prop.Value.Deserialize<HeroSelectionState>(_jsonOptions);
                 }
+                catch
+                {
+                    state = null;
+                }
+
+                if (state != null && state.HasAnySelection)
+                    result[prop.Name] = state;
             }
+
+            return result;
         }
 
         /// <summary>
@@ -767,257 +780,123 @@ namespace ArdysaModsTools.UI.Forms
             }
         }
 
+        // ── IHeroGalleryView implementation ─────────────────────────────────────────
+        // The presenter drives generation; these methods are the WebView2/WinForms bridge.
+
         /// <summary>
-        /// Handle generate button click from JavaScript.
+        /// [AMT:PRO] Bridge handler — paired with hero_gallery.html showConfirmBaseNoSet()/closeConfirm().
+        /// The timeout guard is required: without it a missing JS callback would hang generation
+        /// (and leave the Generate button dead) indefinitely.
         /// </summary>
-        private async Task HandleGenerateAsync()
+        public async Task<bool> ConfirmBaseNoSetAsync(string title, string htmlMessage)
         {
-            if (_isGenerating) return;
-            _isGenerating = true;
+            if (_webView?.CoreWebView2 == null) return false;
 
-            try
+            _confirmBaseNoSet = new TaskCompletionSource<bool>();
+            await ExecuteScriptAsync(
+                $"showConfirmBaseNoSet('{JsEscape(title)}', '{JsEscape(htmlMessage)}')");
+
+            var completed = await Task.WhenAny(_confirmBaseNoSet.Task, Task.Delay(DialogCallbackTimeout));
+            if (completed != _confirmBaseNoSet.Task)
             {
-                // Check if any hero has a base hero selected but no set selected
-                var heroesWithBaseNoSet = new List<string>();
-                foreach (var kvp in _selections)
-                {
-                    var hero = _heroes.FirstOrDefault(h => 
-                        string.Equals(h.Id, kvp.Key, StringComparison.OrdinalIgnoreCase));
-                    
-                    if (hero?.Sets == null) continue;
-
-                    var state = kvp.Value;
-                    if (state.BaseIndex.HasValue && !state.SetIndex.HasValue)
-                    {
-                        heroesWithBaseNoSet.Add(hero.DisplayName);
-                    }
-                }
-
-                if (heroesWithBaseNoSet.Count > 0)
-                {
-                    string heroNames = string.Join(", ", heroesWithBaseNoSet);
-                    string message = $"A <b>Base Hero</b> model modification has been selected for <b>{heroNames}</b> without an active <b>Sets</b> selection.<br/><br/>" +
-                                     "Generating a base model mod without a corresponding custom set can lead to texture clipping or visual conflicts with default equipment.<br/><br/>" +
-                                     "Are you sure you want to proceed with the current configuration?";
-
-                    _confirmBaseNoSet = new TaskCompletionSource<bool>();
-                    
-                    // Call JS to show the confirmation dialog
-                    var escapedMessage = message.Replace("'", "\\'").Replace("\n", "\\n");
-                    await _webView!.CoreWebView2.ExecuteScriptAsync($"showConfirmBaseNoSet('Cosmetic Compatibility Alert', '{escapedMessage}')");
-                    
-                    var userProceed = await _confirmBaseNoSet.Task;
-                    if (!userProceed)
-                    {
-                        await UpdateStatusAsync("Generation cancelled");
-                        return;
-                    }
-                }
-
-                // Build priority-ordered selections list
-                // Priority of application: Set/Custom Set/Persona (applied first/lowest) -> Items (applied second/middle) -> Base Hero (applied third/highest)
-                var heroesWithSets = new List<(HeroModel hero, string setName)>();
-
-                foreach (var kvp in _selections)
-                {
-                    var hero = _heroes.FirstOrDefault(h => 
-                        string.Equals(h.Id, kvp.Key, StringComparison.OrdinalIgnoreCase));
-                    
-                    if (hero?.Sets == null) continue;
-
-                    var state = kvp.Value;
-                    var setKeys = hero.Sets.Keys.ToList();
-
-                    // Priority 1 (Applied First / Lowest): Selected Set (Legacy, Custom, or Persona)
-                    if (state.SetIndex.HasValue && state.SetIndex.Value < setKeys.Count)
-                    {
-                        var setName = setKeys[state.SetIndex.Value];
-                        if (!string.IsNullOrEmpty(setName))
-                            heroesWithSets.Add((hero, setName));
-                    }
-
-                    // Priority 2 (Applied Second / Middle): Selected Items (multi-select)
-                    foreach (var itemIdx in state.ItemIndices)
-                    {
-                        if (itemIdx < setKeys.Count)
-                        {
-                            var setName = setKeys[itemIdx];
-                            if (!string.IsNullOrEmpty(setName))
-                                heroesWithSets.Add((hero, setName));
-                        }
-                    }
-
-                    // Priority 3 (Applied Third / Highest): Selected Base Hero
-                    if (state.BaseIndex.HasValue && state.BaseIndex.Value < setKeys.Count)
-                    {
-                        var setName = setKeys[state.BaseIndex.Value];
-                        if (!string.IsNullOrEmpty(setName))
-                            heroesWithSets.Add((hero, setName));
-                    }
-                }
-
-                if (heroesWithSets.Count == 0)
-                {
-                    await UpdateStatusAsync("Please select at least one hero");
-                    return;
-                }
-
-                // Get target path from injected config service
-                var targetPath = _configService.GetLastTargetPath();
-                if (string.IsNullOrWhiteSpace(targetPath))
-                {
-                    MessageBox.Show("No Dota 2 path set. Please set it in the main window first.",
-                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                // Filter out default sets for preview
-                var previewItems = heroesWithSets
-                    .Where(x => !x.setName.Equals("Default Set", StringComparison.OrdinalIgnoreCase))
-                    .Select(x =>
-                    {
-                        string? thumbUrl = null;
-                        if (x.hero.Sets != null && x.hero.Sets.TryGetValue(x.setName, out var urls) && urls != null)
-                        {
-                            thumbUrl = urls.FirstOrDefault(u =>
-                                u != null && (u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                                              u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
-                                              u.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)));
-                        }
-                        return (x.hero, x.setName, thumbUrl);
-                    })
-                    .ToList();
-
-                if (previewItems.Count == 0)
-                {
-                    await _webView!.CoreWebView2.ExecuteScriptAsync("showAlert('No Selections', 'No custom sets selected. Only Default Set entries found.\\nSelect at least one custom skin to generate.')");
-                    return;
-                }
-
-                // Show preview dialog
-                using var previewForm = new GenerationPreviewForm(previewItems);
-                var result = previewForm.ShowDialog(this);
-                if (result != DialogResult.OK || !previewForm.Confirmed)
-                {
-                    return;
-                }
-
-                // Save selections before generating
-                await SaveSelectionsAsync();
-
-                // Track for result logging
-                _generationStartTime = DateTime.Now;
-                _heroCount = heroesWithSets.Count;
-
-                // Run generation with progress overlay
-                var operationResult = await ProgressOperationRunner.RunAsync(
-                    this,
-                    $"Preparing to generate {heroesWithSets.Count} hero set(s)...",
-                    async (context) =>
-                    {
-                        var genService = new HeroGenerationService();
-
-                        var stageProgress = new Progress<(int percent, string stage)>(p =>
-                        {
-                            context.Status.Report(p.stage);
-                            context.Progress.Report(p.percent);
-                        });
-
-                        return await genService.GenerateBatchAsync(
-                            targetPath,
-                            heroesWithSets,
-                            s => context.Substatus.Report(s),
-                            null,
-                            stageProgress,
-                            context.Speed,
-                            context.Token);
-                    },
-                    hideDownloadSpeed: true);
-
-                // Handle results
-                if (operationResult.Success)
-                {
-                    var messageBuilder = new System.Text.StringBuilder();
-                    messageBuilder.AppendLine(operationResult.Message ?? "Installation complete!");
-
-                    if (operationResult.FailedItems != null && operationResult.FailedItems.Count > 0)
-                    {
-                        messageBuilder.AppendLine();
-                        messageBuilder.AppendLine("Failed sets:");
-                        foreach (var (name, reason) in operationResult.FailedItems)
-                        {
-                            messageBuilder.AppendLine($"  • {name}: {reason}");
-                        }
-                    }
-
-                    var alertMessage = messageBuilder.ToString().TrimEnd()
-                        .Replace("'", "\\'")
-                        .Replace("\n", "\\n")
-                        .Replace("\r", "");
-                    
-                    var iconType = operationResult.FailedItems?.Count > 0 ? "warning" : "success";
-                    
-                    // Set up wait for alert dismissal
-                    _alertDismissed = new TaskCompletionSource<bool>();
-                    
-                    await _webView!.CoreWebView2.ExecuteScriptAsync(
-                        $"showAlert('Generation Complete', '{alertMessage}', '{iconType}', true)");
-
-                    // Wait for user to click OK (with timeout fallback)
-                    var timeoutTask = Task.Delay(60000); // 60 second timeout
-                    await Task.WhenAny(_alertDismissed.Task, timeoutTask);
-                    
-                    // Store result for MainForm logging
-                    GenerationResult = new ModGenerationResult
-                    {
-                        Success = true,
-                        Type = GenerationType.SkinSelector,
-                        OptionsCount = _heroCount,
-                        Duration = DateTime.Now - _generationStartTime,
-                        Details = $"{_heroCount} hero set(s)" + (operationResult.FailedItems?.Count > 0 ? $", {operationResult.FailedItems.Count} failed" : "")
-                    };
-                    
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
-                }
-                else if (operationResult.Message != "Operation cancelled by user.")
-                {
-                    // Store failed result
-                    GenerationResult = new ModGenerationResult
-                    {
-                        Success = false,
-                        Type = GenerationType.SkinSelector,
-                        OptionsCount = _heroCount,
-                        Duration = DateTime.Now - _generationStartTime,
-                        ErrorMessage = operationResult.Message
-                    };
-                    
-                    using var errorDialog = new ErrorLogDialog(
-                        "Generation Failed",
-                        "Copy the log below and send to developer for help.",
-                        operationResult.Message ?? "Unknown error");
-                    errorDialog.ShowDialog(this);
-                }
+                // Timed out waiting for the JS callback — do not proceed.
+                return false;
             }
-            catch (Exception ex)
-            {
-                using var errorDialog = new ErrorLogDialog(
-                    "Unexpected Error",
-                    "An unexpected error occurred. Copy the log and send to developer.",
-                    $"Error: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}");
-                errorDialog.ShowDialog(this);
-            }
-            finally
-            {
-                _isGenerating = false;
-                await UpdateStatusAsync("Ready");
-            }
+
+            return await _confirmBaseNoSet.Task;
+        }
+
+        /// <summary>
+        /// Shows the terminal generation alert and waits (bounded) for the user to dismiss it.
+        /// </summary>
+        public async Task ShowGenerationAlertAsync(string title, string message, bool hasFailures)
+        {
+            if (_webView?.CoreWebView2 == null) return;
+
+            var iconType = hasFailures ? "warning" : "success";
+            _alertDismissed = new TaskCompletionSource<bool>();
+
+            await ExecuteScriptAsync(
+                $"showAlert('{JsEscape(title)}', '{JsEscape(message)}', '{iconType}', true)");
+
+            await Task.WhenAny(_alertDismissed.Task, Task.Delay(DialogCallbackTimeout));
+        }
+
+        /// <summary>
+        /// Shows a simple informational alert (no dismissal wait).
+        /// </summary>
+        public async Task ShowAlertAsync(string title, string message)
+        {
+            await ExecuteScriptAsync($"showAlert('{JsEscape(title)}', '{JsEscape(message)}')");
+        }
+
+        /// <summary>
+        /// Shows the generation preview dialog and returns whether the user confirmed.
+        /// </summary>
+        public bool ShowGenerationPreview(IReadOnlyList<(HeroModel hero, string setName, string? thumbnailUrl)> items)
+        {
+            using var previewForm = new GenerationPreviewForm(items.ToList());
+            var result = previewForm.ShowDialog(this);
+            return result == DialogResult.OK && previewForm.Confirmed;
+        }
+
+        /// <summary>
+        /// Shows a blocking warning message box.
+        /// </summary>
+        public void ShowWarning(string message, string title)
+        {
+            MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+
+        /// <summary>
+        /// Shows the copyable error log dialog.
+        /// </summary>
+        public void ShowErrorDialog(string title, string subtitle, string details)
+        {
+            using var errorDialog = new ErrorLogDialog(title, subtitle, details);
+            errorDialog.ShowDialog(this);
+        }
+
+        /// <summary>
+        /// Runs the generation operation behind the shared progress overlay.
+        /// </summary>
+        public Task<OperationResult> RunGenerationWithProgressAsync(
+            string initialStatus,
+            Func<ProgressOperationRunnerContext, Task<OperationResult>> operation)
+        {
+            return ProgressOperationRunner.RunAsync(this, initialStatus, operation, hideDownloadSpeed: true);
+        }
+
+        /// <summary>
+        /// Stores the generation result for the parent form to read after close.
+        /// </summary>
+        public void StoreResult(ModGenerationResult result) => GenerationResult = result;
+
+        /// <summary>
+        /// Closes the gallery with a successful dialog result.
+        /// </summary>
+        public void CloseWithSuccess()
+        {
+            this.DialogResult = DialogResult.OK;
+            this.Close();
+        }
+
+        /// <summary>
+        /// Escapes a string for safe embedding inside a single-quoted JS string literal.
+        /// </summary>
+        private static string JsEscape(string value)
+        {
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("'", "\\'")
+                .Replace("\n", "\\n")
+                .Replace("\r", string.Empty);
         }
 
         /// <summary>
         /// Save selections to settings file.
         /// </summary>
-        private async Task SaveSelectionsAsync()
+        public async Task SaveSelectionsAsync()
         {
             try
             {
@@ -1118,7 +997,7 @@ namespace ArdysaModsTools.UI.Forms
         /// <summary>
         /// Update status text in JavaScript.
         /// </summary>
-        private async Task UpdateStatusAsync(string status)
+        public async Task UpdateStatusAsync(string status)
         {
             if (!_initialized || _webView?.CoreWebView2 == null) return;
             try

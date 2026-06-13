@@ -57,6 +57,13 @@ namespace ArdysaModsTools.Core.Models
         public bool RequiresConflictResolution { get; init; }
 
         /// <summary>
+        /// If true, the operation did not complete because the user canceled it.
+        /// Callers should treat this as a non-error outcome (no failure dialog).
+        /// Prefer checking this flag over comparing <see cref="Message"/> strings.
+        /// </summary>
+        public bool WasCanceled { get; init; }
+
+        /// <summary>
         /// List of conflicts that require user resolution.
         /// Populated when RequiresConflictResolution is true.
         /// </summary>
@@ -83,6 +90,10 @@ namespace ArdysaModsTools.Core.Models
         /// <summary>Create a failed batch result with failed items.</summary>
         public static OperationResult Fail(string message, List<(string name, string reason)> failedItems) => 
             new() { Success = false, Message = message, FailedItems = failedItems };
+
+        /// <summary>Create a result indicating the user canceled the operation.</summary>
+        public static OperationResult Canceled(string? message = null) =>
+            new() { Success = false, WasCanceled = true, Message = message ?? "Canceled by user." };
 
         /// <summary>Create a result indicating conflicts need user resolution.</summary>
         public static OperationResult NeedsConflictResolution(IEnumerable<ModConflict> conflicts, string? message = null) =>

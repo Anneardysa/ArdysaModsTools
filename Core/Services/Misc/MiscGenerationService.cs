@@ -176,7 +176,7 @@ namespace ArdysaModsTools.Core.Services
             {
                 log("Operation canceled.");
                 _logger?.Log("Operation canceled.");
-                return new OperationResult { Success = false, Message = "Canceled by user." };
+                return OperationResult.Canceled();
             }
             catch (Exception ex)
             {

@@ -522,7 +522,7 @@ namespace ArdysaModsTools.Core.Services
             catch (OperationCanceledException)
             {
                 log("Operation canceled.");
-                return new OperationResult { Success = false, Message = "Canceled by user." };
+                return OperationResult.Canceled();
             }
             catch (Exception ex)
             {

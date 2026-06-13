@@ -397,7 +397,7 @@ namespace ArdysaModsTools
 
                 // Run operation directly without overlay
                 var controller = new MiscController();
-                var cts = new System.Threading.CancellationTokenSource();
+                using var cts = new System.Threading.CancellationTokenSource();
                 
                 var operationResult = await controller.GenerateModsAsync(
                     _targetPath!, 
@@ -433,28 +433,30 @@ namespace ArdysaModsTools
                     
                     // Apply user's resolutions
                     _miscLogger.Log("Applying conflict resolutions...");
-                    var applyResult = await controller.ApplyConflictResolutionsAsync(
+                    var (applyResult, adjustedSelections) = await controller.ApplyConflictResolutionsAsync(
                         operationResult.Conflicts,
                         userChoices,
+                        selections,
                         _targetPath!,
                         cleanLog,
                         cts.Token);
-                    
+
                     if (!applyResult.Success)
                     {
                         _miscLogger.Log($"! Failed to apply resolutions: {applyResult.Message}");
                         MessageBox.Show($"Failed to apply conflict resolutions: {applyResult.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;
                     }
-                    
-                    // Retry generation with resolved conflicts
+
+                    // Retry generation with the losing selections removed
+                    selections = adjustedSelections;
                     _miscLogger.Log("");
                     _miscLogger.Log("Retrying generation with resolved conflicts...");
                     operationResult = await controller.GenerateModsAsync(
-                        _targetPath!, 
-                        selections, 
+                        _targetPath!,
+                        selections,
                         selectedMode,
-                        cleanLog, 
+                        cleanLog,
                         cts.Token,
                         null);
                 }
@@ -511,7 +513,7 @@ namespace ArdysaModsTools
                 }
                 else
                 {
-                    if (operationResult.Message != "Operation cancelled by user.")
+                    if (!operationResult.WasCanceled)
                     {
                         // Store failed result
                         GenerationResult = new ModGenerationResult

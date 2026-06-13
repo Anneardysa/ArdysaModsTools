@@ -395,7 +395,7 @@ namespace ArdysaModsTools.UI.Forms
                 else
                 {
                     // Generation failed - show ErrorLogDialog with captured logs
-                    if (operationResult.Message != "Operation cancelled by user.")
+                    if (!operationResult.WasCanceled)
                     {
                         generationLogs.AppendLine();
                         generationLogs.AppendLine($"=== Error: {operationResult.Message} ===");
