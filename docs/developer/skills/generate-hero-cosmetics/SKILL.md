@@ -83,16 +83,46 @@ Each hero set is a ZIP archive containing:
 
 ## HeroModel
 
-Heroes are loaded from `heroes.json`:
+Heroes are loaded from `heroes.json` (CDN/GitHub first, local fallback) via
+`HeroService.LoadHeroesAsync` → `HeroModelMapper.MapFromSummaries`:
 
 ```csharp
-public class HeroModel
+public sealed class HeroModel
 {
-    public string Id { get; set; }              // "npc_dota_hero_antimage"
-    public string Name { get; set; }            // "Anti-Mage"
-    public List<HeroSetInfo> Sets { get; set; } // Available cosmetic sets
+    public List<int> ItemIds { get; set; }                   // "id" — items_game.txt block ids
+    public string Name { get; set; }                         // "name"
+    public string HeroId { get; set; }                       // "used_by_heroes", e.g. npc_dota_hero_antimage
+    public string LocalizedName { get; set; }                // "localized_name"
+    public string PrimaryAttribute { get; set; }             // "primary_attr"
+    public int? Method { get; set; }                         // optional base-priority: 1 = Base first, 2 = Base last
+    public Dictionary<string, List<string>> Sets { get; set; } // "sets": setName -> asset URLs
+    public string Id => HeroId;                               // convenience
 }
 ```
+
+## Base-Priority & Merge Order
+
+When several layers are selected for one hero (a Base + a Set/Custom/Persona + Items), each
+layer's `index.txt` blocks are merged into `items_game.txt` as **layers, last-writer-wins**:
+
+- Layers apply foundation → top by `GetSortWeight` (descending). **Every** layer is written;
+  a later, lower layer overrides earlier ones for the **same** item id, so a specifically
+  selected Item wins its slot while non-overlapping slots from every layer still apply.
+- The base's rank is resolved per hero by `ResolveBaseWins(hero.Method, detectedHeroBase)`:
+  the optional `heroes.json` `"method"` (1 = Base first, 2 = Base last) **overrides** the
+  VKV-aware `item_slot hero_base` auto-detection; absent → detection.
+  - `method 1` / `hero_base` present → `Base → Sets/Custom/Persona → Items`
+  - `method 2` / no `hero_base` → `Sets/Custom/Persona → Items → Base`
+  - `Items` are always layered below `Sets/Custom/Persona`.
+- Each winning block is applied **verbatim** onto vanilla `items_game.txt` via
+  `KeyValuesBlockHelper.OverlayBlockPreservingStructure`.
+
+Generation emits `[DEBUG] Priority/Order/Override` lines (Visual Studio Output window) showing
+the resolved method, the layer order, and which layer won each id. See
+[ADR-0008](../../../adr/0008-hero-cosmetic-priority-merge.md) for the rationale.
+
+Set the per-hero `method` with the tooling script: `python 2-patch_models.py --auto-detect`
+(reads each base set's `index.txt`) or `--hero <name> --set-method <1|2>`.
 
 ## Key Files
 

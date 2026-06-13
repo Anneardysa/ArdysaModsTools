@@ -254,6 +254,38 @@ var blocks = KeyValuesBlockHelper.ParseKvBlocks(indexContent);
 // Returns: Dictionary<string, string> { "555" => "...", "556" => "..." }
 ```
 
+#### TryGetTopLevelValue
+
+Read a **top-level** key from a single block, ignoring nested occurrences (e.g. inside
+`visuals` / `asset_modifier`).
+
+```csharp
+if (KeyValuesBlockHelper.TryGetTopLevelValue(block, "item_slot", out var slot))
+    Console.WriteLine(slot); // e.g. "hero_base"
+```
+
+#### AnyBlockHasItemSlot
+
+VKV-aware check used to classify a base mod: returns `true` only when some item block in the
+`index.txt` declares a top-level `item_slot` equal to the given value — never when the value
+merely appears inside a nested sub-block. Drives the `hero_base` base-priority detection
+(see [ADR-0008](../../adr/0008-hero-cosmetic-priority-merge.md)).
+
+```csharp
+bool isHeroBase = KeyValuesBlockHelper.AnyBlockHasItemSlot(indexText, "hero_base");
+```
+
+#### OverlayBlockPreservingStructure
+
+Apply an authored `index.txt` block onto a vanilla `items_game.txt` block **verbatim**,
+carrying over only the structurally essential vanilla keys the index omits
+(`used_by_heroes`, `hero_presets`, `item_slot`, `prefab`). Used by `HeroSetPatcherService`
+instead of round-tripping both blocks through the KeyValues serializer.
+
+```csharp
+string overlaid = KeyValuesBlockHelper.OverlayBlockPreservingStructure(vanillaBlock, indexBlock);
+```
+
 #### Balanced Brace Parsing
 
 The helper uses quote-aware brace matching:

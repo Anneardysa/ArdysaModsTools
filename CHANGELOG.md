@@ -7,60 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.1.26-beta] (Build 2135)
+## [2.1.27-beta] (Build 2136)
 
 ### ✨ Added
 
 - **Core**: Added an optional per-hero `method` field to `heroes.json` (`1` = Base first, `2` = Base last) that explicitly drives base-priority during generation. It is read through the hero load chain (`HeroService` → `HeroSummary` → `HeroModelMapper` → `HeroModel`) and **overrides** the `item_slot hero_base` auto-detection when present (`ResolveBaseWins`); absent → auto-detection as before.
 - **Core**: Added VKV-aware, top-level `item_slot` detection (`KeyValuesBlockHelper.TryGetTopLevelValue` / `AnyBlockHasItemSlot`) so `hero_base` is only matched as a real top-level key on an item block, never inside nested `visuals`/`asset_modifier` sub-blocks.
+- **Core**: Added `Persona` to `SkinCategory` enum for handling full hero model replacement mods (`persona_` prefix).
+- **Core**: Added `ExtractItemTag()` to parse slot tags from item archives (e.g., extracting "shoulder" from `item_shoulder_pauldrons_1.zip`).
+- **Model**: Added `PersonaIndex` to `HeroSelectionState` to support persisting and generating persona selections.
+- **UI**: Added a 5th "Persona" section to the Hero Skin Selection modal with a distinct magenta/pink theme and glowing selection state.
+- **UI**: Added a professional "Cosmetic Compatibility Alert" confirmation prompt when a Base Hero modification is selected without a corresponding Set to warn about potential visual conflicts.
+- **UI**: Item tiles now display their slot tags as small green badges (`[shoulder]`, `[weapon]`, etc.).
 - **Tooling**: Added Mode 6 to `2-patch_models.py` to set a hero's base-priority `method` — manually (`--set-method`) or auto-detected from each base set's `index.txt` (`--auto-detect`, single hero via `--hero` or all heroes).
+- **Tooling**: Updated `2-patch_models.py` to classify and summarize `persona_` archives and display extracted item tags in Mode 4 overview.
 - **Generator**: Added generation diagnostics (priority source/method, layer order, per-id override, and a "0 patchable blocks" warning) to trace merge behavior in the Visual Studio Output window.
 
 ### 🛠️ Changed
 
 - **Generator**: Reworked merging into a layered **last-writer-wins** pipeline. Selections apply foundation→top (Base → Sets/Custom/Persona → Items, by descending sort weight); **every** selection's `index.txt` blocks are written into `items_game.txt`, and a later, lower layer overrides earlier ones for the same item id — so the most specific pick (e.g. a selected Item) wins its slot while non-overlapping slots from every layer still apply (nothing skipped). Asset files overwrite in the same order. `Items` are always layered below `Sets/Custom/Persona`. This supersedes the earlier per-id deep-merge/replace approach.
-
-### 🐛 Fixed
-
-- **Generator**: Fixed selected Sets/Items being dropped when a higher-priority Base claimed the same item ids (and a related regression that copied 0 asset files). Every selected layer is now parsed and applied into `items_game.txt`.
-
----
-
-## [2.1.26-beta] (Build 2134)
-
-### 🐛 Fixed
-
-- **Patcher**: Fixed `items_game.txt` generation so the authored `index.txt` block is applied **verbatim** — preserving its exact key order, values, nested structure, and numbered modifiers (`asset_modifier25/27/28`). The previous serializer-based deep-merge re-ordered keys and let vanilla identity fields/modifiers (e.g. Dark Feather `image_inventory`, generic `ambient_blade`, duplicate `particle_create` entries) leak into the output. Only structurally essential vanilla keys the index omits (`used_by_heroes`, `hero_presets`, `item_slot`, `prefab`) are now carried over; cosmetic vanilla keys are dropped.
-- **Generator**: Fixed inverted layer sort weights in `HeroGenerationService` causing incorrect merge priority. Priority now correctly enforces Base > Sets > Items (when `hero_base` is present) and Sets > Items > Base (otherwise), resolving visual bugs.
-- **Generator**: Fixed an issue where merging multiple mods with the same item ID (e.g. Base Hero replacements and Sets) would simply overwrite the ID block, causing important fields like 'used_by_heroes' or multiple 'asset_modifier' dummy objects to be stripped. Implemented deep merging logic for KeyValues blocks to preserve nested data.
-- **UI**: Fixed Settings form top-right close ("✕") button not working due to mouse capture during drag initialization (`onmousedown`) swallowing the click event.
-- **UI**: Increased WebView2 navigation timeouts in `ProgressOverlay` and `HeroGalleryForm` to 15 seconds to prevent installation and loading timeouts on slower client machines.
-
-### ✨ Added
-
-- **Core**: Added `Persona` to `SkinCategory` enum for handling full hero model replacement mods (`persona_` prefix).
-- **Core**: Added `ExtractItemTag()` to parse slot tags from item archives (e.g., extracting "shoulder" from `item_shoulder_pauldrons_1.zip`).
-- **UI**: Added a 5th "Persona" section to the Hero Skin Selection modal with a distinct magenta/pink theme and glowing selection state.
-- **UI**: Added a professional "Cosmetic Compatibility Alert" confirmation prompt when a Base Hero modification is selected without a corresponding Set to warn about potential visual conflicts.
-- **UI**: Item tiles now display their slot tags as small green badges (`[shoulder]`, `[weapon]`, etc.).
-- **Model**: Added `PersonaIndex` to `HeroSelectionState` to support persisting and generating persona selections.
-- **Tooling**: Updated `2-patch_models.py` to classify and summarize `persona_` archives and display extracted item tags in Mode 4 overview.
-
-### 🛠️ Changed
-
-- **Documentation**: Re-aligned all 7 Architecture Decision Records (ADRs) to perfectly reflect the actual .NET 8 codebase patterns, file paths, interop method names, multi-CDN fallback proxies, and WebView2 templates.
+- **Generator**: Reordered the merging priority pipeline to apply selections in sequence: Sets/Custom Sets/Personas (lowest) → Selected Items (middle) → Base Hero (highest), ensuring custom base models correctly override set and item assets.
+- **Patcher**: Replaced the items_game.txt block patcher with a structure-preserving overlay (`KeyValuesBlockHelper.OverlayBlockPreservingStructure`) that applies the custom `index.txt` block verbatim and carries over only essential base keys the index omits, instead of round-tripping both blocks through the KeyValues serializer.
+- **Architecture**: Refactored `Dota2PerformanceForm` to adhere to the MVP pattern. Decoupled business logic into `AutoexecService` and UI state orchestration into `Dota2PerformancePresenter`.
+- **Security**: Upgraded `autoexec.cfg` saving to use `FileTransactionService` ensuring atomic writes and automatic rollback on failure.
 - **UI**: Resized the Support Dialog panel to a more compact, reliable size (760x460) with no scrollbars, optimized CSS spacing/typography tokens for maximum legibility, and added unique branding hover glow effects to each donation card.
 - **UI**: Changed the font style of the main and miscellaneous consoles from JetBrains Mono Bold to Regular for cleaner terminal styling.
 - **UI**: Replaced the text-based Tweak and unicode gear (⚙) buttons in the MainForm header with custom, high-visibility minimalist vector icons drawn natively via GDI+ paths, aligning them geometrically with minimize/close buttons.
 - **UI**: Resized and compacted the Settings page layout to fit perfectly inside the 420x540 container, completely eliminating the need for vertical scrollbars, and added a 1px border frame around the page.
-- **Architecture**: Refactored `Dota2PerformanceForm` to adhere to the MVP pattern. Decoupled business logic into `AutoexecService` and UI state orchestration into `Dota2PerformancePresenter`.
-- **Security**: Upgraded `autoexec.cfg` saving to use `FileTransactionService` ensuring atomic writes and automatic rollback on failure.
-
 - **UI**: Implemented tag-based mutual exclusion for Items — selecting an item automatically deselects any currently active item sharing the same slot tag.
 - **UI**: Implemented Persona mutual exclusion — selecting a Persona automatically clears and disables all Items and Base Hero selections, as Personas act as full model replacements.
-- **Generator**: Fixed deep merging of KeyValues blocks (e.g. `visuals` fields, `portraits` hierarchies, `asset_modifier` tracking) instead of replacing sub-trees.
-- **Generator**: Reordered the merging priority pipeline to apply selections in sequence: Sets/Custom Sets/Personas (lowest) → Selected Items (middle) → Base Hero (highest), ensuring custom base models correctly override set and item assets.
-- **Patcher**: Replaced the items_game.txt block patcher with a structure-preserving overlay (`KeyValuesBlockHelper.OverlayBlockPreservingStructure`) that applies the custom `index.txt` block verbatim and carries over only essential base keys the index omits, instead of round-tripping both blocks through the KeyValues serializer.
+- **Documentation**: Re-aligned all 7 Architecture Decision Records (ADRs) to perfectly reflect the actual .NET 8 codebase patterns, file paths, interop method names, multi-CDN fallback proxies, and WebView2 templates.
+- **Documentation**: Added [ADR-0008](docs/adr/0008-hero-cosmetic-priority-merge.md) (Hero Cosmetic Base-Priority & Layered Merge) and updated the helpers/models API references and the "Generate Hero Cosmetics" skill to document the per-hero `method` field, `KeyValuesBlockHelper.TryGetTopLevelValue`/`AnyBlockHasItemSlot`, and the layered last-writer-wins merge.
+
+### 🐛 Fixed
+
+- **Generator**: Fixed selected Sets/Items being dropped when a higher-priority Base claimed the same item ids (and a related regression that copied 0 asset files). Every selected layer is now parsed and applied into `items_game.txt`.
+- **Generator**: Fixed inverted layer sort weights in `HeroGenerationService` causing incorrect merge priority. Priority now correctly enforces Base > Sets > Items (when `hero_base` is present) and Sets > Items > Base (otherwise), resolving visual bugs.
+- **Generator**: Fixed an issue where merging multiple mods with the same item ID (e.g. Base Hero replacements and Sets) would simply overwrite the ID block, causing important fields like 'used_by_heroes' or multiple 'asset_modifier' dummy objects to be stripped. Implemented deep merging logic for KeyValues blocks (e.g., `visuals` fields, `portraits` hierarchies, and `asset_modifier` tracking) to preserve nested data instead of replacing sub-trees.
+- **Patcher**: Fixed `items_game.txt` generation so the authored `index.txt` block is applied **verbatim** — preserving its exact key order, values, nested structure, and numbered modifiers (`asset_modifier25/27/28`). Only structurally essential vanilla keys the index omits (`used_by_heroes`, `hero_presets`, `item_slot`, `prefab`) are now carried over; cosmetic vanilla keys are dropped.
+- **UI**: Fixed Settings form top-right close ("✕") button not working due to mouse capture during drag initialization (`onmousedown`) swallowing the click event.
+- **UI**: Increased WebView2 navigation timeouts in `ProgressOverlay` and `HeroGalleryForm` to 15 seconds to prevent installation and loading timeouts on slower client machines.
 
 ---
 

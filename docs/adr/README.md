@@ -19,6 +19,7 @@ All ADRs follow the [MADR](https://adr.github.io/madr/) (Markdown Any Decision R
 | [0005](./0005-webview2-hybrid-ui.md)                    | WebView2 Hybrid UI Architecture            | ✅ Accepted | 2026-02-10 |
 | [0006](./0006-automated-patch-watcher.md)               | Automated Patch Watcher System             | ✅ Accepted | 2026-02-10 |
 | [0007](./0007-security-anti-tamper-architecture.md)     | Security & Anti-Tamper Architecture        | ✅ Accepted | 2026-02-10 |
+| [0008](./0008-hero-cosmetic-priority-merge.md)          | Hero Cosmetic Base-Priority & Layered Merge | ✅ Accepted | 2026-06-13 |
 
 ## Relationships
 
@@ -30,4 +31,5 @@ graph LR
     ADR0001 --> ADR0005["0005: WebView2 Hybrid"]
     ADR0004 --> ADR0006["0006: Patch Watcher"]
     ADR0002 --> ADR0007["0007: Security"]
+    ADR0005 --> ADR0008["0008: Cosmetic Priority Merge"]
 ```

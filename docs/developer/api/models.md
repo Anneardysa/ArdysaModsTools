@@ -109,6 +109,12 @@ public sealed class HeroModel
     [JsonPropertyName("primary_attr")]
     public string PrimaryAttribute { get; set; }
 
+    // Optional base-priority method: 1 = Base first (Base > Sets > Items),
+    // 2 = Base last (Sets > Items > Base). Null -> item_slot hero_base auto-detection.
+    // See ADR-0008. Overrides detection during generation when present.
+    [JsonPropertyName("method")]
+    public int? Method { get; set; }
+
     // Sets map: setName -> list of asset URLs
     [JsonPropertyName("sets")]
     public Dictionary<string, List<string>> Sets { get; set; }
