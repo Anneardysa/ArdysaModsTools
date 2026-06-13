@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.26-beta] (Build 2135)
+
+### ✨ Added
+
+- **Core**: Added an optional per-hero `method` field to `heroes.json` (`1` = Base first, `2` = Base last) that explicitly drives base-priority during generation. It is read through the hero load chain (`HeroService` → `HeroSummary` → `HeroModelMapper` → `HeroModel`) and **overrides** the `item_slot hero_base` auto-detection when present (`ResolveBaseWins`); absent → auto-detection as before.
+- **Core**: Added VKV-aware, top-level `item_slot` detection (`KeyValuesBlockHelper.TryGetTopLevelValue` / `AnyBlockHasItemSlot`) so `hero_base` is only matched as a real top-level key on an item block, never inside nested `visuals`/`asset_modifier` sub-blocks.
+- **Tooling**: Added Mode 6 to `2-patch_models.py` to set a hero's base-priority `method` — manually (`--set-method`) or auto-detected from each base set's `index.txt` (`--auto-detect`, single hero via `--hero` or all heroes).
+- **Generator**: Added generation diagnostics (priority source/method, layer order, per-id override, and a "0 patchable blocks" warning) to trace merge behavior in the Visual Studio Output window.
+
+### 🛠️ Changed
+
+- **Generator**: Reworked merging into a layered **last-writer-wins** pipeline. Selections apply foundation→top (Base → Sets/Custom/Persona → Items, by descending sort weight); **every** selection's `index.txt` blocks are written into `items_game.txt`, and a later, lower layer overrides earlier ones for the same item id — so the most specific pick (e.g. a selected Item) wins its slot while non-overlapping slots from every layer still apply (nothing skipped). Asset files overwrite in the same order. `Items` are always layered below `Sets/Custom/Persona`. This supersedes the earlier per-id deep-merge/replace approach.
+
+### 🐛 Fixed
+
+- **Generator**: Fixed selected Sets/Items being dropped when a higher-priority Base claimed the same item ids (and a related regression that copied 0 asset files). Every selected layer is now parsed and applied into `items_game.txt`.
+
+---
+
 ## [2.1.26-beta] (Build 2134)
 
 ### 🐛 Fixed
