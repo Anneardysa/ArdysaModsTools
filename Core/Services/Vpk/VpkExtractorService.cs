@@ -32,9 +32,15 @@ namespace ArdysaModsTools.Core.Services
         /// <summary>
         /// Extracts VPK contents using HLExtract.exe.
         /// </summary>
-        Task<bool> ExtractAsync(string hlExtractPath, string vpkPath, string extractDir, 
+        /// <param name="requireItemsGame">
+        /// When true (default), extraction fails if scripts/items/items_game.txt is missing afterward.
+        /// Pass false when the caller sources items_game.txt separately (e.g. a trimmed Original.zip
+        /// whose items_game.txt is injected later from the detected game install).
+        /// </param>
+        Task<bool> ExtractAsync(string hlExtractPath, string vpkPath, string extractDir,
             Action<string> log, CancellationToken ct = default,
-            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null);
+            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null,
+            bool requireItemsGame = true);
     }
 
     /// <summary>
@@ -53,7 +59,8 @@ namespace ArdysaModsTools.Core.Services
         /// <inheritdoc />
         public async Task<bool> ExtractAsync(string hlExtractPath, string vpkPath, string extractDir,
             Action<string> log, CancellationToken ct = default,
-            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
+            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null,
+            bool requireItemsGame = true)
         {
             if (string.IsNullOrWhiteSpace(hlExtractPath))
             {
@@ -123,14 +130,17 @@ namespace ArdysaModsTools.Core.Services
                 return false;
             }
 
-            string itemsGamePath = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
-            if (!File.Exists(itemsGamePath))
+            if (requireItemsGame)
             {
-                var ex = new VpkException(ErrorCodes.VPK_INVALID_FORMAT,
-                    "items_game.txt missing after extraction - VPK may be invalid");
-                _logger?.Log($"[{ex.ErrorCode}] {ex.Message}");
-                log("items_game.txt missing after extraction.");
-                return false;
+                string itemsGamePath = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
+                if (!File.Exists(itemsGamePath))
+                {
+                    var ex = new VpkException(ErrorCodes.VPK_INVALID_FORMAT,
+                        "items_game.txt missing after extraction - VPK may be invalid");
+                    _logger?.Log($"[{ex.ErrorCode}] {ex.Message}");
+                    log("items_game.txt missing after extraction.");
+                    return false;
+                }
             }
 
             log("Extraction completed.");

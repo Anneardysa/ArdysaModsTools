@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.27-beta] (Build 2146)
+
+### 🐛 Fixed
+
+- **Miscellaneous / Skin Selector**: Fixed a request storm when opening a panel that contains thumbnails which don't exist on the CDN (e.g. Crownfall, Woodland Warbands, a few Battlepass screens). The WebView interceptor was calling the cache for every `<img>` request — including known-missing ones and the browser's `.jpg`/`.jpeg` alt-format probes — and each ran the full 5-CDN fallback chain, producing a flood of `HTTP 404` logs on every open. Three fixes: (1) the interceptor now answers a known-missing asset with an instant `404` (no network, no CDN chain) so the browser just shows the placeholder; (2) `AssetCacheService.GetAssetBytesAsync` short-circuits known-missing URLs before any download; (3) most importantly, a definitive **404/403 no longer trips the CDN circuit breaker** — a missing file isn't an unhealthy CDN, so real downloads are no longer degraded for 120s — and the fallback chain now stops after one pass when every CDN reports not-found.
+
+---
+
+## [2.1.27-beta] (Build 2145)
+
+### ✨ Added
+
+- **Launching State**: a new background asset preloader that downloads all gallery thumbnails (misc choices + hero set thumbnails) into the persistent local cache (`%LocalAppData%\ArdysaModsTools\AssetCache`) right after the app window opens — so Miscellaneous and Skin Selector open instantly and work offline. It runs non-blocking and throttled (4 concurrent), skips assets already cached or known-missing (so repeat launches are effectively instant), reports concise progress in the console ("Launching State: caching assets… 240/1919"), and cancels cleanly on app close. New `IAssetPreloadService`/`AssetPreloadService` (DI singleton) reuses the existing `AssetCacheService` download pipeline and enumerates URLs from the misc config + `heroes.json`.
+- **Settings**: new "Preload assets on launch" toggle (default ON). Turning it on mid-session warms the cache immediately; turning it off skips the preload on future launches.
+
+### 🛠️ Changed
+
+- **Settings / Clear Cache**: after a successful Clear Cache, the Launching State preload re-arms automatically so the cache refills without needing a restart (when the toggle is on). `AssetCacheService.ClearCache()` now also resets the batch-refresh cooldown (deletes `.last_refresh`) so freshness checks aren't blocked after a manual clear. Confirmed Clear Cache fully removes preloaded assets.
+- **Tests**: added `AssetPreloadServiceTests` (URL enumeration: skips Default/Disable choices, picks the first image per hero set, de-dupes, merges sources).
+
+---
+
+## [2.1.27-beta] (Build 2144)
+
+### 🐛 Fixed
+
+- **Miscellaneous**: Fixed the thumbnail overlay ("Downloading 0/70…") re-appearing on every open. Two causes: (1) **Sanitization mismatch** — `MiscOption.GetThumbnailUrl` kept apostrophes/commas/`&` and converted hyphens to underscores, but the CDN filenames (and the browser's `getThumbUrl` JS) strip those and keep hyphens. So special-character Courier/Ward thumbnails resolved to 404 URLs the C# preload could never cache — they always looked "missing" even when the browser had already cached them. The C# sanitization (new `MiscOption.SanitizeChoice`) now matches the CDN/JS convention exactly (verified against the live CDN). (2) **No memory of absent assets** — the ~30 choices that legitimately have no CDN thumbnail (e.g. "Default …"/"Disable …" plus a few not-yet-uploaded cosmetics) were re-attempted on every open, re-showing the overlay and triggering a slow CDN retry-storm.
+- **Skin Selector**: Same not-found handling applied to Hero Gallery set thumbnails.
+
+### ⚡ Performance
+
+- **Miscellaneous**: The "Default …"/"Disable …" no-op choice of every option (the unmodded/disabled state) no longer requests a CDN thumbnail at all — it renders the built-in placeholder instantly. This removes ~17 needless image requests/404s per open for a faster, quieter load. Implemented as a synced contract: `MiscOption.IsDefaultChoice` (C#) and `isDefaultChoice()` (`misc_form.html`).
+
+### 🛠️ Changed
+
+- **Core**: `AssetCacheService` now persists a known-missing set (`.missing_assets`, keyed by URL with a 7-day TTL). Definitive not-found responses (HTTP 404/403) are recorded — transient/offline failures are not — and a successful download, `Invalidate`, or `Clear Cache` clears the marker. The misc/hero preload skips known-missing URLs, so the overlay only appears for genuinely new thumbnails and absent ones are silently re-checked at most once a week.
+- **Tests**: Added `MiscOptionTests` (sanitization parity with the CDN, incl. hyphen/apostrophe/comma/`&`/curly-quote cases) and `AssetCacheServiceTests` (known-missing lookups).
+
+---
+
+## [2.1.27-beta] (Build 2143)
+
+### 🐛 Fixed
+
+- **Miscellaneous / Skin Selector**: Fixed thumbnails re-downloading from the CDN on every open after the app was closed. The gallery `<img>` tags pointed straight at CDN URLs, so the embedded browser fetched each thumbnail from the network and cached it only in WebView2's user-data folder — which lived in `%TEMP%` and was wiped by Windows cleanup (Storage Sense / Disk Cleanup) and on every app update. Meanwhile the persistent `AssetCacheService` (in `%LocalAppData%`) downloaded the same images but its bytes only gated the "Downloading thumbnails…" overlay and were never shown. The two caches are now unified: a new `WebViewAssetInterceptor` (via `CoreWebView2.WebResourceRequested`) serves CDN image requests from the persistent asset cache, so thumbnails download once and survive restarts, temp cleanup, and updates (with graceful network fallback when an asset isn't cached). Applied to both `MiscFormWebView` and `HeroGalleryForm`.
+
+### 🛠️ Changed
+
+- **Core / Stability**: The WebView2 user-data folder moved from `%TEMP%\ArdysaModsTools.WebView2` to a persistent `%LocalAppData%\ArdysaModsTools\WebView2`, centralized behind a new `WebView2EnvironmentHelper.CreateEnvironmentAsync()` and adopted by all 12 WebView2 forms (the old per-form temp-path duplication is gone). The legacy temp folder is cleaned up once on first run. `UpdaterService` and `CacheCleaningService` were updated to target the new location (Settings → Clear Cache still frees it; updates still refresh the browser cache without nuking thumbnails, which now live in the separate asset cache).
+- **Tests**: Added `WebViewAssetInterceptorTests` (13 tests) covering content-type resolution (extensions, query strings, case-insensitivity, unknown → octet-stream) and the request-filter builder.
+
+---
+
+## [2.1.27-beta] (Build 2142)
+
+### ✨ Added
+
+- **Skin Selector / Miscellaneous**: `items_game.txt` is now sourced live from your detected Dota 2 install on every generation instead of from the bundled `Original.zip`. A new `GameItemsGameExtractorService` extracts `scripts/items/items_game.txt` from `…/game/dota/pak01_dir.vpk` (via HLExtract, the same proven path the courier/ward extraction uses) and injects it into the extracted base before patching. This keeps mods aligned with the current game patch automatically — no more manual `Original.zip` rebuilds — and guarantees a clean (never stale/pre-patched) base each run. Wired into both Original.zip-based flows: `HeroGenerationService` and `MiscCleanGenerationService` (*Add to Current* is intentionally excluded, as it reuses the already-patched mods VPK).
+
+### 🛠️ Changed
+
+- **Core**: `Original.zip` no longer needs to carry `items_game.txt` (shrinks the CDN download). `VpkExtractorService.ExtractAsync` gained an optional `requireItemsGame` flag (default `true`; *Add to Current* unchanged), and `OriginalVpkService` switched its cache-validity sentinel from `items_game.txt` to a `.ready` marker kept beside the extracted folder so it is never packed into the mod VPK. If the game `items_game.txt` cannot be read (game files missing or path not detected), generation now aborts with a clear *"Re-run Detect"* message rather than silently using a stale copy.
+- **Tests**: Added `GameItemsGameExtractorServiceTests` covering the guard paths (empty target/extract path, missing game VPK).
+
+---
+
 ## [2.1.27-beta] (Build 2141)
 
 ### 🐛 Fixed

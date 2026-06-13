@@ -61,6 +61,9 @@ namespace ArdysaModsTools.Core.DependencyInjection
             // Configuration (singleton - shared state)
             services.AddSingleton<IConfigService, MainConfigService>();
             services.AddTransient<IAutoexecService, Services.Misc.AutoexecService>();
+
+            // Launching State asset preloader (singleton - tracks run state across the session)
+            services.AddSingleton<IAssetPreloadService, Services.Cache.AssetPreloadService>();
             
             // File Transactions (transient - each user gets new factory)
             services.AddTransient<IFileTransactionFactory, FileTransactionFactory>();

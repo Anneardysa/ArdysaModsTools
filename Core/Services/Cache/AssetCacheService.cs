@@ -16,8 +16,11 @@
  */
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
@@ -45,6 +48,10 @@ namespace ArdysaModsTools.Core.Services.Cache
         public static AssetCacheService Instance => _instance.Value;
 
         private const string RefreshTimestampFile = ".last_refresh";
+        private const string MissingAssetsFile = ".missing_assets";
+
+        // How long a not-found (404/403) asset is skipped before the download path re-checks it.
+        private static readonly TimeSpan KnownMissingTtl = TimeSpan.FromDays(7);
 
         private AssetCacheService()
         {
@@ -53,9 +60,10 @@ namespace ArdysaModsTools.Core.Services.Cache
                 "ArdysaModsTools",
                 "AssetCache"
             );
-            
+
             EnsureCacheDirectoryExists();
             _lastBatchRefreshTimeUtc = LoadPersistedRefreshTime();
+            LoadMissingAssets();
         }
 
         #endregion
@@ -77,6 +85,12 @@ namespace ArdysaModsTools.Core.Services.Cache
         // AssetCacheService is a singleton.
         private DateTime _lastBatchRefreshTimeUtc = DateTime.MinValue;
         private readonly object _refreshTimeLock = new();
+
+        // URLs the CDN reports as not-found (HTTP 404/403), keyed by cache key with the UTC time
+        // they were recorded. Persisted so the misc/hero selector overlay does not re-attempt
+        // (and re-download-storm) permanently-absent thumbnails on every open.
+        private readonly ConcurrentDictionary<string, DateTime> _missingAssets = new();
+        private readonly object _missingLock = new();
 
         #endregion
 
@@ -123,6 +137,12 @@ namespace ArdysaModsTools.Core.Services.Cache
                 AddToMemoryCache(cacheKey, cachedResult.Data);
                 return cachedResult.Data;
             }
+
+            // 2b. Skip assets the CDN recently reported as not-found (404/403). Without this,
+            // every request for a permanently-absent thumbnail re-runs the whole CDN fallback
+            // chain — flooding the network and tripping circuit breakers on each selector open.
+            if (IsKnownMissing(url, KnownMissingTtl))
+                return null;
 
             // 3. Fetch from remote (with request coalescing)
             // This prevents multiple parallel requests for the same URL
@@ -467,12 +487,106 @@ namespace ArdysaModsTools.Core.Services.Cache
         }
 
         /// <summary>
+        /// Returns true if the asset was recorded as not-found (HTTP 404/403) within the
+        /// <paramref name="ttl"/> window. Callers (the misc/hero selector preload) use this to
+        /// skip permanently-absent thumbnails so the overlay doesn't re-attempt them every open.
+        /// An expired entry is dropped so the asset is re-checked once (it may since be uploaded).
+        /// </summary>
+        public bool IsKnownMissing(string url, TimeSpan ttl)
+        {
+            if (string.IsNullOrEmpty(url)) return false;
+
+            string cacheKey = GetCacheKey(url);
+            if (_missingAssets.TryGetValue(cacheKey, out var markedUtc))
+            {
+                if (DateTime.UtcNow - markedUtc <= ttl)
+                    return true;
+
+                RemoveMissing(cacheKey); // TTL expired — allow a fresh re-check.
+            }
+            return false;
+        }
+
+        private void MarkMissing(string cacheKey)
+        {
+            _missingAssets[cacheKey] = DateTime.UtcNow;
+            PersistMissingAssets();
+        }
+
+        private void RemoveMissing(string cacheKey)
+        {
+            if (_missingAssets.TryRemove(cacheKey, out _))
+                PersistMissingAssets();
+        }
+
+        /// <summary>
+        /// CdnFallbackService surfaces permanent failures as "HTTP 404"/"HTTP 403" in the error
+        /// message; treat those as definitively not-found (transient/offline errors are not).
+        /// </summary>
+        private static bool IsNotFoundError(string? error)
+        {
+            if (string.IsNullOrEmpty(error)) return false;
+            return error.Contains("404") || error.Contains("403");
+        }
+
+        private void LoadMissingAssets()
+        {
+            try
+            {
+                var path = Path.Combine(_cacheDirectory, MissingAssetsFile);
+                if (!File.Exists(path)) return;
+
+                var data = JsonSerializer.Deserialize<Dictionary<string, DateTime>>(File.ReadAllText(path));
+                if (data != null)
+                {
+                    foreach (var kvp in data)
+                        _missingAssets[kvp.Key] = kvp.Value;
+                }
+            }
+            catch { /* Ignore — worst case missing assets are re-checked. */ }
+        }
+
+        private void PersistMissingAssets()
+        {
+            lock (_missingLock)
+            {
+                try
+                {
+                    var path = Path.Combine(_cacheDirectory, MissingAssetsFile);
+                    File.WriteAllText(path, JsonSerializer.Serialize(new Dictionary<string, DateTime>(_missingAssets)));
+                }
+                catch { /* Non-critical — worst case the known-missing set won't persist. */ }
+            }
+        }
+
+        /// <summary>
         /// Clear the entire cache (both memory and disk).
         /// </summary>
         public void ClearCache()
         {
             // Clear memory cache
             _memoryCache.Clear();
+
+            // Clear the known-missing set (file + memory) so assets are re-checked after a wipe.
+            _missingAssets.Clear();
+            try
+            {
+                var missingPath = Path.Combine(_cacheDirectory, MissingAssetsFile);
+                if (File.Exists(missingPath)) File.Delete(missingPath);
+            }
+            catch { /* Ignore */ }
+
+            // Reset the batch-refresh cooldown (memory + file) so a fresh refresh isn't blocked.
+            lock (_refreshTimeLock)
+            {
+                _lastBatchRefreshTimeUtc = DateTime.MinValue;
+            }
+            try
+            {
+                var refreshPath = Path.Combine(_cacheDirectory, RefreshTimestampFile);
+                if (File.Exists(refreshPath)) File.Delete(refreshPath);
+            }
+            catch { /* Ignore */ }
 
             // Clear disk cache
             try
@@ -529,7 +643,10 @@ namespace ArdysaModsTools.Core.Services.Cache
             
             // Remove from memory
             _memoryCache.TryRemove(cacheKey, out _);
-            
+
+            // Drop any known-missing marker so the next access re-checks the server.
+            RemoveMissing(cacheKey);
+
             // Remove from disk
             string cacheFilePath = GetCacheFilePath(cacheKey);
             try
@@ -590,6 +707,11 @@ namespace ArdysaModsTools.Core.Services.Cache
                     {
                         System.Diagnostics.Debug.WriteLine(
                             $"[AssetCacheService] CDN fallback failed: {url} -> {cdnResult.ErrorMessage}");
+                        // Persist a known-missing marker only for definitive not-found (404/403),
+                        // never for transient/offline failures, so the selector overlay stops
+                        // re-attempting permanently-absent assets across sessions.
+                        if (IsNotFoundError(cdnResult.ErrorMessage))
+                            MarkMissing(cacheKey);
                         // Negative cache to avoid retrying in same session
                         AddToMemoryCache(cacheKey, Array.Empty<byte>());
                         return null;
@@ -619,6 +741,9 @@ namespace ArdysaModsTools.Core.Services.Cache
                     {
                         System.Diagnostics.Debug.WriteLine(
                             $"[AssetCacheService] Download failed: {url} -> {response.StatusCode}");
+                        // Persist a known-missing marker only for definitive not-found.
+                        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
+                            MarkMissing(cacheKey);
                         // Negative cache to avoid retrying in same session
                         AddToMemoryCache(cacheKey, Array.Empty<byte>());
                         return null;
@@ -645,6 +770,9 @@ namespace ArdysaModsTools.Core.Services.Cache
 
                 // Add to memory cache
                 AddToMemoryCache(cacheKey, data);
+
+                // It downloaded successfully — clear any stale known-missing marker.
+                RemoveMissing(cacheKey);
 
                 System.Diagnostics.Debug.WriteLine(
                     $"[AssetCacheService] Cached: {actualUrl} ({data.Length} bytes) ETag={etag ?? "none"}");

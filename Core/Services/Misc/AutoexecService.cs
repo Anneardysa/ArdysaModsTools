@@ -31,6 +31,11 @@ namespace ArdysaModsTools.Core.Services.Misc
                 cfgDir = Path.Combine(gamePath, "cfg");
                 if (Directory.Exists(cfgDir))
                     return cfgDir;
+
+                // An explicit gamePath was supplied but contains no cfg folder. Do NOT fall back
+                // to the global default install — that would silently write autoexec.cfg into an
+                // unrelated Dota 2 install. Honor the requested path and report not-found instead.
+                return string.Empty;
             }
 
             var defaultPath = Path.Combine(
@@ -98,8 +103,9 @@ namespace ArdysaModsTools.Core.Services.Misc
             }
             catch (Exception ex)
             {
-                _logService.LogError($"[AutoexecService] Transaction failed when applying autoexec.cfg. Rolling back. {ex.Message}", ex);
-                await transaction.RollbackAsync(cancellationToken);
+                // IFileTransaction.ExecuteAsync already rolls back internally on failure, so a manual
+                // RollbackAsync here would run the rollback a second time. Just log and surface the error.
+                _logService.LogError($"[AutoexecService] Transaction failed when applying autoexec.cfg; it was rolled back automatically. {ex.Message}", ex);
                 throw;
             }
         }

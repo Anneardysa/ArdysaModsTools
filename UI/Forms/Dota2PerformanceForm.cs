@@ -22,6 +22,8 @@ using System.Windows.Forms;
 using ArdysaModsTools.UI.Interfaces;
 using ArdysaModsTools.UI.Presenters;
 using Microsoft.Web.WebView2.Core;
+using ArdysaModsTools.Core.Helpers;
+using ArdysaModsTools.Core.Interfaces;
 using Microsoft.Web.WebView2.WinForms;
 
 namespace ArdysaModsTools.UI.Forms
@@ -34,7 +36,8 @@ namespace ArdysaModsTools.UI.Forms
     {
         private WebView2? _webView;
         private bool _initialized;
-        
+        private readonly IAppLogger _logService;
+
         // Use a backing field to prevent the presenter from being garbage collected
         private readonly Dota2PerformancePresenter _presenter;
 
@@ -52,8 +55,10 @@ namespace ArdysaModsTools.UI.Forms
         private const int WM_NCLBUTTONDOWN = 0xA1;
         private const int HTCAPTION = 0x2;
 
-        public Dota2PerformanceForm(Func<IDota2PerformanceView, string?, Dota2PerformancePresenter> presenterFactory, string? gamePath)
+        public Dota2PerformanceForm(Func<IDota2PerformanceView, string?, Dota2PerformancePresenter> presenterFactory, IAppLogger logService, string? gamePath)
         {
+            _logService = logService ?? throw new ArgumentNullException(nameof(logService));
+
             InitializeComponent();
             SetupForm();
 
@@ -108,8 +113,8 @@ namespace ArdysaModsTools.UI.Forms
         {
             try
             {
-                string tempPath = Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2");
-                var env = await CoreWebView2Environment.CreateAsync(null, tempPath);
+                // Persistent WebView2 user data (%LocalAppData%) so the browser cache survives temp cleanup.
+                var env = await WebView2EnvironmentHelper.CreateEnvironmentAsync();
                 await _webView!.EnsureCoreWebView2Async(env);
                 _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
@@ -197,14 +202,19 @@ namespace ArdysaModsTools.UI.Forms
 
         public async Task LoadSettingsAsync(string jsonSettings)
         {
-            await ExecuteScriptAsync($"loadSettings('{EscapeJs(jsonSettings)}')");
+            // Pass the payload as a JSON-encoded literal so any characters (quotes, newlines,
+            // U+2028/U+2029 line separators) are escaped safely instead of breaking the JS string.
+            await ExecuteScriptAsync($"loadSettings({JsonSerializer.Serialize(jsonSettings)})");
         }
 
-        public async void ShowToast(string message, string type)
+        public async Task ShowToastAsync(string message, string type)
         {
-            await ExecuteScriptAsync($"showToast('{EscapeJs(message)}', '{EscapeJs(type)}')");
+            await ExecuteScriptAsync($"showToast({JsonSerializer.Serialize(message)}, {JsonSerializer.Serialize(type)})");
         }
 
+        // [AMT:PRO] WebView2 bridge handler — message schema is shared with Assets/Html/dota2_performance.html
+        // (sendMessage(type, data) postMessage calls). Any change to the message `type` values or payload
+        // shape must be mirrored on both sides simultaneously or the bridge silently breaks.
         private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
             try
@@ -250,13 +260,8 @@ namespace ArdysaModsTools.UI.Forms
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"WebMessage error: {ex.Message}");
+                _logService.LogError($"[Dota2PerformanceForm] Failed to handle WebView2 message: {ex.Message}", ex);
             }
-        }
-
-        private static string EscapeJs(string text)
-        {
-            return text.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\n", "\\n").Replace("\r", "");
         }
 
         protected override void Dispose(bool disposing)

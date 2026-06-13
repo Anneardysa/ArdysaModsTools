@@ -1,5 +1,10 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using ArdysaModsTools.Core.Services.FileTransactions;
 using ArdysaModsTools.Core.Services.Misc;
+using ArdysaModsTools.Tests.Helpers;
 using NUnit.Framework;
 
 namespace ArdysaModsTools.Tests.Services.Misc
@@ -7,6 +12,37 @@ namespace ArdysaModsTools.Tests.Services.Misc
     [TestFixture]
     public class AutoexecServiceTests
     {
+        private string _tempRoot = string.Empty;
+
+        [SetUp]
+        public void SetUp()
+        {
+            _tempRoot = Path.Combine(Path.GetTempPath(), "amt_autoexec_tests_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_tempRoot);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            try { if (Directory.Exists(_tempRoot)) Directory.Delete(_tempRoot, true); } catch { /* best-effort cleanup */ }
+        }
+
+        // Wires the real FileTransactionFactory so the transactional write path is exercised end-to-end.
+        private AutoexecService CreateService(out TestLogger logger)
+        {
+            logger = new TestLogger();
+            return new AutoexecService(new FileTransactionFactory(logger), logger);
+        }
+
+        // Creates <gamePath>/dota/cfg so GetCfgDirectory resolves to a deterministic temp folder
+        // (never the machine's real Steam install path).
+        private string CreateCfgDir()
+        {
+            var cfgDir = Path.Combine(_tempRoot, "dota", "cfg");
+            Directory.CreateDirectory(cfgDir);
+            return cfgDir;
+        }
+
         #region ParseAutoexec Tests
 
         [Test]
@@ -202,6 +238,102 @@ namespace ArdysaModsTools.Tests.Services.Misc
             Assert.That(parsed["fps_max"], Is.EqualTo("144"));
             Assert.That(parsed["r_dota_fxaa"], Is.EqualTo("1"));
             Assert.That(parsed["custom_cvar"], Is.EqualTo("test"));
+        }
+
+        #endregion
+
+        #region LoadCurrentSettingsAsync Tests
+
+        [Test]
+        public async Task LoadCurrentSettingsAsync_WhenAutoexecExists_ReturnsParsedSettings()
+        {
+            var cfgDir = CreateCfgDir();
+            await File.WriteAllTextAsync(Path.Combine(cfgDir, "autoexec.cfg"), "fps_max 144\r\nr_ssao 0\r\n");
+            var service = CreateService(out _);
+
+            var result = await service.LoadCurrentSettingsAsync(_tempRoot);
+
+            Assert.That(result["fps_max"], Is.EqualTo("144"));
+            Assert.That(result["r_ssao"], Is.EqualTo("0"));
+        }
+
+        [Test]
+        public async Task LoadCurrentSettingsAsync_WhenCfgDirExistsButNoAutoexec_ReturnsEmpty()
+        {
+            CreateCfgDir(); // cfg dir present, but no autoexec.cfg inside it
+            var service = CreateService(out _);
+
+            var result = await service.LoadCurrentSettingsAsync(_tempRoot);
+
+            Assert.That(result, Is.Empty);
+        }
+
+        #endregion
+
+        #region ApplySettingsAsync Tests
+
+        [Test]
+        public async Task ApplySettingsAsync_WritesAutoexecWithGeneratedContent()
+        {
+            var cfgDir = CreateCfgDir();
+            var service = CreateService(out var logger);
+            var settings = new Dictionary<string, string> { { "fps_max", "144" } };
+
+            await service.ApplySettingsAsync(_tempRoot, settings);
+
+            var written = await File.ReadAllTextAsync(Path.Combine(cfgDir, "autoexec.cfg"));
+            Assert.That(written, Does.Contain("DOTA 2 AUTOEXEC.CFG"));
+            Assert.That(written, Does.Contain("fps_max 144"));
+            Assert.That(logger.ErrorCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void ApplySettingsAsync_WhenCfgFolderMissing_ThrowsDirectoryNotFound()
+        {
+            // _tempRoot has no dota/cfg or cfg subfolder, so the resolver returns empty and Apply must throw.
+            var service = CreateService(out _);
+            var settings = new Dictionary<string, string> { { "fps_max", "144" } };
+
+            Assert.That(
+                async () => await service.ApplySettingsAsync(_tempRoot, settings),
+                Throws.InstanceOf<DirectoryNotFoundException>());
+        }
+
+        [Test]
+        public void ApplySettingsAsync_WhenWriteFails_SurfacesErrorAndLeavesFolderIntact()
+        {
+            var cfgDir = CreateCfgDir();
+            // Force the write to fail: occupy the target path with a directory so WriteAllText cannot create the file.
+            var blockingDir = Path.Combine(cfgDir, "autoexec.cfg");
+            Directory.CreateDirectory(blockingDir);
+            var service = CreateService(out var logger);
+            var settings = new Dictionary<string, string> { { "fps_max", "144" } };
+
+            Assert.That(
+                async () => await service.ApplySettingsAsync(_tempRoot, settings),
+                Throws.Exception);
+
+            // The transaction rolled back; nothing should be corrupted and the error is logged.
+            Assert.That(Directory.Exists(blockingDir), Is.True);
+            Assert.That(logger.HasLogContaining("Transaction failed"), Is.True);
+        }
+
+        #endregion
+
+        #region ExportCfgAsync Tests
+
+        [Test]
+        public async Task ExportCfgAsync_WritesGeneratedContentToTargetPath()
+        {
+            var service = CreateService(out _);
+            var exportPath = Path.Combine(_tempRoot, "exported_autoexec.cfg");
+            var settings = new Dictionary<string, string> { { "fps_max", "240" } };
+
+            await service.ExportCfgAsync(exportPath, settings);
+
+            var written = await File.ReadAllTextAsync(exportPath);
+            Assert.That(written, Does.Contain("fps_max 240"));
+            Assert.That(written, Does.Contain("End of ArdysaModsTools autoexec.cfg"));
         }
 
         #endregion

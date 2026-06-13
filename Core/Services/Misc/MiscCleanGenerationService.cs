@@ -39,6 +39,7 @@ namespace ArdysaModsTools.Core.Services
         private readonly AssetModifierService _modifier;
         private readonly IVpkRecompiler _recompiler;
         private readonly IVpkReplacer _replacer;
+        private readonly IGameItemsGameExtractor _itemsGameExtractor;
         private readonly IAppLogger? _logger;
         private readonly HttpClient _httpClient;
 
@@ -53,12 +54,14 @@ namespace ArdysaModsTools.Core.Services
             AssetModifierService? modifier = null,
             IVpkRecompiler? recompiler = null,
             IVpkReplacer? replacer = null,
+            IGameItemsGameExtractor? itemsGameExtractor = null,
             IAppLogger? logger = null)
         {
             _originalProvider = originalProvider ?? new OriginalVpkService(logger: logger);
             _modifier = modifier ?? new AssetModifierService(null, logger);
             _recompiler = recompiler ?? new VpkRecompilerService(logger);
             _replacer = replacer ?? new VpkReplacerService(logger);
+            _itemsGameExtractor = itemsGameExtractor ?? new GameItemsGameExtractorService(logger);
             _logger = logger;
             _httpClient = HttpClientProvider.Client;
         }
@@ -119,6 +122,13 @@ namespace ArdysaModsTools.Core.Services
                     // Force GC after large extraction
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
+
+                    // Inject the LATEST items_game.txt from the detected Dota 2 install so Misc mods
+                    // patch the current game version off a clean base. Fatal if unavailable.
+                    if (!await _itemsGameExtractor.RefreshFromGameAsync(targetPath, extractDir, log, ct).ConfigureAwait(false))
+                        return Fail("Could not read items_game.txt from your Dota 2 install. Re-run Detect and try again.", log);
+
+                    ct.ThrowIfCancellationRequested();
 
                     // The modifier uses vpkPath to determine the dota root directory for extracting couriers/etc.
                     string dummyVpkPath = Path.Combine(modsDir, "pak01_dir.vpk");

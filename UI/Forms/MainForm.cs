@@ -77,6 +77,11 @@ namespace ArdysaModsTools
 
         private readonly IServiceProvider _serviceProvider;
 
+        // "Launching State" background asset preload + its cancellation on app close.
+        private readonly IAssetPreloadService? _assetPreloadService;
+        private readonly System.Threading.CancellationTokenSource _launchCts = new();
+        private int _lastPreloadLoggedPercent = -1;
+
         /// <summary>
         /// Default constructor is disabled. Use MainFormFactory.Create() for proper DI.
         /// </summary>
@@ -104,6 +109,7 @@ namespace ArdysaModsTools
             bool startMinimized = false)
         {
             _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            _assetPreloadService = serviceProvider.GetService(typeof(IAssetPreloadService)) as IAssetPreloadService;
             _startMinimized = startMinimized;
             // Store injected dependencies
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -310,6 +316,8 @@ namespace ArdysaModsTools
         /// </summary>
         private void MainForm_FormClosed(object? sender, FormClosedEventArgs e)
         {
+            // Cancel the background asset preload so it doesn't outlive the window.
+            try { _launchCts.Cancel(); _launchCts.Dispose(); } catch { /* best-effort */ }
             try { _presenter.Dispose(); } catch (Exception ex) { _logger.Log($"Presenter dispose failed: {ex.Message}"); }
             try { _trayService?.Dispose(); } catch (Exception ex) { _logger.Log($"TrayService dispose failed: {ex.Message}"); }
         }
@@ -361,6 +369,15 @@ namespace ArdysaModsTools
             // Initialize smart CDN selector (tests CDN speeds in background, fire-and-forget)
             _ = SmartCdnSelector.Instance.InitializeAsync();
 
+            // "Launching State": preload all gallery thumbnails into the local cache in the
+            // background so Miscellaneous / Skin Selector open instantly. Fire-and-forget; skips
+            // already-cached assets, so it's near-instant once warm. Honors the user toggle.
+            if (_assetPreloadService != null && _configService.PreloadAssetsOnLaunch)
+            {
+                var preloadProgress = new Progress<AssetPreloadProgress>(OnPreloadProgress);
+                _ = _assetPreloadService.PreloadAllAsync(preloadProgress, _launchCts.Token);
+            }
+
             // Load embedded social media icons (non-critical — a failure must not block startup)
             LoadSocialMediaIcons();
 
@@ -382,6 +399,35 @@ namespace ArdysaModsTools
 
             // Show donation reminder notification (always on startup)
             _trayService?.ShowDonationReminder();
+        }
+
+        /// <summary>
+        /// Reports "Launching State" preload progress to the console as concise, throttled lines
+        /// (every ~10%). Runs on the UI thread via the Progress&lt;T&gt; synchronization context.
+        /// </summary>
+        private void OnPreloadProgress(AssetPreloadProgress p)
+        {
+            switch (p.Phase)
+            {
+                case AssetPreloadPhase.Enumerating:
+                    _lastPreloadLoggedPercent = -1;
+                    _logger.Log("Launching State: preparing asset cache…");
+                    break;
+
+                case AssetPreloadPhase.Downloading:
+                    if (p.Total <= 0) break;
+                    int percent = (int)(p.Current * 100L / p.Total);
+                    if (percent >= _lastPreloadLoggedPercent + 10 || p.Current == p.Total)
+                    {
+                        _lastPreloadLoggedPercent = percent - (percent % 10);
+                        _logger.Log($"Launching State: caching assets… {p.Current}/{p.Total} ({percent}%)");
+                    }
+                    break;
+
+                case AssetPreloadPhase.Complete:
+                    _logger.Log("Launching State: asset cache ready.");
+                    break;
+            }
         }
 
         /// <summary>
@@ -1088,7 +1134,8 @@ namespace ArdysaModsTools
                     _lifecycleService,
                     _cacheService,
                     updaterService,
-                    _trayService
+                    _trayService,
+                    _assetPreloadService
                 );
 
                 settingsForm.ShowGuideRequested += (s, e) =>

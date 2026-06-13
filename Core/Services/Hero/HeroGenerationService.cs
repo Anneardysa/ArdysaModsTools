@@ -42,6 +42,7 @@ namespace ArdysaModsTools.Core.Services
         private readonly IHeroSetPatcher _patcher;
         private readonly IVpkRecompiler _recompiler;
         private readonly IVpkReplacer _replacer;
+        private readonly IGameItemsGameExtractor _itemsGameExtractor;
         private readonly IAppLogger? _logger;
 
         public HeroGenerationService(
@@ -50,6 +51,7 @@ namespace ArdysaModsTools.Core.Services
             IHeroSetPatcher? patcher = null,
             IVpkRecompiler? recompiler = null,
             IVpkReplacer? replacer = null,
+            IGameItemsGameExtractor? itemsGameExtractor = null,
             IAppLogger? logger = null)
         {
             _originalProvider = originalProvider ?? new OriginalVpkService(logger: logger);
@@ -57,6 +59,7 @@ namespace ArdysaModsTools.Core.Services
             _patcher = patcher ?? new HeroSetPatcherService(logger);
             _recompiler = recompiler ?? new VpkRecompilerService(logger);
             _replacer = replacer ?? new VpkReplacerService(logger);
+            _itemsGameExtractor = itemsGameExtractor ?? new GameItemsGameExtractorService(logger);
             _localizationPatcher = new LocalizationPatcherService(logger);
             _logger = logger;
         }
@@ -176,6 +179,14 @@ namespace ArdysaModsTools.Core.Services
                     // Force GC after large extraction to release memory
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
+
+                    // Inject the LATEST items_game.txt from the detected Dota 2 install so generation
+                    // always patches the current game version (and a clean base, never a stale/patched
+                    // cached copy). Fatal if unavailable — without it there is nothing to patch.
+                    if (!await _itemsGameExtractor.RefreshFromGameAsync(targetPath, extractDir, log, ct).ConfigureAwait(false))
+                        return Fail("Could not read items_game.txt from your Dota 2 install. Re-run Detect and try again.", log);
+
+                    ct.ThrowIfCancellationRequested();
 
                     // Collect all index blocks from all heroes for merged patching
                     var mergedBlocks = new Dictionary<string, (string block, string heroId)>();

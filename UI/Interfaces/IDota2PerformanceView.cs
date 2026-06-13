@@ -6,7 +6,7 @@ namespace ArdysaModsTools.UI.Interfaces
     public interface IDota2PerformanceView
     {
         Task LoadSettingsAsync(string jsonSettings);
-        void ShowToast(string message, string type);
+        Task ShowToastAsync(string message, string type);
         void InvokeSafeClose();
         void StartDrag();
         void CopyTextToClipboard(string text);

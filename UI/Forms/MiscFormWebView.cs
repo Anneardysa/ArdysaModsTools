@@ -24,9 +24,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ArdysaModsTools.Core.Controllers;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Cache;
+using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.UI.Helpers;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -143,11 +146,14 @@ namespace ArdysaModsTools.UI.Forms
         {
             try
             {
-                // Use temp folder for WebView2 user data (avoids permission issues in Program Files)
-                string tempPath = Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2");
-                var env = await CoreWebView2Environment.CreateAsync(null, tempPath);
+                // Persistent WebView2 user data (%LocalAppData%) so the browser cache survives
+                // temp cleanup and updates (avoids permission issues in Program Files).
+                var env = await WebView2EnvironmentHelper.CreateEnvironmentAsync();
                 await _webView!.EnsureCoreWebView2Async(env);
                 _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
+
+                // Serve CDN thumbnails from the persistent asset cache instead of re-downloading.
+                WebViewAssetInterceptor.Attach(_webView.CoreWebView2, env, EnvironmentConfig.ContentBase);
 
                 // Load HTML
                 var htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Html", "misc_form.html");
@@ -256,6 +262,13 @@ namespace ArdysaModsTools.UI.Forms
         private static readonly TimeSpan RefreshCooldown = TimeSpan.FromMinutes(10);
 
         /// <summary>
+        /// How long a thumbnail the CDN reported as not-found (404/403) is skipped before it is
+        /// re-checked. Prevents the overlay (and a CDN retry-storm) from re-attempting the handful
+        /// of choices that legitimately have no thumbnail on the CDN (e.g. "Default"/"Disable").
+        /// </summary>
+        private static readonly TimeSpan MissingThumbnailTtl = TimeSpan.FromDays(7);
+
+        /// <summary>
         /// Preloads all misc thumbnails with proper UI feedback.
         /// Uses 3-path caching to avoid showing the overlay on every open:
         /// 1. All cached + refreshed within cooldown -> Skip overlay entirely
@@ -288,9 +301,13 @@ namespace ArdysaModsTools.UI.Forms
 
             try
             {
-                // Separate cached vs not cached
+                // Separate cached vs not cached. Thumbnails the CDN has reported as not-found
+                // (within the TTL) are treated as neither — so the overlay never re-downloads
+                // the handful of choices that legitimately have no thumbnail on the CDN.
                 var cached = allUrls.Where(u => cacheService.IsCached(u)).ToList();
-                var notCached = allUrls.Where(u => !cacheService.IsCached(u)).ToList();
+                var notCached = allUrls
+                    .Where(u => !cacheService.IsCached(u) && !cacheService.IsKnownMissing(u, MissingThumbnailTtl))
+                    .ToList();
                 
                 System.Diagnostics.Debug.WriteLine(
                     $"[MiscForm] Thumbnails: {cached.Count} cached, {notCached.Count} missing");

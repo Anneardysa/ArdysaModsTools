@@ -172,6 +172,10 @@ namespace ArdysaModsTools.Core.Services.Cdn
                 // Use SmartCdnSelector for speed-optimized, circuit-breaker-aware CDN order.
                 var cdnUrls = SmartCdnSelector.Instance.GetOrderedCdnUrls();
 
+                // Tracks whether every CDN this pass returned a definitive not-found (404/403).
+                // If so, the asset is simply absent — there's no point retrying the whole chain.
+                bool allNotFoundThisPass = true;
+
                 foreach (var cdnBase in cdnUrls)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -208,12 +212,30 @@ namespace ArdysaModsTools.Core.Services.Cdn
                     catch (Exception ex)
                     {
                         lastError = ex.Message;
-                        SmartCdnSelector.Instance.ReportFailure(cdnBase);
+
+                        // A definitive not-found (404/403) means the asset is absent — NOT that
+                        // the CDN is unhealthy. Don't trip the circuit breaker for it (doing so
+                        // would wrongly degrade real downloads for 120s).
+                        bool isNotFound = ex is HttpRequestException hre &&
+                            (hre.StatusCode == System.Net.HttpStatusCode.NotFound ||
+                             hre.StatusCode == System.Net.HttpStatusCode.Forbidden);
+
+                        if (!isNotFound)
+                        {
+                            allNotFoundThisPass = false;
+                            SmartCdnSelector.Instance.ReportFailure(cdnBase);
+                        }
+
                         Debug.WriteLine($"[CdnFallback] Failed: {targetUrl} -> {ex.Message}");
                     }
 
                     fallbackCount++;
                 }
+
+                // Every CDN returned a definitive not-found — the asset doesn't exist. Skip any
+                // remaining retry passes (no point re-sweeping the chain for a missing file).
+                if (allNotFoundThisPass)
+                    break;
             }
 
             stopwatch.Stop();

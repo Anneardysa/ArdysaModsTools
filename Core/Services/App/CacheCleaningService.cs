@@ -139,6 +139,20 @@ namespace ArdysaModsTools.Core.Services.App
                 FallbackLogger.Log($"[CacheCleaningService] Error accessing AssetCacheService: {ex.Message}");
             }
 
+            // 4. Add persistent WebView2 user-data folder (%LOCALAPPDATA%). Files in use while
+            //    the app is running are skipped gracefully; the rest is freed.
+            try
+            {
+                if (Directory.Exists(WebView2EnvironmentHelper.UserDataFolder))
+                {
+                    folders.Add(new CacheFolder(WebView2EnvironmentHelper.UserDataFolder, "WebView2", deleteRoot: false));
+                }
+            }
+            catch (Exception ex)
+            {
+                FallbackLogger.Log($"[CacheCleaningService] Error accessing WebView2 folder: {ex.Message}");
+            }
+
             return folders;
         }
 

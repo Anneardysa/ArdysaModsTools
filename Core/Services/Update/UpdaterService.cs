@@ -1110,19 +1110,28 @@ namespace ArdysaModsTools.Core.Services.Update
                     _logger.Log($"Could not clean leftover update files: {ex.Message}");
                 }
 
-                // 3. Clean up WebView2 temp folder used by progress overlay
+                // 3. Clean up WebView2 user-data folders (persistent + legacy temp) so the
+                //    browser HTML/runtime cache is refreshed after an update. Thumbnails now
+                //    live in the separate AssetCache, so this no longer forces re-downloads.
                 try
                 {
-                    string webViewTemp = Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2");
-                    if (Directory.Exists(webViewTemp))
+                    string[] webViewFolders =
                     {
-                        Directory.Delete(webViewTemp, true);
-                        _logger.Log("Cleaned WebView2 temp folder");
+                        WebView2EnvironmentHelper.UserDataFolder,
+                        Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2") // legacy
+                    };
+                    foreach (var webViewFolder in webViewFolders)
+                    {
+                        if (Directory.Exists(webViewFolder))
+                        {
+                            Directory.Delete(webViewFolder, true);
+                            _logger.Log($"Cleaned WebView2 folder: {webViewFolder}");
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.Log($"Could not clean WebView2 temp: {ex.Message}");
+                    _logger.Log($"Could not clean WebView2 folder: {ex.Message}");
                 }
             }).ConfigureAwait(false);
 

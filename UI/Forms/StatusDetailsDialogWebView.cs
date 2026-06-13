@@ -22,6 +22,7 @@ using System.Windows.Forms;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using Microsoft.Web.WebView2.Core;
+using ArdysaModsTools.Core.Helpers;
 using Microsoft.Web.WebView2.WinForms;
 
 namespace ArdysaModsTools.UI.Forms
@@ -132,8 +133,8 @@ namespace ArdysaModsTools.UI.Forms
         {
             if (_initialized || _disposed) return;
 
-            string tempPath = Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2");
-            var env = await CoreWebView2Environment.CreateAsync(null, tempPath);
+            // Persistent WebView2 user data (%LocalAppData%) so the browser cache survives temp cleanup.
+            var env = await WebView2EnvironmentHelper.CreateEnvironmentAsync();
             await _webView!.EnsureCoreWebView2Async(env);
 
             // Configure WebView2

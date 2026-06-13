@@ -61,6 +61,12 @@ namespace ArdysaModsTools.Core.Interfaces
         bool ShowNotifications { get; set; }
 
         /// <summary>
+        /// Gets or sets whether to preload all gallery asset images into the local cache at
+        /// app launch (the "Launching State" feature). Default true.
+        /// </summary>
+        bool PreloadAssetsOnLaunch { get; set; }
+
+        /// <summary>
         /// Saves all pending configuration changes.
         /// </summary>
         void Save();

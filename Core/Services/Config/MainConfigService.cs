@@ -104,6 +104,7 @@ namespace ArdysaModsTools.Core.Services.Config
         // Config keys for common settings
         private const string KeyMinimizeToTray = "MinimizeToTray";
         private const string KeyShowNotifications = "ShowNotifications";
+        private const string KeyPreloadAssetsOnLaunch = "PreloadAssetsOnLaunch";
 
         /// <inheritdoc />
         public bool MinimizeToTray
@@ -117,6 +118,13 @@ namespace ArdysaModsTools.Core.Services.Config
         {
             get => GetValue(KeyShowNotifications, true);
             set { SetValue(KeyShowNotifications, value); Save(); }
+        }
+
+        /// <inheritdoc />
+        public bool PreloadAssetsOnLaunch
+        {
+            get => GetValue(KeyPreloadAssetsOnLaunch, true);
+            set { SetValue(KeyPreloadAssetsOnLaunch, value); Save(); }
         }
 
         /// <inheritdoc />

@@ -26,11 +26,14 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ArdysaModsTools.Core.DependencyInjection;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Cache;
+using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Models;
+using ArdysaModsTools.UI.Helpers;
 using ArdysaModsTools.UI.Interfaces;
 using ArdysaModsTools.UI.Presenters;
 
@@ -168,17 +171,21 @@ namespace ArdysaModsTools.UI.Forms
 
             try
             {
-                // Use temp folder for WebView2 user data
-                string tempPath = Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2");
-                var env = await CoreWebView2Environment.CreateAsync(null, tempPath);
+                // Persistent WebView2 user data (%LocalAppData%) so the browser cache survives
+                // temp cleanup and updates.
+                var env = await WebView2EnvironmentHelper.CreateEnvironmentAsync();
 
                 await _webView!.EnsureCoreWebView2Async(env);
                 _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
-                _webView.CoreWebView2.Settings.AreDevToolsEnabled = 
+                _webView.CoreWebView2.Settings.AreDevToolsEnabled =
                     System.Diagnostics.Debugger.IsAttached; // Enable DevTools in debug mode
 
                 // Handle messages from JavaScript
                 _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
+
+                // Serve CDN set thumbnails from the persistent asset cache instead of re-downloading.
+                // Hero default portraits live on a different host (steamstatic) and are left untouched.
+                WebViewAssetInterceptor.Attach(_webView.CoreWebView2, env, EnvironmentConfig.ContentBase);
 
                 // Load HTML
                 string html = GetGalleryHtml();
@@ -420,8 +427,12 @@ namespace ArdysaModsTools.UI.Forms
             }
 
             // ── Step 2: Partition into cached vs missing ────────────────────
+            // Sets the CDN has reported as not-found (within the TTL) are excluded so the
+            // overlay never re-downloads thumbnails that don't exist on the CDN.
             var cached = allUrls.Where(u => cacheService.IsCached(u)).ToList();
-            var notCached = allUrls.Where(u => !cacheService.IsCached(u)).ToList();
+            var notCached = allUrls
+                .Where(u => !cacheService.IsCached(u) && !cacheService.IsKnownMissing(u, MissingThumbnailTtl))
+                .ToList();
 
             System.Diagnostics.Debug.WriteLine(
                 $"[HeroGallery] Thumbnails: {cached.Count} cached, {notCached.Count} missing");
@@ -469,6 +480,12 @@ namespace ArdysaModsTools.UI.Forms
         /// Within this window, subsequent skin selector opens skip the overlay entirely.
         /// </summary>
         private static readonly TimeSpan RefreshCooldown = TimeSpan.FromMinutes(10);
+
+        /// <summary>
+        /// How long a set thumbnail the CDN reported as not-found (404/403) is skipped before it
+        /// is re-checked, so the overlay doesn't re-attempt sets with no thumbnail on the CDN.
+        /// </summary>
+        private static readonly TimeSpan MissingThumbnailTtl = TimeSpan.FromDays(7);
 
         /// <summary>
         /// Collect all set thumbnail URLs from hero models.

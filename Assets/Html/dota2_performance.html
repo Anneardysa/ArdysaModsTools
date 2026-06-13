@@ -387,8 +387,11 @@
             <div id="tabLaunch" class="flex-1 overflow-y-auto p-5 space-y-4 hidden">
                <div class="glass rounded-lg p-5 fade-in">
                   <div class="text-base font-bold tracking-wider mb-1">[ LAUNCH_OPTIONS ]</div>
-                  <div class="text-xs text-amt-text-muted mb-4">
+                  <div class="text-xs text-amt-text-muted mb-1">
                      // steam > right-click dota 2 > properties > launch options
+                  </div>
+                  <div class="text-xs text-amt-warning/80 mb-4">
+                     // copy-only — NOT written by [ APPLY ]. your selection is remembered automatically.
                   </div>
                   <div id="launchTags" class="flex flex-wrap gap-2 mb-5"></div>
                   <div class="text-[11px] text-amt-text-muted/60 mb-2 tracking-wider">
@@ -833,6 +836,36 @@
          let enabledLaunchOptions = {};
          let customLaunchOptions = [];
 
+         // Launch options have no other source of truth (the app can't write Steam's launch
+         // options), so persist the user's selection in localStorage. The WebView2 user-data
+         // folder is persistent, so this survives across sessions.
+         const LS_LAUNCH_ENABLED = "amt_launch_enabled";
+         const LS_LAUNCH_CUSTOM = "amt_launch_custom";
+
+         function saveLaunchOptions() {
+            try {
+               localStorage.setItem(LS_LAUNCH_ENABLED, JSON.stringify(enabledLaunchOptions));
+               localStorage.setItem(LS_LAUNCH_CUSTOM, JSON.stringify(customLaunchOptions));
+            } catch (e) {
+               console.error("saveLaunchOptions error:", e);
+            }
+         }
+
+         function loadLaunchOptions() {
+            try {
+               const savedEnabled = localStorage.getItem(LS_LAUNCH_ENABLED);
+               const savedCustom = localStorage.getItem(LS_LAUNCH_CUSTOM);
+               if (savedEnabled) enabledLaunchOptions = JSON.parse(savedEnabled);
+               if (savedCustom) customLaunchOptions = JSON.parse(savedCustom);
+            } catch (e) {
+               console.error("loadLaunchOptions error:", e);
+            }
+            // Seed defaults for any flags missing from the saved set (e.g. flags added by an app update).
+            LAUNCH_OPTIONS.forEach((opt) => {
+               if (enabledLaunchOptions[opt.flag] === undefined) enabledLaunchOptions[opt.flag] = opt.default;
+            });
+         }
+
          // ═══════════════════════════════════════════════════════════
          // PRESETS
          // ═══════════════════════════════════════════════════════════
@@ -1253,6 +1286,7 @@
             const opt = LAUNCH_OPTIONS.find((o) => o.flag === flag);
             const current = enabledLaunchOptions[flag] ?? (opt ? opt.default : false);
             enabledLaunchOptions[flag] = !current;
+            saveLaunchOptions();
             renderLaunchOptions();
          }
 
@@ -1262,12 +1296,14 @@
             if (val) {
                customLaunchOptions.push(val);
                input.value = "";
+               saveLaunchOptions();
                renderLaunchOptions();
             }
          }
 
          function removeCustomLaunch(idx) {
             customLaunchOptions.splice(idx, 1);
+            saveLaunchOptions();
             renderLaunchOptions();
          }
 
@@ -1394,9 +1430,7 @@
                   currentValues[cvar] = cfg.default;
                }
             }
-            LAUNCH_OPTIONS.forEach((opt) => {
-               enabledLaunchOptions[opt.flag] = opt.default;
-            });
+            loadLaunchOptions();
             renderSettings();
             renderLaunchOptions();
             applyPreset("competitive");

@@ -39,17 +39,19 @@ namespace ArdysaModsTools.UI.Presenters
                 {
                     var json = JsonSerializer.Serialize(settings);
                     await _view.LoadSettingsAsync(json);
-                    _view.ShowToast($"Loaded {settings.Count} settings from autoexec.cfg", "success");
+                    await _view.ShowToastAsync($"Loaded {settings.Count} settings from autoexec.cfg", "success");
                 }
                 else
                 {
-                    _view.ShowToast("No autoexec.cfg found. Using defaults.", "info");
+                    // No saved cfg: the view starts on a recommended preset, so say that rather
+                    // than claiming raw defaults (which would contradict what the grid shows).
+                    await _view.ShowToastAsync("No autoexec.cfg found — showing a recommended preset to start from.", "info");
                 }
             }
             catch (Exception ex)
             {
                 _logService.LogError($"[Dota2PerformancePresenter] Failed to load initial settings: {ex.Message}", ex);
-                _view.ShowToast($"Error loading autoexec.cfg: {ex.Message}", "error");
+                await _view.ShowToastAsync($"Error loading autoexec.cfg: {ex.Message}", "error");
             }
         }
 
@@ -64,13 +66,13 @@ namespace ArdysaModsTools.UI.Presenters
 
                 await _autoexecService.ApplySettingsAsync(_gamePath, settings);
 
-                _view.ShowToast("autoexec.cfg saved successfully!", "success");
+                await _view.ShowToastAsync("autoexec.cfg saved successfully!", "success");
                 await _view.LoadSettingsAsync(jsonSettings); // Reload to reflect what was saved
             }
             catch (Exception ex)
             {
                 _logService.LogError($"[Dota2PerformancePresenter] Failed to apply settings: {ex.Message}", ex);
-                _view.ShowToast($"Error: {ex.Message}", "error");
+                await _view.ShowToastAsync($"Error: {ex.Message}", "error");
             }
         }
 
@@ -87,12 +89,12 @@ namespace ArdysaModsTools.UI.Presenters
                 if (string.IsNullOrEmpty(exportPath)) return;
 
                 await _autoexecService.ExportCfgAsync(exportPath, settings);
-                _view.ShowToast($"Exported to {System.IO.Path.GetFileName(exportPath)}", "success");
+                await _view.ShowToastAsync($"Exported to {System.IO.Path.GetFileName(exportPath)}", "success");
             }
             catch (Exception ex)
             {
                 _logService.LogError($"[Dota2PerformancePresenter] Failed to export cfg: {ex.Message}", ex);
-                _view.ShowToast($"Export failed: {ex.Message}", "error");
+                await _view.ShowToastAsync($"Export failed: {ex.Message}", "error");
             }
         }
     }

@@ -24,6 +24,7 @@ using ArdysaModsTools.Core.Services.Update;
 using ArdysaModsTools.Core.Services.Update.Models;
 using ArdysaModsTools.Core.Constants;
 using Microsoft.Web.WebView2.Core;
+using ArdysaModsTools.Core.Helpers;
 using Microsoft.Web.WebView2.WinForms;
 
 namespace ArdysaModsTools.UI.Forms
@@ -105,8 +106,8 @@ namespace ArdysaModsTools.UI.Forms
             try
             {
                 // Use temp folder for WebView2 user data
-                string tempPath = Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2");
-                var env = await CoreWebView2Environment.CreateAsync(null, tempPath);
+                // Persistent WebView2 user data (%LocalAppData%) so the browser cache survives temp cleanup.
+                var env = await WebView2EnvironmentHelper.CreateEnvironmentAsync();
                 await _webView!.EnsureCoreWebView2Async(env);
                 _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 

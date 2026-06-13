@@ -1206,8 +1206,16 @@
             }
          }
 
+         // Mirror C# MiscOption.IsDefaultChoice: the "Default …"/"Disable …" no-op choices have
+         // no CDN thumbnail, so skip the request entirely and let the placeholder render.
+         function isDefaultChoice(name) {
+            const n = (name || "").replace(/^\s+/, "").toLowerCase();
+            return n.startsWith("default") || n.startsWith("disable");
+         }
+
          function getThumbUrl(opt, choiceId) {
             if (!opt.thumbnailPattern) return null;
+            if (isDefaultChoice(choiceId)) return null;
             // Mirror C# sanitization: strip non-alphanumeric (except space/hyphen), trim, lowercase, replace spaces
             const safe = choiceId
                .replace(/[^\w\s\-]/g, "")

@@ -83,16 +83,44 @@ namespace ArdysaModsTools.Core.Models
             // First check if we have a derived thumbnail URL for this choice
             if (ChoiceThumbnails.TryGetValue(choice, out var thumbUrl))
                 return thumbUrl;
-            
+
+            // The "Default …"/"Disable …" no-op choices have no CDN thumbnail by design — skip the
+            // fetch entirely (the UI shows a placeholder) for a faster open and no 404 round-trips.
+            if (IsDefaultChoice(choice)) return null;
+
             // Fall back to pattern-based URL
             if (string.IsNullOrEmpty(ThumbnailUrlPattern)) return null;
-            
-            // Convert choice to URL-safe format (lowercase, replace spaces with underscores)
-            var safeChoice = choice.ToLowerInvariant()
-                .Replace(" ", "_")
-                .Replace("-", "_");
-            
-            return ThumbnailUrlPattern.Replace("{choice}", safeChoice);
+
+            return ThumbnailUrlPattern.Replace("{choice}", SanitizeChoice(choice));
+        }
+
+        /// <summary>
+        /// True for the "no change / disable" choices (the first choice of each option) that have
+        /// no CDN thumbnail. MUST mirror <c>isDefaultChoice()</c> in <c>misc_form.html</c>.
+        /// </summary>
+        public static bool IsDefaultChoice(string choice)
+        {
+            if (string.IsNullOrEmpty(choice)) return false;
+            var n = choice.TrimStart().ToLowerInvariant();
+            return n.StartsWith("default") || n.StartsWith("disable");
+        }
+
+        /// <summary>
+        /// Converts a choice name to the CDN thumbnail filename convention.
+        /// MUST stay identical to the JS implementation in <c>misc_form.html getThumbUrl()</c>
+        /// so the C# preload, the WebView interceptor cache and the browser all resolve the
+        /// same key — otherwise cached thumbnails look "missing" and the overlay re-downloads.
+        /// Convention: drop everything except ASCII word chars, whitespace and hyphens; trim;
+        /// lowercase; convert spaces to underscores. Hyphens are preserved (e.g. "Anti-Mage"
+        /// -> "anti-mage", "Collector's" -> "collectors", "A &amp; B" -> "a__b").
+        /// </summary>
+        public static string SanitizeChoice(string choice)
+        {
+            if (string.IsNullOrEmpty(choice)) return string.Empty;
+
+            // [^A-Za-z0-9_\s-] mirrors JS /[^\w\s\-]/ where \w is ASCII-only (unlike .NET \w).
+            var stripped = System.Text.RegularExpressions.Regex.Replace(choice, @"[^A-Za-z0-9_\s-]", "");
+            return stripped.Trim().ToLowerInvariant().Replace(" ", "_");
         }
     }
 }

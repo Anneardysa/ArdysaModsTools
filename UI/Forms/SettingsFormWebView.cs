@@ -26,6 +26,7 @@ using ArdysaModsTools.Core.Services.App;
 using ArdysaModsTools.Core.Services.Update;
 using ArdysaModsTools.UI.Services;
 using Microsoft.Web.WebView2.Core;
+using ArdysaModsTools.Core.Helpers;
 using Microsoft.Web.WebView2.WinForms;
 
 namespace ArdysaModsTools.UI.Forms
@@ -43,6 +44,7 @@ namespace ArdysaModsTools.UI.Forms
         private readonly CacheCleaningService _cacheService;
         private readonly UpdaterService _updaterService;
         private readonly TrayService? _trayService;
+        private readonly IAssetPreloadService? _assetPreloadService;
 
         /// <summary>
         /// Fired when the user requests to re-show the onboarding guide from Settings.
@@ -64,13 +66,15 @@ namespace ArdysaModsTools.UI.Forms
             AppLifecycleService lifecycleService,
             CacheCleaningService cacheService,
             UpdaterService updaterService,
-            TrayService? trayService)
+            TrayService? trayService,
+            IAssetPreloadService? assetPreloadService = null)
         {
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _lifecycleService = lifecycleService ?? throw new ArgumentNullException(nameof(lifecycleService));
             _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
             _updaterService = updaterService ?? throw new ArgumentNullException(nameof(updaterService));
             _trayService = trayService;
+            _assetPreloadService = assetPreloadService;
 
             InitializeComponent();
             SetupForm();
@@ -121,8 +125,8 @@ namespace ArdysaModsTools.UI.Forms
             try
             {
                 // Use temp folder for WebView2 user data
-                string tempPath = Path.Combine(Path.GetTempPath(), "ArdysaModsTools.WebView2");
-                var env = await CoreWebView2Environment.CreateAsync(null, tempPath);
+                // Persistent WebView2 user data (%LocalAppData%) so the browser cache survives temp cleanup.
+                var env = await WebView2EnvironmentHelper.CreateEnvironmentAsync();
                 await _webView!.EnsureCoreWebView2Async(env);
                 _webView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
@@ -200,7 +204,8 @@ namespace ArdysaModsTools.UI.Forms
             {
                 startup = _lifecycleService.IsRunOnStartupEnabled,
                 tray = _configService.MinimizeToTray,
-                notifications = _configService.ShowNotifications
+                notifications = _configService.ShowNotifications,
+                preloadAssets = _configService.PreloadAssetsOnLaunch
             };
 
             var json = JsonSerializer.Serialize(settings);
@@ -298,6 +303,14 @@ namespace ArdysaModsTools.UI.Forms
                         _trayService?.SetNotificationsEnabled(value);
                         await ExecuteScriptAsync($"showToast('Notifications {(value ? "enabled" : "disabled")}', 'success')");
                         break;
+
+                    case "preloadAssets":
+                        _configService.PreloadAssetsOnLaunch = value;
+                        await ExecuteScriptAsync($"showToast('Preload assets on launch {(value ? "enabled" : "disabled")}', 'success')");
+                        // Enabling mid-session: warm the cache now so the user gets the benefit immediately.
+                        if (value && _assetPreloadService != null)
+                            _ = _assetPreloadService.PreloadAllAsync();
+                        break;
                 }
             }
             catch (Exception ex)
@@ -342,6 +355,9 @@ namespace ArdysaModsTools.UI.Forms
                     await ExecuteScriptAsync($"showToast('{EscapeJs(msg)}', 'success')");
                     // Re-calculate actual remaining size (protected folders still have data)
                     await LoadCacheSizeAsync();
+                    // Re-arm the Launching State preload so the cache refills without a restart.
+                    if (_configService.PreloadAssetsOnLaunch && _assetPreloadService != null)
+                        _ = _assetPreloadService.PreloadAllAsync();
                 }
                 else
                 {

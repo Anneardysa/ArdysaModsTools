@@ -58,8 +58,17 @@ namespace ArdysaModsTools.Core.Services
         /// Asset path within the ModsPack repo for Original.zip.
         /// </summary>
         private const string OriginalZipAssetPath = "Assets/Original.zip";
-        
-        
+
+        /// <summary>
+        /// Suffix for the cache-validity marker written next to (not inside) the extracted-VPK folder
+        /// once HLExtract succeeds. Used as the cache sentinel instead of items_game.txt, which is no
+        /// longer guaranteed to be present in Original.zip (it is injected later from the detected
+        /// Dota 2 install). Kept outside the folder so vpk.exe never packs it into the mod VPK.
+        /// </summary>
+        private const string BaseReadyMarkerSuffix = ".ready";
+
+
+
         private readonly HttpClient _httpClient;
         private readonly IVpkExtractor _extractor;
         private readonly string _cacheRoot;
@@ -88,10 +97,10 @@ namespace ArdysaModsTools.Core.Services
             var zipPath = Path.Combine(_cacheRoot, "Original.zip");
             var zipExtractDir = Path.Combine(_cacheRoot, "zip_contents");
             var vpkExtractDir = Path.Combine(_cacheRoot, "vpk_extracted");
+            var baseReadyMarker = vpkExtractDir + BaseReadyMarkerSuffix;
 
-            // FAST PATH: Check if VPK is already fully extracted
-            if (Directory.Exists(vpkExtractDir) && 
-                File.Exists(Path.Combine(vpkExtractDir, "scripts", "items", "items_game.txt")))
+            // FAST PATH: Check if VPK is already fully extracted (marker written after a good extract)
+            if (Directory.Exists(vpkExtractDir) && File.Exists(baseReadyMarker))
             {
                 log("Using cached base files...");
                 return vpkExtractDir;
@@ -176,8 +185,7 @@ namespace ArdysaModsTools.Core.Services
             // Extract VPK
             Directory.CreateDirectory(vpkExtractDir);
             
-            if (Directory.Exists(vpkExtractDir) && 
-                !File.Exists(Path.Combine(vpkExtractDir, "scripts", "items", "items_game.txt")))
+            if (Directory.Exists(vpkExtractDir) && !File.Exists(baseReadyMarker))
             {
                 Directory.Delete(vpkExtractDir, true);
                 Directory.CreateDirectory(vpkExtractDir);
@@ -191,14 +199,21 @@ namespace ArdysaModsTools.Core.Services
                 throw new FileNotFoundException("HLExtract.exe not found");
             }
 
+            // items_game.txt is no longer required in Original.zip — it is injected per-run from the
+            // detected Dota 2 install, so don't fail extraction on its absence (requireItemsGame:false).
             var extractSuccess = await _extractor.ExtractAsync(
-                hlExtractPath, vpkPath, vpkExtractDir, log, ct).ConfigureAwait(false);
+                hlExtractPath, vpkPath, vpkExtractDir, log, ct, null, requireItemsGame: false).ConfigureAwait(false);
 
             if (!extractSuccess)
             {
                 try { Directory.Delete(vpkExtractDir, true); } catch { }
                 throw new Exception("Failed to extract pak01_dir.vpk using HLExtract");
             }
+
+            // Mark the extracted folder valid so subsequent runs can use the fast path.
+            // Marker lives beside the folder so vpk.exe never packs it into the mod VPK.
+            try { File.WriteAllText(baseReadyMarker, string.Empty); }
+            catch (Exception ex) { _logger?.Log($"OriginalVpkService: failed to write base-ready marker: {ex.Message}"); }
 
             log("Base files ready!");
             return vpkExtractDir;
