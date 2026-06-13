@@ -71,6 +71,18 @@ namespace ArdysaModsTools.Core.Services.Update.Models
         /// Mirror download URL for portable on R2 CDN (faster for some regions).
         /// </summary>
         public string? MirrorPortableUrl { get; set; }
+
+        /// <summary>
+        /// Expected SHA-256 (uppercase hex) of the installer (*_Setup_*.exe), when published in
+        /// releases.json. Null/empty = no verification (backward compatible).
+        /// </summary>
+        public string? InstallerSha256 { get; set; }
+
+        /// <summary>
+        /// Expected SHA-256 (uppercase hex) of the portable artifact, when published in
+        /// releases.json. Null/empty = no verification (backward compatible).
+        /// </summary>
+        public string? PortableSha256 { get; set; }
     }
 }
 

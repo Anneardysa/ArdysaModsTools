@@ -24,6 +24,7 @@ using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Helpers;
@@ -82,13 +83,19 @@ namespace ArdysaModsTools.Core.Services.Cdn
         /// <param name="progress">Progress reporter (0-100%).</param>
         /// <param name="speedProgress">Speed metrics reporter.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <param name="expected">
+        /// Optional expected SHA-256/size. When supplied, the completed file is verified before
+        /// being promoted to the destination; a mismatch rejects the file and falls through to the
+        /// next CDN. When null, only the existing size-completeness check applies.
+        /// </param>
         public async Task DownloadAsync(
             string[] urls,
             string destPath,
             Action<string>? log = null,
             IProgress<int>? progress = null,
             IProgress<SpeedMetrics>? speedProgress = null,
-            CancellationToken ct = default)
+            CancellationToken ct = default,
+            AssetHashEntry? expected = null)
         {
             if (urls == null || urls.Length == 0)
                 throw new ArgumentException("At least one download URL is required.", nameof(urls));
@@ -117,63 +124,104 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
             int totalCdns = urls.Length;
             string? lastError = null;
+            bool hashMismatch = false;
 
-            for (int cdnIdx = 0; cdnIdx < totalCdns; cdnIdx++)
+            // Sweep the whole CDN chain up to ChainRetryPasses times. Each per-CDN attempt is
+            // itself retried for transient errors (resuming from the .partial file), so a flaky
+            // connection recovers without losing progress.
+            int passes = Math.Max(1, CdnConfig.ChainRetryPasses);
+            for (int pass = 0; pass < passes; pass++)
             {
-                ct.ThrowIfCancellationRequested();
-
-                string url = urls[cdnIdx];
-                string cdnName = GetCdnDisplayName(url);
-
-                if (cdnIdx > 0)
+                if (pass > 0)
                 {
-                    log?.Invoke($"Trying {cdnName} ({cdnIdx + 1}/{totalCdns})...");
-                    Debug.WriteLine($"[ResumableDL] CDN fallback to {cdnName}: {url}");
+                    await Task.Delay(DownloadRetryPolicy.GetBackoffDelay(pass), ct).ConfigureAwait(false);
+                    Debug.WriteLine($"[ResumableDL] Retrying full CDN chain (pass {pass + 1}/{passes})");
                 }
 
-                try
+                for (int cdnIdx = 0; cdnIdx < totalCdns; cdnIdx++)
                 {
-                    await DownloadFromUrlAsync(
-                        url, partialPath, existingBytes,
-                        log, progress, speedProgress, ct
-                    ).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
 
-                    // Download complete — rename .partial to final destination
-                    if (File.Exists(destPath))
-                        File.Delete(destPath);
+                    string url = urls[cdnIdx];
+                    string cdnName = GetCdnDisplayName(url);
+                    string cdnBase = CdnConfig.ExtractBaseUrl(url) ?? url;
 
-                    File.Move(partialPath, destPath);
-
-                    Debug.WriteLine($"[ResumableDL] Complete via {cdnName}: {destPath}");
-                    return; // Success!
-                }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                {
-                    throw; // User cancelled
-                }
-                catch (Exception ex)
-                {
-                    lastError = ex.Message;
-                    Debug.WriteLine($"[ResumableDL] {cdnName} failed: {ex.Message}");
-
-                    // Report failure to SmartCdnSelector
-                    SmartCdnSelector.Instance.ReportFailure(url);
-
-                    // Update existing bytes — partial file may have grown
-                    if (File.Exists(partialPath))
+                    if (cdnIdx > 0 || pass > 0)
                     {
-                        existingBytes = new FileInfo(partialPath).Length;
+                        log?.Invoke($"Trying {cdnName} ({cdnIdx + 1}/{totalCdns})...");
+                        Debug.WriteLine($"[ResumableDL] CDN fallback to {cdnName}: {url}");
                     }
 
-                    if (cdnIdx < totalCdns - 1)
+                    try
                     {
-                        log?.Invoke($"{cdnName} failed, switching to next server...");
+                        // Retry transient failures (stall, 5xx/429, mid-stream I/O) on this CDN,
+                        // re-reading the partial size each attempt so we resume rather than restart.
+                        await DownloadRetryPolicy.ExecuteWithRetryAsync<bool>(
+                            async token =>
+                            {
+                                long existing = File.Exists(partialPath) ? new FileInfo(partialPath).Length : 0;
+                                await DownloadFromUrlAsync(
+                                    url, partialPath, existing,
+                                    log, progress, speedProgress, token
+                                ).ConfigureAwait(false);
+                                return true;
+                            },
+                            log,
+                            ct).ConfigureAwait(false);
+
+                        // Integrity gate: verify the completed file before promoting it. A bad copy
+                        // from one CDN is rejected and the next CDN is tried (ADR-0010).
+                        if (expected != null)
+                        {
+                            bool ok = await AssetHashVerifier.VerifyFileAsync(partialPath, expected, ct).ConfigureAwait(false);
+                            if (!ok)
+                            {
+                                try { if (File.Exists(partialPath)) File.Delete(partialPath); } catch { }
+                                hashMismatch = true;
+                                throw new DownloadException(ErrorCodes.DL_HASH_MISMATCH,
+                                    $"Integrity check failed for download from {cdnName}.", url);
+                            }
+                            log?.Invoke("Integrity verified.");
+                        }
+
+                        // Download complete — rename .partial to final destination
+                        if (File.Exists(destPath))
+                            File.Delete(destPath);
+
+                        File.Move(partialPath, destPath);
+
+                        SmartCdnSelector.Instance.ReportSuccess(cdnBase);
+                        Debug.WriteLine($"[ResumableDL] Complete via {cdnName}: {destPath}");
+                        return; // Success!
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw; // User cancelled
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = ex.Message;
+                        Debug.WriteLine($"[ResumableDL] {cdnName} failed: {ex.Message}");
+
+                        // Report failure to SmartCdnSelector (keyed by base URL for the circuit breaker)
+                        SmartCdnSelector.Instance.ReportFailure(cdnBase);
+
+                        // Update existing bytes — partial file may have grown
+                        if (File.Exists(partialPath))
+                            existingBytes = new FileInfo(partialPath).Length;
+
+                        if (cdnIdx < totalCdns - 1)
+                            log?.Invoke($"{cdnName} failed, switching to next server...");
                     }
                 }
             }
 
             // All CDNs failed — clean up partial file
             try { if (File.Exists(partialPath)) File.Delete(partialPath); } catch { }
+
+            if (hashMismatch)
+                throw new DownloadException(ErrorCodes.DL_HASH_MISMATCH,
+                    $"Downloaded file failed integrity verification on all servers. ({lastError})", urls[0]);
 
             throw new HttpRequestException(
                 $"Download failed from all servers. Please check your internet connection. ({lastError})");
@@ -260,7 +308,11 @@ namespace ArdysaModsTools.Core.Services.Cdn
             if (response.StatusCode != HttpStatusCode.OK &&
                 response.StatusCode != HttpStatusCode.PartialContent)
             {
-                throw new HttpRequestException($"HTTP {(int)response.StatusCode} {response.StatusCode}");
+                // Transient statuses (5xx/429/408) are retried against this CDN; permanent
+                // ones (404/403/…) propagate so the caller falls through to the next CDN.
+                if (Core.Helpers.RetryHelper.IsTransientStatusCode(response.StatusCode))
+                    throw new TransientDownloadException($"HTTP {(int)response.StatusCode}", DownloadRetryPolicy.GetRetryAfter(response));
+                throw new HttpRequestException($"HTTP {(int)response.StatusCode}", null, response.StatusCode);
             }
 
             // If server returned 200 instead of 206, it's sending the full file
@@ -299,7 +351,6 @@ namespace ArdysaModsTools.Core.Services.Cdn
             int lastPercentReported = totalBytes > 0 ? (int)(offset * 100 / totalBytes) : 0;
             var sw = Stopwatch.StartNew();
             var lastActivityTime = DateTime.UtcNow;
-            bool stallWarningShown = false;
 
             // Speed tracking
             long speedWindowBytes = 0;

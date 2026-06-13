@@ -15,6 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -47,7 +48,13 @@ namespace ArdysaModsTools.Core.Services.Cdn
     /// - Caches results to disk
     /// - Reorders CDN priority based on speed
     /// - Retests periodically or on failures
+    /// - Applies a session circuit breaker that temporarily deprioritizes a CDN after
+    ///   repeated failures (never removes it — fallback completeness per ADR-0003)
     /// </summary>
+    // [AMT:OPUS] Drives CDN selection/ordering for the whole session (ADR-0003 / ADR-0009).
+    // The fixed fallback order (R2 → jsDelivr → GitHub Raw → ghfast.top → gh-proxy.com) must be
+    // preserved; only benchmark reordering and transient circuit-breaker demotion are permitted.
+    // Verify all CDN paths and the penalty/cooldown semantics before modifying.
     public sealed class SmartCdnSelector
     {
         #region Singleton
@@ -94,6 +101,12 @@ namespace ArdysaModsTools.Core.Services.Cdn
         private string[]? _orderedCdnUrls;
         private readonly SemaphoreSlim _testLock = new(1, 1);
         private bool _isInitialized;
+
+        /// <summary>
+        /// Session circuit-breaker state per CDN base URL. Tracks consecutive failures and a
+        /// cooldown window during which the CDN is deprioritized to the end of the order.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, CdnPenalty> _penalties = new();
 
         #endregion
 
@@ -145,15 +158,36 @@ namespace ArdysaModsTools.Core.Services.Cdn
         }
 
         /// <summary>
-        /// Get CDN URLs ordered by speed (fastest first).
+        /// Get CDN URLs ordered by speed (fastest first), with any currently-tripped CDNs
+        /// moved to the end of the list. Tripped CDNs are never dropped, preserving the
+        /// fallback completeness mandated by ADR-0003.
         /// </summary>
         public string[] GetOrderedCdnUrls()
         {
-            if (_orderedCdnUrls != null && _orderedCdnUrls.Length > 0)
-                return _orderedCdnUrls;
+            string[] baseOrder = (_orderedCdnUrls != null && _orderedCdnUrls.Length > 0)
+                ? _orderedCdnUrls
+                : CdnConfig.GetCdnBaseUrls();
 
-            // Fallback to default order if not initialized
-            return CdnConfig.GetCdnBaseUrls();
+            if (_penalties.IsEmpty)
+                return baseOrder;
+
+            var now = DateTime.UtcNow;
+            var healthy = new List<string>(baseOrder.Length);
+            var tripped = new List<string>();
+
+            foreach (var cdn in baseOrder)
+            {
+                if (IsCurrentlyTripped(cdn, now))
+                    tripped.Add(cdn);
+                else
+                    healthy.Add(cdn);
+            }
+
+            if (tripped.Count == 0)
+                return baseOrder;
+
+            healthy.AddRange(tripped);
+            return healthy.ToArray();
         }
 
         /// <summary>
@@ -180,17 +214,60 @@ namespace ArdysaModsTools.Core.Services.Cdn
         public IReadOnlyList<CdnLatencyResult>? GetLastResults() => _cachedResults;
 
         /// <summary>
-        /// Report a CDN failure (used to trigger reordering).
+        /// Report a CDN failure. After <see cref="CdnConfig.CdnFailureThreshold"/> consecutive
+        /// failures the CDN is tripped (deprioritized to the end of the order) for
+        /// <see cref="CdnConfig.CdnCooldownSeconds"/> seconds, after which it returns to its
+        /// normal benchmark position. Thread-safe.
         /// </summary>
         public void ReportFailure(string cdnUrl)
         {
-            if (_cachedResults == null) return;
+            if (string.IsNullOrEmpty(cdnUrl)) return;
 
-            var result = _cachedResults.FirstOrDefault(r => r.CdnUrl == cdnUrl);
-            if (result != null)
+            var penalty = _penalties.GetOrAdd(cdnUrl, static _ => new CdnPenalty());
+            lock (penalty)
             {
-                Debug.WriteLine($"[SmartCdn] CDN failure reported: {GetCdnName(cdnUrl)}");
-                // Could implement penalty scoring here
+                penalty.Failures++;
+                if (penalty.Failures >= CdnConfig.CdnFailureThreshold)
+                {
+                    penalty.TrippedUntilUtc = DateTime.UtcNow.AddSeconds(CdnConfig.CdnCooldownSeconds);
+                    Debug.WriteLine($"[SmartCdn] CDN tripped for {CdnConfig.CdnCooldownSeconds}s: {GetCdnName(cdnUrl)}");
+                }
+                else
+                {
+                    Debug.WriteLine($"[SmartCdn] CDN failure {penalty.Failures}/{CdnConfig.CdnFailureThreshold}: {GetCdnName(cdnUrl)}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Report a successful download from a CDN. Resets that CDN's failure counter and
+        /// clears any active trip, allowing immediate recovery. Thread-safe.
+        /// </summary>
+        public void ReportSuccess(string cdnUrl)
+        {
+            if (string.IsNullOrEmpty(cdnUrl)) return;
+
+            if (_penalties.TryGetValue(cdnUrl, out var penalty))
+            {
+                lock (penalty)
+                {
+                    penalty.Failures = 0;
+                    penalty.TrippedUntilUtc = DateTime.MinValue;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether a CDN is currently within its circuit-breaker cooldown window.
+        /// </summary>
+        private bool IsCurrentlyTripped(string cdnUrl, DateTime nowUtc)
+        {
+            if (!_penalties.TryGetValue(cdnUrl, out var penalty))
+                return false;
+
+            lock (penalty)
+            {
+                return nowUtc < penalty.TrippedUntilUtc;
             }
         }
 
@@ -237,47 +314,53 @@ namespace ArdysaModsTools.Core.Services.Cdn
         private async Task<CdnLatencyResult> TestCdnAsync(string cdnUrl, CancellationToken ct)
         {
             string cdnName = GetCdnName(cdnUrl);
-            var sw = Stopwatch.StartNew();
 
             try
             {
                 var client = HttpClientProvider.Client;
 
-                // Latency test (HEAD request)
-                using var latencyCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                latencyCts.CancelAfter(LatencyTimeout);
-
-                string testUrl = $"{cdnUrl.TrimEnd('/')}/{LatencyTestFile}";
-                using var request = new HttpRequestMessage(HttpMethod.Head, testUrl);
-                var response = await client.SendAsync(request, latencyCts.Token).ConfigureAwait(false);
-
-                sw.Stop();
-                long latencyMs = sw.ElapsedMilliseconds;
-
-                if (!response.IsSuccessStatusCode)
+                // Latency probe (HEAD). Some CDNs/proxies (ghfast.top, gh-proxy.com, and
+                // occasionally jsDelivr) reject HEAD with 403/405 yet serve GET fine, so a
+                // non-success HEAD must NOT mark the CDN unreachable — fall through to the GET
+                // test and judge reachability by that.
+                long latencyMs = 0;
+                bool headOk = false;
+                try
                 {
-                    return new CdnLatencyResult
-                    {
-                        CdnUrl = cdnUrl,
-                        CdnName = cdnName,
-                        IsReachable = false,
-                        LatencyMs = 99999,
-                        TestedAt = DateTime.UtcNow
-                    };
+                    var headSw = Stopwatch.StartNew();
+                    using var latencyCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    latencyCts.CancelAfter(LatencyTimeout);
+
+                    string testUrl = $"{cdnUrl.TrimEnd('/')}/{LatencyTestFile}";
+                    using var request = new HttpRequestMessage(HttpMethod.Head, testUrl);
+                    using var response = await client.SendAsync(request, latencyCts.Token).ConfigureAwait(false);
+
+                    headSw.Stop();
+                    latencyMs = headSw.ElapsedMilliseconds;
+                    headOk = response.IsSuccessStatusCode;
+                }
+                catch (Exception ex) when (!(ex is OperationCanceledException && ct.IsCancellationRequested))
+                {
+                    Debug.WriteLine($"[SmartCdn] HEAD probe failed for {cdnName}: {ex.Message} — verifying via GET");
                 }
 
-                // Speed test (download larger file)
-                sw.Restart();
+                // Speed test / reachability confirmation (GET). GetByteArrayAsync throws on a
+                // non-success status, so GET success is the definitive reachability signal.
+                var getSw = Stopwatch.StartNew();
                 using var speedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 speedCts.CancelAfter(SpeedTimeout);
 
                 string speedUrl = $"{cdnUrl.TrimEnd('/')}/{SpeedTestFile}";
                 var data = await client.GetByteArrayAsync(speedUrl, speedCts.Token).ConfigureAwait(false);
-                sw.Stop();
+                getSw.Stop();
 
-                long speedKBps = data.Length > 0 && sw.ElapsedMilliseconds > 0
-                    ? (data.Length / 1024) * 1000 / sw.ElapsedMilliseconds
+                long speedKBps = data.Length > 0 && getSw.ElapsedMilliseconds > 0
+                    ? (data.Length / 1024) * 1000 / getSw.ElapsedMilliseconds
                     : 0;
+
+                // If HEAD didn't yield a usable latency, use the GET round-trip as the proxy.
+                if (!headOk || latencyMs <= 0)
+                    latencyMs = getSw.ElapsedMilliseconds;
 
                 return new CdnLatencyResult
                 {
@@ -301,6 +384,15 @@ namespace ArdysaModsTools.Core.Services.Cdn
                     TestedAt = DateTime.UtcNow
                 };
             }
+        }
+
+        /// <summary>
+        /// Mutable per-CDN circuit-breaker state. Guarded by locking on the instance.
+        /// </summary>
+        private sealed class CdnPenalty
+        {
+            public int Failures;
+            public DateTime TrippedUntilUtc = DateTime.MinValue;
         }
 
         private static string GetCdnName(string url)

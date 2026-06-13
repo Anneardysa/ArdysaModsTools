@@ -99,6 +99,39 @@ namespace ArdysaModsTools.Core.Constants
         /// </summary>
         public const int MaxRetryPerCdn = 2;
 
+        /// <summary>
+        /// Base delay (milliseconds) for exponential backoff between per-CDN retries.
+        /// </summary>
+        public const int RetryBaseDelayMs = 400;
+
+        /// <summary>
+        /// Ceiling (milliseconds) for the exponential backoff delay between retries.
+        /// </summary>
+        public const int RetryMaxDelayMs = 5000;
+
+        /// <summary>
+        /// Maximum honoured <c>Retry-After</c> wait (seconds). Caps hostile or excessive
+        /// rate-limit headers so a CDN cannot stall the whole download.
+        /// </summary>
+        public const int MaxRetryAfterSeconds = 15;
+
+        /// <summary>
+        /// Number of full passes over the CDN chain (R2 → … → proxy) before giving up.
+        /// A second pass recovers from a transient total-network blip.
+        /// </summary>
+        public const int ChainRetryPasses = 2;
+
+        /// <summary>
+        /// Consecutive failures before a CDN is temporarily tripped (circuit breaker).
+        /// </summary>
+        public const int CdnFailureThreshold = 3;
+
+        /// <summary>
+        /// Cooldown (seconds) a tripped CDN is deprioritized before it is retried at
+        /// its normal benchmark position again.
+        /// </summary>
+        public const int CdnCooldownSeconds = 120;
+
         #endregion
 
         #region Release Mirror
@@ -192,6 +225,27 @@ namespace ArdysaModsTools.Core.Constants
                     if (!string.IsNullOrEmpty(path))
                         return path;
                 }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Extract the known CDN base URL from a full asset URL.
+        /// Used to key circuit-breaker state consistently regardless of asset path.
+        /// </summary>
+        /// <param name="url">Full asset URL (e.g., "https://cdn.ardysamods.my.id/Assets/...").</param>
+        /// <returns>The matching CDN base URL, or null if none matches.</returns>
+        public static string? ExtractBaseUrl(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+                return null;
+
+            // Longest base first so proxy bases (which embed the GitHub Raw URL) match before it.
+            foreach (var baseUrl in GetCdnBaseUrls().OrderByDescending(b => b.Length))
+            {
+                if (url.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase))
+                    return baseUrl;
             }
 
             return null;

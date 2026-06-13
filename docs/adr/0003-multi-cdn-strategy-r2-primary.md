@@ -170,6 +170,7 @@ Files synced to R2 via `sync-to-r2.ps1` (maintained in the ModsPack repository):
 
 ## Related
 
+- [ADR-0009](0009-cdn-download-resilience-layer.md) — adds a resilience layer (retry/backoff, 429 handling, session circuit breaker, HEAD-reachability fix, anonymous GitHub fallback, size validation) over this chain. The fallback **order defined here is unchanged**.
 - `Core/Constants/CdnConfig.cs` — CDN URL configuration
 - `Core/Services/Hero/HeroSetDownloaderService.cs` — uses multi-CDN for downloads
 - `F:\Projects\ModsPack\sync-to-r2.ps1` — R2 sync automation in asset repository

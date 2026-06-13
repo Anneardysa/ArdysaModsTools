@@ -248,14 +248,20 @@ namespace ArdysaModsTools.Core.Services
                 .ToArray();
             
             _logger?.Log($"Starting resumable download of Original.zip ({urls.Length} CDN sources)");
-            
+
+            // Resolve the expected hash (if published) so a corrupt/tampered base VPK archive is
+            // rejected and the next CDN is tried (ADR-0010). Null = manifest absent → size-only.
+            AssetHashEntry? expected = await AssetHashManifestService.Instance
+                .GetExpectedAsync(OriginalZipAssetPath, ct).ConfigureAwait(false);
+
             await ResumableDownloadService.Instance.DownloadAsync(
                 urls,
                 destPath,
                 log,
                 progress,
                 speedProgress,
-                ct
+                ct,
+                expected
             ).ConfigureAwait(false);
         }
 

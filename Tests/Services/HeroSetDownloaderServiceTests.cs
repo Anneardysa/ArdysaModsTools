@@ -14,9 +14,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System.IO.Compression;
+using System.Net;
+using System.Net.Http;
+using System.Security.Cryptography;
 using NUnit.Framework;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Exceptions;
+using ArdysaModsTools.Core.Services.Cdn;
+using ArdysaModsTools.Tests.Helpers;
 
 namespace ArdysaModsTools.Tests.Services
 {
@@ -105,6 +111,146 @@ namespace ArdysaModsTools.Tests.Services
             });
 
             Assert.That(ex!.ErrorCode, Is.EqualTo(ErrorCodes.DL_INVALID_URL));
+        }
+
+        #endregion
+
+        #region Split Archive Retry
+
+        [Test]
+        public async Task DownloadAndExtractAsync_SplitArchive_RetriesTransientPartThenMergesAndExtracts()
+        {
+            // Arrange: a single-part split archive whose .001 returns 503 once then a valid zip,
+            // and whose .002 is 404 (end of parts). Verifies per-part transient retry + merge + extract.
+            byte[] zipBytes = BuildZip("inside.txt", "hello");
+            int part1Calls = 0;
+
+            var fake = new FakeHttpMessageHandler((req, _) =>
+            {
+                string url = req.RequestUri!.ToString();
+                if (url.EndsWith(".002"))
+                    return new HttpResponseMessage(HttpStatusCode.NotFound);
+
+                // .001: fail once transiently, then succeed.
+                if (part1Calls++ == 0)
+                    return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(zipBytes) };
+            });
+
+            var tempFolder = Path.Combine(Path.GetTempPath(), "AmtSplitTest_" + Guid.NewGuid().ToString("N"));
+            // Null resolver => no manifest entry => size-only behavior (no hash gate).
+            var service = new HeroSetDownloaderService(tempFolder, new HttpClient(fake), hashResolver: NullResolver);
+            string? workFolder = null;
+
+            try
+            {
+                // Act
+                workFolder = await service.DownloadAndExtractAsync(
+                    "npc_dota_hero_test",
+                    "set1",
+                    "https://cdn.ardysamods.my.id/Assets/models/test_hero/set1/model.zip.001",
+                    _ => { });
+
+                // Assert
+                Assert.That(part1Calls, Is.GreaterThanOrEqualTo(2), "part .001 should have been retried after the 503");
+                Assert.That(Directory.Exists(workFolder), Is.True);
+                Assert.That(File.Exists(Path.Combine(workFolder, "inside.txt")), Is.True);
+                Assert.That(File.ReadAllText(Path.Combine(workFolder, "inside.txt")), Is.EqualTo("hello"));
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempFolder)) Directory.Delete(tempFolder, true); } catch { }
+                try { if (workFolder != null && Directory.Exists(workFolder)) Directory.Delete(workFolder, true); } catch { }
+            }
+        }
+
+        [Test]
+        public async Task DownloadAndExtractAsync_SplitArchive_CorrectHash_Extracts()
+        {
+            byte[] zipBytes = BuildZip("inside.txt", "verified");
+            var fake = SinglePartSplitHandler(zipBytes);
+
+            var expected = new AssetHashEntry
+            {
+                Sha256 = Convert.ToHexString(SHA256.HashData(zipBytes)),
+                Size = zipBytes.Length
+            };
+
+            var tempFolder = Path.Combine(Path.GetTempPath(), "AmtHashOk_" + Guid.NewGuid().ToString("N"));
+            var service = new HeroSetDownloaderService(tempFolder, new HttpClient(fake), hashResolver: (_, _) => Task.FromResult<AssetHashEntry?>(expected));
+            string? workFolder = null;
+
+            try
+            {
+                workFolder = await service.DownloadAndExtractAsync(
+                    "npc_dota_hero_test", "set1",
+                    "https://cdn.ardysamods.my.id/Assets/models/test_hero/set1/model.zip.001",
+                    _ => { });
+
+                Assert.That(File.Exists(Path.Combine(workFolder, "inside.txt")), Is.True);
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempFolder)) Directory.Delete(tempFolder, true); } catch { }
+                try { if (workFolder != null && Directory.Exists(workFolder)) Directory.Delete(workFolder, true); } catch { }
+            }
+        }
+
+        [Test]
+        public void DownloadAndExtractAsync_SplitArchive_WrongHash_ThrowsHashMismatchAndDeletes()
+        {
+            byte[] zipBytes = BuildZip("inside.txt", "tampered");
+            var fake = SinglePartSplitHandler(zipBytes);
+
+            var wrong = new AssetHashEntry { Sha256 = new string('A', 64), Size = zipBytes.Length };
+
+            var tempFolder = Path.Combine(Path.GetTempPath(), "AmtHashBad_" + Guid.NewGuid().ToString("N"));
+            var service = new HeroSetDownloaderService(tempFolder, new HttpClient(fake), hashResolver: (_, _) => Task.FromResult<AssetHashEntry?>(wrong));
+
+            try
+            {
+                var ex = Assert.ThrowsAsync<DownloadException>(async () =>
+                    await service.DownloadAndExtractAsync(
+                        "npc_dota_hero_test", "set1",
+                        "https://cdn.ardysamods.my.id/Assets/models/test_hero/set1/model.zip.001",
+                        _ => { }));
+
+                Assert.That(ex!.ErrorCode, Is.EqualTo(ErrorCodes.DL_HASH_MISMATCH));
+                // The corrupt merged archive must be removed so the next attempt re-downloads.
+                var cached = Path.Combine(tempFolder, "cache", "sets", "npc_dota_hero_test", "set1", "model.zip");
+                Assert.That(File.Exists(cached), Is.False, "mismatched cache file should be deleted");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempFolder)) Directory.Delete(tempFolder, true); } catch { }
+            }
+        }
+
+        /// <summary>Null hash resolver — simulates an asset absent from the manifest.</summary>
+        private static Task<AssetHashEntry?> NullResolver(string assetPath, System.Threading.CancellationToken ct)
+            => Task.FromResult<AssetHashEntry?>(null);
+
+        /// <summary>Handler serving a single-part split archive: .001 = the zip, .002 = 404 (end).</summary>
+        private static FakeHttpMessageHandler SinglePartSplitHandler(byte[] zipBytes) =>
+            new FakeHttpMessageHandler((req, _) =>
+            {
+                string url = req.RequestUri!.ToString();
+                if (url.EndsWith(".002"))
+                    return new HttpResponseMessage(HttpStatusCode.NotFound);
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(zipBytes) };
+            });
+
+        private static byte[] BuildZip(string entryName, string content)
+        {
+            using var ms = new MemoryStream();
+            using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                var entry = archive.CreateEntry(entryName);
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write(content);
+            }
+            return ms.ToArray();
         }
 
         #endregion

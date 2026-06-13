@@ -33,6 +33,7 @@ using ArdysaModsTools.Core.Services.Update.Models;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Exceptions;
 
 namespace ArdysaModsTools.Core.Services.Update
 {
@@ -276,6 +277,14 @@ namespace ArdysaModsTools.Core.Services.Update
                 if (releaseInfo.TryGetProperty("notes", out var notesEl) && notesEl.ValueKind == JsonValueKind.String)
                     releaseNotes = notesEl.GetString();
 
+                // Optional SHA-256 fields for integrity verification (backward compatible).
+                string? installerSha = null;
+                string? portableSha = null;
+                if (releaseInfo.TryGetProperty("installerSha256", out var instShaEl) && instShaEl.ValueKind == JsonValueKind.String)
+                    installerSha = instShaEl.GetString();
+                if (releaseInfo.TryGetProperty("portableSha256", out var portShaEl) && portShaEl.ValueKind == JsonValueKind.String)
+                    portableSha = portShaEl.GetString();
+
                 // Extract build number (optional field — backward compatible)
                 int buildNumber = 0;
                 if (releaseInfo.TryGetProperty("build", out var buildEl))
@@ -301,6 +310,8 @@ namespace ArdysaModsTools.Core.Services.Update
                     CurrentBuildNumber = CurrentBuildNumber,
                     MirrorInstallerUrl = mirrorInstaller,
                     MirrorPortableUrl = mirrorPortable,
+                    InstallerSha256 = installerSha,
+                    PortableSha256 = portableSha,
                     ReleaseNotes = releaseNotes,
                     IsUpdateAvailable = ShouldUpdate(latestVersion, buildNumber)
                 };
@@ -512,6 +523,30 @@ namespace ArdysaModsTools.Core.Services.Update
                 {
                     _logger.Log("Download failed or cancelled.");
                     return;
+                }
+
+                // Integrity gate (ADR-0010): verify the downloaded artifact against the published
+                // SHA-256 before applying/launching it. Skipped when the manifest omits the hash.
+                string? expectedSha = _installationType == InstallationType.Installer
+                    ? updateInfo.InstallerSha256
+                    : updateInfo.PortableSha256;
+                if (!string.IsNullOrWhiteSpace(expectedSha))
+                {
+                    OnStatusChanged?.Invoke("Verifying download...");
+                    string actualSha = await AssetHashVerifier.ComputeSha256Async(tempFilePath);
+                    if (!string.Equals(actualSha, expectedSha.Trim(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.Log($"[{ErrorCodes.DL_HASH_MISMATCH}] Update integrity check failed — discarding download.");
+                        try { File.Delete(tempFilePath); } catch { }
+                        MessageBox.Show(
+                            "The downloaded update failed its integrity check and was discarded.\n" +
+                            "Please try updating again later.",
+                            "Update Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
+                    _logger.Log("Update integrity verified.");
                 }
 
                 _logger.Log("Download complete. Applying update...");

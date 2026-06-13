@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.27-beta] (Build 2138)
+
+### ✨ Added
+
+- **Security**: Added end-to-end **SHA-256 content verification** for downloaded assets (ADR-0010). A server-published manifest (`Assets/asset_hashes.json`, `assetPath → { sha256, size }`) is fetched via the resilient CDN pipeline and cached; hero set zips (single + merged split), `Original.zip`, and the app installer/portable are verified before extraction, install, or launch.
+- **Core**: Added `AssetHashEntry`, `AssetHashVerifier` (streamed SHA-256, uppercase hex), and `AssetHashManifestService` (singleton fetch + 10-min cache, returns null when the manifest/asset is absent) under `Core/Services/Cdn/`.
+- **Update**: Added optional `installerSha256` / `portableSha256` fields to `releases.json` (`UpdateInfo`); the installer/portable download is verified before applying, and discarded on mismatch.
+- **Tooling**: Added `scripts/generate-asset-hashes.ps1` to generate the manifest from the ModsPack asset tree (concatenating split parts to hash the merged archive); run before `sync-to-r2.ps1`.
+- **Documentation**: Added [ADR-0010](docs/adr/0010-asset-hash-verification.md) and updated ADR-0009's future-work note to reference it.
+
+### 🛠️ Changed
+
+- **Download**: `ResumableDownloadService.DownloadAsync` accepts an optional expected hash and verifies the completed `.partial` before promotion — a mismatch is rejected and the next CDN is tried; if all CDNs fail verification it throws `DownloadException` with `DL_HASH_MISMATCH`.
+- **Download**: `HeroSetDownloaderService` resolves the expected hash by asset path and verifies merged split archives and cached files before extraction; a manifest hash change now also invalidates a stale cached zip. Assets absent from the manifest fall back to the existing size-only check (backward compatible).
+
+---
+
+## [2.1.27-beta] (Build 2137)
+
+### ✨ Added
+
+- **Core**: Added `DownloadRetryPolicy` (`Core/Services/Cdn/DownloadRetryPolicy.cs`) — a shared, status-aware retry policy for the CDN pipeline with exponential backoff + jitter, a capped `Retry-After` honour for 429/503, and transient-vs-permanent classification (a 404 falls through to the next CDN; a 503/429/socket error is retried). Reuses `RetryHelper.IsTransientStatusCode`.
+- **Core**: Added a session **circuit breaker** to `SmartCdnSelector` (`ReportFailure`/`ReportSuccess`): after `CdnFailureThreshold` consecutive failures a CDN is deprioritized to the end of the order for `CdnCooldownSeconds`, then auto-restored — never dropped, preserving the ADR-0003 fallback completeness.
+- **Core**: Added resilience tunables to `CdnConfig` (`RetryBaseDelayMs`, `RetryMaxDelayMs`, `MaxRetryAfterSeconds`, `ChainRetryPasses`, `CdnFailureThreshold`, `CdnCooldownSeconds`) and an `ExtractBaseUrl` helper for keying CDN health by base URL.
+- **Documentation**: Added [ADR-0009](docs/adr/0009-cdn-download-resilience-layer.md) (CDN Download Resilience Layer) amending ADR-0003.
+
+### 🛠️ Changed
+
+- **Download**: `CdnFallbackService` and `ResumableDownloadService` now retry each CDN for transient failures (`MaxRetryPerCdn`, previously unused) before falling through, and sweep the whole chain up to `ChainRetryPasses` times with backoff before giving up. Both report success/failure to the circuit breaker (keyed by base URL).
+- **Download**: Added size-only integrity validation across all paths — empty bodies and payloads whose length ≠ declared `Content-Length` are rejected (per file, and per split-archive part in `HeroSetDownloaderService`).
+- **CDN selection**: `SmartCdnSelector` now confirms reachability via the GET speed test instead of trusting the HEAD probe, so it honours benchmark/circuit-breaker order without burying CDNs.
+
+### 🐛 Fixed
+
+- **CDN selection**: Fixed CDNs (notably the ghfast.top / gh-proxy.com GFW mirrors and occasionally jsDelivr) being wrongly marked UNREACHABLE and buried for 6 hours when they returned a non-2xx response to a `HEAD` request while serving `GET` fine — penalising exactly the region-blocked users the proxies exist for.
+- **Download**: Fixed transient network blips (timeouts, 5xx, 429, connection/TLS resets) immediately failing a download instead of being retried, and a dead/blocked CDN being retried first on every asset.
+- **GitHub**: Fixed an expired/invalid `GITHUB_TOKEN` killing the entire GitHub CDN tier — `GitHubTokenHandler` now replays the request once anonymously on a 401/403 (the ModsPack repo is public), while still never leaking the token to third-party CDNs.
+- **Split archives**: Fixed a latent corruption risk where a part that failed mid-stream could be re-appended to the merge on retry/fallback; each attempt now truncates the merge stream back to the part boundary.
+
+---
+
 ## [2.1.27-beta] (Build 2136)
 
 ### ✨ Added

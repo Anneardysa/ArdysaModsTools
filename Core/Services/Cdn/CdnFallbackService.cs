@@ -153,27 +153,41 @@ namespace ArdysaModsTools.Core.Services.Cdn
                 return CdnDownloadResult.Fail("URL is empty", 0, 0);
 
             var stopwatch = Stopwatch.StartNew();
-            
-            // Use SmartCdnSelector for speed-optimized CDN order
-            var cdnUrls = SmartCdnSelector.Instance.GetOrderedCdnUrls();
             int fallbackCount = 0;
             string? lastError = null;
 
             Interlocked.Increment(ref _totalDownloads);
 
-            foreach (var cdnBase in cdnUrls)
+            // Sweep the whole CDN chain up to ChainRetryPasses times — a second pass recovers
+            // from a transient total-network blip after every CDN failed once.
+            int passes = Math.Max(1, CdnConfig.ChainRetryPasses);
+            for (int pass = 0; pass < passes; pass++)
             {
-                ct.ThrowIfCancellationRequested();
-
-                string targetUrl = CdnConfig.ConvertToCdn(url, cdnBase);
-
-                try
+                if (pass > 0)
                 {
-                    var result = await TryDownloadAsync(targetUrl, ct).ConfigureAwait(false);
+                    await Task.Delay(DownloadRetryPolicy.GetBackoffDelay(pass), ct).ConfigureAwait(false);
+                    Debug.WriteLine($"[CdnFallback] Retrying full CDN chain (pass {pass + 1}/{passes}) for: {url}");
+                }
 
-                    if (result.Data != null && result.Data.Length > 0)
+                // Use SmartCdnSelector for speed-optimized, circuit-breaker-aware CDN order.
+                var cdnUrls = SmartCdnSelector.Instance.GetOrderedCdnUrls();
+
+                foreach (var cdnBase in cdnUrls)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    string targetUrl = CdnConfig.ConvertToCdn(url, cdnBase);
+
+                    try
                     {
+                        // Retry transient failures against this CDN before falling through.
+                        var result = await DownloadRetryPolicy.ExecuteWithRetryAsync(
+                            token => TryDownloadAsync(targetUrl, token),
+                            log: null,
+                            ct).ConfigureAwait(false);
+
                         stopwatch.Stop();
+                        SmartCdnSelector.Instance.ReportSuccess(cdnBase);
                         UpdateSuccessStats(cdnBase);
 
                         Debug.WriteLine($"[CdnFallback] Success: {targetUrl} ({result.Data.Length} bytes, {stopwatch.ElapsedMilliseconds}ms, fallbacks: {fallbackCount})");
@@ -187,23 +201,19 @@ namespace ArdysaModsTools.Core.Services.Cdn
                             stopwatch.ElapsedMilliseconds
                         );
                     }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = ex.Message;
+                        SmartCdnSelector.Instance.ReportFailure(cdnBase);
+                        Debug.WriteLine($"[CdnFallback] Failed: {targetUrl} -> {ex.Message}");
+                    }
 
-                    lastError = result.ErrorMessage;
-                    // Report failure to SmartCdnSelector for future reordering
-                    SmartCdnSelector.Instance.ReportFailure(cdnBase);
+                    fallbackCount++;
                 }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    lastError = ex.Message;
-                    SmartCdnSelector.Instance.ReportFailure(cdnBase);
-                    Debug.WriteLine($"[CdnFallback] Failed: {targetUrl} -> {ex.Message}");
-                }
-
-                fallbackCount++;
             }
 
             stopwatch.Stop();
@@ -235,19 +245,14 @@ namespace ArdysaModsTools.Core.Services.Cdn
                 var result = await TryDownloadAsync(targetUrl, ct).ConfigureAwait(false);
                 stopwatch.Stop();
 
-                if (result.Data != null && result.Data.Length > 0)
-                {
-                    return CdnDownloadResult.Ok(
-                        result.Data,
-                        targetUrl,
-                        result.ETag,
-                        result.LastModified,
-                        0,
-                        stopwatch.ElapsedMilliseconds
-                    );
-                }
-
-                return CdnDownloadResult.Fail(result.ErrorMessage ?? "Download failed", 0, stopwatch.ElapsedMilliseconds);
+                return CdnDownloadResult.Ok(
+                    result.Data,
+                    targetUrl,
+                    result.ETag,
+                    result.LastModified,
+                    0,
+                    stopwatch.ElapsedMilliseconds
+                );
             }
             catch (Exception ex)
             {
@@ -298,31 +303,42 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
         #region Private Helpers
 
-        private async Task<(byte[]? Data, string? ETag, string? LastModified, string? ErrorMessage)> TryDownloadAsync(
+        /// <summary>
+        /// Single download attempt against one URL. Throws <see cref="TransientDownloadException"/>
+        /// for retryable conditions (5xx/429/408, empty/truncated body) and
+        /// <see cref="HttpRequestException"/> for permanent ones (404/403/…), letting the
+        /// retry policy retry the former and the fallback loop skip to the next CDN on the latter.
+        /// </summary>
+        private async Task<(byte[] Data, string? ETag, string? LastModified)> TryDownloadAsync(
             string url, CancellationToken ct)
         {
             var client = HttpClientProvider.Client;
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(CdnConfig.TimeoutSeconds));
 
-            var response = await client.GetAsync(url, cts.Token).ConfigureAwait(false);
+            using var response = await client.GetAsync(url, cts.Token).ConfigureAwait(false);
 
             if (!response.IsSuccessStatusCode)
             {
-                return (null, null, null, $"HTTP {(int)response.StatusCode}");
+                if (Core.Helpers.RetryHelper.IsTransientStatusCode(response.StatusCode))
+                    throw new TransientDownloadException($"HTTP {(int)response.StatusCode}", DownloadRetryPolicy.GetRetryAfter(response));
+                throw new HttpRequestException($"HTTP {(int)response.StatusCode}", null, response.StatusCode);
             }
 
-            byte[] data = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            byte[] data = await response.Content.ReadAsByteArrayAsync(cts.Token).ConfigureAwait(false);
 
             if (data.Length == 0)
-            {
-                return (null, null, null, "Empty response");
-            }
+                throw new TransientDownloadException("Empty response body");
+
+            // Size-only integrity check: reject truncated payloads when a length is declared.
+            long? declared = response.Content.Headers.ContentLength;
+            if (declared.HasValue && declared.Value > 0 && data.Length != declared.Value)
+                throw new TransientDownloadException($"Truncated response: got {data.Length} of {declared.Value} bytes");
 
             string? etag = response.Headers.ETag?.Tag;
             string? lastModified = response.Content.Headers.LastModified?.ToString("R");
 
-            return (data, etag, lastModified, null);
+            return (data, etag, lastModified);
         }
 
         private void UpdateSuccessStats(string cdnBase)

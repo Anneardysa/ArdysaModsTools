@@ -67,21 +67,28 @@ namespace ArdysaModsTools.Core.Services
         private readonly HttpClient _httpClient;
         private readonly string _cacheRoot;
         private readonly IAppLogger? _logger;
+        private readonly Func<string, CancellationToken, Task<AssetHashEntry?>> _hashResolver;
 
         // Max parts to prevent infinite loops if something is wrong
         private const int MaxSplitParts = 50;
 
-        public HeroSetDownloaderService(string? baseFolder = null, HttpClient? httpClient = null, IAppLogger? logger = null)
+        public HeroSetDownloaderService(
+            string? baseFolder = null,
+            HttpClient? httpClient = null,
+            IAppLogger? logger = null,
+            Func<string, CancellationToken, Task<AssetHashEntry?>>? hashResolver = null)
         {
-            var bf = string.IsNullOrWhiteSpace(baseFolder) 
+            var bf = string.IsNullOrWhiteSpace(baseFolder)
                 // Use safe temp path for non-ASCII username compatibility
                 ? Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero")
                 : baseFolder!;
             _cacheRoot = Path.Combine(bf, "cache", "sets");
             Directory.CreateDirectory(_cacheRoot);
-            
+
             _httpClient = httpClient ?? HttpClientProvider.Client;
             _logger = logger;
+            // Default to the live manifest; tests inject a resolver to avoid network access.
+            _hashResolver = hashResolver ?? AssetHashManifestService.Instance.GetExpectedAsync;
         }
 
         /// <inheritdoc />
@@ -124,7 +131,18 @@ namespace ArdysaModsTools.Core.Services
 
             var localZipPath = Path.Combine(cacheFolder, finalZipName);
 
+            // Resolve the expected hash for the final (merged) asset path. For split archives the
+            // manifest key is the merged ".zip" (the ".001" suffix is dropped), matching the file
+            // the client assembles and verifies.
+            string? assetPath = CdnConfig.ExtractAssetPath(zipUrl);
+            if (isSplit && assetPath != null)
+                assetPath = assetPath.Replace(".001", "", StringComparison.OrdinalIgnoreCase);
+            AssetHashEntry? expected = assetPath != null
+                ? await _hashResolver(assetPath, ct).ConfigureAwait(false)
+                : null;
+
             // Download if not cached
+            bool verifiedDuringDownload = false;
             if (!File.Exists(localZipPath))
             {
                 if (isSplit)
@@ -135,7 +153,10 @@ namespace ArdysaModsTools.Core.Services
                 else
                 {
                     log($"Downloading set...");
-                    await DownloadFileAsync(zipUrl, localZipPath, log, ct, speedProgress).ConfigureAwait(false);
+                    // ResumableDownloadService verifies per-CDN so a bad copy falls through to the
+                    // next CDN; no need to re-hash the fresh single-file download afterwards.
+                    await DownloadFileAsync(zipUrl, localZipPath, log, ct, speedProgress, expected).ConfigureAwait(false);
+                    verifiedDuringDownload = expected != null;
                 }
             }
             else
@@ -144,6 +165,22 @@ namespace ArdysaModsTools.Core.Services
             }
 
             ct.ThrowIfCancellationRequested();
+
+            // Integrity gate for merged split archives and cached files (ADR-0010). A mismatch
+            // here also invalidates a stale cache entry (e.g., after the manifest is updated).
+            if (expected != null && !verifiedDuringDownload)
+            {
+                bool ok = await AssetHashVerifier.VerifyFileAsync(localZipPath, expected, ct).ConfigureAwait(false);
+                if (!ok)
+                {
+                    try { if (File.Exists(localZipPath)) File.Delete(localZipPath); } catch { }
+                    var dlEx = new DownloadException(ErrorCodes.DL_HASH_MISMATCH,
+                        $"Integrity check failed for set '{setName}' ({heroId}). The file was removed; please retry.", zipUrl);
+                    _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
+                    throw dlEx;
+                }
+                log("Integrity verified.");
+            }
 
             // Extract to Windows temp folder under ArdysaSelectHero
             // Extract to safe temp folder for compatibility with Chinese usernames
@@ -204,10 +241,9 @@ namespace ArdysaModsTools.Core.Services
             
             // CDN affinity: once a CDN succeeds for a part, prefer it for subsequent parts
             int preferredCdnIndex = 0;
-            
+
             using var destStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None);
 
-            long totalRead = 0;
             long lastReportedRead = 0;
             TimeSpan lastReportTime = TimeSpan.Zero;
             var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -216,9 +252,14 @@ namespace ArdysaModsTools.Core.Services
             {
                 var partExt = i.ToString("D3"); // 001, 002, 003...
                 log($"Processing part {i} ({partExt})...");
-                
+
                 bool partDownloaded = false;
-                
+                bool endOfParts = false;
+
+                // Byte offset in destStream where this part begins. Each attempt truncates back
+                // to here so a failed/partial part is never double-appended into the merge.
+                long partStartOffset = destStream.Position;
+
                 // Build ordered CDN list: preferred first, then the rest
                 var orderedIndices = new List<int> { preferredCdnIndex };
                 for (int c = 0; c < cdnBases.Length; c++)
@@ -231,69 +272,101 @@ namespace ArdysaModsTools.Core.Services
                     ct.ThrowIfCancellationRequested();
                     var partUrl = cdnBases[cdnIdx] + partExt;
                     var cdnName = GetCdnDisplayName(partUrl);
-                    
+                    int partNumber = i;
+
                     try
                     {
                         if (cdnIdx != preferredCdnIndex)
                             log($"Trying {cdnName}...");
-                        
-                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                        cts.CancelAfter(TimeSpan.FromSeconds(CdnConfig.TimeoutSeconds));
-                        
-                        using var response = await _httpClient.GetAsync(partUrl, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
-                        
-                        if (i > 1 && response.StatusCode == System.Net.HttpStatusCode.NotFound)
+
+                        // Retry transient failures (5xx/429, mid-stream I/O) on this CDN before
+                        // falling through to the next one.
+                        await DownloadRetryPolicy.ExecuteWithRetryAsync<bool>(async token =>
                         {
-                            log($"Part {i} not found. Assuming end of split archive.");
-                            return; // End of parts — all done
-                        }
-                        
-                        response.EnsureSuccessStatusCode();
+                            // Reset to the part boundary so retries don't append duplicate bytes.
+                            destStream.SetLength(partStartOffset);
+                            destStream.Position = partStartOffset;
 
-                        await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-                        
-                        var buffer = new byte[81920];
-                        int bytesRead;
+                            using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                            cts.CancelAfter(TimeSpan.FromSeconds(CdnConfig.TimeoutSeconds));
 
-                        while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false)) > 0)
-                        {
-                            await destStream.WriteAsync(buffer, 0, bytesRead, ct).ConfigureAwait(false);
-                            totalRead += bytesRead;
+                            using var response = await _httpClient.GetAsync(partUrl, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
 
-                            var elapsed = sw.Elapsed - lastReportTime;
-                            if (elapsed.TotalMilliseconds >= 500)
+                            if (!response.IsSuccessStatusCode)
                             {
-                                string speedStr = SpeedCalculator.FormatSpeed(totalRead - lastReportedRead, elapsed.TotalSeconds);
-                                string details = $"{totalRead / 1024 / 1024} MB (part {i})";
-                                speedProgress?.Report(new SpeedMetrics { DownloadSpeed = speedStr, ProgressDetails = details });
-                                
-                                lastReportedRead = totalRead;
-                                lastReportTime = sw.Elapsed;
+                                if (Core.Helpers.RetryHelper.IsTransientStatusCode(response.StatusCode))
+                                    throw new TransientDownloadException($"HTTP {(int)response.StatusCode}", DownloadRetryPolicy.GetRetryAfter(response));
+                                throw new HttpRequestException($"HTTP {(int)response.StatusCode}", null, response.StatusCode);
                             }
-                        }
-                        
+
+                            long? declared = response.Content.Headers.ContentLength;
+
+                            await using var contentStream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
+
+                            var buffer = new byte[81920];
+                            int bytesRead;
+                            long partBytes = 0;
+
+                            while ((bytesRead = await contentStream.ReadAsync(buffer, cts.Token).ConfigureAwait(false)) > 0)
+                            {
+                                await destStream.WriteAsync(buffer.AsMemory(0, bytesRead), cts.Token).ConfigureAwait(false);
+                                partBytes += bytesRead;
+
+                                long totalRead = partStartOffset + partBytes;
+                                var elapsed = sw.Elapsed - lastReportTime;
+                                if (elapsed.TotalMilliseconds >= 500)
+                                {
+                                    string speedStr = SpeedCalculator.FormatSpeed(totalRead - lastReportedRead, elapsed.TotalSeconds);
+                                    string details = $"{totalRead / 1024 / 1024} MB (part {partNumber})";
+                                    speedProgress?.Report(new SpeedMetrics { DownloadSpeed = speedStr, ProgressDetails = details });
+
+                                    lastReportedRead = totalRead;
+                                    lastReportTime = sw.Elapsed;
+                                }
+                            }
+
+                            // Size-only integrity check: reject a truncated part.
+                            if (declared.HasValue && declared.Value > 0 && partBytes != declared.Value)
+                                throw new TransientDownloadException($"Truncated part {partNumber}: got {partBytes} of {declared.Value} bytes");
+
+                            await destStream.FlushAsync(cts.Token).ConfigureAwait(false);
+                            return true;
+                        }, log: null, ct).ConfigureAwait(false);
+
                         // Success! Set CDN affinity for future parts
                         preferredCdnIndex = cdnIdx;
                         partDownloaded = true;
-                        log($"Part {i} merged via {cdnName}.");
+                        log($"Part {partNumber} merged via {cdnName}.");
                         break; // Move to next part
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested)
                     {
                         throw; // User cancelled
                     }
-                    catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound && i > 1)
+                    catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound && partNumber > 1)
                     {
+                        // A missing part beyond the first means we've reached the end of the archive.
+                        destStream.SetLength(partStartOffset);
+                        destStream.Position = partStartOffset;
                         log("End of split parts detected.");
-                        return;
+                        endOfParts = true;
+                        break;
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Log($"Split part {i} failed from {cdnName}: {ex.Message}");
+                        // Reset the merge stream to the part boundary before trying the next CDN.
+                        destStream.SetLength(partStartOffset);
+                        destStream.Position = partStartOffset;
+                        var cdnBase = CdnConfig.ExtractBaseUrl(partUrl) ?? partUrl;
+                        SmartCdnSelector.Instance.ReportFailure(cdnBase);
+                        _logger?.Log($"Split part {partNumber} failed from {cdnName}: {ex.Message}");
                         // Try next CDN
                     }
                 }
-                
+
+                if (endOfParts)
+                    return; // All parts merged.
+
                 if (!partDownloaded)
                 {
                     if (i == 1)
@@ -311,17 +384,18 @@ namespace ArdysaModsTools.Core.Services
         }
 
         private async Task DownloadFileAsync(
-            string url, 
-            string destPath, 
-            Action<string> log, 
+            string url,
+            string destPath,
+            Action<string> log,
             CancellationToken ct,
-            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
+            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null,
+            AssetHashEntry? expected = null)
         {
             // Build all CDN URLs to try in priority order (R2 → jsDelivr → GitHub Raw)
             var cdnUrls = GetCdnUrlsInPriorityOrder(url);
-            
+
             _logger?.Log($"Starting resumable download: {url} → {destPath}");
-            
+
             try
             {
                 await ResumableDownloadService.Instance.DownloadAsync(
@@ -330,8 +404,14 @@ namespace ArdysaModsTools.Core.Services
                     log,
                     progress: null,
                     speedProgress,
-                    ct
+                    ct,
+                    expected
                 ).ConfigureAwait(false);
+            }
+            catch (DownloadException)
+            {
+                // Preserve specific error codes (e.g., DL_HASH_MISMATCH) from the download layer.
+                throw;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

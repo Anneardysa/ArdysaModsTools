@@ -32,9 +32,15 @@ namespace ArdysaModsTools.Helpers
         {
         }
 
+        // [AMT:PRO] Auth-sensitive cross-cutting handler: attaches the GitHub token to GitHub
+        // hosts only, and on a rejected token (401/403) replays the request anonymously since
+        // the ModsPack repo is public. Changing host matching or the replay condition affects
+        // every GitHub-tier download — verify both behaviours before modifying.
         protected override async System.Threading.Tasks.Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, System.Threading.CancellationToken cancellationToken)
         {
             var token = EnvironmentConfig.GitHubToken;
+            bool tokenAttached = false;
+
             if (!string.IsNullOrEmpty(token) && request.RequestUri != null)
             {
                 var host = request.RequestUri.Host.ToLowerInvariant();
@@ -42,10 +48,52 @@ namespace ArdysaModsTools.Helpers
                 {
                     // Add token just for this request
                     request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", token);
+                    tokenAttached = true;
                 }
             }
 
-            return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+            // An expired/invalid token makes GitHub reject the request with 401/403, which would
+            // otherwise kill the entire GitHub CDN tier. The ModsPack repo is public, so retry
+            // once anonymously (no Authorization header) before giving up on this host.
+            if (tokenAttached &&
+                (response.StatusCode == HttpStatusCode.Unauthorized || response.StatusCode == HttpStatusCode.Forbidden))
+            {
+                var anonymousRequest = CloneRequestWithoutAuth(request);
+                if (anonymousRequest != null)
+                {
+                    response.Dispose();
+                    return await base.SendAsync(anonymousRequest, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            return response;
+        }
+
+        /// <summary>
+        /// Clone a request without its Authorization header for an anonymous replay.
+        /// Only bodyless requests (our CDN/raw fetches are GETs) are safe to replay; returns
+        /// null otherwise so the original (authenticated) response is preserved.
+        /// </summary>
+        private static HttpRequestMessage? CloneRequestWithoutAuth(HttpRequestMessage request)
+        {
+            if (request.Content != null || request.RequestUri == null)
+                return null;
+
+            var clone = new HttpRequestMessage(request.Method, request.RequestUri)
+            {
+                Version = request.Version
+            };
+
+            foreach (var header in request.Headers)
+            {
+                if (string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+
+            return clone;
         }
     }
 
