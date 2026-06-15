@@ -5,6 +5,50 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0-beta] (Build 2149)
+
+### ✨ Added
+
+- **About dialog** — a new title-bar button (beside Settings) opens a minimalist WebView2 About page with the app identity, a short description, and Credits & Acknowledgments (author, community, third-party libraries, license).
+- **What's New chooser** — the card opens a modal to pick **Changelog** (in-app GitHub releases) or **ModsPack** (searchable, attribute-filterable hero-skin updates grid from the site).
+- **Version badges** on the What's New card — live app version + ModsPack version (served from R2 `config/banner.json`).
+- **Banner carousel** on the main shell, sourced from the R2 manifest.
+- **Install Method** and **Disable Options** rebuilt as native WebView2 dialogs.
+
+### 🐛 Fixed
+
+- **Patch Update button** no longer spams `[STATUS] Ready: ...` to the console on every click — status logging is now driven by an actual status change, decoupled from the forced (cache-bypassing) refresh.
+- **Apply settings** no longer fails with "Dota 2 cfg folder not found" — resolves `game\dota\cfg` correctly and creates it on a fresh install.
+- **Onboarding guide** now works on the WebView2 shell (DOM-native overlay).
+- **Card fonts** — promo cards and a few stray controls now render in JetBrains Mono.
+
+### 🛠️ Changed
+
+- **Monochrome redesign** of the main shell and Performance Tweaks page to match [ardysamods.my.id](https://ardysamods.my.id/) (black/white, JetBrains Mono, sharp corners).
+- **Layout** — Disable Mods and Performance Tweak moved into the sidebar; Install ModsPack is now an image card.
+- **Performance Tweak** is now gated behind path detection (Auto/Manual Detect), matching the other mod tools — the button stays disabled until a Dota 2 install is known, since `autoexec.cfg` cannot be resolved without it.
+- **Notifications** — the "no autoexec.cfg" notice is a persistent banner; toasts are high-contrast status cards.
+
+> **Deploy:** add `"modspackVersion": "2.6"` to R2 `config/banner.json`.
+
+---
+
+## [2.1.27-beta] (Build 2148)
+
+### ✨ Added
+
+- **Main Window**: The main window is now a WebView2 hybrid shell (`MainFormWebView` + `Assets/Html/main_shell.html`), matching the rest of the app (Hero Gallery, Miscellaneous, Settings). The interface was redesigned for a more compact, breathable layout at a slightly larger fixed size (920×640): a clean title bar (Tweak / Settings / Minimize / Close), a left sidebar grouped into **Detect Path**, **Mods**, and **Tools** with a dedicated status row, social links, and version footer, and a content column with the banner, Install / Disable actions, a collapsible "close Dota 2" warning, and a modernized console. Improved hierarchy, padding, and color grading (cyan accent on near-black) with no overlapping controls. The Patch Update button keeps its status-driven accent (ready/green, update/orange, error/red) and opens its menu (Patch / Verify / View Status) as an in-page dropdown. The console drops the scanline/glow treatment for a cleaner, category-colored log (success/error/warning/progress/default), kept in sync with the existing terminal classifier.
+
+- The shell visual language follows `DESIGN.md` (near-black `#101010` canvas, single electric-green `#00d992` accent, Inter for UI text with a monospace console, 1px hairline borders, 6px/8px radii).
+
+### 🐛 Fixed
+
+- **Settings / Tweaks / Support crashed (or rendered blank) from the main shell**: Two issues. (1) The main shell keeps a WebView2 alive for the whole session, so a dialog opened on top created a **second** `CoreWebView2Environment` rooted at the same persistent user-data folder — unsupported by WebView2, leaving the child blank. `WebView2EnvironmentHelper` now creates the environment **once** and shares that single instance across every WebView2 control in the process (the supported pattern), with retry if the first creation faults. (2) The sidebar/title-bar buttons opened those modal dialogs **synchronously inside the `WebMessageReceived` callback**, spinning a nested message loop (and a child WebView2) while still inside the WebView2 event handler — a reentrancy violation that hard-crashed the process (`STATUS_BREAKPOINT 0x80000003`). `MainFormWebView` now defers message handling onto a fresh message-loop turn via `BeginInvoke`, so dialogs open on a clean stack. Verified (Settings / Support / Performance Tweaks) via UI Automation.
+
+### 🛠️ Changed
+
+- **Startup / Resilience**: The shell is chosen at launch by `MainFormFactory` — the WebView2 shell when the Edge WebView2 runtime is available, otherwise the classic WinForms `MainForm` (kept intact as a fallback). The MVP boundary is unchanged: `MainFormWebView` implements the same `IMainFormView` contract and owns the same `MainFormPresenter`, so detection, install/disable, patching, status monitoring, and all dialogs behave identically. `Logger` gained a WebView log sink so console output streams into the page (buffered until the page is ready), and `IMainFormFactory.Create` now returns `Form` to allow the runtime shell choice.
+
 ---
 
 ## [2.1.27-beta] (Build 2147)
@@ -77,11 +121,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ✨ Added
 
-- **Skin Selector / Miscellaneous**: `items_game.txt` is now sourced live from your detected Dota 2 install on every generation instead of from the bundled `Original.zip`. A new `GameItemsGameExtractorService` extracts `scripts/items/items_game.txt` from `…/game/dota/pak01_dir.vpk` (via HLExtract, the same proven path the courier/ward extraction uses) and injects it into the extracted base before patching. This keeps mods aligned with the current game patch automatically — no more manual `Original.zip` rebuilds — and guarantees a clean (never stale/pre-patched) base each run. Wired into both Original.zip-based flows: `HeroGenerationService` and `MiscCleanGenerationService` (*Add to Current* is intentionally excluded, as it reuses the already-patched mods VPK).
+- **Skin Selector / Miscellaneous**: `items_game.txt` is now sourced live from your detected Dota 2 install on every generation instead of from the bundled `Original.zip`. A new `GameItemsGameExtractorService` extracts `scripts/items/items_game.txt` from `…/game/dota/pak01_dir.vpk` (via HLExtract, the same proven path the courier/ward extraction uses) and injects it into the extracted base before patching. This keeps mods aligned with the current game patch automatically — no more manual `Original.zip` rebuilds — and guarantees a clean (never stale/pre-patched) base each run. Wired into both Original.zip-based flows: `HeroGenerationService` and `MiscCleanGenerationService` (_Add to Current_ is intentionally excluded, as it reuses the already-patched mods VPK).
 
 ### 🛠️ Changed
 
-- **Core**: `Original.zip` no longer needs to carry `items_game.txt` (shrinks the CDN download). `VpkExtractorService.ExtractAsync` gained an optional `requireItemsGame` flag (default `true`; *Add to Current* unchanged), and `OriginalVpkService` switched its cache-validity sentinel from `items_game.txt` to a `.ready` marker kept beside the extracted folder so it is never packed into the mod VPK. If the game `items_game.txt` cannot be read (game files missing or path not detected), generation now aborts with a clear *"Re-run Detect"* message rather than silently using a stale copy.
+- **Core**: `Original.zip` no longer needs to carry `items_game.txt` (shrinks the CDN download). `VpkExtractorService.ExtractAsync` gained an optional `requireItemsGame` flag (default `true`; _Add to Current_ unchanged), and `OriginalVpkService` switched its cache-validity sentinel from `items_game.txt` to a `.ready` marker kept beside the extracted folder so it is never packed into the mod VPK. If the game `items_game.txt` cannot be read (game files missing or path not detected), generation now aborts with a clear _"Re-run Detect"_ message rather than silently using a stale copy.
 - **Tests**: Added `GameItemsGameExtractorServiceTests` covering the guard paths (empty target/extract path, missing game VPK).
 
 ---
@@ -90,10 +134,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
-- **Miscellaneous / Skin Selector**: Fixed user-cancelled generation being reported as a failure. Services returned the message `"Canceled by user."` while the forms compared against `"Operation cancelled by user."` (different spelling/wording), so cancelling popped a *"Generation Failed"* dialog. Replaced the magic-string compare with an explicit `OperationResult.WasCanceled` flag, set by all generation services and `ProgressOperationRunner` and honoured by `MiscForm`, `MiscFormWebView`, `SelectHero`, and `HeroGalleryForm`.
+- **Miscellaneous / Skin Selector**: Fixed user-cancelled generation being reported as a failure. Services returned the message `"Canceled by user."` while the forms compared against `"Operation cancelled by user."` (different spelling/wording), so cancelling popped a _"Generation Failed"_ dialog. Replaced the magic-string compare with an explicit `OperationResult.WasCanceled` flag, set by all generation services and `ProgressOperationRunner` and honoured by `MiscForm`, `MiscFormWebView`, `SelectHero`, and `HeroGalleryForm`.
 - **Miscellaneous**: Fixed the WebView UI (`MiscFormWebView`) silently failing on critical mod conflicts. It never inspected `RequiresConflictResolution`, so a critical conflict fell through to a generic error with no way to resolve it. The WebView host now shows the `ConflictResolutionDialog` + retry loop, matching the classic `MiscForm`.
 - **Miscellaneous**: Fixed conflict resolution being a no-op on the generated VPK. `MiscController` detected and "resolved" conflicts but always generated from the original selection set, so the losing mod was still written (and a critical conflict could retry indefinitely). Resolution outcomes now feed back into the selection set via `ApplyResolutionsToSelections` — the losing selection is dropped (unless it won another conflict) for both auto-resolve and user-resolve paths.
-- **Miscellaneous**: Fixed *Add to Current* mode fully extracting `pak01_dir.vpk` (potentially several GB) just to test for the `version/_ArdysaMods` signature file. `VerifyExistingVpkAsync` now reuses `IModInstallerService.ValidateVpkAsync`, which lists the VPK index (`HLExtract -l`) without extracting — removing the redundant extraction and its temp directory.
+- **Miscellaneous**: Fixed _Add to Current_ mode fully extracting `pak01_dir.vpk` (potentially several GB) just to test for the `version/_ArdysaMods` signature file. `VerifyExistingVpkAsync` now reuses `IModInstallerService.ValidateVpkAsync`, which lists the VPK index (`HLExtract -l`) without extracting — removing the redundant extraction and its temp directory.
 - **Miscellaneous**: Fixed `CancellationTokenSource` leaks — `MiscFormWebView._generationCts` is now disposed after each run and on form dispose, and `MiscForm`'s per-generation source is scoped with `using`.
 
 ### 🛠️ Changed
@@ -125,13 +169,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **MainForm**: Fixed graceful shutdown never triggering on close. `MainFormPresenter.IsOperationRunning` was backed by `_ongoingOperationTask`, a field that was never assigned, so it was always `false` — the window could close mid-install/patch without cancelling or waiting for the in-flight file operation. Operation state is now tracked via `_operationCts` + an `_operationGate` (`TaskCompletionSource`), so `ShutdownAsync` actually awaits the running operation (bounded by the existing 5s timeout) before closing.
 - **MainForm**: Fixed a resource leak — the presenter (and therefore the Dota 2 patch watcher's `FileSystemWatcher`, the process monitor, and the operation `CancellationTokenSource`) plus `TrayService` were never disposed on a normal close, because disposal was gated behind the always-false `IsOperationRunning`. Added `MainForm_FormClosed` to dispose them unconditionally (idempotent).
-- **MainForm**: Fixed `Form1_Load` reporting presenter/CDN initialization failures as *"Error loading social media icons"* and swallowing them — presenter init now has isolated error handling and icon loading moved to a best-effort `LoadSocialMediaIcons()`.
+- **MainForm**: Fixed `Form1_Load` reporting presenter/CDN initialization failures as _"Error loading social media icons"_ and swallowing them — presenter init now has isolated error handling and icon loading moved to a best-effort `LoadSocialMediaIcons()`.
 - **MainForm**: Fixed `HandlePatcherClickAsync` acting on a cached status despite its "force refresh" comment — it now refreshes with `force: true` before deciding to prompt or show the menu.
 - **MainForm**: Fixed the `--update` self-replace cleanup surfacing its error dialog and exiting from a background thread — the error path now marshals to the UI thread.
 
 ### 🛠️ Changed
 
-- **MainForm / MVP**: Consolidated Dota 2 process monitoring into `MainFormPresenter` as the single owner. The form previously started a *second* `Dota2Monitor` with its own handler and duplicate status checks; it now only reflects state through the new `IMainFormView.SetDotaRunningState` callback. Removed the form's duplicate `Dota2Monitor`, `StatusService`, `DotaStateChanged`, and `CheckModsStatus`.
+- **MainForm / MVP**: Consolidated Dota 2 process monitoring into `MainFormPresenter` as the single owner. The form previously started a _second_ `Dota2Monitor` with its own handler and duplicate status checks; it now only reflects state through the new `IMainFormView.SetDotaRunningState` callback. Removed the form's duplicate `Dota2Monitor`, `StatusService`, `DotaStateChanged`, and `CheckModsStatus`.
 - **MainForm**: Removed dead code (`MainFormPresenter.HandlePatchButtonClickAsync`, no-op `OnPaint`/`WndProc` overrides) and extracted the `--update` handshake into `RunPendingUpdateCleanup()`.
 - **Tests**: Added `MainFormPresenter` shutdown regression tests (idle `ShutdownAsync` completes promptly and disposes; safe without a prior operation). Full suite: 582 passing.
 

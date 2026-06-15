@@ -143,6 +143,15 @@ namespace ArdysaModsTools.Core.Constants
         public const string ReleaseManifestUrl = R2BaseUrl + "/releases/releases.json";
 
         /// <summary>
+        /// URL to the main-shell banner carousel manifest on R2 CDN (mirrored in the ModsPack
+        /// repo's <c>config/banner.json</c>, so it resolves through the CDN fallback chain).
+        /// Schema: { "slides": [ { "image": "Assets/image/banner/slide1.jpg", "link": "https://…", "title": "…" } ] }.
+        /// Image paths are resolved against the CDN base via <see cref="BuildUrl"/>.
+        /// Optional: when absent the shell falls back to the bundled banner image.
+        /// </summary>
+        public const string BannerManifestUrl = R2BaseUrl + "/config/banner.json";
+
+        /// <summary>
         /// Base path for release files on R2 CDN.
         /// Format: {R2BaseUrl}/releases/{version}/{filename}
         /// </summary>

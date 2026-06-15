@@ -139,6 +139,16 @@ namespace ArdysaModsTools
                     }
                 };
 
+                // TEMP DIAGNOSTIC (remove once the 0xc000041d launch crash is identified):
+                // Only active under a debugger, so it never touches normal users. Records every
+                // first-chance exception to startup_log.txt; the last entry before a fatal callback
+                // exit (STATUS_FATAL_USER_CALLBACK_EXCEPTION) names the culprit.
+                if (System.Diagnostics.Debugger.IsAttached)
+                {
+                    AppDomain.CurrentDomain.FirstChanceException += (s, e) =>
+                        Log($"FIRST-CHANCE: {e.Exception.GetType().FullName}: {e.Exception.Message}");
+                }
+
                 // Cleanup on exit
                 Application.ApplicationExit += (s, e) =>
                 {

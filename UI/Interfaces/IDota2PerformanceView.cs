@@ -7,6 +7,12 @@ namespace ArdysaModsTools.UI.Interfaces
     {
         Task LoadSettingsAsync(string jsonSettings);
         Task ShowToastAsync(string message, string type);
+
+        /// <summary>
+        /// Shows (or hides) the persistent autoexec.cfg status banner. <paramref name="state"/> is
+        /// "warning"/"success" to show, or "ok"/"hidden"/empty to dismiss.
+        /// </summary>
+        Task ShowCfgBannerAsync(string message, string state);
         void InvokeSafeClose();
         void StartDrag();
         void CopyTextToClipboard(string text);

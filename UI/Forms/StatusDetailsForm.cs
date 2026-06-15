@@ -121,7 +121,7 @@ namespace ArdysaModsTools.UI.Forms
                 Dock = DockStyle.Fill,
                 BackColor = Color.FromArgb(22, 22, 30),
                 ForeColor = Color.FromArgb(200, 200, 210),
-                Font = new Font("Cascadia Code", 9F),
+                Font = new Font("JetBrains Mono", 9F),
                 BorderStyle = BorderStyle.None,
                 ReadOnly = true,
                 Padding = new Padding(16)

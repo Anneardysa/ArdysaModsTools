@@ -1,0 +1,466 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         /* ── ardysamods.my.id monochrome tokens (shared with main_shell) ── */
+         :root {
+            --canvas: #000000;
+            --panel: rgba(10, 10, 10, 0.9);
+            --panel-2: #050505;
+            --panel-hover: rgba(20, 20, 20, 0.95);
+            --hairline: #222222;
+            --hairline-strong: #333333;
+            --primary: #ffffff;
+            --on-primary: #000000;
+            --primary-glow: rgba(255, 255, 255, 0.16);
+            --accent-dim: rgba(255, 255, 255, 0.1);
+            --ink: #ffffff;
+            --body: #888888;
+            --mute: #444444;
+            --danger: #f85149;
+            --danger-soft: #ff8983;
+            --danger-dim: rgba(248, 81, 73, 0.08);
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+            --clip: 12px;
+            --transition: all 0.18s ease;
+         }
+
+         html,
+         body {
+            height: 100%;
+         }
+         body {
+            font-family: var(--sans);
+            background: var(--canvas);
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--ink);
+            font-size: 14px;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--hairline-strong);
+         }
+
+         /* cut-corner notch utility */
+         .notch {
+            position: relative;
+         }
+         .notch::before {
+            content: "";
+            position: absolute;
+            top: -1px;
+            right: -1px;
+            width: var(--clip);
+            height: var(--clip);
+            background: var(--canvas);
+            border-left: 1px solid var(--hairline-strong);
+            border-bottom: 1px solid var(--hairline-strong);
+            pointer-events: none;
+            z-index: 2;
+         }
+
+         /* ── title bar ── */
+         #titlebar {
+            height: 40px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 6px 0 16px;
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.6);
+            -webkit-app-region: drag;
+         }
+         .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+         }
+         .brand .glyph {
+            display: flex;
+            color: var(--primary);
+         }
+         .brand .glyph svg {
+            width: 14px;
+            height: 14px;
+         }
+         .brand .b-name::before {
+            content: "// ";
+            color: var(--mute);
+         }
+         .win-controls {
+            margin-left: auto;
+            display: flex;
+            gap: 2px;
+         }
+         .win-btn {
+            -webkit-app-region: no-drag;
+            width: 32px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .win-btn svg {
+            width: 14px;
+            height: 14px;
+         }
+         .win-btn.close:hover {
+            background: rgba(248, 81, 73, 0.85);
+            color: #fff;
+         }
+
+         /* ── body ── */
+         .content {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 18px;
+         }
+         .lead {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--body);
+         }
+         .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+         }
+
+         /* ── selectable option card ── */
+         .opt {
+            -webkit-app-region: no-drag;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            padding: 18px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            color: inherit;
+            font-family: var(--sans);
+            text-align: left;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .opt .icon {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--canvas);
+            border: 1px solid var(--hairline-strong);
+            color: var(--body);
+            transition: var(--transition);
+         }
+         .opt .icon svg {
+            width: 20px;
+            height: 20px;
+         }
+         .opt .info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+         }
+         .opt .t {
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .opt .d {
+            font-size: 11.5px;
+            line-height: 1.6;
+            letter-spacing: 0.2px;
+            color: var(--body);
+         }
+         .opt .radio {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            border: 1px solid var(--hairline-strong);
+            position: relative;
+            transition: var(--transition);
+         }
+         .opt:hover {
+            border-color: var(--hairline-strong);
+            background: var(--panel-hover);
+         }
+
+         /* selected — neutral (Disable) */
+         .opt[aria-selected="true"] {
+            border-color: var(--primary);
+            background: var(--panel-hover);
+            box-shadow: inset 3px 0 0 var(--primary);
+         }
+         .opt[aria-selected="true"] .icon {
+            border-color: var(--primary);
+            color: var(--ink);
+         }
+         .opt[aria-selected="true"] .radio {
+            border-color: var(--primary);
+         }
+         .opt[aria-selected="true"] .radio::after {
+            content: "";
+            position: absolute;
+            inset: 4px;
+            border-radius: 50%;
+            background: var(--primary);
+         }
+
+         /* selected — danger (Delete) */
+         .opt.danger[aria-selected="true"] {
+            border-color: var(--danger);
+            background: var(--danger-dim);
+            box-shadow: inset 3px 0 0 var(--danger);
+         }
+         .opt.danger[aria-selected="true"] .t {
+            color: var(--danger-soft);
+         }
+         .opt.danger[aria-selected="true"] .icon {
+            border-color: var(--danger);
+            color: var(--danger-soft);
+         }
+         .opt.danger[aria-selected="true"] .radio {
+            border-color: var(--danger);
+         }
+         .opt.danger[aria-selected="true"] .radio::after {
+            background: var(--danger);
+         }
+
+         /* ── footer ── */
+         .footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 14px 18px;
+            border-top: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.45);
+         }
+         .btn {
+            -webkit-app-region: no-drag;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 40px;
+            padding: 0 22px;
+            font-family: var(--sans);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: var(--transition);
+         }
+         /* corner brackets (site .btn motif) */
+         .btn::before,
+         .btn::after {
+            content: "";
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            opacity: 0.55;
+            transition: var(--transition);
+         }
+         .btn::before {
+            top: -1px;
+            left: -1px;
+            border-top: 1px solid currentColor;
+            border-left: 1px solid currentColor;
+         }
+         .btn::after {
+            bottom: -1px;
+            right: -1px;
+            border-bottom: 1px solid currentColor;
+            border-right: 1px solid currentColor;
+         }
+         .btn:hover::before,
+         .btn:hover::after {
+            width: 12px;
+            height: 12px;
+            opacity: 1;
+         }
+         .btn.ghost {
+            background: var(--panel);
+            border-color: var(--hairline-strong);
+            color: var(--ink);
+         }
+         .btn.ghost:hover {
+            background: var(--accent-dim);
+            border-color: var(--primary);
+         }
+         .btn.primary {
+            background: var(--primary);
+            color: var(--on-primary);
+         }
+         .btn.primary:hover {
+            box-shadow: 0 0 18px var(--primary-glow);
+            transform: translateY(-1px);
+         }
+      </style>
+   </head>
+   <body>
+      <!-- ── title bar ── -->
+      <header id="titlebar" onmousedown="maybeDrag(event)">
+         <div class="brand">
+            <span class="glyph">
+               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z" /></svg>
+            </span>
+            <span class="b-name">Disable Options</span>
+         </div>
+         <div class="win-controls">
+            <button class="win-btn close" title="Cancel" onclick="act('close')">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+               </svg>
+            </button>
+         </div>
+      </header>
+
+      <!-- ── body ── -->
+      <main class="content">
+         <div class="lead">Choose what to do with your installed mods.</div>
+
+         <div class="options">
+            <button
+               id="opt-disable"
+               class="opt notch"
+               aria-selected="true"
+               onclick="select('disable')"
+            >
+               <span class="icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                     <circle cx="12" cy="12" r="9" />
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+               </span>
+               <span class="info">
+                  <span class="t">[ Disable Mods ]</span>
+                  <span class="d">Temporarily disable mods. You can re-enable them later.</span>
+               </span>
+               <span class="radio"></span>
+            </button>
+
+            <button
+               id="opt-delete"
+               class="opt danger notch"
+               aria-selected="false"
+               onclick="select('delete')"
+            >
+               <span class="icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                     <polyline points="3 6 5 6 21 6" />
+                     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                     <path d="M10 11v6" />
+                     <path d="M14 11v6" />
+                     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                  </svg>
+               </span>
+               <span class="info">
+                  <span class="t">[ Delete Permanently ]</span>
+                  <span class="d">Remove all mod files from your game folder. This cannot be undone.</span>
+               </span>
+               <span class="radio"></span>
+            </button>
+         </div>
+      </main>
+
+      <!-- ── footer ── -->
+      <footer class="footer">
+         <button class="btn ghost" onclick="act('cancel')">Cancel</button>
+         <button class="btn primary" onclick="confirmChoice()">Confirm</button>
+      </footer>
+
+      <script>
+         "use strict";
+         let selected = "disable";
+
+         function sendMessage(data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(data);
+            }
+         }
+         function act(type) {
+            sendMessage({ type });
+         }
+         function select(option) {
+            selected = option;
+            document
+               .getElementById("opt-disable")
+               .setAttribute("aria-selected", option === "disable" ? "true" : "false");
+            document
+               .getElementById("opt-delete")
+               .setAttribute("aria-selected", option === "delete" ? "true" : "false");
+         }
+         function confirmChoice() {
+            sendMessage({ type: "confirm", option: selected });
+         }
+         /* drag only when not pressing a control */
+         function maybeDrag(ev) {
+            if (ev.target.closest(".win-btn, .opt, .btn")) return;
+            sendMessage({ type: "startDrag" });
+         }
+         document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") act("cancel");
+            else if (e.key === "Enter") confirmChoice();
+         });
+      </script>
+   </body>
+</html>

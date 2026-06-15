@@ -1,0 +1,423 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+         :root {
+            --canvas: #000000;
+            --panel: rgba(10, 10, 10, 0.9);
+            --panel-2: #050505;
+            --panel-hover: rgba(20, 20, 20, 0.95);
+            --hairline: #222222;
+            --hairline-strong: #333333;
+            --primary: #ffffff;
+            --on-primary: #000000;
+            --primary-glow: rgba(255, 255, 255, 0.16);
+            --accent-dim: rgba(255, 255, 255, 0.1);
+            --ink: #ffffff;
+            --body: #888888;
+            --mute: #444444;
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+            --transition: all 0.18s ease;
+         }
+         html,
+         body {
+            height: 100%;
+         }
+         body {
+            font-family: var(--sans);
+            background: var(--canvas);
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--ink);
+            font-size: 14px;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--hairline-strong);
+         }
+
+         /* ── title bar ── */
+         #titlebar {
+            height: 40px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 6px 0 16px;
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.6);
+            -webkit-app-region: drag;
+         }
+         .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+         }
+         .brand .glyph {
+            display: flex;
+            color: var(--primary);
+         }
+         .brand .glyph svg {
+            width: 14px;
+            height: 14px;
+         }
+         .brand .b-name::before {
+            content: "// ";
+            color: var(--mute);
+         }
+         .win-controls {
+            margin-left: auto;
+            display: flex;
+            gap: 2px;
+         }
+         .win-btn {
+            -webkit-app-region: no-drag;
+            width: 32px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .win-btn svg {
+            width: 14px;
+            height: 14px;
+         }
+         .win-btn.close:hover {
+            background: rgba(248, 81, 73, 0.85);
+            color: #fff;
+         }
+
+         /* ── scrollable body ── */
+         .body {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 22px 22px 8px;
+         }
+
+         /* ── identity ── */
+         .hero {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding-bottom: 18px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid var(--hairline);
+         }
+         .hero-mark {
+            width: 46px;
+            height: 46px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            border: 1px solid var(--hairline-strong);
+            background: rgba(255, 255, 255, 0.04);
+         }
+         .hero-mark svg {
+            width: 24px;
+            height: 24px;
+         }
+         .hero-text {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+         }
+         .hero-name {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .hero-tag {
+            font-size: 11px;
+            letter-spacing: 0.4px;
+            color: var(--body);
+         }
+         .hero-ver {
+            margin-top: 4px;
+            align-self: flex-start;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--body);
+            padding: 2px 8px;
+            border: 1px solid var(--hairline-strong);
+            background: rgba(0, 0, 0, 0.4);
+         }
+
+         /* ── description ── */
+         .desc {
+            font-size: 12px;
+            line-height: 1.75;
+            color: var(--body);
+            margin-bottom: 22px;
+         }
+
+         /* ── credits ── */
+         .section-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--mute);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+         }
+         .section-label::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--hairline);
+         }
+         .credit {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-bottom: 14px;
+         }
+         .credit-key {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--mute);
+         }
+         .credit-val {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--ink);
+         }
+         .credit-val.muted {
+            color: var(--body);
+         }
+         .credit-val a {
+            color: var(--ink);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+            -webkit-app-region: no-drag;
+            cursor: pointer;
+         }
+         .credit-val a:hover {
+            color: var(--primary);
+         }
+         .libs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 2px;
+         }
+         .lib {
+            font-size: 10.5px;
+            letter-spacing: 0.3px;
+            color: var(--body);
+            padding: 3px 8px;
+            border: 1px solid var(--hairline);
+            background: var(--panel-2);
+         }
+
+         /* ── footer ── */
+         .footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 11px 18px;
+            border-top: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.45);
+         }
+         .footer-note {
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            color: var(--mute);
+         }
+         .footer-link {
+            -webkit-app-region: no-drag;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-family: var(--sans);
+            font-size: 10.5px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--body);
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .footer-link svg {
+            width: 13px;
+            height: 13px;
+         }
+         .footer-link:hover {
+            color: var(--ink);
+         }
+
+         ::-webkit-scrollbar {
+            width: 8px;
+         }
+         ::-webkit-scrollbar-track {
+            background: transparent;
+         }
+         ::-webkit-scrollbar-thumb {
+            background: var(--hairline);
+         }
+         ::-webkit-scrollbar-thumb:hover {
+            background: var(--hairline-strong);
+         }
+      </style>
+   </head>
+   <body>
+      <header id="titlebar" onmousedown="maybeDrag(event)">
+         <div class="brand">
+            <span class="glyph">
+               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z" /></svg>
+            </span>
+            <span class="b-name">About</span>
+         </div>
+         <div class="win-controls">
+            <button class="win-btn close" title="Close" onclick="act('close')">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+               </svg>
+            </button>
+         </div>
+      </header>
+
+      <div class="body">
+         <div class="hero">
+            <span class="hero-mark">
+               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z" /></svg>
+            </span>
+            <div class="hero-text">
+               <span class="hero-name">ArdysaModsTools</span>
+               <span class="hero-tag">Dota 2 Cosmetic Mod Manager</span>
+               <span class="hero-ver" id="about-ver">v—</span>
+            </div>
+         </div>
+
+         <p class="desc">
+            Install, customize, and disable client-side cosmetic mods for Dota&nbsp;2 — hero skins,
+            weather, terrain, HUD, couriers, wards and more. Mods are applied safely and reversibly,
+            with automatic re-patching after each game update.
+         </p>
+
+         <div class="section-label">Credits &amp; Acknowledgments</div>
+
+         <div class="credit">
+            <span class="credit-key">Author</span>
+            <span class="credit-val">
+               Ardysa
+               <a onclick="openUrl('https://github.com/Anneardysa')">(@Anneardysa)</a>
+            </span>
+         </div>
+
+         <div class="credit">
+            <span class="credit-key">Thanks To</span>
+            <span class="credit-val muted">
+               The Dota&nbsp;2 SkinChanger community, modders &amp; content creators, and Valve
+               Corporation for Dota&nbsp;2 and the Source&nbsp;2 engine.
+            </span>
+         </div>
+
+         <div class="credit">
+            <span class="credit-key">Built With</span>
+            <div class="libs">
+               <span class="lib">WebView2</span>
+               <span class="lib">ValveKeyValue</span>
+               <span class="lib">ImageSharp</span>
+               <span class="lib">SharpCompress</span>
+               <span class="lib">HLLib / HLExtract</span>
+            </div>
+         </div>
+
+         <div class="credit">
+            <span class="credit-key">License</span>
+            <span class="credit-val muted">GPL-3.0 — free &amp; open source software.</span>
+         </div>
+      </div>
+
+      <footer class="footer">
+         <span class="footer-note">© Ardysa</span>
+         <button class="footer-link" onclick="openUrl('https://github.com/Anneardysa/ArdysaModsTools')">
+            View on GitHub
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+               <path d="M7 17 17 7" />
+               <polyline points="9 7 17 7 17 15" />
+            </svg>
+         </button>
+      </footer>
+
+      <script>
+         "use strict";
+         function sendMessage(d) {
+            if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(d);
+         }
+         function act(type) {
+            sendMessage({ type });
+         }
+         function openUrl(url) {
+            sendMessage({ type: "openUrl", url });
+         }
+         function maybeDrag(ev) {
+            if (ev.target.closest(".win-btn")) return;
+            sendMessage({ type: "startDrag" });
+         }
+         document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") act("close");
+         });
+
+         /* ── C# → JS: app version label ── */
+         function setVersion(v) {
+            const el = document.getElementById("about-ver");
+            if (el) el.textContent = v ? "v" + String(v).replace(/^v/i, "") : "";
+         }
+      </script>
+   </body>
+</html>

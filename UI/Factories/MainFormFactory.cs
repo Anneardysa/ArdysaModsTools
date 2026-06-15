@@ -14,8 +14,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System;
+using System.Windows.Forms;
 using ArdysaModsTools.Core.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Web.WebView2.Core;
 
 namespace ArdysaModsTools.UI.Factories
 {
@@ -37,15 +40,27 @@ namespace ArdysaModsTools.UI.Factories
         }
 
         /// <inheritdoc />
-        public MainForm Create(bool startMinimized = false)
+        public Form Create(bool startMinimized = false)
         {
             // Resolve all dependencies from DI container
             var configService = _serviceProvider.GetRequiredService<IConfigService>();
             var detectionService = _serviceProvider.GetRequiredService<IDetectionService>();
             var modInstallerService = _serviceProvider.GetRequiredService<IModInstallerService>();
             var statusService = _serviceProvider.GetRequiredService<IStatusService>();
-            
-            // Create form with constructor injection
+
+            // Prefer the WebView2 shell; fall back to the classic WinForms shell when the
+            // Edge WebView2 runtime is missing or unusable on this machine.
+            if (IsWebView2RuntimeAvailable())
+            {
+                return new MainFormWebView(
+                    configService,
+                    detectionService,
+                    modInstallerService,
+                    statusService,
+                    _serviceProvider,
+                    startMinimized);
+            }
+
             return new MainForm(
                 configService,
                 detectionService,
@@ -53,6 +68,23 @@ namespace ArdysaModsTools.UI.Factories
                 statusService,
                 _serviceProvider,
                 startMinimized);
+        }
+
+        /// <summary>
+        /// Synchronous pre-flight check for the Edge WebView2 runtime. Returns false when no
+        /// runtime is installed (or the probe throws), in which case the classic shell is used.
+        /// </summary>
+        private static bool IsWebView2RuntimeAvailable()
+        {
+            try
+            {
+                var version = CoreWebView2Environment.GetAvailableBrowserVersionString();
+                return !string.IsNullOrEmpty(version);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
     }
 }

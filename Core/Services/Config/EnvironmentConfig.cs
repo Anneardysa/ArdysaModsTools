@@ -203,6 +203,26 @@ namespace ArdysaModsTools.Core.Services.Config
         /// </summary>
         public static string ToolsReleasesApi =>
             $"https://api.github.com/repos/{GitHubOwner}/{GitHubToolsRepo}/releases/latest";
+
+        /// <summary>
+        /// GitHub API URL for the tools repository release list (newest first).
+        /// Source for the in-app "What's New" changelog (mirrors the website's whatsnew page).
+        /// </summary>
+        public static string ToolsReleasesListApi =>
+            $"https://api.github.com/repos/{GitHubOwner}/{GitHubToolsRepo}/releases?per_page=30";
+
+        /// <summary>
+        /// Public website base URL. Distinct from the R2 CDN base (<c>cdn.*</c>): it hosts the
+        /// ModsPack updates manifest and its thumbnails. Overridable via <c>AMT_WEBSITE_BASE</c>.
+        /// </summary>
+        public static string WebsiteBase =>
+            (Environment.GetEnvironmentVariable("AMT_WEBSITE_BASE") ?? "https://ardysamods.my.id").TrimEnd('/');
+
+        /// <summary>
+        /// URL of the ModsPack hero-skin updates manifest shown in the in-app "ModsPack" view
+        /// (same source as the website's <c>updates.html</c> page).
+        /// </summary>
+        public static string ModsPackUpdatesUrl => $"{WebsiteBase}/updates.json";
         
         // ============================================================
         // Cache-Busting for CDN

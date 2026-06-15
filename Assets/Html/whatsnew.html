@@ -1,0 +1,542 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+         :root {
+            --canvas: #000000;
+            --panel: rgba(10, 10, 10, 0.9);
+            --panel-2: #050505;
+            --panel-hover: rgba(20, 20, 20, 0.95);
+            --hairline: #222222;
+            --hairline-strong: #333333;
+            --primary: #ffffff;
+            --on-primary: #000000;
+            --primary-glow: rgba(255, 255, 255, 0.16);
+            --accent-dim: rgba(255, 255, 255, 0.1);
+            --ink: #ffffff;
+            --body: #888888;
+            --mute: #444444;
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+            --clip: 12px;
+            --transition: all 0.18s ease;
+         }
+         html,
+         body {
+            height: 100%;
+         }
+         body {
+            font-family: var(--sans);
+            background: var(--canvas);
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--ink);
+            font-size: 14px;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--hairline-strong);
+         }
+
+         /* title bar */
+         #titlebar {
+            height: 40px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 6px 0 16px;
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.6);
+            -webkit-app-region: drag;
+         }
+         .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+         }
+         .brand .glyph {
+            display: flex;
+            color: var(--primary);
+         }
+         .brand .glyph svg {
+            width: 14px;
+            height: 14px;
+         }
+         .brand .b-name::before {
+            content: "// ";
+            color: var(--mute);
+         }
+         .win-controls {
+            margin-left: auto;
+            display: flex;
+            gap: 2px;
+         }
+         .win-btn {
+            -webkit-app-region: no-drag;
+            width: 32px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .win-btn svg {
+            width: 14px;
+            height: 14px;
+         }
+         .win-btn.close:hover {
+            background: rgba(248, 81, 73, 0.85);
+            color: #fff;
+         }
+
+         /* body / list */
+         .list {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+         }
+         .rel {
+            position: relative;
+            border: 1px solid var(--hairline-strong);
+            background: var(--panel-2);
+            padding: 16px 18px;
+         }
+         .rel.latest {
+            border-color: var(--primary);
+            box-shadow: inset 3px 0 0 var(--primary);
+         }
+         .rel-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+         }
+         .rel-tag {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+            padding: 3px 10px;
+            border: 1px solid var(--hairline-strong);
+         }
+         .rel.latest .rel-tag {
+            background: var(--primary);
+            color: var(--on-primary);
+            border-color: var(--primary);
+         }
+         .rel-badge {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            padding: 2px 6px;
+         }
+         .rel-date {
+            margin-left: auto;
+            font-size: 10.5px;
+            letter-spacing: 0.5px;
+            color: var(--mute);
+         }
+         .rel-name {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            color: var(--ink);
+            margin-bottom: 10px;
+         }
+         .rel-body {
+            font-size: 12px;
+            line-height: 1.7;
+            color: var(--body);
+         }
+         .rel-body .md-h {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+            margin: 12px 0 6px;
+         }
+         .rel-body p {
+            margin: 6px 0;
+         }
+         .rel-body ul {
+            margin: 6px 0 6px 2px;
+            list-style: none;
+         }
+         .rel-body li {
+            position: relative;
+            padding-left: 16px;
+            margin: 4px 0;
+         }
+         .rel-body li::before {
+            content: "›";
+            position: absolute;
+            left: 2px;
+            color: var(--mute);
+         }
+         .rel-body strong {
+            color: var(--ink);
+            font-weight: 700;
+         }
+         .rel-body code.ic {
+            font-family: var(--sans);
+            font-size: 11px;
+            background: var(--panel-hover);
+            color: var(--ink);
+            padding: 1px 5px;
+            border: 1px solid var(--hairline);
+         }
+         .rel-body pre {
+            background: #000;
+            border: 1px solid var(--hairline);
+            padding: 10px 12px;
+            margin: 8px 0;
+            overflow-x: auto;
+         }
+         .rel-body pre code {
+            font-family: var(--sans);
+            font-size: 11px;
+            color: var(--ink);
+            white-space: pre;
+         }
+         .rel-body a {
+            color: var(--ink);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+         }
+
+         /* loading / error state */
+         .state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            color: var(--body);
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            text-align: center;
+            padding: 24px;
+         }
+         .spinner {
+            width: 26px;
+            height: 26px;
+            border: 2px solid var(--hairline-strong);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+         }
+         @keyframes spin {
+            to {
+               transform: rotate(360deg);
+            }
+         }
+         .state-action {
+            display: none;
+            -webkit-app-region: no-drag;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 18px;
+            font-family: var(--sans);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+            background: none;
+            border: 1px solid var(--hairline-strong);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .state-action:hover {
+            background: var(--accent-dim);
+            border-color: var(--primary);
+         }
+
+         /* footer */
+         .footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 10px 18px;
+            border-top: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.45);
+         }
+         .footer-link {
+            -webkit-app-region: no-drag;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 10.5px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--body);
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .footer-link svg {
+            width: 13px;
+            height: 13px;
+         }
+         .footer-link:hover {
+            color: var(--ink);
+         }
+
+         ::-webkit-scrollbar {
+            width: 8px;
+         }
+         ::-webkit-scrollbar-track {
+            background: transparent;
+         }
+         ::-webkit-scrollbar-thumb {
+            background: var(--hairline);
+         }
+         ::-webkit-scrollbar-thumb:hover {
+            background: var(--hairline-strong);
+         }
+      </style>
+   </head>
+   <body>
+      <header id="titlebar" onmousedown="maybeDrag(event)">
+         <div class="brand">
+            <span class="glyph">
+               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z" /></svg>
+            </span>
+            <span class="b-name">What's New</span>
+         </div>
+         <div class="win-controls">
+            <button class="win-btn close" title="Close" onclick="act('close')">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+               </svg>
+            </button>
+         </div>
+      </header>
+
+      <div id="state" class="state">
+         <div id="state-spin" class="spinner"></div>
+         <div id="state-text">Loading the latest releases…</div>
+         <button id="state-action" class="state-action" onclick="openUrl('https://ardysamods.my.id/whatsnew.html')">
+            Open on the web
+         </button>
+      </div>
+
+      <div id="list" class="list" style="display: none"></div>
+
+      <footer class="footer">
+         <button class="footer-link" onclick="openUrl('https://ardysamods.my.id/whatsnew.html')">
+            View full changelog
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+               <path d="M7 17 17 7" />
+               <polyline points="9 7 17 7 17 15" />
+            </svg>
+         </button>
+      </footer>
+
+      <script>
+         "use strict";
+         function sendMessage(d) {
+            if (window.chrome && window.chrome.webview) window.chrome.webview.postMessage(d);
+         }
+         function act(type) {
+            sendMessage({ type });
+         }
+         function openUrl(url) {
+            sendMessage({ type: "openUrl", url });
+         }
+         function maybeDrag(ev) {
+            if (ev.target.closest(".win-btn")) return;
+            sendMessage({ type: "startDrag" });
+         }
+         document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") act("close");
+         });
+
+         /* ── C# → JS: render the release list ── */
+         function loadReleases(payload) {
+            const rels = typeof payload === "string" ? JSON.parse(payload) : payload;
+            const list = document.getElementById("list");
+            const state = document.getElementById("state");
+            if (!Array.isArray(rels) || rels.length === 0) {
+               showFallback();
+               return;
+            }
+            state.style.display = "none";
+            list.style.display = "flex";
+            list.innerHTML = "";
+
+            rels.forEach((r, i) => {
+               const card = document.createElement("div");
+               card.className = "rel" + (i === 0 ? " latest" : "");
+
+               const head = document.createElement("div");
+               head.className = "rel-head";
+               const tag = document.createElement("span");
+               tag.className = "rel-tag";
+               tag.textContent = r.tag || r.name || "";
+               head.appendChild(tag);
+               if (i === 0) {
+                  const b = document.createElement("span");
+                  b.className = "rel-badge";
+                  b.textContent = "Latest";
+                  head.appendChild(b);
+               }
+               const date = document.createElement("span");
+               date.className = "rel-date";
+               date.textContent = fmtDate(r.date);
+               head.appendChild(date);
+               card.appendChild(head);
+
+               if (r.name && r.name !== r.tag) {
+                  const n = document.createElement("div");
+                  n.className = "rel-name";
+                  n.textContent = r.name;
+                  card.appendChild(n);
+               }
+
+               const body = document.createElement("div");
+               body.className = "rel-body";
+               body.innerHTML = renderMarkdown(r.body || "");
+               card.appendChild(body);
+
+               list.appendChild(card);
+            });
+         }
+
+         function showFallback() {
+            document.getElementById("list").style.display = "none";
+            const state = document.getElementById("state");
+            state.style.display = "flex";
+            document.getElementById("state-spin").style.display = "none";
+            document.getElementById("state-text").textContent =
+               "Couldn't load What's New — check your connection.";
+            document.getElementById("state-action").style.display = "inline-flex";
+         }
+
+         function fmtDate(iso) {
+            if (!iso) return "";
+            const d = new Date(iso);
+            if (isNaN(d.getTime())) return "";
+            return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+         }
+
+         /* ── compact, escape-first markdown renderer ── */
+         function escapeHtml(s) {
+            return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+         }
+         function inline(s) {
+            s = s.replace(/`([^`]+)`/g, '<code class="ic">$1</code>');
+            s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+            s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function (mm, t, u) {
+               return '<a href="#" onclick="openUrl(\'' + u.replace(/'/g, "\\'") + "');return false;\">" + t + "</a>";
+            });
+            return s;
+         }
+         function renderMarkdown(md) {
+            if (!md) return "";
+            const lines = escapeHtml(md.replace(/\r/g, "")).split("\n");
+            let html = "";
+            let inList = false;
+            let inCode = false;
+            const closeList = () => {
+               if (inList) {
+                  html += "</ul>";
+                  inList = false;
+               }
+            };
+            for (let raw of lines) {
+               if (/^```/.test(raw.trim())) {
+                  if (inCode) {
+                     html += "</code></pre>";
+                     inCode = false;
+                  } else {
+                     closeList();
+                     html += "<pre><code>";
+                     inCode = true;
+                  }
+                  continue;
+               }
+               if (inCode) {
+                  html += raw + "\n";
+                  continue;
+               }
+               const line = raw.trim();
+               if (line === "") {
+                  closeList();
+                  continue;
+               }
+               let m;
+               if ((m = line.match(/^#{1,6}\s+(.*)$/))) {
+                  closeList();
+                  html += '<div class="md-h">' + inline(m[1]) + "</div>";
+                  continue;
+               }
+               if ((m = line.match(/^[-*]\s+(.*)$/))) {
+                  if (!inList) {
+                     html += "<ul>";
+                     inList = true;
+                  }
+                  html += "<li>" + inline(m[1]) + "</li>";
+                  continue;
+               }
+               closeList();
+               html += "<p>" + inline(line) + "</p>";
+            }
+            closeList();
+            if (inCode) html += "</code></pre>";
+            return html;
+         }
+      </script>
+   </body>
+</html>

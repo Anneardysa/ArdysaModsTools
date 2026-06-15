@@ -45,6 +45,10 @@ namespace ArdysaModsTools.Core.Services
     {
         private readonly RetroTerminal? _terminal;
         private readonly RichTextBox? _richTextBox;
+        // [AMT:PRO] Web sink pairs with main_shell.html appendLog(text, category). The category
+        // strings ("success"/"error"/"warning"/"progress"/"default") are a contract with the HTML —
+        // keep CategorizeKey and the JS color map in sync.
+        private readonly Action<string, string>? _webSink;
         private readonly List<string> _buffer = new();
         private readonly Queue<(string message, Color color)> _messageQueue = new();
         private bool _isTyping = false;
@@ -78,6 +82,17 @@ namespace ArdysaModsTools.Core.Services
             _richTextBox = richTextBox ?? throw new ArgumentNullException(nameof(richTextBox));
         }
 
+        /// <summary>
+        /// Constructor for a WebView2 host (MainFormWebView). Each log line is delivered to the
+        /// sink as (cleanMessage, category) where category is one of
+        /// "success" | "error" | "warning" | "progress" | "default". The host is responsible for
+        /// buffering lines emitted before its WebView is ready (see MainFormWebView).
+        /// </summary>
+        public Logger(Action<string, string> webSink)
+        {
+            _webSink = webSink ?? throw new ArgumentNullException(nameof(webSink));
+        }
+
         public void Log(string message)
         {
             // Filter out noisy technical messages
@@ -89,6 +104,8 @@ namespace ArdysaModsTools.Core.Services
                 LogToTerminal(message);
             else if (_richTextBox != null)
                 LogToRichTextBox(message);
+            else
+                _webSink?.Invoke(CleanMessage(message), CategorizeKey(message));
         }
 
         private void LogToTerminal(string message)
@@ -249,11 +266,24 @@ namespace ArdysaModsTools.Core.Services
             return message;
         }
 
-        private static Color CategorizeMessage(string message)
+        private static Color CategorizeMessage(string message) => CategorizeKey(message) switch
+        {
+            "success" => CyberGreen,
+            "error" => CyberRed,
+            "warning" => CyberOrange,
+            "progress" => CyberCyan,
+            _ => CyberGrey
+        };
+
+        /// <summary>
+        /// Classifies a log message into a stable category tag shared by the terminal color map and
+        /// the WebView console. Returns "success" | "error" | "warning" | "progress" | "default".
+        /// </summary>
+        private static string CategorizeKey(string message)
         {
             string lower = message.ToLowerInvariant();
 
-            // Success - Neon Green
+            // Success
             if (lower.Contains("done") ||
                 lower.Contains("success") ||
                 lower.Contains("completed") ||
@@ -263,9 +293,9 @@ namespace ArdysaModsTools.Core.Services
                 lower.Contains("enabled") ||
                 lower.Contains("generated") ||
                 lower.Contains("up to date"))
-                return CyberGreen;
+                return "success";
 
-            // Error - Red
+            // Error
             if (lower.Contains("error") ||
                 lower.Contains("failed") ||
                 lower.Contains("critical") ||
@@ -273,9 +303,9 @@ namespace ArdysaModsTools.Core.Services
                 lower.Contains("exception") ||
                 lower.Contains("not found") ||
                 lower.Contains("invalid"))
-                return CyberRed;
+                return "error";
 
-            // Warning/Status - Orange
+            // Warning/Status
             if (lower.Contains("warning") ||
                 lower.Contains("skipped") ||
                 lower.Contains("missing") ||
@@ -285,9 +315,9 @@ namespace ArdysaModsTools.Core.Services
                 lower.Contains("please") ||
                 lower.Contains("close") ||
                 lower.Contains("[status]"))
-                return CyberOrange;
+                return "warning";
 
-            // Progress - Cyan
+            // Progress
             if (lower.Contains("fetching") ||
                 lower.Contains("checking") ||
                 lower.Contains("extracting") ||
@@ -303,10 +333,9 @@ namespace ArdysaModsTools.Core.Services
                 lower.Contains("installing") ||
                 lower.Contains("updating") ||
                 lower.Contains("disabling"))
-                return CyberCyan;
+                return "progress";
 
-            // Default - Grey
-            return CyberGrey;
+            return "default";
         }
     }
 }

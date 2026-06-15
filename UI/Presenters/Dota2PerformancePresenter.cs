@@ -43,9 +43,11 @@ namespace ArdysaModsTools.UI.Presenters
                 }
                 else
                 {
-                    // No saved cfg: the view starts on a recommended preset, so say that rather
-                    // than claiming raw defaults (which would contradict what the grid shows).
-                    await _view.ShowToastAsync("No autoexec.cfg found — showing a recommended preset to start from.", "info");
+                    // No saved cfg: the view starts on a recommended preset. Surface this as a
+                    // persistent, high-contrast banner (an auto-dismissing toast was easy to miss).
+                    await _view.ShowCfgBannerAsync(
+                        "These are recommended preset values — nothing has been written yet. Click [ APPLY TO AUTOEXEC.CFG ] to create the file in your Dota 2 config folder.",
+                        "warning");
                 }
             }
             catch (Exception ex)
@@ -66,6 +68,8 @@ namespace ArdysaModsTools.UI.Presenters
 
                 await _autoexecService.ApplySettingsAsync(_gamePath, settings);
 
+                // The file now exists — dismiss the "missing" banner and confirm.
+                await _view.ShowCfgBannerAsync(string.Empty, "ok");
                 await _view.ShowToastAsync("autoexec.cfg saved successfully!", "success");
                 await _view.LoadSettingsAsync(jsonSettings); // Reload to reflect what was saved
             }

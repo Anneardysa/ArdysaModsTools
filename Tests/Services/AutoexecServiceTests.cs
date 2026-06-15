@@ -268,6 +268,20 @@ namespace ArdysaModsTools.Tests.Services.Misc
             Assert.That(result, Is.Empty);
         }
 
+        [Test]
+        public async Task LoadCurrentSettingsAsync_WhenGamePathIsInstallRoot_ReadsGameDotaCfg()
+        {
+            // Real app convention: targetPath is the install ROOT, so cfg lives at game/dota/cfg.
+            var cfgDir = Path.Combine(_tempRoot, "game", "dota", "cfg");
+            Directory.CreateDirectory(cfgDir);
+            await File.WriteAllTextAsync(Path.Combine(cfgDir, "autoexec.cfg"), "fps_max 240\r\n");
+            var service = CreateService(out _);
+
+            var result = await service.LoadCurrentSettingsAsync(_tempRoot);
+
+            Assert.That(result["fps_max"], Is.EqualTo("240"));
+        }
+
         #endregion
 
         #region ApplySettingsAsync Tests
@@ -288,15 +302,52 @@ namespace ArdysaModsTools.Tests.Services.Misc
         }
 
         [Test]
-        public void ApplySettingsAsync_WhenCfgFolderMissing_ThrowsDirectoryNotFound()
+        public void ApplySettingsAsync_WhenInstallInvalid_ThrowsDirectoryNotFound()
         {
-            // _tempRoot has no dota/cfg or cfg subfolder, so the resolver returns empty and Apply must throw.
+            // _tempRoot has no dota subfolder and isn't itself a "dota" content folder, so it is not a
+            // recognizable Dota 2 install — the resolver returns empty and Apply must throw.
             var service = CreateService(out _);
             var settings = new Dictionary<string, string> { { "fps_max", "144" } };
 
             Assert.That(
                 async () => await service.ApplySettingsAsync(_tempRoot, settings),
                 Throws.InstanceOf<DirectoryNotFoundException>());
+        }
+
+        [Test]
+        public async Task ApplySettingsAsync_WhenCfgFolderMissingButInstallValid_CreatesCfgAndWrites()
+        {
+            // "game" folder layout: game/dota exists, but the cfg folder has never been created
+            // (a fresh Dota 2 install). Apply must create dota/cfg and write autoexec.cfg.
+            Directory.CreateDirectory(Path.Combine(_tempRoot, "dota"));
+            var service = CreateService(out var logger);
+            var settings = new Dictionary<string, string> { { "fps_max", "144" } };
+
+            await service.ApplySettingsAsync(_tempRoot, settings);
+
+            var autoexec = Path.Combine(_tempRoot, "dota", "cfg", "autoexec.cfg");
+            Assert.That(File.Exists(autoexec), Is.True);
+            var written = await File.ReadAllTextAsync(autoexec);
+            Assert.That(written, Does.Contain("fps_max 144"));
+            Assert.That(logger.ErrorCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public async Task ApplySettingsAsync_WhenGamePathIsInstallRoot_WritesUnderGameDotaCfg()
+        {
+            // Real app convention: targetPath is the install ROOT (contains "game"), and the cfg folder
+            // doesn't exist yet. Apply must create <root>\game\dota\cfg and write autoexec.cfg there.
+            Directory.CreateDirectory(Path.Combine(_tempRoot, "game", "dota"));
+            var service = CreateService(out var logger);
+            var settings = new Dictionary<string, string> { { "fps_max", "240" } };
+
+            await service.ApplySettingsAsync(_tempRoot, settings);
+
+            var autoexec = Path.Combine(_tempRoot, "game", "dota", "cfg", "autoexec.cfg");
+            Assert.That(File.Exists(autoexec), Is.True);
+            var written = await File.ReadAllTextAsync(autoexec);
+            Assert.That(written, Does.Contain("fps_max 240"));
+            Assert.That(logger.ErrorCount, Is.EqualTo(0));
         }
 
         [Test]

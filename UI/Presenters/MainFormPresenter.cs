@@ -852,20 +852,23 @@ namespace ArdysaModsTools.UI.Presenters
                     statusInfo = await _status.GetDetailedStatusAsync(_targetPath);
                 }
 
-                // Check for duplicates to avoid log spam
-                bool isSameStatus = _currentStatus != null && 
-                                   _currentStatus.Status == statusInfo.Status && 
+                // Detect whether the observable status actually changed. Logging is driven purely
+                // by this — NOT by `force`. `force` only controls data freshness (cache bypass);
+                // tying it to logging caused every Patch Update click to re-log identical
+                // "[STATUS] Ready: ..." lines even when nothing had changed.
+                bool isSameStatus = _currentStatus != null &&
+                                   _currentStatus.Status == statusInfo.Status &&
                                    _currentStatus.Description == statusInfo.Description;
 
                 _currentStatus = statusInfo; // Store for ShowStatusDetails
-                
+
                 _view.InvokeOnUIThread(() =>
                 {
                     // Use detailed status update if available
                     _view.SetModsStatusDetailed(statusInfo);
-                    
-                    // Log status change only if changed or forced
-                    if (!isSameStatus || force)
+
+                    // Log only when the status genuinely changed (or on the first check).
+                    if (!isSameStatus)
                     {
                         _logger.Log($"[STATUS] {statusInfo.StatusText}: {statusInfo.Description}");
                     }

@@ -1,0 +1,2370 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         /* ════════════════ ardysamods.my.id design tokens (monochrome terminal) ════════════════ */
+         :root {
+            /* surfaces — mirror site style.css :root */
+            --canvas: #000000;
+            --panel: rgba(10, 10, 10, 0.9);
+            --panel-2: #050505;
+            --panel-hover: rgba(20, 20, 20, 0.95);
+            --hairline: #222222;
+            --hairline-strong: #333333;
+            --dashed: rgba(136, 136, 136, 0.4);
+
+            /* brand — single white accent (site --accent) */
+            --primary: #ffffff;
+            --primary-soft: #ffffff;
+            --primary-deep: #ffffff;
+            --on-primary: #000000;
+            --primary-glow: rgba(255, 255, 255, 0.16);
+            --accent-dim: rgba(255, 255, 255, 0.1);
+
+            /* text */
+            --ink: #ffffff;
+            --ink-strong: #ffffff;
+            --body: #888888;
+            --mute: #444444;
+
+            /* semantic (in-product cues only) */
+            --success: #ffffff;
+            --warning: #888888;
+            --error: #ffffff;
+            --info: #888888;
+
+            /* type — site loads JetBrains Mono only */
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+            --mono: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+            /* radius — site is sharp-cornered */
+            --r-sm: 0px;
+            --r-md: 0px;
+            --r-pill: 0px;
+            --clip: 12px; /* signature cut-corner notch */
+
+            /* motion */
+            --transition: all 0.18s ease;
+
+            /* spacing */
+            --sp-1: 4px;
+            --sp-2: 8px;
+            --sp-3: 12px;
+            --sp-4: 16px;
+            --sp-5: 20px;
+            --sp-6: 24px;
+         }
+
+         html,
+         body {
+            height: 100%;
+         }
+
+         body {
+            font-family: var(--sans);
+            background: var(--canvas);
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--ink);
+            font-size: 14px;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--hairline);
+            border-radius: 0px;
+         }
+
+         /* ── animated wave backdrop (site .animated-bg signature) ── */
+         .bgfx {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+         }
+         .bgfx::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            opacity: 0.05;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E")
+               repeat-x;
+            background-size: 50% 100%;
+            animation: infiniteWave 28s linear infinite;
+         }
+         @keyframes infiniteWave {
+            0% {
+               transform: translateX(0);
+            }
+            100% {
+               transform: translateX(-50%);
+            }
+         }
+         @media (prefers-reduced-motion: reduce) {
+            .bgfx::before {
+               animation: none;
+            }
+         }
+
+         /* ── cut-corner notch utility (site --clip-size cards) ── */
+         .notch {
+            position: relative;
+         }
+         .notch::before {
+            content: "";
+            position: absolute;
+            top: -1px;
+            right: -1px;
+            width: var(--clip);
+            height: var(--clip);
+            background: var(--canvas);
+            border-left: 1px solid var(--hairline-strong);
+            border-bottom: 1px solid var(--hairline-strong);
+            pointer-events: none;
+            z-index: 2;
+         }
+
+         /* ════════════════════════════════ TITLE BAR ════════════════════════════════ */
+         #titlebar {
+            position: relative;
+            z-index: 1;
+            height: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            padding: 0 var(--sp-2) 0 var(--sp-5);
+            -webkit-app-region: drag;
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+         }
+         .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+         }
+         .brand .glyph {
+            color: var(--primary);
+            display: flex;
+         }
+         .brand .glyph svg {
+            width: 15px;
+            height: 15px;
+         }
+         .brand .b-name {
+            color: var(--ink-strong);
+         }
+         .brand .b-name::before {
+            content: "// ";
+            color: var(--mute);
+         }
+         .brand .b-tag {
+            color: var(--mute);
+            font-weight: 500;
+            letter-spacing: 1px;
+         }
+         .win-controls {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+         }
+         .win-btn {
+            -webkit-app-region: no-drag;
+            width: 34px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            border-radius: var(--r-sm);
+            transition: var(--transition);
+         }
+         .win-btn svg {
+            width: 15px;
+            height: 15px;
+         }
+         .win-btn:hover {
+            background: var(--accent-dim);
+            border-color: var(--hairline);
+            color: var(--ink);
+         }
+         .win-btn.settings:hover,
+         .win-btn.about:hover,
+         .win-btn.tweak:hover {
+            color: var(--primary);
+         }
+         .win-btn.close:hover {
+            background: rgba(248, 81, 73, 0.85);
+            border-color: transparent;
+            color: #fff;
+         }
+
+         /* ════════════════════════════════ SHELL ════════════════════════════════ */
+         .shell {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            padding: var(--sp-4);
+            gap: var(--sp-4);
+         }
+
+         /* ════════════════════════════════ SIDEBAR ════════════════════════════════ */
+         .sidebar {
+            width: 216px;
+            min-width: 216px;
+            background: var(--panel);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-md);
+            padding: var(--sp-4) var(--sp-3);
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-5);
+         }
+
+         .group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-2);
+         }
+         .group-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--mute);
+            padding: 0 var(--sp-1);
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+         }
+         .group-label::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--hairline);
+         }
+
+         /* ── nav buttons ── */
+         .nav-btn {
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            gap: var(--sp-3);
+            width: 100%;
+            padding: 9px var(--sp-3);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+            color: var(--body);
+            font-family: var(--sans);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            text-align: left;
+            transition: var(--transition);
+         }
+         .nav-btn .ico {
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+            color: var(--mute);
+            transition: color 0.16s ease;
+         }
+         .nav-btn:hover {
+            background: var(--panel-hover);
+            color: var(--ink-strong);
+            border-color: var(--hairline-strong);
+            box-shadow: inset 2px 0 0 var(--primary);
+         }
+         .nav-btn:hover .ico {
+            color: var(--primary);
+         }
+         .nav-btn:active {
+            transform: translateY(1px);
+         }
+         .nav-btn.is-disabled {
+            opacity: 0.4;
+            pointer-events: none;
+         }
+         /* detection highlight — quiet pulse emphasis */
+         .nav-btn.highlight {
+            border-color: var(--primary-deep);
+            color: var(--ink-strong);
+            box-shadow: var(--primary-glow) 0 0 0 0;
+            animation: pulse 2.4s ease-in-out infinite;
+         }
+         .nav-btn.highlight .ico {
+            color: var(--primary);
+         }
+         @keyframes pulse {
+            0%,
+            100% {
+               box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+            }
+            50% {
+               box-shadow: 0 0 0 3px var(--primary-glow);
+            }
+         }
+
+         /* patch button accent states */
+         .nav-btn.patch.ready {
+            border-color: var(--primary-deep);
+            color: var(--primary);
+         }
+         .nav-btn.patch.ready .ico {
+            color: var(--primary);
+         }
+         .nav-btn.patch.update {
+            border-color: rgba(227, 179, 65, 0.55);
+            color: var(--warning);
+         }
+         .nav-btn.patch.update .ico {
+            color: var(--warning);
+         }
+         .nav-btn.patch.error {
+            border-color: rgba(248, 81, 73, 0.6);
+            color: var(--error);
+         }
+         .nav-btn.patch.error .ico {
+            color: var(--error);
+         }
+         .nav-btn .chev {
+            margin-left: auto;
+            width: 11px;
+            height: 11px;
+            opacity: 0.55;
+         }
+
+         .sb-spacer {
+            margin-top: auto;
+         }
+
+         /* ── status card ── */
+         .status-card {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            padding: 9px var(--sp-3);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+         }
+         .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--mute);
+            flex-shrink: 0;
+            box-shadow: 0 0 8px transparent;
+            transition:
+               background 0.2s,
+               box-shadow 0.2s;
+         }
+         .status-text {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--body);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+         }
+         .status-refresh {
+            -webkit-app-region: no-drag;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: var(--mute);
+            cursor: pointer;
+            border-radius: var(--r-sm);
+            flex-shrink: 0;
+            transition: var(--transition);
+         }
+         .status-refresh:hover {
+            color: var(--ink);
+            background: var(--panel-hover);
+         }
+         .status-refresh.spin svg {
+            animation: spin 0.8s linear infinite;
+         }
+         @keyframes spin {
+            to {
+               transform: rotate(360deg);
+            }
+         }
+
+         /* ── socials + version ── */
+         .footer-row {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+         }
+         .social {
+            -webkit-app-region: no-drag;
+            width: 34px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .social img {
+            width: 15px;
+            height: 15px;
+            opacity: 0.65;
+            transition: opacity 0.16s ease;
+         }
+         .social:hover {
+            background: var(--accent-dim);
+            border-color: var(--primary);
+         }
+         .social:hover img {
+            opacity: 1;
+         }
+         .social.support {
+            flex: 1;
+            gap: 7px;
+            font-family: var(--sans);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: var(--body);
+         }
+         .social.support:hover {
+            color: var(--primary);
+            border-color: var(--primary-deep);
+         }
+         .version {
+            text-align: center;
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--mute);
+            letter-spacing: 0.5px;
+         }
+
+         /* ════════════════════════════════ CONTENT ════════════════════════════════ */
+         .content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-3);
+         }
+
+         /* ── banner carousel ── */
+         .carousel {
+            height: 200px;
+            border-radius: var(--r-md);
+            border: 1px solid var(--hairline-strong);
+            background: var(--panel);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+         }
+         .carousel-track {
+            display: flex;
+            height: 100%;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform;
+         }
+         .slide {
+            position: relative;
+            min-width: 100%;
+            height: 100%;
+         }
+         .slide.link {
+            cursor: pointer;
+         }
+         .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+         }
+         .slide::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 45%, rgba(0, 0, 0, 0.78));
+            pointer-events: none;
+         }
+         .slide .cap {
+            position: absolute;
+            left: 16px;
+            right: 90px;
+            bottom: 14px;
+            z-index: 1;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+            text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
+         }
+         /* arrows (only when multiple slides) */
+         .car-arrow {
+            -webkit-app-region: no-drag;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 3;
+            width: 30px;
+            height: 30px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid var(--hairline-strong);
+            color: var(--ink);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .carousel.multi .car-arrow {
+            display: flex;
+         }
+         .car-arrow svg {
+            width: 14px;
+            height: 14px;
+         }
+         .car-arrow.prev {
+            left: 10px;
+         }
+         .car-arrow.next {
+            right: 10px;
+         }
+         .car-arrow:hover {
+            background: var(--accent-dim);
+            border-color: var(--primary);
+         }
+         /* dots */
+         .car-dots {
+            position: absolute;
+            right: 14px;
+            bottom: 12px;
+            z-index: 3;
+            display: flex;
+            gap: 6px;
+         }
+         .car-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .car-dot.active {
+            background: var(--primary);
+            box-shadow: 0 0 6px var(--primary);
+         }
+
+         /* ── promo cards row (Install image card + News card) ── */
+         .cards {
+            display: flex;
+            gap: var(--sp-3);
+            flex-shrink: 0;
+            height: 200px;
+         }
+         .promo-card {
+            -webkit-app-region: no-drag;
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: flex-end;
+            overflow: hidden;
+            border: 1px solid var(--hairline-strong);
+            background: var(--panel-2);
+            cursor: pointer;
+            transition: var(--transition);
+            /* <button> does not inherit body font — pin it so card text stays JetBrains Mono */
+            font-family: var(--sans);
+         }
+         /* signature corner brackets */
+         .promo-card::before,
+         .promo-card::after {
+            content: "";
+            position: absolute;
+            width: 9px;
+            height: 9px;
+            z-index: 3;
+            opacity: 0.6;
+            transition: var(--transition);
+         }
+         .promo-card::before {
+            top: -1px;
+            left: -1px;
+            border-top: 1px solid var(--ink);
+            border-left: 1px solid var(--ink);
+         }
+         .promo-card::after {
+            bottom: -1px;
+            right: -1px;
+            border-bottom: 1px solid var(--ink);
+            border-right: 1px solid var(--ink);
+         }
+         .promo-card:hover::before,
+         .promo-card:hover::after {
+            width: 13px;
+            height: 13px;
+            opacity: 1;
+         }
+         .promo-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+         }
+         .promo-card .bg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            transition: transform 0.4s ease;
+         }
+         .promo-card:hover .bg {
+            transform: scale(1.05);
+         }
+         .promo-card .veil {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.82) 100%);
+         }
+         .promo-card .pc-body {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 100%;
+            height: 100%;
+            padding: 16px 18px;
+         }
+         .promo-card .pc-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+         }
+         .promo-card .pc-ico {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--hairline-strong);
+            background: rgba(0, 0, 0, 0.35);
+            color: var(--ink);
+            transition: var(--transition);
+         }
+         .promo-card .pc-ico svg {
+            width: 22px;
+            height: 22px;
+         }
+         .promo-card .pc-text {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+         }
+         .promo-card .pc-title {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .promo-card .pc-sub {
+            margin-top: 7px;
+            font-size: 11px;
+            line-height: 1.6;
+            letter-spacing: 0.3px;
+            color: var(--body);
+         }
+         /* version badges on the What's New card */
+         .promo-card .pc-vers {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 10px;
+         }
+         .promo-card .pc-ver {
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 2px 7px;
+            color: var(--body);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--hairline-strong);
+         }
+         .promo-card .pc-ver.mods {
+            color: var(--ink);
+            border-color: var(--primary-deep);
+         }
+         .promo-card .pc-arrow {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            color: var(--mute);
+            transition: var(--transition);
+         }
+         .promo-card:hover .pc-ico {
+            border-color: var(--primary);
+            color: var(--ink);
+         }
+         .promo-card:hover .pc-arrow {
+            color: var(--ink);
+            transform: translateX(3px);
+         }
+         /* install card — primary emphasis */
+         .promo-card.install {
+            border-color: var(--primary);
+         }
+         /* inset the banner image from the card edge so the card surface frames it.
+            Explicit width/height (not auto) are required: an absolutely-positioned <img>
+            with auto size renders at its intrinsic resolution and overflows the card. */
+         .promo-card.install .bg {
+            inset: 10px;
+            width: calc(100% - 20px);
+            height: calc(100% - 20px);
+            object-fit: cover;
+         }
+         .promo-card.install .veil {
+            inset: 10px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.72) 100%);
+         }
+         .promo-card.install .pc-ico {
+            color: var(--primary);
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.06);
+         }
+         .promo-card.is-disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            box-shadow: none;
+         }
+         .promo-card:active {
+            transform: translateY(1px);
+         }
+
+         /* ── dota running warning ── */
+         .warning {
+            display: none;
+            align-items: center;
+            gap: var(--sp-2);
+            padding: 9px var(--sp-4);
+            border-radius: var(--r-sm);
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid rgba(248, 81, 73, 0.45);
+            color: #ff8983;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            flex-shrink: 0;
+            animation: slideIn 0.25s ease-out;
+         }
+         .warning.show {
+            display: flex;
+         }
+         .warning svg {
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+         }
+         @keyframes slideIn {
+            from {
+               opacity: 0;
+               transform: translateY(-6px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+
+         /* ── console (code surface → mono) ── */
+         .console {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: var(--panel);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-md);
+         }
+         .console-head {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            padding: 9px var(--sp-4);
+            border-bottom: 1px solid var(--hairline);
+            flex-shrink: 0;
+            background: rgba(0, 0, 0, 0.5);
+         }
+         .console-head .c-title {
+            font-family: var(--sans);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--body);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+         }
+         .console-head .c-title::before {
+            content: "[";
+            color: var(--mute);
+         }
+         .console-head .c-title::after {
+            content: "]";
+            color: var(--mute);
+         }
+         .console-head .c-title .led {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 6px var(--primary);
+         }
+         .copy-btn {
+            -webkit-app-region: no-drag;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+            color: var(--mute);
+            font-family: var(--sans);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .copy-btn:hover {
+            color: var(--primary);
+            border-color: var(--primary-deep);
+            background: var(--accent-dim);
+         }
+         .copy-btn svg {
+            width: 11px;
+            height: 11px;
+         }
+         .console-body {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: var(--sp-3) var(--sp-4);
+            font-family: var(--mono);
+            font-size: 12px;
+            line-height: 1.65;
+         }
+         .log-line {
+            display: flex;
+            gap: var(--sp-2);
+            align-items: flex-start;
+            animation: logIn 0.15s ease-out;
+         }
+         .log-line .bar {
+            width: 2px;
+            align-self: stretch;
+            border-radius: 1px;
+            flex-shrink: 0;
+            margin: 2px 0;
+         }
+         .log-line .msg {
+            word-break: break-word;
+            white-space: pre-wrap;
+         }
+         .log-line.default .bar {
+            background: var(--mute);
+         }
+         .log-line.default .msg {
+            color: var(--body);
+         }
+         .log-line.success .bar {
+            background: var(--success);
+         }
+         .log-line.success .msg {
+            color: var(--primary-soft);
+         }
+         .log-line.error .bar {
+            background: var(--error);
+         }
+         .log-line.error .msg {
+            color: #ff9b96;
+         }
+         .log-line.warning .bar {
+            background: var(--warning);
+         }
+         .log-line.warning .msg {
+            color: #e8c878;
+         }
+         .log-line.progress .bar {
+            background: var(--info);
+         }
+         .log-line.progress .msg {
+            color: #8cc2ff;
+         }
+         @keyframes logIn {
+            from {
+               opacity: 0;
+            }
+            to {
+               opacity: 1;
+            }
+         }
+
+         /* ── patch dropdown ── */
+         .menu {
+            position: fixed;
+            z-index: 200;
+            min-width: 200px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-md);
+            padding: var(--sp-1);
+            box-shadow:
+               0 20px 60px rgba(0, 0, 0, 0.7),
+               0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+            display: none;
+            animation: menuIn 0.14s ease-out;
+         }
+         .menu.show {
+            display: block;
+         }
+         .menu-item {
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            width: 100%;
+            padding: 9px var(--sp-3);
+            background: none;
+            border: none;
+            border-radius: var(--r-sm);
+            color: var(--body);
+            font-family: var(--sans);
+            font-size: 13px;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            transition:
+               background 0.13s,
+               color 0.13s;
+         }
+         .menu-item:hover {
+            background: var(--accent-dim);
+            color: var(--primary);
+         }
+         .menu-item .ico {
+            width: 14px;
+            height: 14px;
+            opacity: 0.85;
+         }
+         .menu-sep {
+            height: 1px;
+            background: var(--hairline);
+            margin: var(--sp-1) var(--sp-2);
+         }
+         @keyframes menuIn {
+            from {
+               opacity: 0;
+               transform: translateY(-5px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+
+         /* ════════════════════════════════ WHAT'S NEW MODAL ════════════════════════════════ */
+         .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 400;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(3px);
+            animation: ovFade 0.16s ease;
+         }
+         .modal-overlay.show {
+            display: flex;
+         }
+         @keyframes ovFade {
+            from {
+               opacity: 0;
+            }
+            to {
+               opacity: 1;
+            }
+         }
+         .modal {
+            width: 460px;
+            max-width: 100%;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.72);
+            animation: modalPop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+         }
+         @keyframes modalPop {
+            from {
+               opacity: 0;
+               transform: translateY(12px) scale(0.98);
+            }
+            to {
+               opacity: 1;
+               transform: none;
+            }
+         }
+         .modal-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 10px 12px 16px;
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.5);
+         }
+         .modal-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .modal-title .led {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 6px var(--primary);
+         }
+         .modal-x {
+            -webkit-app-region: no-drag;
+            margin-left: auto;
+            width: 30px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .modal-x svg {
+            width: 14px;
+            height: 14px;
+         }
+         .modal-x:hover {
+            background: rgba(248, 81, 73, 0.85);
+            color: #fff;
+         }
+         .modal-sub {
+            padding: 14px 16px 2px;
+            font-size: 11px;
+            letter-spacing: 0.4px;
+            color: var(--body);
+         }
+         .choice-grid {
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px 18px;
+         }
+         .choice {
+            -webkit-app-region: no-drag;
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            padding: 16px 14px;
+            background: var(--panel);
+            border: 1px solid var(--hairline-strong);
+            color: var(--body);
+            font-family: var(--sans);
+            text-align: left;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .choice::before,
+         .choice::after {
+            content: "";
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            opacity: 0.55;
+            transition: var(--transition);
+         }
+         .choice::before {
+            top: -1px;
+            left: -1px;
+            border-top: 1px solid var(--ink);
+            border-left: 1px solid var(--ink);
+         }
+         .choice::after {
+            bottom: -1px;
+            right: -1px;
+            border-bottom: 1px solid var(--ink);
+            border-right: 1px solid var(--ink);
+         }
+         .choice:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 18px var(--primary-glow);
+            transform: translateY(-2px);
+         }
+         .choice:hover::before,
+         .choice:hover::after {
+            width: 12px;
+            height: 12px;
+            opacity: 1;
+         }
+         .choice:active {
+            transform: translateY(0);
+         }
+         .choice-ico {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--hairline-strong);
+            background: rgba(0, 0, 0, 0.35);
+            color: var(--ink);
+            transition: var(--transition);
+         }
+         .choice-ico svg {
+            width: 20px;
+            height: 20px;
+         }
+         .choice:hover .choice-ico {
+            border-color: var(--primary);
+            color: var(--primary);
+         }
+         .choice-title {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .choice-sub {
+            font-size: 10.5px;
+            line-height: 1.5;
+            color: var(--body);
+            min-height: 32px;
+         }
+         .choice-ver {
+            align-self: flex-start;
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 2px 7px;
+            color: var(--body);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--hairline-strong);
+         }
+         .choice-ver.mods {
+            color: var(--ink);
+            border-color: var(--primary-deep);
+         }
+
+         /* ════════════════════════════════ ONBOARDING GUIDE ════════════════════════════════ */
+         /* DOM-native replacement for the GDI overlay (which cannot screenshot WebView2 nor
+            resolve DOM elements). Spotlight = a transparent rect with a huge box-shadow that
+            dims everything around the highlighted control while it stays visible underneath. */
+         .onboard {
+            position: fixed;
+            inset: 0;
+            z-index: 500;
+            display: none;
+         }
+         .onboard.show {
+            display: block;
+         }
+         .onboard-spot {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 0;
+            height: 0;
+            border: 1.5px solid var(--accent);
+            box-shadow:
+               0 0 0 100vmax rgba(0, 0, 0, 0.74),
+               0 0 22px rgba(255, 255, 255, 0.28);
+            transition:
+               left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+               top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+               width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+               height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+         }
+         .onboard-spot::before,
+         .onboard-spot::after {
+            content: "";
+            position: absolute;
+            width: 11px;
+            height: 11px;
+         }
+         .onboard-spot::before {
+            top: -4px;
+            left: -4px;
+            border-top: 2px solid var(--accent);
+            border-left: 2px solid var(--accent);
+         }
+         .onboard-spot::after {
+            bottom: -4px;
+            right: -4px;
+            border-bottom: 2px solid var(--accent);
+            border-right: 2px solid var(--accent);
+         }
+         .onboard-glow {
+            position: absolute;
+            inset: -2px;
+            pointer-events: none;
+            animation: obGlow 2.2s ease-in-out infinite;
+         }
+         @keyframes obGlow {
+            0%,
+            100% {
+               box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+            }
+            50% {
+               box-shadow: 0 0 24px rgba(255, 255, 255, 0.4);
+            }
+         }
+         .onboard-card {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 300px;
+            background: #080808;
+            border: 1px solid var(--hairline-strong);
+            border-top: 2px solid var(--accent);
+            padding: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            pointer-events: auto;
+            animation: obCardIn 0.25s ease-out;
+            transition:
+               left 0.3s ease,
+               top 0.3s ease;
+         }
+         @keyframes obCardIn {
+            from {
+               opacity: 0;
+               transform: translateY(8px);
+            }
+            to {
+               opacity: 1;
+               transform: none;
+            }
+         }
+         .ob-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+         }
+         .ob-counter {
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: var(--mute);
+         }
+         .ob-dots {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+         }
+         .ob-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--hairline-strong);
+            transition: var(--transition);
+         }
+         .ob-dot.done {
+            background: var(--body);
+         }
+         .ob-dot.active {
+            width: 7px;
+            height: 7px;
+            background: var(--accent);
+            box-shadow: 0 0 6px var(--accent);
+         }
+         .ob-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--ink);
+         }
+         .ob-sep {
+            height: 1px;
+            background: var(--hairline);
+            margin: 8px 0;
+         }
+         .ob-desc {
+            font-size: 11.5px;
+            line-height: 1.7;
+            color: var(--body);
+            white-space: pre-line;
+            margin-bottom: 14px;
+            min-height: 56px;
+         }
+         .ob-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+         }
+         .ob-btn {
+            font-family: var(--sans);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 7px 16px;
+            cursor: pointer;
+            border: 1px solid var(--hairline-strong);
+            transition: var(--transition);
+         }
+         .ob-btn.ghost {
+            background: none;
+            color: var(--body);
+         }
+         .ob-btn.ghost:hover {
+            background: var(--accent-dim);
+            color: var(--ink);
+            border-color: var(--accent);
+         }
+         .ob-btn.primary {
+            background: var(--primary);
+            color: var(--on-primary);
+            border-color: var(--primary);
+         }
+         .ob-btn.primary:hover {
+            box-shadow: 0 0 16px var(--primary-glow);
+         }
+
+         /* ── scrollbar ── */
+         ::-webkit-scrollbar {
+            width: 8px;
+         }
+         ::-webkit-scrollbar-track {
+            background: transparent;
+         }
+         ::-webkit-scrollbar-thumb {
+            background: var(--hairline);
+            border-radius: var(--r-sm);
+         }
+         ::-webkit-scrollbar-thumb:hover {
+            background: var(--hairline-strong);
+         }
+      </style>
+   </head>
+   <body>
+      <!-- animated wave backdrop -->
+      <div class="bgfx" aria-hidden="true"></div>
+
+      <!-- ═══════════════════ TITLE BAR ═══════════════════ -->
+      <header id="titlebar">
+         <div class="brand">
+            <span class="glyph">
+               <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13 2 4 14h6l-1 8 9-12h-6z" />
+               </svg>
+            </span>
+            <span class="b-name">ArdysaModsTools</span>
+            <span class="b-tag">Dota 2</span>
+         </div>
+         <div class="win-controls">
+            <button
+               id="btn-about"
+               class="win-btn about"
+               title="About"
+               onclick="send('about', event)"
+            >
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+               >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="11" x2="12" y2="16" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+               </svg>
+            </button>
+            <button
+               id="btn-settings"
+               class="win-btn settings"
+               title="Settings"
+               onclick="send('settings', event)"
+            >
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+               >
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                     d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                  />
+               </svg>
+            </button>
+            <button class="win-btn min" title="Minimize" onclick="send('minimize', event)">
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+               >
+                  <line x1="5" y1="12" x2="19" y2="12" />
+               </svg>
+            </button>
+            <button class="win-btn close" title="Close" onclick="send('close', event)">
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+               >
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+               </svg>
+            </button>
+         </div>
+      </header>
+
+      <!-- ═══════════════════ SHELL ═══════════════════ -->
+      <div class="shell">
+         <!-- ─────────── SIDEBAR ─────────── -->
+         <aside class="sidebar notch">
+            <div class="group">
+               <div class="group-label">Detect Path</div>
+               <button id="btn-autoDetect" class="nav-btn" onclick="send('autoDetect', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <circle cx="11" cy="11" r="7" />
+                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  Auto Detect
+               </button>
+               <button id="btn-manualDetect" class="nav-btn" onclick="send('manualDetect', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path d="M3 7h5l2 2h11v9a2 2 0 0 1-2 2H3z" />
+                  </svg>
+                  Manual Detect
+               </button>
+            </div>
+
+            <div class="group">
+               <div class="group-label">Mods</div>
+               <button id="btn-hero" class="nav-btn" onclick="send('skinSelector', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path d="M12 2l2.4 5 5.6.8-4 4 1 5.5L12 19.8 6.9 22.3l1-5.5-4-4 5.6-.8z" />
+                  </svg>
+                  Skin Selector
+               </button>
+               <button id="btn-misc" class="nav-btn" onclick="send('miscellaneous', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                  >
+                     <circle cx="5" cy="12" r="1.6" fill="currentColor" />
+                     <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+                     <circle cx="19" cy="12" r="1.6" fill="currentColor" />
+                  </svg>
+                  Miscellaneous
+               </button>
+            </div>
+
+            <div class="group">
+               <div class="group-label">Tools</div>
+               <button id="btn-patch" class="nav-btn patch" onclick="send('patchClick', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+                     <path d="M21 3v5h-5" />
+                  </svg>
+                  Patch Update
+                  <svg
+                     class="chev"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2.5"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <polyline points="6 9 12 15 18 9" />
+                  </svg>
+               </button>
+               <button id="btn-disable" class="nav-btn" onclick="send('disable', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <circle cx="12" cy="12" r="9" />
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                  Disable Mods
+               </button>
+               <button id="btn-tweak" class="nav-btn" onclick="send('tweak', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                  >
+                     <line x1="4" y1="8" x2="20" y2="8" />
+                     <circle cx="9" cy="8" r="2.4" fill="currentColor" stroke="none" />
+                     <line x1="4" y1="14" x2="20" y2="14" />
+                     <circle cx="15" cy="14" r="2.4" fill="currentColor" stroke="none" />
+                     <line x1="4" y1="20" x2="20" y2="20" />
+                     <circle cx="11" cy="20" r="2.4" fill="currentColor" stroke="none" />
+                  </svg>
+                  Performance Tweak
+               </button>
+            </div>
+
+            <div class="sb-spacer"></div>
+
+            <div class="status-card">
+               <span id="status-dot" class="status-dot"></span>
+               <span id="status-text" class="status-text">Not Checked</span>
+               <button
+                  id="status-refresh"
+                  class="status-refresh"
+                  title="Refresh status"
+                  onclick="send('refreshStatus', event)"
+               >
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+                     <path d="M21 3v5h-5" />
+                  </svg>
+               </button>
+            </div>
+
+            <div class="group" style="gap: var(--sp-2)">
+               <div class="footer-row">
+                  <button
+                     class="social"
+                     title="Discord"
+                     onclick="openUrl('https://discord.gg/ffXw265Z7e')"
+                  >
+                     <img src="https://cdn.simpleicons.org/discord/8b949e" alt="Discord" />
+                  </button>
+                  <button
+                     class="social"
+                     title="YouTube"
+                     onclick="openUrl('https://youtube.com/@Ardysa')"
+                  >
+                     <img src="https://cdn.simpleicons.org/youtube/8b949e" alt="YouTube" />
+                  </button>
+                  <button
+                     class="social support"
+                     title="Support the project"
+                     onclick="send('support', event)"
+                  >
+                     ♥ SUPPORT
+                  </button>
+               </div>
+               <div id="version" class="version">Checking…</div>
+            </div>
+         </aside>
+
+         <!-- ─────────── CONTENT ─────────── -->
+         <main class="content">
+            <div id="carousel" class="carousel">
+               <div id="carousel-track" class="carousel-track"></div>
+               <button class="car-arrow prev" title="Previous" onclick="carouselPrev(event)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                     <polyline points="15 18 9 12 15 6" />
+                  </svg>
+               </button>
+               <button class="car-arrow next" title="Next" onclick="carouselNext(event)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                     <polyline points="9 6 15 12 9 18" />
+                  </svg>
+               </button>
+               <div id="car-dots" class="car-dots"></div>
+            </div>
+
+            <div class="cards">
+               <button id="btn-install" class="promo-card install" onclick="send('install', event)">
+                  <img
+                     class="bg"
+                     alt=""
+                     src="https://cdn.ardysamods.my.id/Assets/image/banner/install_card.png"
+                     onerror="this.style.display='none'"
+                  />
+                  <span class="veil"></span>
+                  <span class="pc-body">
+                     <span class="pc-top">
+                        <span class="pc-ico">
+                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M12 3v12" />
+                              <polyline points="7 11 12 16 17 11" />
+                              <path d="M5 20h14" />
+                           </svg>
+                        </span>
+                        <svg class="pc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                           <polyline points="9 6 15 12 9 18" />
+                        </svg>
+                     </span>
+                     <span class="pc-text">
+                        <span class="pc-title">Install ModsPack</span>
+                        <span class="pc-sub">Apply the latest skins &amp; mods to Dota&nbsp;2</span>
+                     </span>
+                  </span>
+               </button>
+
+               <button id="btn-news" class="promo-card news" onclick="openNewsModal(event)">
+                  <span class="veil"></span>
+                  <span class="pc-body">
+                     <span class="pc-top">
+                        <span class="pc-ico">
+                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M4 5h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+                              <line x1="7" y1="9" x2="14" y2="9" />
+                              <line x1="7" y1="13" x2="14" y2="13" />
+                              <line x1="7" y1="17" x2="11" y2="17" />
+                           </svg>
+                        </span>
+                        <svg class="pc-arrow chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                           <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                     </span>
+                     <span class="pc-text">
+                        <span class="pc-title">What's New</span>
+                        <span class="pc-sub">Changelog &amp; ModsPack — latest releases</span>
+                        <span class="pc-vers">
+                           <span class="pc-ver" id="news-app-ver">App v—</span>
+                           <span class="pc-ver mods" id="news-mods-ver">ModsPack v—</span>
+                        </span>
+                     </span>
+                  </span>
+               </button>
+            </div>
+
+            <div id="warning" class="warning">
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+               >
+                  <path
+                     d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"
+                  />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+               </svg>
+               Close Dota 2 before modifying files
+            </div>
+
+            <section id="console-panel" class="console notch">
+               <div class="console-head">
+                  <div class="c-title"><span class="led"></span> Console</div>
+                  <button class="copy-btn" onclick="copyConsole()">
+                     <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                     >
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                     </svg>
+                     COPY
+                  </button>
+               </div>
+               <div id="console-body" class="console-body"></div>
+            </section>
+         </main>
+      </div>
+
+      <!-- ═══════════════════ PATCH MENU ═══════════════════ -->
+      <div id="patch-menu" class="menu">
+         <button class="menu-item" onclick="patchMenuAction('patchApply')">
+            <svg
+               class="ico"
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="2"
+               stroke-linecap="round"
+               stroke-linejoin="round"
+            >
+               <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+               <path d="M21 3v5h-5" />
+            </svg>
+            Patch Update
+         </button>
+         <div class="menu-sep"></div>
+         <button class="menu-item" onclick="patchMenuAction('patchVerify')">
+            <svg
+               class="ico"
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="2"
+               stroke-linecap="round"
+               stroke-linejoin="round"
+            >
+               <path d="M9 11l3 3L22 4" />
+               <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            Verify Mod Files
+         </button>
+         <button class="menu-item" onclick="patchMenuAction('patchViewStatus')">
+            <svg
+               class="ico"
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="2"
+               stroke-linecap="round"
+               stroke-linejoin="round"
+            >
+               <circle cx="12" cy="12" r="10" />
+               <line x1="12" y1="16" x2="12" y2="12" />
+               <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            View Status Details
+         </button>
+      </div>
+
+      <!-- ═══════════════════ WHAT'S NEW MENU ═══════════════════ -->
+      <!-- ═══════════════════ WHAT'S NEW MODAL ═══════════════════ -->
+      <div id="news-modal" class="modal-overlay" onclick="onNewsBackdrop(event)">
+         <div class="modal" role="dialog" aria-modal="true" aria-label="What's New">
+            <div class="modal-head">
+               <div class="modal-title"><span class="led"></span> What's New</div>
+               <button class="modal-x" title="Close" onclick="closeNewsModal()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                     <line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+               </button>
+            </div>
+            <div class="modal-sub">Choose what you'd like to view</div>
+            <div class="choice-grid">
+               <button class="choice" onclick="newsChoose('whatsnew')">
+                  <span class="choice-ico">
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 5h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+                        <line x1="7" y1="9" x2="14" y2="9" />
+                        <line x1="7" y1="13" x2="14" y2="13" />
+                        <line x1="7" y1="17" x2="11" y2="17" />
+                     </svg>
+                  </span>
+                  <span class="choice-title">Changelog</span>
+                  <span class="choice-sub">App release notes, fixes &amp; new features</span>
+                  <span class="choice-ver" id="modal-app-ver">App v—</span>
+               </button>
+               <button class="choice" onclick="newsChoose('modspackUpdates')">
+                  <span class="choice-ico">
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2l2.4 5 5.6.8-4 4 1 5.5L12 19.8 6.9 22.3l1-5.5-4-4 5.6-.8z" />
+                     </svg>
+                  </span>
+                  <span class="choice-title">ModsPack</span>
+                  <span class="choice-sub">Latest hero skins &amp; cosmetic sets</span>
+                  <span class="choice-ver mods" id="modal-mods-ver">ModsPack v—</span>
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════ ONBOARDING GUIDE ═══════════════════ -->
+      <div id="onboard" class="onboard" aria-hidden="true">
+         <div id="onboard-spot" class="onboard-spot"><span class="onboard-glow"></span></div>
+         <div id="onboard-card" class="onboard-card">
+            <div class="ob-head">
+               <span id="ob-counter" class="ob-counter">[ 1 / 1 ]</span>
+               <div id="ob-dots" class="ob-dots"></div>
+            </div>
+            <div id="ob-title" class="ob-title"></div>
+            <div class="ob-sep"></div>
+            <div id="ob-desc" class="ob-desc"></div>
+            <div class="ob-actions">
+               <button id="ob-skip" class="ob-btn ghost" onclick="onboardSkip()">Skip</button>
+               <button id="ob-next" class="ob-btn primary" onclick="onboardNext()">Next →</button>
+            </div>
+         </div>
+      </div>
+
+      <script>
+         "use strict";
+         const MAX_LINES = 500;
+
+         /* ════════ JS → C# bridge ════════ */
+         function post(type, data = {}) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(Object.assign({ type }, data));
+            }
+         }
+         /* generic button → message; stop drag/menu side-effects */
+         function send(type, ev) {
+            if (ev) ev.stopPropagation();
+            hidePatchMenu();
+            const el = ev && ev.currentTarget;
+            if (el && el.classList.contains("is-disabled")) return;
+            post(type);
+         }
+         function openUrl(url) {
+            hidePatchMenu();
+            post("openUrl", { url });
+         }
+         function patchMenuAction(type) {
+            hidePatchMenu();
+            post(type);
+         }
+         function copyConsole() {
+            const text = [...document.querySelectorAll("#console-body .msg")]
+               .map((n) => n.textContent)
+               .join("\n");
+            post("copyConsole", { text });
+         }
+
+         /* ════════ C# → JS API ════════ */
+         function setVersion(v) {
+            document.getElementById("version").textContent = v || "";
+         }
+
+         /* C# → JS: version badges on the What's New card + modal choices. */
+         function setNewsVersions(payload) {
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload || {};
+            if (p.app) {
+               ["news-app-ver", "modal-app-ver"].forEach((id) => {
+                  const el = document.getElementById(id);
+                  if (el) el.textContent = "App " + p.app;
+               });
+            }
+            if (p.modspack) {
+               ["news-mods-ver", "modal-mods-ver"].forEach((id) => {
+                  const el = document.getElementById(id);
+                  if (el) el.textContent = "ModsPack " + p.modspack;
+               });
+            }
+         }
+
+         function setStatus(payload) {
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload;
+            const dot = document.getElementById("status-dot");
+            const text = document.getElementById("status-text");
+            const refresh = document.getElementById("status-refresh");
+            refresh.classList.remove("spin");
+            dot.style.background = p.color;
+            dot.style.boxShadow = "0 0 8px " + p.color;
+            text.textContent = p.text || "";
+            text.style.color = p.color;
+            text.title = p.tooltip || "";
+            dot.title = p.tooltip || "";
+         }
+
+         function showChecking() {
+            const dot = document.getElementById("status-dot");
+            const text = document.getElementById("status-text");
+            const refresh = document.getElementById("status-refresh");
+            dot.style.background = "var(--primary)";
+            dot.style.boxShadow = "0 0 8px var(--primary)";
+            text.textContent = "Checking…";
+            text.style.color = "var(--primary)";
+            refresh.classList.add("spin");
+         }
+
+         function setPatchButton(status, isError) {
+            const btn = document.getElementById("btn-patch");
+            btn.classList.remove("ready", "update", "error");
+            if (isError) btn.classList.add("error");
+            else if (status === "ready") btn.classList.add("ready");
+            else if (status === "needUpdate") btn.classList.add("update");
+         }
+
+         function setButtonStates(payload) {
+            const s = typeof payload === "string" ? JSON.parse(payload) : payload;
+            const map = {
+               autoDetect: "btn-autoDetect",
+               manualDetect: "btn-manualDetect",
+               install: "btn-install",
+               disable: "btn-disable",
+               patch: "btn-patch",
+               misc: "btn-misc",
+               hero: "btn-hero",
+               tweak: "btn-tweak",
+            };
+            for (const key in map) {
+               const el = document.getElementById(map[key]);
+               if (!el || !(key in s)) continue;
+               el.classList.toggle("is-disabled", !s[key]);
+            }
+            if ("detectHighlight" in s) {
+               const hl = !!s.detectHighlight;
+               document.getElementById("btn-autoDetect").classList.toggle("highlight", hl);
+               document.getElementById("btn-manualDetect").classList.toggle("highlight", hl);
+            }
+         }
+
+         function setDotaWarning(on) {
+            document
+               .getElementById("warning")
+               .classList.toggle("show", on === true || on === "true");
+         }
+
+         function appendLog(text, category) {
+            const body = document.getElementById("console-body");
+            const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+            const line = document.createElement("div");
+            line.className = "log-line " + (category || "default");
+            const bar = document.createElement("div");
+            bar.className = "bar";
+            const msg = document.createElement("div");
+            msg.className = "msg";
+            msg.textContent = text;
+            line.appendChild(bar);
+            line.appendChild(msg);
+            body.appendChild(line);
+            while (body.childElementCount > MAX_LINES) body.removeChild(body.firstChild);
+            if (atBottom) body.scrollTop = body.scrollHeight;
+         }
+
+         function clearLog() {
+            document.getElementById("console-body").innerHTML = "";
+         }
+
+         /* ════════ banner carousel ════════ */
+         let _carSlides = [];
+         let _carIndex = 0;
+         let _carTimer = null;
+
+         /* C# → JS: single bundled-banner fallback (kept for when no R2 manifest is present). */
+         function setBanner(dataUri) {
+            if (!dataUri || _carSlides.length > 0) return;
+            renderCarousel([{ image: dataUri, link: "", title: "" }]);
+         }
+
+         /* C# → JS: R2 carousel slides [{ image, link, title }]. */
+         function loadBanners(payload) {
+            const slides = typeof payload === "string" ? JSON.parse(payload) : payload;
+            if (!Array.isArray(slides) || slides.length === 0) return;
+            renderCarousel(slides);
+         }
+
+         function renderCarousel(slides) {
+            _carSlides = slides;
+            _carIndex = 0;
+            const track = document.getElementById("carousel-track");
+            const dots = document.getElementById("car-dots");
+            const carousel = document.getElementById("carousel");
+            track.innerHTML = "";
+            dots.innerHTML = "";
+
+            slides.forEach((s, i) => {
+               const slide = document.createElement("div");
+               slide.className = "slide" + (s.link ? " link" : "");
+               if (s.link) slide.onclick = () => openUrl(s.link);
+
+               const img = document.createElement("img");
+               img.alt = s.title || "";
+               img.src = s.image;
+               slide.appendChild(img);
+
+               if (s.title) {
+                  const cap = document.createElement("div");
+                  cap.className = "cap";
+                  cap.textContent = s.title;
+                  slide.appendChild(cap);
+               }
+               track.appendChild(slide);
+
+               const dot = document.createElement("span");
+               dot.className = "car-dot" + (i === 0 ? " active" : "");
+               dot.onclick = (e) => {
+                  e.stopPropagation();
+                  carouselGo(i);
+               };
+               dots.appendChild(dot);
+            });
+
+            carousel.classList.toggle("multi", slides.length > 1);
+            updateCarousel();
+            startCarouselAuto();
+         }
+
+         function updateCarousel() {
+            const track = document.getElementById("carousel-track");
+            track.style.transform = "translateX(-" + _carIndex * 100 + "%)";
+            document.querySelectorAll("#car-dots .car-dot").forEach((d, i) => {
+               d.classList.toggle("active", i === _carIndex);
+            });
+         }
+
+         function carouselGo(i) {
+            if (_carSlides.length === 0) return;
+            _carIndex = (i + _carSlides.length) % _carSlides.length;
+            updateCarousel();
+            startCarouselAuto();
+         }
+         function carouselNext(ev) {
+            if (ev) ev.stopPropagation();
+            carouselGo(_carIndex + 1);
+         }
+         function carouselPrev(ev) {
+            if (ev) ev.stopPropagation();
+            carouselGo(_carIndex - 1);
+         }
+
+         function startCarouselAuto() {
+            stopCarouselAuto();
+            if (_carSlides.length <= 1) return;
+            if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+            _carTimer = setInterval(() => carouselGo(_carIndex + 1), 5000);
+         }
+         function stopCarouselAuto() {
+            if (_carTimer) {
+               clearInterval(_carTimer);
+               _carTimer = null;
+            }
+         }
+
+         (function initCarousel() {
+            const c = document.getElementById("carousel");
+            if (!c) return;
+            c.addEventListener("mouseenter", stopCarouselAuto);
+            c.addEventListener("mouseleave", startCarouselAuto);
+         })();
+
+         /* ════════ patch dropdown ════════ */
+         function showPatchMenu() {
+            const btn = document.getElementById("btn-patch");
+            const menu = document.getElementById("patch-menu");
+            const r = btn.getBoundingClientRect();
+            menu.style.left = r.left + "px";
+            menu.style.top = r.bottom + 6 + "px";
+            menu.style.minWidth = r.width + "px";
+            menu.classList.add("show");
+         }
+         function hidePatchMenu() {
+            document.getElementById("patch-menu").classList.remove("show");
+         }
+
+         /* ════════ what's new modal ════════ */
+         function openNewsModal(ev) {
+            if (ev) ev.stopPropagation();
+            const btn = ev && ev.currentTarget ? ev.currentTarget : document.getElementById("btn-news");
+            if (btn && btn.classList.contains("is-disabled")) return;
+            hidePatchMenu();
+            document.getElementById("news-modal").classList.add("show");
+         }
+         function closeNewsModal() {
+            document.getElementById("news-modal").classList.remove("show");
+         }
+         function newsModalActive() {
+            return document.getElementById("news-modal").classList.contains("show");
+         }
+         function onNewsBackdrop(ev) {
+            if (ev.target === ev.currentTarget) closeNewsModal();
+         }
+         function newsChoose(type) {
+            closeNewsModal();
+            post(type);
+         }
+
+         document.addEventListener("click", (e) => {
+            const menu = document.getElementById("patch-menu");
+            const patchBtn = document.getElementById("btn-patch");
+            if (
+               menu.classList.contains("show") &&
+               !menu.contains(e.target) &&
+               !patchBtn.contains(e.target)
+            ) {
+               hidePatchMenu();
+            }
+         });
+
+         /* ════════ onboarding guide (DOM-native, replaces GDI overlay) ════════ */
+         let _obSteps = [];
+         let _obIndex = 0;
+
+         function onboardActive() {
+            return document.getElementById("onboard").classList.contains("show");
+         }
+
+         /* C# → JS entry. payload = [{ target, title, desc, pad }] */
+         function startOnboarding(payload) {
+            _obSteps = typeof payload === "string" ? JSON.parse(payload) : payload;
+            if (!Array.isArray(_obSteps) || _obSteps.length === 0) return;
+            _obIndex = 0;
+            hidePatchMenu();
+            const dots = document.getElementById("ob-dots");
+            dots.innerHTML = "";
+            for (let i = 0; i < _obSteps.length; i++) {
+               const d = document.createElement("span");
+               d.className = "ob-dot";
+               dots.appendChild(d);
+            }
+            document.getElementById("onboard").classList.add("show");
+            window.addEventListener("resize", positionOnboard);
+            renderOnboard();
+         }
+
+         function renderOnboard() {
+            const step = _obSteps[_obIndex];
+            if (!step) return;
+            document.getElementById("ob-counter").textContent =
+               "[ " + (_obIndex + 1) + " / " + _obSteps.length + " ]";
+            document.getElementById("ob-title").textContent = step.title || "";
+            document.getElementById("ob-desc").textContent = step.desc || "";
+
+            const last = _obIndex === _obSteps.length - 1;
+            document.getElementById("ob-next").textContent = last ? "Got it" : "Next →";
+            document.getElementById("ob-skip").style.visibility = last ? "hidden" : "visible";
+
+            const dots = document.querySelectorAll("#ob-dots .ob-dot");
+            dots.forEach((d, i) => {
+               d.classList.toggle("active", i === _obIndex);
+               d.classList.toggle("done", i < _obIndex);
+            });
+
+            positionOnboard();
+         }
+
+         function positionOnboard() {
+            const step = _obSteps[_obIndex];
+            if (!step) return;
+            const el = document.getElementById(step.target);
+            const spot = document.getElementById("onboard-spot");
+            const card = document.getElementById("onboard-card");
+            const pad = typeof step.pad === "number" ? step.pad : 8;
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+
+            let rect;
+            if (el) {
+               const r = el.getBoundingClientRect();
+               rect = {
+                  left: r.left - pad,
+                  top: r.top - pad,
+                  width: r.width + pad * 2,
+                  height: r.height + pad * 2,
+               };
+            } else {
+               rect = { left: vw / 2 - 80, top: vh / 2 - 24, width: 160, height: 48 };
+            }
+
+            spot.style.left = rect.left + "px";
+            spot.style.top = rect.top + "px";
+            spot.style.width = rect.width + "px";
+            spot.style.height = rect.height + "px";
+
+            // Place card: prefer right, then left, then below, then above the spotlight.
+            const cw = card.offsetWidth || 300;
+            const ch = card.offsetHeight || 190;
+            const gap = 16;
+            const m = 12;
+            let cx, cy;
+            if (rect.left + rect.width + gap + cw <= vw - m) {
+               cx = rect.left + rect.width + gap;
+               cy = rect.top;
+            } else if (rect.left - gap - cw >= m) {
+               cx = rect.left - gap - cw;
+               cy = rect.top;
+            } else if (rect.top + rect.height + gap + ch <= vh - m) {
+               cx = rect.left;
+               cy = rect.top + rect.height + gap;
+            } else {
+               cx = rect.left;
+               cy = rect.top - gap - ch;
+            }
+            cx = Math.max(m, Math.min(cx, vw - cw - m));
+            cy = Math.max(m, Math.min(cy, vh - ch - m));
+            card.style.left = cx + "px";
+            card.style.top = cy + "px";
+         }
+
+         function onboardNext() {
+            if (_obIndex >= _obSteps.length - 1) {
+               finishOnboarding();
+               return;
+            }
+            _obIndex++;
+            renderOnboard();
+         }
+         function onboardPrev() {
+            if (_obIndex <= 0) return;
+            _obIndex--;
+            renderOnboard();
+         }
+         function onboardSkip() {
+            finishOnboarding();
+         }
+         function finishOnboarding() {
+            const root = document.getElementById("onboard");
+            if (!root.classList.contains("show")) return;
+            root.classList.remove("show");
+            window.removeEventListener("resize", positionOnboard);
+            post("onboardingDone");
+         }
+
+         /* ════════ window drag (titlebar) ════════ */
+         document.getElementById("titlebar").addEventListener("mousedown", (e) => {
+            if (onboardActive()) return;
+            if (e.target.closest(".win-btn")) return;
+            post("startDrag");
+         });
+
+         /* keyboard: onboarding nav takes priority while active, else ESC closes patch menu */
+         document.addEventListener("keydown", (e) => {
+            if (onboardActive()) {
+               if (e.key === "Escape") {
+                  finishOnboarding();
+               } else if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onboardNext();
+               } else if (e.key === "ArrowLeft") {
+                  onboardPrev();
+               }
+               return;
+            }
+            if (e.key === "Escape") {
+               if (newsModalActive()) {
+                  closeNewsModal();
+                  return;
+               }
+               hidePatchMenu();
+            }
+         });
+      </script>
+   </body>
+</html>

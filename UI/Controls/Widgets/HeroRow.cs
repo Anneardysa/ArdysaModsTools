@@ -123,7 +123,7 @@ namespace ArdysaModsTools.UI.Controls.Widgets
             {
                 AutoSize = false,
                 Size = new Size(32, 24),
-                Font = new Font("Segoe UI", 10F),
+                Font = new Font("JetBrains Mono", 10F),
                 ForeColor = Theme.TextLight,
                 BackColor = Theme.Accent,
                 Text = "▼",

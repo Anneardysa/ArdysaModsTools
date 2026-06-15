@@ -1155,17 +1155,18 @@ namespace ArdysaModsTools
 
         private void BtnTweak_Click(object? sender, EventArgs e)
         {
+            // Performance Tweak writes autoexec.cfg into the Dota 2 cfg folder, which can only be
+            // resolved from a known install path — require detection first (parity with MainFormWebView).
+            if (string.IsNullOrEmpty(targetPath))
+            {
+                _logger.Log("Detect your Dota 2 path first to use Performance Tweak.");
+                return;
+            }
+
             try
             {
-                // Use game path from the detected target path, walk up to "game" level
-                string? gamePath = null;
-                if (!string.IsNullOrEmpty(targetPath))
-                {
-                    // targetPath is typically "...\dota 2 beta\game"
-                    gamePath = targetPath;
-                }
-
-                using var perfForm = Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<UI.Forms.Dota2PerformanceForm>(_serviceProvider, gamePath ?? (object)string.Empty);
+                // targetPath is typically "...\dota 2 beta\game"
+                using var perfForm = Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<UI.Forms.Dota2PerformanceForm>(_serviceProvider, targetPath);
                 perfForm.ShowDialog(this);
             }
             catch (Exception ex)

@@ -1054,7 +1054,7 @@ namespace ArdysaModsTools.UI.Forms
             // Fallback HTML
             return @"<!DOCTYPE html>
 <html><head><style>
-body { background: #000; color: #fff; font-family: monospace; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+body { background: #000; color: #fff; font-family: 'JetBrains Mono', monospace; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
 </style></head><body>
 <div>Failed to load hero_gallery.html</div>
 </body></html>";

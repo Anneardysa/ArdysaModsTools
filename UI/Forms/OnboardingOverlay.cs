@@ -339,23 +339,23 @@ namespace ArdysaModsTools.UI.Forms
             // Pulsing glow effect
             float pulse = (float)(Math.Sin(_pulsePhase) + 1) / 2f; // 0..1
             int glowAlpha = (int)(60 + 140 * pulse * _overlayOpacity);
-            var glowColor = Color.FromArgb(glowAlpha, 0, 212, 255); // amt-accent cyan
+            var glowColor = Color.FromArgb(glowAlpha, 255, 255, 255); // amt-accent white
 
             // Outer glow (thicker, softer)
-            using var glowPen3 = new Pen(Color.FromArgb(glowAlpha / 3, 0, 212, 255), 6f);
+            using var glowPen3 = new Pen(Color.FromArgb(glowAlpha / 3, 255, 255, 255), 6f);
             g.DrawRectangle(glowPen3, Rectangle.Inflate(_spotlightRect, 4, 4));
 
-            using var glowPen2 = new Pen(Color.FromArgb(glowAlpha / 2, 0, 212, 255), 3f);
+            using var glowPen2 = new Pen(Color.FromArgb(glowAlpha / 2, 255, 255, 255), 3f);
             g.DrawRectangle(glowPen2, Rectangle.Inflate(_spotlightRect, 2, 2));
 
             // Inner border (crisp)
             int borderAlpha = (int)(220 * _overlayOpacity);
-            using var borderPen = new Pen(Color.FromArgb(borderAlpha, 0, 212, 255), 1.5f);
+            using var borderPen = new Pen(Color.FromArgb(borderAlpha, 255, 255, 255), 1.5f);
             g.DrawRectangle(borderPen, _spotlightRect);
 
             // Corner brackets (L-shaped decorations)
             int bracketLen = Math.Min(14, Math.Min(_spotlightRect.Width, _spotlightRect.Height) / 3);
-            using var bracketPen = new Pen(Color.FromArgb((int)(255 * _overlayOpacity), 0, 212, 255), 2f);
+            using var bracketPen = new Pen(Color.FromArgb((int)(255 * _overlayOpacity), 255, 255, 255), 2f);
 
             var s = _spotlightRect;
             // Top-left
@@ -404,7 +404,7 @@ namespace ArdysaModsTools.UI.Forms
             }
 
             int lineAlpha = (int)(60 * _overlayOpacity);
-            using var linePen = new Pen(Color.FromArgb(lineAlpha, 0, 212, 255), 1f)
+            using var linePen = new Pen(Color.FromArgb(lineAlpha, 255, 255, 255), 1f)
             {
                 DashStyle = DashStyle.Dot
             };
@@ -424,7 +424,7 @@ namespace ArdysaModsTools.UI.Forms
             g.DrawRectangle(cardBorderPen, tooltipRect);
 
             // Accent line at top of card
-            using var accentPen = new Pen(Color.FromArgb((int)(220 * _overlayOpacity), 0, 212, 255), 2f);
+            using var accentPen = new Pen(Color.FromArgb((int)(220 * _overlayOpacity), 255, 255, 255), 2f);
             g.DrawLine(accentPen, tooltipRect.X, tooltipRect.Y, tooltipRect.Right, tooltipRect.Y);
 
             int x = tooltipRect.X + TooltipPadding;
@@ -433,7 +433,7 @@ namespace ArdysaModsTools.UI.Forms
             // === Header row: step counter + progress dots (same line) ===
             string stepLabel = $"[{_currentStepIndex + 1}/{_steps.Count}]";
             using var stepFont = new Font("JetBrains Mono", 7.5f, FontStyle.Regular);
-            using var dimBrush = new SolidBrush(Color.FromArgb(contentAlpha > 128 ? 80 : 0, 0, 212, 255));
+            using var dimBrush = new SolidBrush(Color.FromArgb(contentAlpha > 128 ? 80 : 0, 255, 255, 255));
             g.DrawString(stepLabel, stepFont, dimBrush, x, y + 1);
 
             // Progress dots (right-aligned in header)
@@ -444,7 +444,7 @@ namespace ArdysaModsTools.UI.Forms
                 int dotSize = i == _currentStepIndex ? 5 : 3;
                 int dotAlpha = i == _currentStepIndex ? contentAlpha : (contentAlpha > 128 ? 50 : 0);
                 var dotColor = i == _currentStepIndex
-                    ? Color.FromArgb(dotAlpha, 0, 212, 255)
+                    ? Color.FromArgb(dotAlpha, 255, 255, 255)
                     : (i < _currentStepIndex
                         ? Color.FromArgb(dotAlpha, 80, 80, 80)
                         : Color.FromArgb(dotAlpha, 35, 35, 35));
@@ -497,7 +497,7 @@ namespace ArdysaModsTools.UI.Forms
             if (isSkip)
             {
                 // Skip button: ghost style
-                using var borderPen = new Pen(Color.FromArgb(alpha > 80 ? 40 : 0, 70, 70, 70), 1f);
+                using var borderPen = new Pen(Color.FromArgb(alpha > 80 ? 40 : 0, 51, 51, 51), 1f);
                 g.DrawRectangle(borderPen, rect);
 
                 if (isHovered)
@@ -507,7 +507,7 @@ namespace ArdysaModsTools.UI.Forms
                 }
 
                 using var textFont = new Font("JetBrains Mono", 8f, FontStyle.Regular);
-                using var textBrush = new SolidBrush(Color.FromArgb(alpha > 128 ? 90 : 0, 90, 90, 90));
+                using var textBrush = new SolidBrush(Color.FromArgb(alpha > 128 ? 90 : 0, 136, 136, 136));
                 var textSize = g.MeasureString(text, textFont);
                 float tx = rect.X + (rect.Width - textSize.Width) / 2;
                 float ty = rect.Y + (rect.Height - textSize.Height) / 2;
@@ -515,10 +515,10 @@ namespace ArdysaModsTools.UI.Forms
             }
             else
             {
-                // Next/Got it button: white bg, hover → cyan
+                // Next/Got it button: white bg, hover → gray
                 Color bgColor = isHovered
-                    ? Color.FromArgb(alpha, 0, 212, 255)
-                    : Color.FromArgb(alpha, 240, 240, 240);
+                    ? Color.FromArgb(alpha, 136, 136, 136)
+                    : Color.FromArgb(alpha, 255, 255, 255);
                 Color textColor = Color.FromArgb(alpha, 5, 5, 5);
 
                 using var bgBrush = new SolidBrush(bgColor);

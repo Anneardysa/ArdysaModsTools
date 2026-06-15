@@ -212,6 +212,11 @@ namespace ArdysaModsTools.UI.Forms
             await ExecuteScriptAsync($"showToast({JsonSerializer.Serialize(message)}, {JsonSerializer.Serialize(type)})");
         }
 
+        public async Task ShowCfgBannerAsync(string message, string state)
+        {
+            await ExecuteScriptAsync($"showCfgBanner({JsonSerializer.Serialize(message)}, {JsonSerializer.Serialize(state)})");
+        }
+
         // [AMT:PRO] WebView2 bridge handler — message schema is shared with Assets/Html/dota2_performance.html
         // (sendMessage(type, data) postMessage calls). Any change to the message `type` values or payload
         // shape must be mirrored on both sides simultaneously or the bridge silently breaks.

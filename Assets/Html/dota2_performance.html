@@ -1,3 +1,19 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
 <!doctype html>
 <html lang="en">
    <head>
@@ -5,23 +21,29 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <script src="https://cdn.tailwindcss.com"></script>
       <script>
+         // Monochrome terminal palette — mirrors main_shell.html / ardysamods.my.id.
          tailwind.config = {
             theme: {
                extend: {
                   colors: {
-                     "amt-bg": "#000000", // Black
-                     "amt-surface": "#0a0a0a", // Grey
-                     "amt-surface2": "#111111", // Grey
-                     "amt-border": "#222222", // Grey
-                     "amt-accent": "#FFFFFF", // White
-                     "amt-accent-dim": "#0055DD", // Blue
-                     "amt-text": "#FFFFFF", // White
-                     "amt-text-dim": "#888888", // Grey
-                     "amt-text-muted": "#555555", // Grey
-                     "amt-success": "#00ff00", // Green
-                     "amt-error": "#ff4444", // Red
-                     "amt-warning": "#ffcc00", // Yellow
-                     "amt-cyan": "#00ccff", // Cyan
+                     "amt-bg": "#000000", // canvas
+                     "amt-surface": "#050505", // panel-2
+                     "amt-surface2": "#0a0a0a", // panel
+                     "amt-border": "#222222", // hairline
+                     "amt-border-strong": "#333333", // hairline-strong
+                     "amt-accent": "#ffffff", // single white accent
+                     "amt-accent-dim": "#ffffff",
+                     "amt-text": "#ffffff", // ink
+                     "amt-text-dim": "#888888", // body
+                     "amt-text-muted": "#444444", // mute
+                     "amt-success": "#ffffff",
+                     "amt-error": "#ff8983",
+                     "amt-warning": "#888888",
+                     "amt-cyan": "#ffffff",
+                  },
+                  borderRadius: {
+                     none: "0", sm: "0", DEFAULT: "0", md: "0",
+                     lg: "0", xl: "0", "2xl": "0", "3xl": "0", full: "0",
                   },
                },
             },
@@ -40,68 +62,78 @@
          body {
             font-family: "JetBrains Mono", monospace;
             background: #000;
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: #fff;
             overflow: hidden;
             font-size: 13px;
+            user-select: none;
          }
 
          ::-webkit-scrollbar {
-            width: 5px;
+            width: 8px;
          }
          ::-webkit-scrollbar-track {
             background: transparent;
          }
          ::-webkit-scrollbar-thumb {
-            background: #333;
-            border-radius: 3px;
+            background: #222;
          }
          ::-webkit-scrollbar-thumb:hover {
-            background: #555;
+            background: #333;
          }
 
          .glass {
-            background: rgba(10, 10, 10, 0.9);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            background: #050505;
+            border: 1px solid #333;
          }
+         /* preset buttons mirror the main_shell sidebar nav-btn (sharp, white inset bar on hover) */
          .preset-btn {
-            transition: all 0.2s ease;
+            transition: all 0.18s ease;
             border: 1px solid #222;
+            background: #050505;
          }
          .preset-btn:hover {
-            border-color: #0066ff;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 20px rgba(0, 102, 255, 0.15);
+            border-color: #333;
+            background: rgba(20, 20, 20, 0.95);
+            box-shadow: inset 2px 0 0 #fff;
          }
          .preset-btn.active {
-            border-color: #0066ff;
-            background: rgba(0, 102, 255, 0.08);
-            box-shadow: 0 0 20px rgba(0, 102, 255, 0.1);
+            border-color: #fff;
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: inset 2px 0 0 #fff;
          }
 
+         /* sharp monochrome switch (track fills white when on) */
          .toggle-track {
-            width: 44px;
-            height: 24px;
-            border-radius: 12px;
-            background: #333;
+            width: 42px;
+            height: 22px;
+            border-radius: 0;
+            background: #1a1a1a;
+            border: 1px solid #333;
             position: relative;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.18s ease;
             flex-shrink: 0;
          }
          .toggle-track.on {
-            background: #0066ff;
+            background: #fff;
+            border-color: #fff;
          }
          .toggle-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: white;
+            width: 16px;
+            height: 16px;
+            border-radius: 0;
+            background: #888;
             position: absolute;
             top: 2px;
             left: 2px;
-            transition: transform 0.2s;
+            transition: transform 0.18s, background 0.18s;
          }
          .toggle-track.on .toggle-thumb {
+            background: #000;
             transform: translateX(20px);
          }
 
@@ -110,7 +142,7 @@
             transition: background 0.15s;
          }
          .category-header:hover {
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(255, 255, 255, 0.03);
          }
          .category-content {
             max-height: 0;
@@ -125,29 +157,29 @@
             transition: background 0.15s;
          }
          .setting-row:hover {
-            background: rgba(0, 102, 255, 0.04);
+            background: rgba(255, 255, 255, 0.04);
          }
 
          select.cvar-select {
-            background: #0a0a0a;
+            background: #050505;
             border: 1px solid #333;
             color: #fff;
             padding: 8px 12px;
-            border-radius: 6px;
+            border-radius: 0;
             font-family: "JetBrains Mono", monospace;
             font-size: 13px;
             cursor: pointer;
             outline: none;
          }
          select.cvar-select:focus {
-            border-color: #0066ff;
+            border-color: #fff;
          }
          input.cvar-input {
-            background: #0a0a0a;
+            background: #050505;
             border: 1px solid #333;
             color: #fff;
             padding: 8px 12px;
-            border-radius: 6px;
+            border-radius: 0;
             font-family: "JetBrains Mono", monospace;
             font-size: 13px;
             width: 90px;
@@ -155,7 +187,7 @@
             text-align: center;
          }
          input.cvar-input:focus {
-            border-color: #0066ff;
+            border-color: #fff;
          }
 
          .action-btn {
@@ -169,24 +201,25 @@
          }
 
          .tab-btn {
-            transition: all 0.2s;
+            transition: all 0.18s;
             border-bottom: 2px solid transparent;
+            color: #888;
          }
          .tab-btn:hover {
-            color: #4d94ff;
+            color: #fff;
          }
          .tab-btn.active {
-            color: #0066ff;
-            border-bottom-color: #0066ff;
+            color: #fff;
+            border-bottom-color: #fff;
          }
 
          .launch-tag {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: transparent;
+            background: #050505;
             border: 1px solid #333;
-            border-radius: 6px;
+            border-radius: 0;
             padding: 6px 12px;
             font-family: "JetBrains Mono", monospace;
             font-size: 12px;
@@ -195,17 +228,17 @@
             cursor: pointer;
          }
          .launch-tag.enabled {
-            border-color: #0066ff;
+            border-color: #fff;
             color: #fff;
-            background: rgba(0, 102, 255, 0.05);
+            background: rgba(255, 255, 255, 0.08);
          }
          .launch-tag .tag-x {
             cursor: pointer;
-            color: #555;
+            color: #444;
             font-size: 13px;
          }
          .launch-tag .tag-x:hover {
-            color: #ff4444;
+            color: #ff8983;
          }
 
          @keyframes fadeIn {
@@ -222,52 +255,185 @@
             animation: fadeIn 0.35s ease both;
          }
 
+         /* toast = solid notification card (slides in from the right, colored accent per status) */
          .toast {
             position: fixed;
-            bottom: 24px;
-            right: 24px;
-            padding: 14px 24px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            min-width: 290px;
+            max-width: 400px;
+            padding: 14px 16px;
+            border-radius: 0;
+            background: #0a0a0a;
+            border: 1px solid #333;
             z-index: 1000;
-            transform: translateY(100px);
+            transform: translateX(130%);
             opacity: 0;
-            transition: all 0.3s ease;
+            transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.34s ease;
             pointer-events: none;
+            box-shadow:
+               0 18px 50px rgba(0, 0, 0, 0.75),
+               inset 3px 0 0 #888;
          }
          .toast.show {
-            transform: translateY(0);
+            transform: translateX(0);
             opacity: 1;
          }
+         .toast-ico {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            margin-top: 1px;
+            color: #888;
+         }
+         .toast-body {
+            flex: 1;
+            min-width: 0;
+         }
+         .toast-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: #fff;
+            margin-bottom: 3px;
+         }
+         .toast-msg {
+            font-size: 11.5px;
+            font-weight: 500;
+            line-height: 1.5;
+            letter-spacing: 0.2px;
+            color: #aaa;
+            word-break: break-word;
+         }
          .toast.success {
-            background: rgba(0, 255, 0, 0.08);
-            border: 1px solid rgba(0, 255, 0, 0.3);
-            color: #00ff00;
+            border-color: #444;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75), inset 3px 0 0 #3fb950;
+         }
+         .toast.success .toast-ico,
+         .toast.success .toast-title {
+            color: #56d364;
          }
          .toast.error {
-            background: rgba(255, 68, 68, 0.08);
-            border: 1px solid rgba(255, 68, 68, 0.3);
-            color: #ff4444;
+            border-color: rgba(248, 81, 73, 0.55);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75), inset 3px 0 0 #f85149;
+         }
+         .toast.error .toast-ico,
+         .toast.error .toast-title {
+            color: #ff7b72;
+         }
+         .toast.warning {
+            border-color: rgba(232, 200, 120, 0.55);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75), inset 3px 0 0 #e8c878;
+         }
+         .toast.warning .toast-ico,
+         .toast.warning .toast-title {
+            color: #e8c878;
          }
          .toast.info {
-            background: rgba(0, 102, 255, 0.08);
-            border: 1px solid rgba(0, 102, 255, 0.3);
-            color: #0066ff;
+            border-color: #333;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75), inset 3px 0 0 #fff;
+         }
+         .toast.info .toast-ico,
+         .toast.info .toast-title {
+            color: #fff;
          }
 
+         /* "mod" badge — amber so changed-from-original values pop against the mono grid */
          .diff-badge {
             display: inline-block;
             font-family: "JetBrains Mono", monospace;
             font-size: 11px;
             padding: 2px 8px;
-            border-radius: 3px;
+            border-radius: 0;
             margin-left: 8px;
-            background: rgba(0, 102, 255, 0.1);
-            color: #0066ff;
-            border: 1px solid rgba(0, 102, 255, 0.2);
+            background: rgba(232, 200, 120, 0.12);
+            color: #e8c878;
+            border: 1px solid rgba(232, 200, 120, 0.4);
             text-transform: uppercase;
             letter-spacing: 1px;
+         }
+
+         /* autoexec.cfg status banner — persistent, high-contrast (not a fleeting toast) */
+         .cfg-banner {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            margin: 14px 20px 0;
+            padding: 12px 14px;
+            position: relative;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            box-shadow: inset 3px 0 0 #888;
+            animation: fadeIn 0.3s ease both;
+         }
+         .cfg-banner.show {
+            display: flex;
+         }
+         .cfg-banner.warning {
+            background: rgba(232, 200, 120, 0.08);
+            border-color: rgba(232, 200, 120, 0.45);
+            box-shadow: inset 3px 0 0 #e8c878;
+         }
+         .cfg-banner.success {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: #333;
+            box-shadow: inset 3px 0 0 #fff;
+         }
+         .cfg-banner-ico {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            color: #888;
+         }
+         .cfg-banner.warning .cfg-banner-ico {
+            color: #e8c878;
+         }
+         .cfg-banner.success .cfg-banner-ico {
+            color: #fff;
+         }
+         .cfg-banner-text {
+            flex: 1;
+            min-width: 0;
+         }
+         .cfg-banner-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #fff;
+         }
+         .cfg-banner.warning .cfg-banner-title {
+            color: #e8c878;
+         }
+         .cfg-banner-msg {
+            font-size: 11.5px;
+            line-height: 1.5;
+            color: #888;
+            margin-top: 3px;
+         }
+         .cfg-banner-x {
+            flex-shrink: 0;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: #444;
+            cursor: pointer;
+            transition: all 0.15s;
+         }
+         .cfg-banner-x:hover {
+            color: #ff8983;
+         }
+         .cfg-banner-x svg {
+            width: 13px;
+            height: 13px;
          }
       </style>
    </head>
@@ -277,9 +443,17 @@
          id="titlebar"
          class="h-11 w-full flex items-center justify-between px-4 border-b border-amt-border relative z-10"
       >
-         <div class="flex-1 flex items-center gap-3 h-full" onmousedown="sendMessage('startDrag')">
-            <span class="text-amt-accent font-bold text-sm tracking-[3px]"
-               >AMT | PERFORMANCE TWEAK</span
+         <div class="flex-1 flex items-center gap-2 h-full" onmousedown="sendMessage('startDrag')">
+            <span class="text-amt-accent flex">
+               <svg viewBox="0 0 24 24" fill="currentColor" class="w-[15px] h-[15px]">
+                  <path d="M13 2 4 14h6l-1 8 9-12h-6z" />
+               </svg>
+            </span>
+            <span class="font-bold text-xs tracking-[2px] uppercase">
+               <span class="text-amt-text-muted">// </span><span class="text-amt-accent">AMT</span>
+            </span>
+            <span class="text-amt-text-muted font-medium text-[11px] tracking-[1px] uppercase"
+               >Performance Tweak</span
             >
             <span
                id="presetBadge"
@@ -289,9 +463,12 @@
          </div>
          <button
             id="closeBtn"
-            class="h-9 w-10 text-amt-text-muted hover:text-amt-error hover:border-amt-error border border-transparent transition-colors text-base font-bold flex-shrink-0"
+            class="h-9 w-10 flex items-center justify-center text-amt-text-muted hover:text-white hover:bg-[rgba(248,81,73,0.85)] border border-transparent transition-colors flex-shrink-0"
          >
-            X
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="w-[14px] h-[14px]">
+               <line x1="6" y1="6" x2="18" y2="18" />
+               <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
          </button>
       </div>
 
@@ -307,7 +484,7 @@
                class="preset-btn rounded-lg px-4 py-3 text-left"
                data-preset="potato"
             >
-               <div class="text-base font-bold text-orange-400">POTATO</div>
+               <div class="text-base font-bold text-amt-accent">POTATO</div>
                <div class="text-xs text-amt-text-muted mt-0.5">// max_fps, min_quality</div>
             </button>
             <button
@@ -315,7 +492,7 @@
                class="preset-btn rounded-lg px-4 py-3 text-left"
                data-preset="low"
             >
-               <div class="text-base font-bold text-yellow-400">LOW</div>
+               <div class="text-base font-bold text-amt-accent">LOW</div>
                <div class="text-xs text-amt-text-muted mt-0.5">// performance_priority</div>
             </button>
             <button
@@ -323,7 +500,7 @@
                class="preset-btn rounded-lg px-4 py-3 text-left"
                data-preset="medium"
             >
-               <div class="text-base font-bold text-green-400">MEDIUM</div>
+               <div class="text-base font-bold text-amt-accent">MEDIUM</div>
                <div class="text-xs text-amt-text-muted mt-0.5">// balanced_look_fps</div>
             </button>
             <button
@@ -331,7 +508,7 @@
                class="preset-btn rounded-lg px-4 py-3 text-left"
                data-preset="high"
             >
-               <div class="text-base font-bold text-blue-400">HIGH</div>
+               <div class="text-base font-bold text-amt-accent">HIGH</div>
                <div class="text-xs text-amt-text-muted mt-0.5">// quality_with_extras</div>
             </button>
             <button
@@ -339,7 +516,7 @@
                class="preset-btn rounded-lg px-4 py-3 text-left"
                data-preset="ultra"
             >
-               <div class="text-base font-bold text-purple-400">ULTRA</div>
+               <div class="text-base font-bold text-amt-accent">ULTRA</div>
                <div class="text-xs text-amt-text-muted mt-0.5">// maximum_visual</div>
             </button>
             <button
@@ -362,6 +539,33 @@
 
          <!-- Main Content -->
          <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- autoexec.cfg status banner (persistent, high-contrast) -->
+            <div id="cfgBanner" class="cfg-banner">
+               <svg
+                  class="cfg-banner-ico"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+               >
+                  <path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+               </svg>
+               <div class="cfg-banner-text">
+                  <div id="cfgBannerTitle" class="cfg-banner-title">No autoexec.cfg found</div>
+                  <div id="cfgBannerMsg" class="cfg-banner-msg"></div>
+               </div>
+               <button class="cfg-banner-x" title="Dismiss" onclick="hideCfgBanner()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                     <line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+               </button>
+            </div>
+
             <!-- Tabs -->
             <div class="flex border-b border-amt-border/50 px-5 pt-1">
                <button
@@ -1363,8 +1567,8 @@
             const badge = document.getElementById("presetBadge");
             badge.textContent = activePreset ? activePreset.toUpperCase() : "CUSTOM";
             badge.classList.remove("hidden");
-            badge.style.color = activePreset ? "#0066FF" : "#555";
-            badge.style.borderColor = activePreset ? "#0066FF" : "#222";
+            badge.style.color = activePreset ? "#ffffff" : "#444444";
+            badge.style.borderColor = activePreset ? "#ffffff" : "#222222";
          }
 
          function resetAll() {
@@ -1410,15 +1614,63 @@
             }
          }
 
+         const TOAST_ICONS = {
+            success:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+            error:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+            warning:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+            info:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+         };
+         const TOAST_TITLES = { success: "Success", error: "Failed", warning: "Heads up", info: "Notice" };
+         let _toastTimer = null;
+
          function showToast(msg, type = "info") {
             const t = document.getElementById("toast");
-            t.textContent = msg;
-            t.className = `toast ${type} show`;
-            setTimeout(() => t.classList.remove("show"), 3000);
+            const kind = TOAST_TITLES[type] ? type : "info";
+
+            t.innerHTML =
+               `<span class="toast-ico">${TOAST_ICONS[kind]}</span>` +
+               '<div class="toast-body"><div class="toast-title"></div><div class="toast-msg"></div></div>';
+            t.querySelector(".toast-title").textContent = TOAST_TITLES[kind];
+            // Message via textContent so C# error strings can't inject markup; trim a leading "// ".
+            t.querySelector(".toast-msg").textContent = String(msg ?? "").replace(/^\/\/\s*/, "");
+
+            t.className = `toast ${kind} show`;
+
+            clearTimeout(_toastTimer);
+            // Keep failures up longer so they can actually be read.
+            _toastTimer = setTimeout(() => t.classList.remove("show"), kind === "error" ? 6500 : 3800);
          }
 
          function showAlert(title, msg, type) {
             showToast(`// ${title}: ${msg}`, type);
+         }
+
+         // Persistent, high-contrast status banner for the autoexec.cfg state (C# → JS).
+         // state: "warning" | "success" → shown; "ok" | "hidden" | "" → dismissed.
+         function showCfgBanner(message, state) {
+            const b = document.getElementById("cfgBanner");
+            if (!b) return;
+            if (!state || state === "ok" || state === "hidden") {
+               b.classList.remove("show");
+               return;
+            }
+            const isSuccess = state === "success";
+            b.classList.remove("warning", "success");
+            b.classList.add(isSuccess ? "success" : "warning");
+            const title = document.getElementById("cfgBannerTitle");
+            const msg = document.getElementById("cfgBannerMsg");
+            if (title) title.textContent = isSuccess ? "autoexec.cfg ready" : "No autoexec.cfg found";
+            if (msg) msg.textContent = message || "";
+            b.classList.add("show");
+         }
+
+         function hideCfgBanner() {
+            const b = document.getElementById("cfgBanner");
+            if (b) b.classList.remove("show");
          }
 
          // ═══════════════════════════════════════════════════════════

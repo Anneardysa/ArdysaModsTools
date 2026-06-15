@@ -38,6 +38,14 @@ namespace ArdysaModsTools.Core.Helpers
 
         private static int _legacyCleanupDone;
 
+        // [AMT:PRO] Process-wide single environment. WebView2 does not reliably support multiple
+        // live CoreWebView2Environment instances rooted at the same user-data folder at once — a
+        // second one (e.g. a modal dialog opened while the WebView2 main shell is alive) can fail
+        // to initialize and render blank. Creating one environment and sharing it across every
+        // WebView2 control is the supported pattern, so the task is cached and reused.
+        private static readonly object _envGate = new();
+        private static Task<CoreWebView2Environment>? _environmentTask;
+
         /// <summary>
         /// Persistent WebView2 user-data folder: %LocalAppData%\ArdysaModsTools\WebView2.
         /// </summary>
@@ -47,14 +55,27 @@ namespace ArdysaModsTools.Core.Helpers
             "WebView2");
 
         /// <summary>
-        /// Creates the shared WebView2 environment rooted at the persistent user-data folder.
-        /// Ensures the folder exists and performs a one-time cleanup of the legacy temp folder.
+        /// Returns the shared WebView2 environment rooted at the persistent user-data folder,
+        /// creating it once on first use. All WebView2 controls in the process pass this same
+        /// environment to <c>EnsureCoreWebView2Async</c>. Ensures the folder exists and performs a
+        /// one-time cleanup of the legacy temp folder.
         /// </summary>
-        public static async Task<CoreWebView2Environment> CreateEnvironmentAsync()
+        public static Task<CoreWebView2Environment> CreateEnvironmentAsync()
+        {
+            lock (_envGate)
+            {
+                // Recreate if the first attempt faulted so a later open can retry cleanly.
+                if (_environmentTask is null || _environmentTask.IsFaulted || _environmentTask.IsCanceled)
+                    _environmentTask = CreateEnvironmentInternalAsync();
+                return _environmentTask;
+            }
+        }
+
+        private static async Task<CoreWebView2Environment> CreateEnvironmentInternalAsync()
         {
             EnsureUserDataFolderExists();
             TryCleanupLegacyFolderOnce();
-            return await CoreWebView2Environment.CreateAsync(null, UserDataFolder).ConfigureAwait(true);
+            return await CoreWebView2Environment.CreateAsync(null, UserDataFolder).ConfigureAwait(false);
         }
 
         private static void EnsureUserDataFolderExists()

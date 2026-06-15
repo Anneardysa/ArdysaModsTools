@@ -20,32 +20,82 @@ namespace ArdysaModsTools.Core.Services.Misc
             _logService = logService ?? throw new ArgumentNullException(nameof(logService));
         }
 
+        // The app's target path is the install ROOT ("...\dota 2 beta", the folder containing "game" —
+        // see DotaPaths, whose entries are all "game/..."). Dota 2 reads autoexec.cfg from
+        // "<root>\game\dota\cfg". We also tolerate callers that pass the "game" or "dota" folder directly.
+        // Candidate cfg dirs, ordered from most- to least-qualified:
+        private static string[] CfgDirCandidates(string gamePath) => new[]
+        {
+            Path.Combine(gamePath, "game", "dota", "cfg"), // gamePath = install root  (the real convention)
+            Path.Combine(gamePath, "dota", "cfg"),          // gamePath = "...\game" folder
+            Path.Combine(gamePath, "cfg"),                  // gamePath = "...\dota" content folder
+        };
+
+        // Content folder that must exist for a candidate cfg dir to be a legitimate write target
+        // (so we never create a stray "cfg" folder inside an unrelated directory).
+        private static (string Parent, string Cfg)[] CfgWriteTargets(string gamePath) => new[]
+        {
+            (Path.Combine(gamePath, "game", "dota"), Path.Combine(gamePath, "game", "dota", "cfg")),
+            (Path.Combine(gamePath, "dota"),          Path.Combine(gamePath, "dota", "cfg")),
+        };
+
+        private static string DefaultCfgDota() => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            "Steam", "steamapps", "common", "dota 2 beta", "game", "dota");
+
         private string GetCfgDirectory(string? gamePath)
         {
             if (!string.IsNullOrEmpty(gamePath))
             {
-                var cfgDir = Path.Combine(gamePath, "dota", "cfg");
-                if (Directory.Exists(cfgDir))
-                    return cfgDir;
-
-                cfgDir = Path.Combine(gamePath, "cfg");
-                if (Directory.Exists(cfgDir))
-                    return cfgDir;
+                foreach (var candidate in CfgDirCandidates(gamePath))
+                    if (Directory.Exists(candidate))
+                        return candidate;
 
                 // An explicit gamePath was supplied but contains no cfg folder. Do NOT fall back
-                // to the global default install — that would silently write autoexec.cfg into an
-                // unrelated Dota 2 install. Honor the requested path and report not-found instead.
+                // to the global default install — that would silently read/write an unrelated install.
                 return string.Empty;
             }
 
-            var defaultPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-                "Steam", "steamapps", "common", "dota 2 beta", "game", "dota", "cfg");
+            var defaultPath = Path.Combine(DefaultCfgDota(), "cfg");
+            return Directory.Exists(defaultPath) ? defaultPath : string.Empty;
+        }
 
-            if (Directory.Exists(defaultPath))
-                return defaultPath;
+        /// <summary>
+        /// Resolves the cfg directory to <b>write</b> autoexec.cfg into. Unlike <see cref="GetCfgDirectory"/>
+        /// (used for reads, which requires the folder to already exist), this returns the correct target
+        /// even when the <c>cfg</c> folder does not exist yet — provided the Dota 2 install itself is valid.
+        /// A fresh Dota 2 install has no <c>game/dota/cfg</c> folder until a config is created; the
+        /// transactional <see cref="ArdysaModsTools.Core.Services.FileTransactions.WriteTextOperation"/>
+        /// creates the parent folder on write. Returns empty only when no valid install can be located
+        /// (e.g. an explicit path that is not a Dota 2 layout), so the caller surfaces a clear "not found".
+        /// </summary>
+        private string ResolveCfgDirectoryForWrite(string? gamePath)
+        {
+            // Prefer an already-existing cfg folder (handles standard and non-standard layouts).
+            var existing = GetCfgDirectory(gamePath);
+            if (!string.IsNullOrEmpty(existing))
+                return existing;
 
-            return string.Empty;
+            if (!string.IsNullOrEmpty(gamePath))
+            {
+                // Pick the target whose content folder exists, so we only ever create "cfg" inside a
+                // real Dota 2 layout (install root → game/dota/cfg, or game folder → dota/cfg).
+                foreach (var (parent, cfg) in CfgWriteTargets(gamePath))
+                    if (Directory.Exists(parent))
+                        return cfg;
+
+                // gamePath is itself the "...\dota" content folder → dota\cfg.
+                var leaf = Path.GetFileName(gamePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                if (Directory.Exists(gamePath) && string.Equals(leaf, "dota", StringComparison.OrdinalIgnoreCase))
+                    return Path.Combine(gamePath, "cfg");
+
+                // Explicit path supplied but it is not a recognizable Dota 2 install — do not guess.
+                return string.Empty;
+            }
+
+            // No explicit path: use the default Steam install when its content folder exists.
+            var defaultDota = DefaultCfgDota();
+            return Directory.Exists(defaultDota) ? Path.Combine(defaultDota, "cfg") : string.Empty;
         }
 
         public async Task<Dictionary<string, string>> LoadCurrentSettingsAsync(string? gamePath, CancellationToken cancellationToken = default)
@@ -80,7 +130,7 @@ namespace ArdysaModsTools.Core.Services.Misc
         // It strictly requires a FileTransaction wrap to prevent corruption on failure. Do not bypass this pipeline.
         public async Task ApplySettingsAsync(string? gamePath, Dictionary<string, string> settings, CancellationToken cancellationToken = default)
         {
-            var cfgDir = GetCfgDirectory(gamePath);
+            var cfgDir = ResolveCfgDirectoryForWrite(gamePath);
             if (string.IsNullOrEmpty(cfgDir))
             {
                 throw new DirectoryNotFoundException("Dota 2 cfg folder not found. Cannot apply settings.");
