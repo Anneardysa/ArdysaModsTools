@@ -69,6 +69,17 @@ public static class HeroModelMapper
                 }
             }
 
+            // Copy style-grouping metadata (flat set key → group/label) for the Skin Selector.
+            if (hs.SetStyles != null && hs.SetStyles.Count > 0)
+            {
+                hm.SetStyles = new Dictionary<string, SetStyleInfo>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kvp in hs.SetStyles)
+                {
+                    if (kvp.Value != null)
+                        hm.SetStyles[kvp.Key] = kvp.Value;
+                }
+            }
+
             // Parse item IDs from string array → int list
             if (hs.Ids != null && hs.Ids.Length > 0)
             {

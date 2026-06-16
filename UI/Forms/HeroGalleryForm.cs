@@ -262,7 +262,11 @@ namespace ArdysaModsTools.UI.Forms
                         isCustom = HeroModelMapper.IsCustomSet(kvp.Value),
                         category = HeroModelMapper.ClassifySet(kvp.Value).ToString().ToLowerInvariant(),
                         tag = HeroModelMapper.ExtractItemTag(kvp.Value),
-                        thumbnailUrl = kvp.Value?.FirstOrDefault(u => 
+                        // Style grouping metadata (null when the set is not a styled variant).
+                        // Lets the Skin Selector collapse flattened style entries into one Style Card.
+                        styleGroup = h.SetStyles != null && h.SetStyles.TryGetValue(kvp.Key, out var si) ? si.Group : null,
+                        styleLabel = h.SetStyles != null && h.SetStyles.TryGetValue(kvp.Key, out var sl) ? sl.Label : null,
+                        thumbnailUrl = kvp.Value?.FirstOrDefault(u =>
                             u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                             u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
                             u.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))

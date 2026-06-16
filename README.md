@@ -361,6 +361,27 @@ This project exists thanks to the incredible Dota 2 modding community. Special t
 
 ---
 
+## ⚖️ Licensing & Trademarks
+
+> [!IMPORTANT]
+> The code license and the **brand** are separate. Read both before forking.
+
+- **Code (released GPL-3.0 versions):** You may copy, modify, and redistribute under
+  [GPL-3.0](LICENSE) — which requires preserving attribution and publishing your modified
+  source under the same license. **Future versions may be released under different terms**
+  (the sole copyright holder may relicense new versions; already-published GPL-3.0 versions
+  stay GPL-3.0).
+- **Brand (NOT licensed):** The names **"ArdysaMods" / "ArdysaModsTools" / "AMT"**, the logo and
+  app icon, the visual identity, and the domains **`ardysamods.my.id`** / **`cdn.ardysamods.my.id`**
+  are **not** covered by the code license and may not be used without written permission.
+- **If you fork:** use a **different name and logo**, do **not** imply official status or
+  affiliation, and do **not** use the official domains, CDN, or update endpoints.
+
+Full terms are in [`NOTICE`](NOTICE). Misuse of the brand or attribution-stripping
+redistribution is actionable under trademark/copyright law independently of the code license.
+
+---
+
 ## 💬 Support & Community
 
 - 🐛 **Bug Reports**: [GitHub Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)

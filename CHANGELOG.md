@@ -5,6 +5,18 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0-beta] (Build 2152)
+
+### ✨ Added
+
+- **Skin Selector → Style Cards** — a set or item can now ship multiple **styles** (alternate visual variants, each with its own archive + thumbnail). Authored in `heroes.json` as a `{ "styles": { "<label>": [urls...] } }` object on a set (fully backward compatible with the existing array form), they collapse into a single **Style Card** with a horizontal style-chip row in the hero modal — picking a chip applies that style. Eligible across all categories (Legacy / Custom / Persona / Item / Base), with exactly one active style enforced per group. Each style is flattened into a normal set entry keyed `"{Group} ({Label})"`, so the download / patch / VPK pipeline is completely unchanged.
+
+### 🛠️ Changed
+
+- **`scripts/tools/2-patch_models.py`** now authors and maintains styled sets. A style group is a subfolder under the hero (`models/<hero>/<Group>/<Style>.zip`, images mirrored under `image/`); the scanner emits it as a `{ "styles": { ... } }` object keyed `Set N`. Every set-iterating operation — CDN URL migration, duplicate detection, image back-fill, deleted-file sync (per-style prune + empty-group drop), base-priority auto-detect, category overview, and the delete tool (with empty style-folder cleanup) — is now style-aware instead of silently skipping the object form.
+
+---
+
 ## [2.2.0-beta] (Build 2151)
 
 ### 🐛 Fixed

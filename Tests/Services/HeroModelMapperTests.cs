@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Models;
 using NUnit.Framework;
 
 namespace ArdysaModsTools.Tests.Services
@@ -104,6 +105,57 @@ namespace ArdysaModsTools.Tests.Services
 
             Assert.That(result[0].Method, Is.EqualTo(1));
             Assert.That(result[1].Method, Is.Null);
+        }
+
+        [Test]
+        public void MapFromSummaries_CopiesSetStyles()
+        {
+            // Arrange — a styled set already flattened by the parser (key = "Group (Label)").
+            var summaries = new List<HeroSummary>
+            {
+                new HeroSummary
+                {
+                    Name = "Anti-Mage",
+                    UsedByHeroes = "npc_dota_hero_antimage",
+                    Sets = new Dictionary<string, string[]>
+                    {
+                        { "Manifold Paradox (Default)", new[] { "https://cdn/mp_default.zip" } },
+                        { "Manifold Paradox (Corrupted)", new[] { "https://cdn/mp_corrupted.zip" } }
+                    },
+                    SetStyles = new Dictionary<string, SetStyleInfo>
+                    {
+                        { "Manifold Paradox (Default)", new SetStyleInfo { Group = "Manifold Paradox", Label = "Default" } },
+                        { "Manifold Paradox (Corrupted)", new SetStyleInfo { Group = "Manifold Paradox", Label = "Corrupted" } }
+                    }
+                }
+            };
+
+            // Act
+            var hero = HeroModelMapper.MapFromSummaries(summaries)[0];
+
+            // Assert
+            Assert.That(hero.SetStyles, Has.Count.EqualTo(2));
+            Assert.That(hero.SetStyles["Manifold Paradox (Corrupted)"].Group, Is.EqualTo("Manifold Paradox"));
+            Assert.That(hero.SetStyles["Manifold Paradox (Corrupted)"].Label, Is.EqualTo("Corrupted"));
+            // Case-insensitive lookup (matches Sets dictionary behavior).
+            Assert.That(hero.SetStyles.ContainsKey("manifold paradox (default)"), Is.True);
+        }
+
+        [Test]
+        public void MapFromSummaries_NoSetStyles_UsesEmptyDictionary()
+        {
+            // Arrange — legacy summary with no styles.
+            var summaries = new List<HeroSummary>
+            {
+                new HeroSummary { Name = "Axe", UsedByHeroes = "npc_dota_hero_axe" }
+            };
+
+            // Act
+            var hero = HeroModelMapper.MapFromSummaries(summaries)[0];
+
+            // Assert
+            Assert.That(hero.SetStyles, Is.Not.Null);
+            Assert.That(hero.SetStyles, Is.Empty);
         }
 
         [Test]

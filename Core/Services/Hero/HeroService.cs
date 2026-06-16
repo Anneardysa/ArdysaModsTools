@@ -38,6 +38,11 @@ namespace ArdysaModsTools.Core.Services
         public string[] Ids { get; init; } = Array.Empty<string>();
         public Dictionary<string, string[]> Sets { get; init; } = new();
 
+        // UI-only grouping metadata for flattened style entries (key = flat set name,
+        // e.g. "Manifold Paradox (Corrupted)"). Empty when the hero has no styled sets.
+        // The generation pipeline ignores this — styles are plain entries in Sets.
+        public Dictionary<string, SetStyleInfo> SetStyles { get; init; } = new();
+
         // Optional explicit base-priority method (1 = Base wins, 2 = Base last).
         // Null → fall back to item_slot hero_base auto-detection during generation.
         public int? Method { get; init; }
@@ -258,7 +263,9 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private List<HeroSummary> ParseHeroesJson(string raw)
+        // internal (not private) so unit tests can exercise the parser directly without the
+        // network/cache layers. Uses no instance state — safe as static.
+        internal static List<HeroSummary> ParseHeroesJson(string raw)
         {
             // JsonDocumentOptions for parsing with trailing commas and comments
             var docOptions = new JsonDocumentOptions
@@ -304,6 +311,7 @@ namespace ArdysaModsTools.Core.Services
                 string primaryAttr = "universal";
                 string[] ids = Array.Empty<string>();
                 var sets = new Dictionary<string, string[]>();
+                var setStyles = new Dictionary<string, SetStyleInfo>();
                 int? method = null;
 
                 if (el.TryGetProperty("name", out var ne) && ne.ValueKind == JsonValueKind.String) name = ne.GetString();
@@ -350,6 +358,15 @@ namespace ArdysaModsTools.Core.Services
                                 var s = valueEl.GetString() ?? "";
                                 sets[setName] = new[] { s };
                             }
+                            else if (valueEl.ValueKind == JsonValueKind.Object)
+                            {
+                                // Styled set: { "styles": { "<label>": [urls...], ... } }.
+                                // Each style is flattened into its own normal set entry keyed
+                                // "{setName} ({label})" so the generation pipeline treats it like
+                                // any other set, while SetStyles records the group + label for the
+                                // Skin Selector to re-group them into a single Style Card.
+                                ParseStyledSet(setName, valueEl, sets, setStyles);
+                            }
                             else
                             {
                                 // ignore other shapes
@@ -368,12 +385,54 @@ namespace ArdysaModsTools.Core.Services
                     PrimaryAttr = string.IsNullOrWhiteSpace(primaryAttr) ? "universal" : primaryAttr.ToLowerInvariant(),
                     Ids = ids,
                     Sets = sets,
+                    SetStyles = setStyles,
                     Method = method
                 };
             }
             catch
             {
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Flattens a styled-set object (<c>{ "styles": { "&lt;label&gt;": [urls...] } }</c>) into
+        /// individual entries of <paramref name="sets"/> keyed <c>"{setName} ({label})"</c>, and
+        /// records the group/label pairing in <paramref name="setStyles"/> for the UI. Malformed
+        /// styles (missing/non-object <c>styles</c>, blank labels, non-array values, empty URL
+        /// lists) are skipped defensively so one bad style can't drop the whole hero.
+        /// </summary>
+        private static void ParseStyledSet(
+            string setName,
+            JsonElement setObject,
+            Dictionary<string, string[]> sets,
+            Dictionary<string, SetStyleInfo> setStyles)
+        {
+            if (!setObject.TryGetProperty("styles", out var stylesEl) || stylesEl.ValueKind != JsonValueKind.Object)
+                return;
+
+            foreach (var styleProp in stylesEl.EnumerateObject())
+            {
+                var label = styleProp.Name;
+                if (string.IsNullOrWhiteSpace(label) || styleProp.Value.ValueKind != JsonValueKind.Array)
+                    continue;
+
+                var urls = styleProp.Value.EnumerateArray()
+                    .Where(x => x.ValueKind == JsonValueKind.String)
+                    .Select(x => x.GetString() ?? "")
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .ToArray();
+
+                if (urls.Length == 0)
+                    continue;
+
+                var flatKey = $"{setName} ({label})";
+                // Guard against accidental collisions with an existing flat key.
+                if (sets.ContainsKey(flatKey))
+                    continue;
+
+                sets[flatKey] = urls;
+                setStyles[flatKey] = new SetStyleInfo { Group = setName, Label = label };
             }
         }
 

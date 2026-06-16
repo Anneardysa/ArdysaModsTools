@@ -64,6 +64,12 @@ namespace ArdysaModsTools.Models
         [JsonPropertyName("sets")]
         public Dictionary<string, List<string>> Sets { get; set; } = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
+        // UI-only grouping metadata for flattened style entries (key = flat set name in Sets).
+        // Filled by HeroModelMapper, not deserialized — heroes.json is parsed manually into
+        // HeroSummary. Empty when the hero has no styled sets. The generation pipeline ignores it.
+        [JsonIgnore]
+        public Dictionary<string, SetStyleInfo> SetStyles { get; set; } = new Dictionary<string, SetStyleInfo>(StringComparer.OrdinalIgnoreCase);
+
         [JsonIgnore]
         public IReadOnlyList<string> Skins
         {

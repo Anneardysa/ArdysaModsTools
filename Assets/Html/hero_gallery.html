@@ -495,6 +495,112 @@
             padding: 4px 0;
          }
 
+         /* Style Card — groups multiple styles of one set/item into a single card.
+            Spans the full grid row and exposes the variants as a chip row. The accent
+            (--sc-accent) mirrors the surrounding category color. */
+         .style-card {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.2s ease-out;
+         }
+         .style-card.set-style { --sc-accent: #00d4ff; }
+         .style-card.persona-style { --sc-accent: #ec4899; }
+         .style-card.item-style { --sc-accent: #22c55e; }
+         .style-card.base-style { --sc-accent: #f97316; }
+         .style-card.selected {
+            box-shadow:
+               0 0 0 2px var(--sc-accent, #00d4ff),
+               0 0 15px rgba(0, 212, 255, 0.18);
+         }
+         .style-card-head {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+         }
+         .style-card-thumb {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            flex: 0 0 64px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+         }
+         .style-card-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+         }
+         .style-card-thumb .toggle-indicator {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--sc-accent, #00d4ff);
+         }
+         .style-card-thumb .toggle-indicator svg {
+            width: 10px;
+            height: 10px;
+            color: #000;
+         }
+         .style-card-info { min-width: 0; }
+         .style-card-title {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .style-card-sub {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-top: 2px;
+         }
+         .style-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+         }
+         .style-chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px 4px 4px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.03);
+            cursor: pointer;
+            transition: all 0.15s ease-out;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+         }
+         .style-chip:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-1px);
+         }
+         .style-chip img {
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+            object-fit: cover;
+         }
+         .style-chip.active {
+            border-color: var(--sc-accent, #00d4ff);
+            box-shadow: inset 0 0 0 1px var(--sc-accent, #00d4ff);
+            color: #fff;
+         }
+
          /* Has Sets toggle pill */
          .toggle-pill {
             transition: all 0.2s ease;
@@ -1133,8 +1239,11 @@
             if (!s) return null;
             const parts = [];
             if (s.set !== null && hero.sets && hero.sets[s.set]) {
-               const setName = hero.sets[s.set].name;
-               const isPersona = getSetCategory(hero.sets[s.set]) === 'persona';
+               const setObj = hero.sets[s.set];
+               const isPersona = getSetCategory(setObj) === 'persona';
+               const setName = setObj.styleGroup
+                  ? `${setObj.styleGroup} · ${setObj.styleLabel}`
+                  : setObj.name;
                parts.push(isPersona ? `Persona: ${setName}` : setName);
             }
             if (s.items && s.items.length > 0) {
@@ -1826,6 +1935,99 @@
             `;
          }
 
+         // Returns the original set index of the currently-active style within a group,
+         // or null when none of the group's styles is selected. Honors the selection slot
+         // for the tile type (set/persona → sel.set, item → sel.items, base → sel.base).
+         function getActiveStyleIndex(entries, heroSel, tileType) {
+            for (const { idx } of entries) {
+               if (tileType === 'item') {
+                  if (heroSel.items && heroSel.items.includes(idx)) return idx;
+               } else if (tileType === 'base') {
+                  if (heroSel.base === idx) return idx;
+               } else {
+                  if (heroSel.set === idx) return idx;
+               }
+            }
+            return null;
+         }
+
+         // Renders one Style Card for a group of style variants (LegacySet/Custom/Persona/Item/Base).
+         function renderStyleCard(group, entries, hero, heroSel, tileType) {
+            const cardClass = tileType === 'item' ? 'item-style'
+               : tileType === 'base' ? 'base-style'
+               : tileType === 'persona' ? 'persona-style' : 'set-style';
+
+            const activeIdx = getActiveStyleIndex(entries, heroSel, tileType);
+            const isSelected = activeIdx !== null;
+            const display = isSelected ? entries.find(e => e.idx === activeIdx) : entries[0];
+            const headThumb = (display && display.set.thumbnailUrl) || hero.thumbnail;
+            const groupIndices = entries.map(e => e.idx);
+
+            const subText = isSelected && display
+               ? `${entries.length} styles · ${display.set.styleLabel || ''}`
+               : `${entries.length} styles`;
+
+            const toggleHtml = isSelected ? `
+               <div class="toggle-indicator">
+                  <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                  </svg>
+               </div>` : '';
+
+            const chips = entries.map(({ set, idx }) => {
+               const chipActive = idx === activeIdx;
+               const chipThumb = set.thumbnailUrl || hero.thumbnail;
+               const styleLabel = set.styleLabel || `Style ${idx + 1}`;
+               return `
+                  <div class="style-chip ${chipActive ? 'active' : ''}"
+                       data-set-index="${idx}"
+                       onclick="selectStyle('${currentModalHeroId}', '${tileType}', ${idx}, [${groupIndices.join(',')}])"
+                       title="${styleLabel}">
+                     <img src="${chipThumb}" alt="${styleLabel}" onerror="this.src='${hero.thumbnail}'" />
+                     <span>${styleLabel}</span>
+                  </div>`;
+            }).join('');
+
+            return `
+            <div class="style-card ${cardClass} ${isSelected ? 'selected' : ''}">
+               <div class="style-card-head">
+                  <div class="style-card-thumb">
+                     <img src="${headThumb}" alt="${group}" onerror="this.src='${hero.thumbnail}'" />
+                     ${toggleHtml}
+                  </div>
+                  <div class="style-card-info">
+                     <p class="style-card-title">${group}</p>
+                     <p class="style-card-sub">${subText}</p>
+                  </div>
+               </div>
+               <div class="style-chip-row">${chips}</div>
+            </div>
+            `;
+         }
+
+         // Selects a style within a group, enforcing one-active-style-per-group, then delegates
+         // to the existing selection handlers so all downstream rules/notifications are reused.
+         function selectStyle(heroId, tileType, idx, groupIndices) {
+            if (tileType === 'item') {
+               // Multi-select slot: drop any sibling style of this group before toggling.
+               if (isPersonaActive(heroId)) return; // mirror toggleItem's persona guard
+               const sel = getHeroSelection(heroId);
+               if (!sel.items.includes(idx)) {
+                  groupIndices.forEach(gi => {
+                     if (gi !== idx) {
+                        const ci = sel.items.indexOf(gi);
+                        if (ci >= 0) sel.items.splice(ci, 1);
+                     }
+                  });
+               }
+               toggleItem(heroId, idx);
+            } else if (tileType === 'base') {
+               toggleBase(heroId, idx); // single sel.base — auto-exclusive
+            } else {
+               selectSet(heroId, idx); // single sel.set — auto-exclusive (persona clears items/base)
+            }
+         }
+
          function renderModalSets() {
             const hero = heroes.find((h) => h.id === currentModalHeroId);
             if (!hero) return;
@@ -1876,7 +2078,19 @@
                   s += `<div class="exclusion-notice">${notice}</div>`;
                }
                s += '<div class="set-category-grid">';
-               s += entries.map(({ set, idx }) => renderSetTile(set, idx, hero, heroSel, tileType)).join('');
+               // Entries sharing a non-null styleGroup collapse into a single Style Card
+               // (rendered once for the group); the rest render as normal tiles.
+               const renderedGroups = new Set();
+               s += entries.map(({ set, idx }) => {
+                  const group = set.styleGroup;
+                  if (group) {
+                     if (renderedGroups.has(group)) return '';
+                     renderedGroups.add(group);
+                     const groupEntries = entries.filter(e => e.set.styleGroup === group);
+                     return renderStyleCard(group, groupEntries, hero, heroSel, tileType);
+                  }
+                  return renderSetTile(set, idx, hero, heroSel, tileType);
+               }).join('');
                s += '</div></div>';
                return s;
             }

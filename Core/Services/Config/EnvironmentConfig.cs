@@ -223,6 +223,8 @@ namespace ArdysaModsTools.Core.Services.Config
         /// (same source as the website's <c>updates.html</c> page).
         /// </summary>
         public static string ModsPackUpdatesUrl => $"{WebsiteBase}/updates.json";
+
+
         
         // ============================================================
         // URL Builders
