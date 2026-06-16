@@ -5,6 +5,19 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1-beta] (Build 2153)
+
+### ✨ Added
+
+- **UI/UX**: Added a Style Preview Modal in the Skin Selector. Clicking on a collapsed Style Card representative tile now opens a modal where users can preview, select, and deselect specific style variants (showing corresponding custom labels and thumbnails) before applying them.
+- **UI/UX**: Added click-outside and `Escape` key handlers to close the Style Preview Modal.
+
+### 🛠️ Changed
+
+- **Mock Data**: Updated Crystal Maiden's test sets/items in `hero_gallery.html` to include styleGroup and styleLabel metadata to support layout and behavior testing.
+
+---
+
 ## [2.2.0-beta] (Build 2152)
 
 ### ✨ Added

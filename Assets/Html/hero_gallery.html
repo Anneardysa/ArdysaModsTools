@@ -495,111 +495,183 @@
             padding: 4px 0;
          }
 
-         /* Style Card — groups multiple styles of one set/item into a single card.
-            Spans the full grid row and exposes the variants as a chip row. The accent
-            (--sc-accent) mirrors the surrounding category color. */
-         .style-card {
-            grid-column: 1 / -1;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            transition: all 0.2s ease-out;
-         }
-         .style-card.set-style { --sc-accent: #00d4ff; }
-         .style-card.persona-style { --sc-accent: #ec4899; }
-         .style-card.item-style { --sc-accent: #22c55e; }
-         .style-card.base-style { --sc-accent: #f97316; }
-         .style-card.selected {
-            box-shadow:
-               0 0 0 2px var(--sc-accent, #00d4ff),
-               0 0 15px rgba(0, 212, 255, 0.18);
-         }
-         .style-card-head {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-         }
-         .style-card-thumb {
-            position: relative;
-            width: 64px;
-            height: 64px;
-            flex: 0 0 64px;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-         }
-         .style-card-thumb img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-         }
-         .style-card-thumb .toggle-indicator {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--sc-accent, #00d4ff);
-         }
-         .style-card-thumb .toggle-indicator svg {
-            width: 10px;
-            height: 10px;
-            color: #000;
-         }
-         .style-card-info { min-width: 0; }
-         .style-card-title {
-            font-size: 14px;
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-         }
-         .style-card-sub {
-            font-size: 11px;
-            opacity: 0.6;
-            margin-top: 2px;
-         }
-         .style-chip-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-         }
-         .style-chip {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 8px 4px 4px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.03);
-            cursor: pointer;
-            transition: all 0.15s ease-out;
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.7);
-         }
-         .style-chip:hover {
-            border-color: rgba(255, 255, 255, 0.3);
-            transform: translateY(-1px);
-         }
-         .style-chip img {
-            width: 22px;
-            height: 22px;
-            border-radius: 5px;
-            object-fit: cover;
-         }
-         .style-chip.active {
-            border-color: var(--sc-accent, #00d4ff);
-            box-shadow: inset 0 0 0 1px var(--sc-accent, #00d4ff);
-            color: #fff;
-         }
+          /* Style count badge — shown on tiles that have multiple style variants */
+          .style-count-badge {
+             position: absolute;
+             bottom: 6px;
+             right: 6px;
+             padding: 2px 6px;
+             border-radius: 4px;
+             font-size: 9px;
+             font-weight: 700;
+             color: white;
+             background: rgba(0, 0, 0, 0.7);
+             backdrop-filter: blur(4px);
+             -webkit-backdrop-filter: blur(4px);
+             border: 1px solid rgba(255, 255, 255, 0.15);
+             letter-spacing: 0.03em;
+             pointer-events: none;
+          }
+
+          /* Style Preview Modal — opens over the hero modal to show variant tiles */
+          .style-preview-backdrop {
+             background: rgba(0, 0, 0, 0.88);
+             backdrop-filter: blur(8px);
+             -webkit-backdrop-filter: blur(8px);
+          }
+          .style-preview-panel {
+             background: #0a0a0a;
+             border: 1px solid rgba(255, 255, 255, 0.1);
+             border-radius: 16px;
+             max-width: 540px;
+             width: 100%;
+             max-height: 80vh;
+             overflow: hidden;
+             animation: style-preview-enter 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          }
+          @keyframes style-preview-enter {
+             0% { opacity: 0; transform: scale(0.92) translateY(12px); }
+             100% { opacity: 1; transform: scale(1) translateY(0); }
+          }
+          .style-preview-header {
+             display: flex;
+             align-items: center;
+             gap: 12px;
+             padding: 16px 20px;
+             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          }
+          .style-preview-header-thumb {
+             width: 40px;
+             height: 40px;
+             border-radius: 8px;
+             overflow: hidden;
+             border: 1px solid rgba(255, 255, 255, 0.1);
+             flex-shrink: 0;
+          }
+          .style-preview-header-thumb img {
+             width: 100%;
+             height: 100%;
+             object-fit: cover;
+          }
+          .style-preview-header-info {
+             flex: 1;
+             min-width: 0;
+          }
+          .style-preview-header-title {
+             font-size: 15px;
+             font-weight: 600;
+             white-space: nowrap;
+             overflow: hidden;
+             text-overflow: ellipsis;
+          }
+          .style-preview-header-sub {
+             font-size: 11px;
+             opacity: 0.5;
+             margin-top: 2px;
+          }
+          .style-preview-close {
+             width: 28px;
+             height: 28px;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             border-radius: 6px;
+             background: transparent;
+             border: none;
+             color: rgba(255, 255, 255, 0.4);
+             cursor: pointer;
+             transition: all 0.15s ease;
+             flex-shrink: 0;
+          }
+          .style-preview-close:hover {
+             background: rgba(255, 255, 255, 0.08);
+             color: white;
+          }
+          .style-preview-grid {
+             display: grid;
+             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+             gap: 12px;
+             padding: 16px 20px;
+             max-height: 58vh;
+             overflow-y: auto;
+          }
+          .style-preview-tile {
+             position: relative;
+             border-radius: 10px;
+             overflow: hidden;
+             border: 2px solid rgba(255, 255, 255, 0.06);
+             cursor: pointer;
+             transition: all 0.2s ease-out;
+             background: #111;
+          }
+          .style-preview-tile:hover {
+             border-color: rgba(255, 255, 255, 0.2);
+             transform: scale(1.03);
+             box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+          }
+          .style-preview-tile.active {
+             border-color: var(--sc-accent, #00d4ff);
+             box-shadow:
+                0 0 0 1px var(--sc-accent, #00d4ff),
+                0 0 20px color-mix(in srgb, var(--sc-accent, #00d4ff) 30%, transparent);
+          }
+          .style-preview-tile-img {
+             aspect-ratio: 1;
+             overflow: hidden;
+          }
+          .style-preview-tile-img img {
+             width: 100%;
+             height: 100%;
+             object-fit: cover;
+             transition: transform 0.3s ease;
+          }
+          .style-preview-tile:hover .style-preview-tile-img img {
+             transform: scale(1.08);
+          }
+          .style-preview-tile-label {
+             padding: 8px 10px;
+             font-size: 11px;
+             font-weight: 500;
+             white-space: nowrap;
+             overflow: hidden;
+             text-overflow: ellipsis;
+             color: rgba(255, 255, 255, 0.75);
+          }
+          .style-preview-tile.active .style-preview-tile-label {
+             color: #fff;
+          }
+          .style-preview-tile-check {
+             position: absolute;
+             top: 6px;
+             right: 6px;
+             width: 20px;
+             height: 20px;
+             border-radius: 50%;
+             background: var(--sc-accent, #00d4ff);
+             display: flex;
+             align-items: center;
+             justify-content: center;
+             opacity: 0;
+             transform: scale(0.5);
+             transition: all 0.15s ease-out;
+          }
+          .style-preview-tile.active .style-preview-tile-check {
+             opacity: 1;
+             transform: scale(1);
+          }
+          .style-preview-tile-check svg {
+             width: 12px;
+             height: 12px;
+             color: #000;
+          }
+          .style-preview-footer {
+             display: flex;
+             align-items: center;
+             justify-content: flex-end;
+             gap: 8px;
+             padding: 12px 20px;
+             border-top: 1px solid rgba(255, 255, 255, 0.08);
+          }
 
          /* Has Sets toggle pill */
          .toggle-pill {
@@ -1190,6 +1262,31 @@
                >
                   Yes, Clear All
                </button>
+            </div>
+         </div>
+      </div>
+
+      <!-- Style Preview Modal -->
+      <div id="stylePreviewModal" class="hidden fixed inset-0 z-[90] style-preview-backdrop flex items-center justify-center p-4" onclick="closeStylePreview()">
+         <div class="style-preview-panel" onclick="event.stopPropagation()">
+            <div class="style-preview-header">
+               <div class="style-preview-header-thumb">
+                  <img id="stylePreviewThumb" src="" alt="" />
+               </div>
+               <div class="style-preview-header-info">
+                  <div id="stylePreviewTitle" class="style-preview-header-title"></div>
+                  <div id="stylePreviewSub" class="style-preview-header-sub"></div>
+               </div>
+               <button class="style-preview-close" onclick="closeStylePreview()">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+               </button>
+            </div>
+            <div id="stylePreviewGrid" class="style-preview-grid"></div>
+            <div class="style-preview-footer">
+               <button onclick="deselectStylePreview()" class="px-4 py-1.5 text-xs text-gray-400 hover:text-white border border-amt-border hover:border-gray-500 rounded-lg transition-all">Deselect</button>
+               <button onclick="closeStylePreview()" class="px-5 py-1.5 text-xs font-semibold bg-white text-black rounded-lg hover:bg-gray-200 transition-all">Done</button>
             </div>
          </div>
       </div>
@@ -1866,8 +1963,21 @@
 
          // Render a set/item/base/persona tile with appropriate styling
          function renderSetTile(set, idx, hero, heroSel, tileType) {
+            // Styled tiles: this single tile represents a whole styleGroup. Selection and
+            // display collapse across all variants in the group, and clicking the tile opens
+            // the Style Preview modal instead of selecting directly. A group with a single
+            // variant (or no styleGroup) behaves like a normal tile that selects on click.
+            const styleGroup = set.styleGroup || null;
+            const groupEntries = styleGroup
+               ? hero.sets.map((s, i) => ({ set: s, idx: i })).filter(e => e.set.styleGroup === styleGroup)
+               : [];
+            const hasStyles = styleGroup && groupEntries.length > 1;
+            const activeStyleIdx = hasStyles ? getActiveStyleIndex(groupEntries, heroSel, tileType) : null;
+
             let isSelected = false;
-            if (tileType === 'set' || tileType === 'persona') {
+            if (hasStyles) {
+               isSelected = activeStyleIdx !== null;
+            } else if (tileType === 'set' || tileType === 'persona') {
                isSelected = heroSel.set === idx;
             } else if (tileType === 'item') {
                isSelected = heroSel.items && heroSel.items.includes(idx);
@@ -1875,13 +1985,21 @@
                isSelected = heroSel.base === idx;
             }
             const isFocused = focusedSetIndex === idx;
-            const thumbUrl = set.thumbnailUrl || hero.thumbnail;
+
+            // For a styled tile, show the active variant's thumbnail when one is selected.
+            const activeSet = hasStyles && activeStyleIdx !== null ? hero.sets[activeStyleIdx] : null;
+            const thumbUrl = (activeSet && activeSet.thumbnailUrl) || set.thumbnailUrl || hero.thumbnail;
             const tileClass = tileType === 'item' ? 'item-tile' : tileType === 'base' ? 'base-tile' : tileType === 'persona' ? 'persona-tile' : '';
 
             // Click handler depends on type
             // Persona uses selectSet — it shares the set slot
+            // Styled tiles open the Style Preview modal for the group; everything else selects directly.
             let clickFn;
-            if (tileType === 'set' || tileType === 'persona') {
+            if (hasStyles) {
+               // Escape the group name for an inline (double-quoted) onclick attribute.
+               const groupArg = `'${String(styleGroup).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;')}'`;
+               clickFn = `openStylePreviewForTile('${currentModalHeroId}', ${groupArg}, '${tileType}')`;
+            } else if (tileType === 'set' || tileType === 'persona') {
                clickFn = `selectSet('${currentModalHeroId}', ${idx})`;
             } else if (tileType === 'item') {
                clickFn = `toggleItem('${currentModalHeroId}', ${idx})`;
@@ -1893,7 +2011,9 @@
             let statusHtml = '';
             if (isSelected) {
                const statusColor = tileType === 'item' ? 'text-green-400' : tileType === 'base' ? 'text-orange-400' : tileType === 'persona' ? 'text-pink-400' : 'text-amt-accent';
-               statusHtml = `<p class="text-xs ${statusColor} mt-1">\u2713 Selected</p>`;
+               const activeLabel = activeSet && (activeSet.styleLabel || activeSet.name);
+               const statusText = hasStyles && activeLabel ? `\u2713 ${activeLabel}` : '\u2713 Selected';
+               statusHtml = `<p class="text-xs ${statusColor} mt-1">${statusText}</p>`;
             }
 
             // Item tag badge
@@ -1914,6 +2034,12 @@
                   </svg>
                </div>` : '';
 
+            // Variant-count badge on styled tiles
+            const styleCountBadge = hasStyles ? `<span class="style-count-badge">${groupEntries.length} styles</span>` : '';
+
+            // Use the group name for display if this is a styled tile
+            const displayName = styleGroup || set.name || `Set ${idx + 1}`;
+
             return `
             <div class="set-tile ${tileClass} ${isSelected ? 'selected' : ''} ${
                isFocused ? 'focused' : ''
@@ -1921,13 +2047,14 @@
                  data-set-index="${idx}"
                  onclick="${clickFn}">
                <div class="aspect-square overflow-hidden relative">
-                  <img src="${thumbUrl}" alt="${set.name}" 
+                  <img src="${thumbUrl}" alt="${displayName}" 
                        class="w-full h-full object-cover"
                        onerror="this.src='${hero.thumbnail}'" />
                   ${toggleHtml}
+                  ${styleCountBadge}
                </div>
                <div class="p-3">
-                  <p class="text-sm font-medium truncate">${set.name || `Set ${idx + 1}`}</p>
+                  <p class="text-sm font-medium truncate">${displayName}</p>
                   ${tagHtml}
                   ${statusHtml}
                </div>
@@ -1951,66 +2078,17 @@
             return null;
          }
 
-         // Renders one Style Card for a group of style variants (LegacySet/Custom/Persona/Item/Base).
-         function renderStyleCard(group, entries, hero, heroSel, tileType) {
-            const cardClass = tileType === 'item' ? 'item-style'
-               : tileType === 'base' ? 'base-style'
-               : tileType === 'persona' ? 'persona-style' : 'set-style';
-
-            const activeIdx = getActiveStyleIndex(entries, heroSel, tileType);
-            const isSelected = activeIdx !== null;
-            const display = isSelected ? entries.find(e => e.idx === activeIdx) : entries[0];
-            const headThumb = (display && display.set.thumbnailUrl) || hero.thumbnail;
-            const groupIndices = entries.map(e => e.idx);
-
-            const subText = isSelected && display
-               ? `${entries.length} styles · ${display.set.styleLabel || ''}`
-               : `${entries.length} styles`;
-
-            const toggleHtml = isSelected ? `
-               <div class="toggle-indicator">
-                  <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
-                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
-                  </svg>
-               </div>` : '';
-
-            const chips = entries.map(({ set, idx }) => {
-               const chipActive = idx === activeIdx;
-               const chipThumb = set.thumbnailUrl || hero.thumbnail;
-               const styleLabel = set.styleLabel || `Style ${idx + 1}`;
-               return `
-                  <div class="style-chip ${chipActive ? 'active' : ''}"
-                       data-set-index="${idx}"
-                       onclick="selectStyle('${currentModalHeroId}', '${tileType}', ${idx}, [${groupIndices.join(',')}])"
-                       title="${styleLabel}">
-                     <img src="${chipThumb}" alt="${styleLabel}" onerror="this.src='${hero.thumbnail}'" />
-                     <span>${styleLabel}</span>
-                  </div>`;
-            }).join('');
-
-            return `
-            <div class="style-card ${cardClass} ${isSelected ? 'selected' : ''}">
-               <div class="style-card-head">
-                  <div class="style-card-thumb">
-                     <img src="${headThumb}" alt="${group}" onerror="this.src='${hero.thumbnail}'" />
-                     ${toggleHtml}
-                  </div>
-                  <div class="style-card-info">
-                     <p class="style-card-title">${group}</p>
-                     <p class="style-card-sub">${subText}</p>
-                  </div>
-               </div>
-               <div class="style-chip-row">${chips}</div>
-            </div>
-            `;
-         }
+         // ============================================
+         // Style Preview Modal
+         // ============================================
+         let stylePreviewState = null; // { heroId, tileType, groupIndices, entries }
 
          // Selects a style within a group, enforcing one-active-style-per-group, then delegates
          // to the existing selection handlers so all downstream rules/notifications are reused.
          function selectStyle(heroId, tileType, idx, groupIndices) {
             if (tileType === 'item') {
                // Multi-select slot: drop any sibling style of this group before toggling.
-               if (isPersonaActive(heroId)) return; // mirror toggleItem's persona guard
+               if (isPersonaActive(heroId)) return;
                const sel = getHeroSelection(heroId);
                if (!sel.items.includes(idx)) {
                   groupIndices.forEach(gi => {
@@ -2022,10 +2100,132 @@
                }
                toggleItem(heroId, idx);
             } else if (tileType === 'base') {
-               toggleBase(heroId, idx); // single sel.base — auto-exclusive
+               toggleBase(heroId, idx);
             } else {
-               selectSet(heroId, idx); // single sel.set — auto-exclusive (persona clears items/base)
+               selectSet(heroId, idx);
             }
+         }
+
+         // Opens the Style Preview Modal for a tile that belongs to a styleGroup.
+         // Called directly from tile onclick — gathers group entries from hero data.
+         function openStylePreviewForTile(heroId, groupName, tileType) {
+            const hero = heroes.find(h => h.id === heroId);
+            if (!hero) return;
+
+            // Gather all entries in this styleGroup
+            const entries = [];
+            hero.sets.forEach((s, i) => {
+               if (s.styleGroup === groupName) {
+                  entries.push({ idx: i, name: s.name, styleLabel: s.styleLabel, thumbnailUrl: s.thumbnailUrl });
+               }
+            });
+            if (entries.length === 0) return;
+
+            const groupIndices = entries.map(e => e.idx);
+            const heroSel = getHeroSelection(heroId);
+            const activeIdx = getActiveStyleIndex(
+               entries.map(e => ({ idx: e.idx, set: hero.sets[e.idx] })),
+               heroSel, tileType
+            );
+
+            // Store state for the preview modal
+            stylePreviewState = { heroId, tileType, groupIndices, entries, group: groupName };
+
+            // Determine accent color for the modal
+            const accentMap = { set: '#00d4ff', persona: '#ec4899', item: '#22c55e', base: '#f97316' };
+            const accent = accentMap[tileType] || '#00d4ff';
+
+            // Header
+            const display = activeIdx !== null ? entries.find(e => e.idx === activeIdx) : entries[0];
+            const headThumb = (display && display.thumbnailUrl) || hero.thumbnail;
+            document.getElementById('stylePreviewThumb').src = headThumb;
+            document.getElementById('stylePreviewTitle').textContent = groupName;
+            document.getElementById('stylePreviewSub').textContent = `${entries.length} style variant${entries.length > 1 ? 's' : ''} \u00b7 ${hero.displayName || hero.name}`;
+
+            // Build tile grid
+            const grid = document.getElementById('stylePreviewGrid');
+            grid.style.setProperty('--sc-accent', accent);
+            grid.innerHTML = entries.map(e => {
+               const isActive = e.idx === activeIdx;
+               const thumb = e.thumbnailUrl || hero.thumbnail;
+               const label = e.styleLabel || e.name || `Style ${e.idx + 1}`;
+               return `
+               <div class="style-preview-tile ${isActive ? 'active' : ''}"
+                    style="--sc-accent: ${accent}"
+                    onclick="selectStyleFromPreview(${e.idx})">
+                  <div class="style-preview-tile-img">
+                     <img src="${thumb}" alt="${label}" onerror="this.src='${hero.thumbnail}'" />
+                  </div>
+                  <div class="style-preview-tile-check">
+                     <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                     </svg>
+                  </div>
+                  <div class="style-preview-tile-label">${label}</div>
+               </div>`;
+            }).join('');
+
+            document.getElementById('stylePreviewModal').classList.remove('hidden');
+         }
+
+         function selectStyleFromPreview(idx) {
+            if (!stylePreviewState) return;
+            const { heroId, tileType, groupIndices } = stylePreviewState;
+            selectStyle(heroId, tileType, idx, groupIndices);
+
+            // Re-render the preview tiles to reflect new selection
+            const hero = heroes.find(h => h.id === heroId);
+            if (!hero) return;
+            const heroSel = getHeroSelection(heroId);
+            const entries = stylePreviewState.entries;
+            const activeIdx = getActiveStyleIndex(
+               entries.map(e => ({ idx: e.idx, set: hero.sets[e.idx] })),
+               heroSel, tileType
+            );
+
+            // Update active states on tiles
+            const tiles = document.querySelectorAll('#stylePreviewGrid .style-preview-tile');
+            entries.forEach((e, i) => {
+               if (tiles[i]) {
+                  tiles[i].classList.toggle('active', e.idx === activeIdx);
+               }
+            });
+
+            // Update header thumb to show selected variant
+            const display = activeIdx !== null ? entries.find(e => e.idx === activeIdx) : entries[0];
+            if (display) {
+               document.getElementById('stylePreviewThumb').src = display.thumbnailUrl || hero.thumbnail;
+            }
+         }
+
+         function deselectStylePreview() {
+            if (!stylePreviewState) return;
+            const { heroId, tileType, groupIndices, entries } = stylePreviewState;
+            const heroSel = getHeroSelection(heroId);
+            const hero = heroes.find(h => h.id === heroId);
+
+            // Deselect all styles in this group
+            entries.forEach(e => {
+               if (tileType === 'item') {
+                  const ci = heroSel.items ? heroSel.items.indexOf(e.idx) : -1;
+                  if (ci >= 0) heroSel.items.splice(ci, 1);
+               } else if (tileType === 'base') {
+                  if (heroSel.base === e.idx) heroSel.base = null;
+               } else {
+                  if (heroSel.set === e.idx) heroSel.set = null;
+               }
+            });
+            cleanupEmptySelection(heroId);
+            updateSelectionCount();
+            notifySelectionChanged();
+            renderModalSets();
+            renderHeroes();
+            closeStylePreview();
+         }
+
+         function closeStylePreview() {
+            document.getElementById('stylePreviewModal').classList.add('hidden');
+            stylePreviewState = null;
          }
 
          function renderModalSets() {
@@ -2078,16 +2278,14 @@
                   s += `<div class="exclusion-notice">${notice}</div>`;
                }
                s += '<div class="set-category-grid">';
-               // Entries sharing a non-null styleGroup collapse into a single Style Card
-               // (rendered once for the group); the rest render as normal tiles.
+               // For entries with a styleGroup, render only ONE representative tile per group.
+               // The tile's click handler opens the Style Preview Modal for that group.
                const renderedGroups = new Set();
                s += entries.map(({ set, idx }) => {
                   const group = set.styleGroup;
                   if (group) {
                      if (renderedGroups.has(group)) return '';
                      renderedGroups.add(group);
-                     const groupEntries = entries.filter(e => e.set.styleGroup === group);
-                     return renderStyleCard(group, groupEntries, hero, heroSel, tileType);
                   }
                   return renderSetTile(set, idx, hero, heroSel, tileType);
                }).join('');
@@ -2529,6 +2727,10 @@
             if (e.target.id === "setModal") closeModal();
          });
 
+         document.getElementById("stylePreviewModal").addEventListener("click", (e) => {
+            if (e.target.id === "stylePreviewModal") closeStylePreview();
+         });
+
          // Global keyboard handler
          document.addEventListener("keydown", (e) => {
             const modal = document.getElementById("setModal");
@@ -2537,6 +2739,18 @@
             const isSearchFocused = document.activeElement === searchInput;
 
             if (isModalOpen) {
+               // Style Preview Modal takes priority: Escape closes it; all other keys are
+               // swallowed so the set modal underneath doesn't navigate behind the preview.
+               const stylePreview = document.getElementById("stylePreviewModal");
+               const isStylePreviewOpen = !stylePreview.classList.contains("hidden");
+               if (isStylePreviewOpen) {
+                  if (e.key === "Escape") {
+                     e.preventDefault();
+                     closeStylePreview();
+                  }
+                  return;
+               }
+
                // Modal navigation
                switch (e.key) {
                   case "ArrowLeft":
@@ -2625,11 +2839,12 @@
                      "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/crystal_maiden.png",
                   sets: [
                      { name: "Default Set", category: "legacyset" },
-                     { name: "Frost Avalanche", category: "legacyset" },
+                     { name: "Frost Avalanche", category: "legacyset", styleGroup: "Frost Avalanche", styleLabel: "Style 1" },
+                     { name: "Frost Avalanche Alt", category: "legacyset", styleGroup: "Frost Avalanche", styleLabel: "Style 2" },
                      { name: "Yulsaria's Glacier", category: "legacyset" },
                      { name: "Custom CM Arcana Mix", category: "customset", isCustom: true },
-                     { name: "Shoulder Pauldrons 1", category: "item", tag: "shoulder" },
-                     { name: "Shoulder Guard 2", category: "item", tag: "shoulder" },
+                     { name: "Shoulder Pauldrons 1", category: "item", tag: "shoulder", styleGroup: "Shoulder Armor", styleLabel: "Gold" },
+                     { name: "Shoulder Guard 2", category: "item", tag: "shoulder", styleGroup: "Shoulder Armor", styleLabel: "Silver" },
                      { name: "Weapon Crystal Staff", category: "item", tag: "weapon" },
                      { name: "CM Arcana Base", category: "basehero" },
                   ],
