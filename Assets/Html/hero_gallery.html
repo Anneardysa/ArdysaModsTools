@@ -487,6 +487,38 @@
             border: 1px solid rgba(34, 197, 94, 0.25);
             margin-top: 2px;
          }
+         /* Category tag badge — shown on Legacy/Custom/Persona/Base tiles in place
+            of a name label. Colors match each category's header accent. */
+         .set-tag-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 2px;
+         }
+         .set-tag-badge.tag-legacy {
+            background: rgba(212, 160, 87, 0.15);
+            color: #d4a057;
+            border: 1px solid rgba(212, 160, 87, 0.25);
+         }
+         .set-tag-badge.tag-custom {
+            background: rgba(167, 139, 250, 0.15);
+            color: #a78bfa;
+            border: 1px solid rgba(167, 139, 250, 0.25);
+         }
+         .set-tag-badge.tag-persona {
+            background: rgba(236, 72, 153, 0.15);
+            color: #ec4899;
+            border: 1px solid rgba(236, 72, 153, 0.25);
+         }
+         .set-tag-badge.tag-base {
+            background: rgba(249, 115, 22, 0.15);
+            color: #f97316;
+            border: 1px solid rgba(249, 115, 22, 0.25);
+         }
          /* Persona exclusion warning */
          .exclusion-notice {
             font-size: 10px;
@@ -1365,6 +1397,19 @@
             return null;
          }
 
+         // Category tag shown on non-item tiles in place of a name label.
+         // Legacy → "Set", Custom → "Mix", Persona → "Persona", Base → "Arcana".
+         // Returns { label, cssClass } or null for items (they use their slot tag).
+         function getCategoryTag(set) {
+            switch (getSetCategory(set)) {
+               case 'customset': return { label: 'Mix', cssClass: 'tag-custom' };
+               case 'persona':   return { label: 'Persona', cssClass: 'tag-persona' };
+               case 'basehero':  return { label: 'Arcana', cssClass: 'tag-base' };
+               case 'item':      return null;
+               default:          return { label: 'Set', cssClass: 'tag-legacy' };
+            }
+         }
+
          // Find all item indices that share the same tag as the given index.
          function getItemsWithSameTag(hero, targetIdx) {
             if (!hero || !hero.sets) return [];
@@ -2016,12 +2061,19 @@
                statusHtml = `<p class="text-xs ${statusColor} mt-1">${statusText}</p>`;
             }
 
-            // Item tag badge
+            // Tag badge — items show their slot tag (head/weapon/…); Legacy/Custom/
+            // Persona/Base tiles show a category tag (Set/Mix/Persona/Arcana) in
+            // place of a name label.
             let tagHtml = '';
             if (tileType === 'item') {
                const tag = extractItemTag(set);
                if (tag) {
                   tagHtml = `<span class="item-tag-badge">${tag}</span>`;
+               }
+            } else {
+               const catTag = getCategoryTag(set);
+               if (catTag) {
+                  tagHtml = `<span class="set-tag-badge ${catTag.cssClass}">${catTag.label}</span>`;
                }
             }
 
@@ -2037,8 +2089,13 @@
             // Variant-count badge on styled tiles
             const styleCountBadge = hasStyles ? `<span class="style-count-badge">${groupEntries.length} styles</span>` : '';
 
-            // Use the group name for display if this is a styled tile
+            // Use the group name for display if this is a styled tile. Kept for the
+            // image alt text; only item tiles render it as a visible name label —
+            // Legacy/Custom/Persona/Base tiles show the category tag badge instead.
             const displayName = styleGroup || set.name || `Set ${idx + 1}`;
+            const nameHtml = tileType === 'item'
+               ? `<p class="text-sm font-medium truncate">${displayName}</p>`
+               : '';
 
             return `
             <div class="set-tile ${tileClass} ${isSelected ? 'selected' : ''} ${
@@ -2054,7 +2111,7 @@
                   ${styleCountBadge}
                </div>
                <div class="p-3">
-                  <p class="text-sm font-medium truncate">${displayName}</p>
+                  ${nameHtml}
                   ${tagHtml}
                   ${statusHtml}
                </div>

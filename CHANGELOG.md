@@ -5,6 +5,30 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1-beta] (Build 2156)
+
+### 🗑️ Removed
+
+- Dropped the now-unused `item_namer` import, the `vpk_path` config, the `sets_renamed` result tracking, and the menu/CLI/dispatch wiring for the mode. The tool now offers modes 1–6.
+
+---
+
+## [2.2.1-beta] (Build 2155)
+
+### 🐛 Fixed
+
+- **Skin Selector → Latest Updates**: Styled sets (Style Cards) no longer go missing from the "Latest Updates" bar. The patch tool recorded a newly-added styled set under its bare group key (`Set N`), but the app flattens each style into a `Set N (Label)` entry — so the bar could never resolve a thumbnail for the bare key and silently hid the update. Patch Models now records the flattened representative key (`Set N (first style label)`) for styled sets, and a one-time idempotent migration repoints any pre-existing bare-group entries in `set_update.json` so currently-hidden styled updates reappear.
+
+---
+
+## [2.2.1-beta] (Build 2154)
+
+### 🛠️ Changed
+
+- **UI/UX**: In the Skin Selector hero modal, Legacy / Custom / Persona / Base cards no longer show the generic "Set N" name label. Each now displays a color-coded category tag badge instead — **Set** (Legacy), **Mix** (Custom), **Persona**, and **Arcana** (Base) — mirroring the slot tag badges already used on item cards. Item cards keep their name plus slot tag unchanged.
+
+---
+
 ## [2.2.1-beta] (Build 2153)
 
 ### ✨ Added
