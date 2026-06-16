@@ -547,7 +547,10 @@ namespace ArdysaModsTools
                     break;
 
                 case AssetPreloadPhase.Complete:
-                    _logger.Log("Launching State: asset cache ready.");
+                    if (p.Failed > 0)
+                        _logger.Log($"Launching State: asset cache ready — {p.Total - p.Failed}/{p.Total} ({p.Failed} unavailable; check your connection).");
+                    else
+                        _logger.Log("Launching State: asset cache ready.");
                     break;
             }
         }

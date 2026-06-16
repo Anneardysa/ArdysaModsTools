@@ -225,33 +225,28 @@ namespace ArdysaModsTools.Core.Services.Config
         public static string ModsPackUpdatesUrl => $"{WebsiteBase}/updates.json";
         
         // ============================================================
-        // Cache-Busting for CDN
+        // URL Builders
         // ============================================================
-        
-        /// <summary>
-        /// Generate a cache-busting key based on current hour.
-        /// This ensures cache refreshes at most once per hour while maximizing CDN hits.
-        /// Format: YYYYMMDDHH (year + month + day + hour)
-        /// </summary>
-        private static string GetCacheBustKey() =>
-            DateTime.UtcNow.ToString("yyyyMMddHH");
         
         /// <summary>
         /// Build content URL for a specific path.
         /// Uses CDN when enabled for faster downloads.
-        /// NOTE: This URL is cached by CDN - use BuildFreshUrl for JSON that needs real-time updates.
         /// </summary>
         public static string BuildRawUrl(string path) =>
             $"{ContentBase}/{path.TrimStart('/')}";
         
         /// <summary>
-        /// Build content URL with cache-busting for files that need real-time updates (e.g., JSON configs).
-        /// Adds an hourly cache-bust parameter to ensure fresh data while still benefiting from CDN.
-        /// Use this for: heroes.json, set_update.json, and other frequently-updated metadata.
+        /// Build content URL for files that need real-time updates (e.g., JSON configs).
+        /// Identical to <see cref="BuildRawUrl"/> — kept as a semantic alias so callers
+        /// document their freshness intent. Query-string cache-busting (?v=) was removed
+        /// because no CDN in the chain honours it (R2 uses response headers, jsDelivr caches
+        /// by branch→commit resolution, GitHub Raw ignores query strings) and
+        /// <see cref="CdnConfig.ExtractAssetPath"/> propagated the query string into
+        /// fallback URLs, causing HTTP 404 errors on GitHub Raw.
         /// </summary>
         /// <param name="path">Path within repo (e.g., "Assets/heroes.json")</param>
         public static string BuildFreshUrl(string path) =>
-            $"{ContentBase}/{path.TrimStart('/')}?v={GetCacheBustKey()}";
+            BuildRawUrl(path);
         
         /// <summary>
         /// Build download URL for a specific path.

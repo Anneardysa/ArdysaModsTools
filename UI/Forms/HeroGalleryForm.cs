@@ -352,9 +352,8 @@ namespace ArdysaModsTools.UI.Forms
                         System.Diagnostics.Debug.WriteLine($"[SetUpdate] {u.HeroId}/{u.SetName}: Hero not found or has no sets");
                     }
                     
-                    // If we couldn't find set thumbnail but have hero, use hero thumbnail as fallback
                     var heroThumbnail = hero != null ? GetHeroThumbnail(hero) : null;
-                    
+
                     return new
                     {
                         heroId = u.HeroId,
@@ -362,24 +361,38 @@ namespace ArdysaModsTools.UI.Forms
                         heroThumbnail = heroThumbnail,
                         setName = u.SetName,
                         setIndex = setIndex,
-                        setThumbnail = setThumbnail ?? heroThumbnail, // Fallback to hero thumbnail
+                        // Real resolved set thumbnail only — NOT coalesced to the hero portrait. A null
+                        // here means the update references a set absent from the loaded heroes.json (stale
+                        // hero data vs a fresher set_update.json). Such entries are filtered out below so
+                        // the carousel never collapses every card onto one shared portrait. See plan #1.
+                        setThumbnail = setThumbnail,
                         addedDate = u.AddedDate.ToString("yyyy-MM-dd"),
                         daysAgo = (int)(DateTime.Now - u.AddedDate).TotalDays,
                         isValid = hero != null && setIndex >= 0
                     };
                 })
-                // Keep original order from JSON (newest sets first)
-                // Only filter out entries where hero lookup completely failed
-                .Where(u => u.heroThumbnail != null)
+                // Keep original order from JSON (newest sets first). Only surface updates whose set
+                // actually resolves to a real, distinct thumbnail in the current heroes.json. Unresolved
+                // entries (stale/desynced hero data) are hidden rather than rendered as duplicates.
+                .Where(u => u.isValid && u.setThumbnail != null)
                 .ToList();
-                
+
                 if (jsUpdates.Count > 0)
                 {
                     var json = JsonSerializer.Serialize(jsUpdates, _jsonOptions);
+                    // [AMT:PRO] Paired with loadLatestUpdates() in Assets/Html/hero_gallery.html — the
+                    // payload shape (heroId/setIndex/setThumbnail/...) must stay in sync with that JS.
                     await ExecuteScriptAsync($"loadLatestUpdates({json})");
-                    var validCount = jsUpdates.Count(u => u.isValid);
-                    var withThumb = jsUpdates.Count(u => u.setThumbnail != null && !u.setThumbnail.Contains("steamstatic.com"));
-                    System.Diagnostics.Debug.WriteLine($"[SetUpdate] Loaded {jsUpdates.Count} updates ({validCount} valid, {withThumb} with set thumbnails)");
+                    var hidden = recentUpdates.Count - jsUpdates.Count;
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[SetUpdate] Loaded {jsUpdates.Count} of {recentUpdates.Count} updates" +
+                        (hidden > 0 ? $" ({hidden} hidden — set not in current heroes.json; data may be stale)" : ""));
+                }
+                else
+                {
+                    // Every recent update was unresolved → heroes.json is out of sync with set_update.json.
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[SetUpdate] All {recentUpdates.Count} recent updates unresolved against heroes.json — hiding section (stale hero data).");
                 }
             }
             catch (Exception ex)

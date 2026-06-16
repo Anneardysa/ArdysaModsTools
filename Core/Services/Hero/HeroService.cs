@@ -24,6 +24,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Services.Config;
 
 namespace ArdysaModsTools.Core.Services
@@ -47,6 +48,9 @@ namespace ArdysaModsTools.Core.Services
         private readonly string _baseFolder;
         private readonly string _heroesJsonPath;
         private readonly string _setUpdatesJsonPath;
+
+        /// <summary>Name of the persisted last-known-good hero manifest (see <see cref="ManifestCache"/>).</summary>
+        public const string HeroesManifestName = "heroes.json";
         
         // URLs loaded from environment configuration (with cache-busting for real-time updates)
         private static string GitHubHeroesUrl => EnvironmentConfig.BuildFreshUrl("Assets/heroes.json");
@@ -166,40 +170,92 @@ namespace ArdysaModsTools.Core.Services
 
         public async Task<List<HeroSummary>> LoadHeroesAsync()
         {
-            string raw;
-            
-            // Try loading from GitHub first, fallback to local
+            // 1. Live CDN copy (preferred). On success it is persisted so later impaired launches reuse
+            //    it instead of the stale bundled snapshot — keeping hero data in sync with set_update.json.
             try
             {
-                raw = await LoadFromGitHubAsync();
+                var (json, etag, lastModified) = await LoadFromGitHubAsync().ConfigureAwait(false);
+                var normalized = NormalizeJson(json);
+                var heroes = ParseHeroesJson(normalized);
+                await PersistHeroesAsync(normalized, etag, lastModified, heroes).ConfigureAwait(false);
+                return heroes;
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback to local file
-                if (!File.Exists(_heroesJsonPath))
-                    throw new FileNotFoundException("heroes.json not found locally and GitHub fetch failed", _heroesJsonPath);
-                
-                raw = await File.ReadAllTextAsync(_heroesJsonPath, Encoding.UTF8).ConfigureAwait(false);
+                System.Diagnostics.Debug.WriteLine(
+                    $"[HeroService] Remote heroes.json unavailable ({ex.Message}); falling back to last-known-good, then bundled.");
             }
-            
-            raw = NormalizeJson(raw);
-            return ParseHeroesJson(raw);
+
+            // 2. Last successfully-downloaded copy (fresher than the bundled snapshot). See plan #2.
+            var persisted = await ManifestCache.ReadAsync(HeroesManifestName).ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(persisted))
+            {
+                try
+                {
+                    return ParseHeroesJson(NormalizeJson(persisted));
+                }
+                catch (Exception pex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[HeroService] Persisted heroes.json unreadable: {pex.Message}");
+                }
+            }
+
+            // 3. Bundled snapshot shipped with the installed version (last resort — may be stale).
+            if (!File.Exists(_heroesJsonPath))
+                throw new FileNotFoundException("heroes.json not found locally and remote fetch failed", _heroesJsonPath);
+
+            var local = await File.ReadAllTextAsync(_heroesJsonPath, Encoding.UTF8).ConfigureAwait(false);
+            return ParseHeroesJson(NormalizeJson(local));
         }
 
         /// <summary>
-        /// Load heroes.json from GitHub URL with CDN fallback.
+        /// Load heroes.json from the CDN fallback chain, returning the raw JSON plus freshness headers.
         /// </summary>
-        private async Task<string> LoadFromGitHubAsync()
+        private async Task<(string Json, string? ETag, string? LastModified)> LoadFromGitHubAsync()
         {
             using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(15));
-            var json = await ArdysaModsTools.Core.Services.Cdn.CdnFallbackService.Instance.DownloadStringWithFallbackAsync(GitHubHeroesUrl, cts.Token).ConfigureAwait(false);
-            
-            if (string.IsNullOrEmpty(json))
-            {
+            var result = await ArdysaModsTools.Core.Services.Cdn.CdnFallbackService.Instance
+                .DownloadWithFallbackAsync(GitHubHeroesUrl, cts.Token).ConfigureAwait(false);
+
+            if (!result.Success || result.Data == null)
                 throw new Exception("Failed to download heroes.json from all CDNs.");
+
+            var bytes = result.Data;
+            string json = (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+                ? Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3)
+                : Encoding.UTF8.GetString(bytes);
+
+            return (json, result.ETag, result.LastModified);
+        }
+
+        /// <summary>Total non-default cosmetic sets across all heroes (shown in Settings → Hero Database).</summary>
+        public static int CountSets(IEnumerable<HeroSummary> heroes) =>
+            heroes.Sum(h => h.Sets?.Keys.Count(k =>
+                !string.Equals(k, "Default Set", StringComparison.OrdinalIgnoreCase)) ?? 0);
+
+        /// <summary>
+        /// Persist a freshly-downloaded heroes.json + SHA-256 meta as the last-known-good copy.
+        /// Best-effort: a failure here never breaks loading (the in-memory data is already parsed).
+        /// </summary>
+        private static async Task PersistHeroesAsync(string normalizedJson, string? etag, string? lastModified, List<HeroSummary> heroes)
+        {
+            try
+            {
+                var meta = new ManifestMeta
+                {
+                    Sha256 = ManifestCache.ComputeSha256(normalizedJson),
+                    ETag = etag,
+                    LastModified = lastModified,
+                    FetchedAtUtc = DateTime.UtcNow,
+                    ItemCount = CountSets(heroes),
+                    Source = "cdn"
+                };
+                await ManifestCache.WriteAsync(HeroesManifestName, normalizedJson, meta).ConfigureAwait(false);
             }
-            
-            return json;
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[HeroService] Persisting heroes.json failed: {ex.Message}");
+            }
         }
 
         private List<HeroSummary> ParseHeroesJson(string raw)

@@ -34,9 +34,11 @@ namespace ArdysaModsTools.Core.Interfaces
     }
 
     /// <summary>
-    /// Progress snapshot for an asset preload run.
+    /// Progress snapshot for an asset preload run. <paramref name="Failed"/> is the number of assets
+    /// that could not be downloaded (reported on <see cref="AssetPreloadPhase.Complete"/>), so the
+    /// launch console can report an honest partial result instead of an unconditional "ready".
     /// </summary>
-    public sealed record AssetPreloadProgress(AssetPreloadPhase Phase, int Current, int Total);
+    public sealed record AssetPreloadProgress(AssetPreloadPhase Phase, int Current, int Total, int Failed = 0);
 
     /// <summary>
     /// "Launching State" — proactively downloads all gallery asset images (misc + hero set

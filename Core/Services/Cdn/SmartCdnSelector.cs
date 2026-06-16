@@ -168,6 +168,26 @@ namespace ArdysaModsTools.Core.Services.Cdn
                 ? _orderedCdnUrls
                 : CdnConfig.GetCdnBaseUrls();
 
+            // R2 is the authoritative origin — content is uploaded there first and is
+            // always freshest. Pin it at position 0 regardless of benchmark latency;
+            // only the fallback CDNs (jsDelivr, GitHub Raw, proxies) are reordered by
+            // speed. The circuit breaker below can still demote a down R2, preserving
+            // fast-fail behaviour.
+            if (CdnConfig.IsR2Enabled)
+            {
+                var r2 = CdnConfig.R2BaseUrl;
+                bool r2Present = baseOrder.Any(u =>
+                    string.Equals(u, r2, StringComparison.OrdinalIgnoreCase));
+
+                if (r2Present && !string.Equals(baseOrder[0], r2, StringComparison.OrdinalIgnoreCase))
+                {
+                    var rest = baseOrder
+                        .Where(u => !string.Equals(u, r2, StringComparison.OrdinalIgnoreCase))
+                        .ToArray();
+                    baseOrder = new[] { r2 }.Concat(rest).ToArray();
+                }
+            }
+
             if (_penalties.IsEmpty)
                 return baseOrder;
 

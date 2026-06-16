@@ -45,6 +45,7 @@ namespace ArdysaModsTools.UI.Forms
         private readonly UpdaterService _updaterService;
         private readonly TrayService? _trayService;
         private readonly IAssetPreloadService? _assetPreloadService;
+        private readonly IHeroDatabaseService _heroDatabaseService;
 
         /// <summary>
         /// Fired when the user requests to re-show the onboarding guide from Settings.
@@ -67,7 +68,8 @@ namespace ArdysaModsTools.UI.Forms
             CacheCleaningService cacheService,
             UpdaterService updaterService,
             TrayService? trayService,
-            IAssetPreloadService? assetPreloadService = null)
+            IAssetPreloadService? assetPreloadService = null,
+            IHeroDatabaseService? heroDatabaseService = null)
         {
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _lifecycleService = lifecycleService ?? throw new ArgumentNullException(nameof(lifecycleService));
@@ -75,6 +77,8 @@ namespace ArdysaModsTools.UI.Forms
             _updaterService = updaterService ?? throw new ArgumentNullException(nameof(updaterService));
             _trayService = trayService;
             _assetPreloadService = assetPreloadService;
+            // Consistent with the form's other directly-constructed services; no DI plumbing required.
+            _heroDatabaseService = heroDatabaseService ?? new HeroDatabaseService(AppDomain.CurrentDomain.BaseDirectory);
 
             InitializeComponent();
             SetupForm();
@@ -87,7 +91,7 @@ namespace ArdysaModsTools.UI.Forms
             this.SuspendLayout();
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(420, 640);
+            this.ClientSize = new System.Drawing.Size(420, 760);
             this.Name = "SettingsFormWebView";
             this.Text = "Settings - AMT 2.0";
             this.ResumeLayout(false);
@@ -171,6 +175,9 @@ namespace ArdysaModsTools.UI.Forms
 
                 // Load cache size
                 await LoadCacheSizeAsync();
+
+                // Load hero database status (set count / last updated / source)
+                await LoadDatabaseStatusAsync();
             }
             catch (Exception ex)
             {
@@ -246,6 +253,14 @@ namespace ArdysaModsTools.UI.Forms
 
                     case "clearCache":
                         await HandleClearCacheAsync();
+                        break;
+
+                    case "checkDatabase":
+                        await HandleCheckDatabaseAsync();
+                        break;
+
+                    case "updateDatabase":
+                        await HandleUpdateDatabaseAsync();
                         break;
 
                     case "close":
@@ -371,6 +386,71 @@ namespace ArdysaModsTools.UI.Forms
             finally
             {
                 await ExecuteScriptAsync("resetClearCacheButton()");
+            }
+        }
+
+        /// <summary>Push the current hero-database status (set count / date / source) to the panel.</summary>
+        private async Task LoadDatabaseStatusAsync()
+        {
+            try
+            {
+                var status = await _heroDatabaseService.GetStatusAsync();
+                var payload = new
+                {
+                    source = status.Source,
+                    setCount = status.SetCount,
+                    updated = status.UpdatedUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "",
+                    sha = string.IsNullOrEmpty(status.Sha256)
+                        ? ""
+                        : status.Sha256!.Substring(0, Math.Min(8, status.Sha256!.Length))
+                };
+                var json = JsonSerializer.Serialize(payload);
+                await ExecuteScriptAsync($"initDatabaseStatus({json})");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Settings] LoadDatabaseStatus failed: {ex.Message}");
+            }
+        }
+
+        // [AMT:PRO] Bridge handlers — paired with the "Hero Database" controls in
+        // Assets/Html/settings_form.html (checkDatabase/updateDatabase → showToast / resetDatabaseButton /
+        // initDatabaseStatus). The message names and callback function names must stay in sync with that asset.
+        private async Task HandleCheckDatabaseAsync()
+        {
+            try
+            {
+                var result = await _heroDatabaseService.CheckForUpdateAsync();
+                await ExecuteScriptAsync(
+                    $"showToast('{EscapeJs(result.Message)}', '{(result.Success ? "success" : "error")}')");
+            }
+            catch (Exception ex)
+            {
+                await ExecuteScriptAsync($"showToast('Database check failed: {EscapeJs(ex.Message)}', 'error')");
+            }
+            finally
+            {
+                await ExecuteScriptAsync("resetDatabaseButton()");
+            }
+        }
+
+        private async Task HandleUpdateDatabaseAsync()
+        {
+            try
+            {
+                var result = await _heroDatabaseService.UpdateAsync();
+                await ExecuteScriptAsync(
+                    $"showToast('{EscapeJs(result.Message)}', '{(result.Success ? "success" : "error")}')");
+                if (result.Success)
+                    await LoadDatabaseStatusAsync();
+            }
+            catch (Exception ex)
+            {
+                await ExecuteScriptAsync($"showToast('Database update failed: {EscapeJs(ex.Message)}', 'error')");
+            }
+            finally
+            {
+                await ExecuteScriptAsync("resetDatabaseButton()");
             }
         }
 

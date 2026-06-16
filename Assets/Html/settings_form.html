@@ -148,7 +148,17 @@
          .main-content {
             padding: 20px 24px;
             height: calc(100vh - 52px - 60px);
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
+         }
+         .main-content::-webkit-scrollbar {
+            width: 6px;
+         }
+         .main-content::-webkit-scrollbar-track {
+            background: transparent;
+         }
+         .main-content::-webkit-scrollbar-thumb {
+            background: var(--border, #333);
          }
 
          /* Section */
@@ -568,6 +578,39 @@
                >
             </div>
          </div>
+
+         <div class="section">
+            <div class="section-header">
+               <span class="section-title">Hero Database</span>
+               <div class="section-line"></div>
+            </div>
+            <div class="action-grid" style="grid-template-columns: 1fr 1fr">
+               <button class="action-btn" id="btnCheckDatabase" onclick="checkDatabase()">
+                  <span class="action-btn-icon">
+                     <svg viewBox="0 0 24 24">
+                        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.83 1.04 6.5 2.72" />
+                        <polyline points="21 3 21 9 15 9" />
+                     </svg>
+                  </span>
+                  <span class="action-btn-text">Check Database</span>
+               </button>
+               <button class="action-btn" id="btnUpdateDatabase" onclick="updateDatabase()">
+                  <span class="action-btn-icon">
+                     <svg viewBox="0 0 24 24">
+                        <path d="M12 3v13" />
+                        <polyline points="7 11 12 16 17 11" />
+                        <path d="M5 21h14" />
+                     </svg>
+                  </span>
+                  <span class="action-btn-text">Update Database</span>
+               </button>
+            </div>
+            <div class="cache-info" id="dbInfo">
+               <span class="cache-text"
+                  >Database: <span class="cache-value" id="dbValue">Checking…</span></span
+               >
+            </div>
+         </div>
       </div>
 
       <div class="footer">
@@ -678,6 +721,56 @@
             setTimeout(() => {
                toast.classList.remove("show");
             }, 3000);
+         }
+
+         // Hero Database (heroes.json) — paired with SettingsFormWebView checkDatabase/updateDatabase.
+         function checkDatabase() {
+            const btn = document.getElementById("btnCheckDatabase");
+            btn.innerHTML = '<span class="spinner"></span>';
+            disableDatabaseButtons();
+            sendMessage({ type: "checkDatabase" });
+         }
+
+         function updateDatabase() {
+            const btn = document.getElementById("btnUpdateDatabase");
+            btn.innerHTML = '<span class="spinner"></span>';
+            disableDatabaseButtons();
+            sendMessage({ type: "updateDatabase" });
+         }
+
+         function disableDatabaseButtons() {
+            const c = document.getElementById("btnCheckDatabase");
+            const u = document.getElementById("btnUpdateDatabase");
+            if (c) c.disabled = true;
+            if (u) u.disabled = true;
+         }
+
+         function resetDatabaseButton() {
+            resetButton(
+               "btnCheckDatabase",
+               '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.83 1.04 6.5 2.72"/><polyline points="21 3 21 9 15 9"/></svg>',
+               "Check Database"
+            );
+            resetButton(
+               "btnUpdateDatabase",
+               '<svg viewBox="0 0 24 24"><path d="M12 3v13"/><polyline points="7 11 12 16 17 11"/><path d="M5 21h14"/></svg>',
+               "Update Database"
+            );
+         }
+
+         function initDatabaseStatus(data) {
+            const el = document.getElementById("dbValue");
+            if (!el || !data) return;
+            const srcMap = {
+               cdn: "live",
+               manual: "manual",
+               bundled: "bundled (offline)",
+               none: "not found",
+            };
+            const parts = [(data.setCount || 0) + " sets"];
+            if (data.updated) parts.push("updated " + data.updated);
+            if (data.source) parts.push(srcMap[data.source] || data.source);
+            el.textContent = parts.join(" • ");
          }
 
          function showGuide() {

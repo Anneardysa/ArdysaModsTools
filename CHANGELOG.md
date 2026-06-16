@@ -5,12 +5,45 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0-beta] (Build 2151)
+
+### 🐛 Fixed
+
+- **CDN fallback 404 errors** — removed the `?v=YYYYMMDDHH` cache-busting query string from `BuildFreshUrl`. The parameter was structurally ineffective (R2 uses response headers for caching, jsDelivr caches by branch→commit resolution, GitHub Raw ignores query strings) and `ExtractAssetPath` propagated it into fallback URLs, causing `HTTP 404` on GitHub Raw and silently serving stale data from jsDelivr mirrors instead of the authoritative R2 origin.
+- **R2 CDN not used as primary** — `SmartCdnSelector` now pins Cloudflare R2 at position 0 regardless of benchmark latency, since R2 is the authoritative origin (content is uploaded there first, always freshest). The latency benchmark previously ranked GitHub Raw first (66ms vs R2 86ms), so the app bypassed R2 entirely and fetched potentially-stale data from mirrors. Only fallback CDNs (jsDelivr, GitHub Raw, GFW proxies) are now reordered by speed; R2 can still be circuit-breaker-tripped if genuinely down.
+
+### 🛠️ Changed
+
+- **CDN path extraction** — `CdnConfig.ExtractAssetPath` now defensively strips query strings from the returned path, preventing any future `?param=` from polluting the fallback chain through `ConvertToCdn`.
+
+---
+
+## [2.2.0-beta] (Build 2150)
+
+### ✨ Added
+
+- **Settings → Hero Database** — a **Check Database** / **Update Database** pair that verifies the local hero data (`heroes.json`) against the live copy by **SHA-256** and force-updates it on demand, with a status line (set count • last updated • source: live/manual/bundled). Lets users on impaired or region-blocked connections self-fix missing/duplicated Skin Selector thumbnails without reinstalling.
+- **Persistent hero-database cache** — a successfully-downloaded `heroes.json` is now saved to `%LocalAppData%\ArdysaModsTools\data\` with a SHA-256/ETag meta sidecar (`ManifestCache`), and preferred over the stale bundled snapshot on later launches.
+
+### 🐛 Fixed
+
+- **Skin Selector "Latest Updates" showed the same image on every card** for some users. Root cause: their `heroes.json` was stale relative to the live `set_update.json` feed (a slow/blocked CDN made the large file time out and fall back to the snapshot bundled in their installed version), so the carousel couldn't resolve the newly-added sets and the per-card `onerror` collapsed every card onto the same hero portrait. The carousel now renders **only** updates whose set resolves to a real, distinct thumbnail in the loaded data; the persistent cache above keeps the two manifests in sync; and the card `onerror` shows a neutral placeholder instead of the hero portrait.
+- **Misleading "asset cache ready"** — the launch console now reports a partial result (e.g. `412/435 (23 unavailable)`) when thumbnails failed to download, instead of an unconditional "ready".
+
+### 🛠️ Changed
+
+- **`heroes.json` loading** now falls back CDN → persisted last-known-good → bundled (previously CDN → bundled), capturing ETag/Last-Modified for freshness checks.
+- **Intercepted thumbnail fetches** are bounded (45 s) so a single slow/blocked CDN can no longer hold a WebView2 request open and make the gallery appear to hang loading thumbnails.
+
+---
+
 ## [2.2.0-beta] (Build 2149)
 
 ### ✨ Added
 
 - **About dialog** — a new title-bar button (beside Settings) opens a minimalist WebView2 About page with the app identity, a short description, and Credits & Acknowledgments (author, community, third-party libraries, license).
 - **What's New chooser** — the card opens a modal to pick **Changelog** (in-app GitHub releases) or **ModsPack** (searchable, attribute-filterable hero-skin updates grid from the site).
+- **ModsPack preview lightbox** — clicking any hero card in the ModsPack updates grid opens a full-screen preview modal showing the image full-colour and larger, with left/right carousel navigation (and arrow-key support) through the currently filtered set, a hero/attribute caption, a position counter, and click-backdrop/Esc to close.
 - **Version badges** on the What's New card — live app version + ModsPack version (served from R2 `config/banner.json`).
 - **Banner carousel** on the main shell, sourced from the R2 manifest.
 - **Install Method** and **Disable Options** rebuilt as native WebView2 dialogs.

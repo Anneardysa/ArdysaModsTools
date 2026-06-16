@@ -103,7 +103,9 @@ namespace ArdysaModsTools.Core.Services.Cache
                     $"[AssetPreloadService] Preload done: {downloaded} downloaded, {skipped} skipped, {failed} failed of {urls.Count} total");
 
                 _isComplete = true;
-                progress?.Report(new AssetPreloadProgress(AssetPreloadPhase.Complete, urls.Count, urls.Count));
+                // Report the real failure count so the launch console can say "ready" honestly — a
+                // partial cache (network/region-impaired) must not masquerade as a clean completion.
+                progress?.Report(new AssetPreloadProgress(AssetPreloadPhase.Complete, urls.Count, urls.Count, failed));
             }
             catch (OperationCanceledException)
             {

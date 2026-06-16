@@ -321,6 +321,171 @@
             text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
             line-height: 1.2;
          }
+         .card {
+            cursor: pointer;
+         }
+
+         /* lightbox / preview modal */
+         .lightbox {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 56px 84px;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(4px);
+            animation: lb-fade 0.18s ease;
+         }
+         .lightbox.open {
+            display: flex;
+         }
+         @keyframes lb-fade {
+            from {
+               opacity: 0;
+            }
+            to {
+               opacity: 1;
+            }
+         }
+         .lb-stage {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            max-width: 100%;
+            max-height: 100%;
+         }
+         .lb-frame {
+            position: relative;
+            border: 1px solid var(--hairline-strong);
+            background: var(--panel-2);
+            max-width: 100%;
+            min-width: 200px;
+            min-height: 200px;
+            max-height: calc(100vh - 150px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+         }
+         .lb-frame::before,
+         .lb-frame::after {
+            content: "";
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            z-index: 3;
+            pointer-events: none;
+         }
+         .lb-frame::before {
+            top: -1px;
+            left: -1px;
+            border-top: 1px solid var(--primary);
+            border-left: 1px solid var(--primary);
+         }
+         .lb-frame::after {
+            bottom: -1px;
+            right: -1px;
+            border-bottom: 1px solid var(--primary);
+            border-right: 1px solid var(--primary);
+         }
+         .lb-frame img {
+            display: block;
+            max-width: calc(100vw - 168px);
+            max-height: calc(100vh - 150px);
+            object-fit: contain;
+         }
+         .lb-spin {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border: 2px solid var(--hairline-strong);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+         }
+         .lb-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+         }
+         .lb-attr {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--ink);
+            border: 1px solid var(--hairline-strong);
+            padding: 2px 7px;
+         }
+         .lb-hero {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .lb-counter {
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            color: var(--mute);
+         }
+         /* nav arrows + close */
+         .lb-nav,
+         .lb-close {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(5, 5, 5, 0.85);
+            border: 1px solid var(--hairline-strong);
+            color: var(--body);
+            cursor: pointer;
+            transition: var(--transition);
+            z-index: 4;
+         }
+         .lb-nav {
+            top: 50%;
+            transform: translateY(-50%);
+            width: 44px;
+            height: 64px;
+         }
+         .lb-nav svg {
+            width: 22px;
+            height: 22px;
+         }
+         .lb-nav.prev {
+            left: 16px;
+         }
+         .lb-nav.next {
+            right: 16px;
+         }
+         .lb-nav:hover,
+         .lb-close:hover {
+            color: var(--ink);
+            border-color: var(--primary);
+            background: var(--panel-hover);
+         }
+         .lb-nav[disabled] {
+            opacity: 0.25;
+            cursor: default;
+            pointer-events: none;
+         }
+         .lb-close {
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+         }
+         .lb-close svg {
+            width: 16px;
+            height: 16px;
+         }
 
          /* loading / error / empty state */
          .state {
@@ -471,6 +636,36 @@
 
       <div id="grid" class="grid" style="display: none"></div>
 
+      <div id="lightbox" class="lightbox" onclick="onLightboxBackdrop(event)">
+         <button class="lb-close" title="Close (Esc)" onclick="closeLightbox()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+               <line x1="6" y1="6" x2="18" y2="18" />
+               <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+         </button>
+         <button id="lb-prev" class="lb-nav prev" title="Previous" onclick="navLightbox(-1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+               <polyline points="15 18 9 12 15 6" />
+            </svg>
+         </button>
+         <button id="lb-next" class="lb-nav next" title="Next" onclick="navLightbox(1)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+               <polyline points="9 18 15 12 9 6" />
+            </svg>
+         </button>
+         <div class="lb-stage">
+            <div class="lb-frame">
+               <div id="lb-spin" class="lb-spin"></div>
+               <img id="lb-img" alt="" />
+            </div>
+            <div class="lb-meta">
+               <span id="lb-attr" class="lb-attr" style="display: none"></span>
+               <span id="lb-hero" class="lb-hero"></span>
+               <span id="lb-counter" class="lb-counter"></span>
+            </div>
+         </div>
+      </div>
+
       <footer class="footer">
          <span id="count" class="count"></span>
          <button class="footer-link" onclick="openUrl('https://ardysamods.my.id/updates.html')">
@@ -498,13 +693,28 @@
             sendMessage({ type: "startDrag" });
          }
          document.addEventListener("keydown", (e) => {
+            if (_lbIndex >= 0) {
+               if (e.key === "Escape") {
+                  closeLightbox();
+                  e.preventDefault();
+               } else if (e.key === "ArrowLeft") {
+                  navLightbox(-1);
+                  e.preventDefault();
+               } else if (e.key === "ArrowRight") {
+                  navLightbox(1);
+                  e.preventDefault();
+               }
+               return;
+            }
             if (e.key === "Escape") act("close");
          });
 
          /* ── state ── */
          let _all = [];
+         let _filtered = [];
          let _filter = "all";
          let _search = "";
+         let _lbIndex = -1;
 
          /* ── C# → JS: set the ModsPack version badge in the title bar ── */
          function setModspackVersion(v) {
@@ -531,30 +741,35 @@
          function render() {
             const grid = document.getElementById("grid");
             const s = _search.toLowerCase();
-            const filtered = _all.filter((u) => {
+            _filtered = _all.filter((u) => {
                const okFilter = _filter === "all" || (u.attribute && u.attribute === _filter);
                const okSearch = !s || (u.hero || "").toLowerCase().includes(s);
                return okFilter && okSearch;
             });
 
             grid.innerHTML = "";
-            if (filtered.length === 0) {
+            if (_filtered.length === 0) {
                const empty = document.createElement("div");
                empty.style.cssText =
                   "grid-column:1/-1;text-align:center;color:var(--mute);padding:40px;font-size:12px;letter-spacing:0.5px;";
                empty.textContent = "No heroes match your search.";
                grid.appendChild(empty);
             } else {
-               filtered.forEach((u) => grid.appendChild(buildCard(u)));
+               _filtered.forEach((u, i) => grid.appendChild(buildCard(u, i)));
             }
 
+            // If the lightbox is open, keep it pointing at a valid item after a re-filter.
+            if (_lbIndex >= 0 && _lbIndex >= _filtered.length) closeLightbox();
+
             document.getElementById("count").textContent =
-               filtered.length + " / " + _all.length + " heroes";
+               _filtered.length + " / " + _all.length + " heroes";
          }
 
-         function buildCard(u) {
+         function buildCard(u, index) {
             const card = document.createElement("div");
             card.className = "card";
+            card.title = "Click to preview";
+            card.addEventListener("click", () => openLightbox(index));
 
             if (u.image) {
                const img = document.createElement("img");
@@ -606,6 +821,74 @@
             document.getElementById("state-text").textContent =
                "Couldn't load ModsPack updates — check your connection.";
             document.getElementById("state-action").style.display = "inline-flex";
+         }
+
+         /* ── lightbox preview + carousel ── */
+         function openLightbox(index) {
+            if (index < 0 || index >= _filtered.length) return;
+            _lbIndex = index;
+            document.getElementById("lightbox").classList.add("open");
+            showLightbox();
+         }
+
+         function closeLightbox() {
+            _lbIndex = -1;
+            const lb = document.getElementById("lightbox");
+            lb.classList.remove("open");
+            const img = document.getElementById("lb-img");
+            img.removeAttribute("src");
+            img.style.display = "none";
+         }
+
+         function navLightbox(dir) {
+            const next = _lbIndex + dir;
+            if (next < 0 || next >= _filtered.length) return;
+            _lbIndex = next;
+            showLightbox();
+         }
+
+         function onLightboxBackdrop(ev) {
+            // Close only when the dark backdrop itself is clicked (not the image or controls).
+            if (ev.target.id === "lightbox") closeLightbox();
+         }
+
+         function showLightbox() {
+            const u = _filtered[_lbIndex];
+            if (!u) return;
+
+            const img = document.getElementById("lb-img");
+            const spin = document.getElementById("lb-spin");
+            img.style.display = "none";
+            spin.style.display = "block";
+            img.onload = function () {
+               spin.style.display = "none";
+               img.style.display = "block";
+            };
+            img.onerror = function () {
+               spin.style.display = "none";
+               img.style.display = "none";
+            };
+            // Preview the full-colour, full-resolution image.
+            if (u.image) {
+               img.alt = u.hero || "";
+               img.src = u.image;
+            } else {
+               img.onerror();
+            }
+
+            const attr = document.getElementById("lb-attr");
+            if (u.attribute) {
+               attr.textContent = u.attribute;
+               attr.style.display = "inline-block";
+            } else {
+               attr.style.display = "none";
+            }
+            document.getElementById("lb-hero").textContent = u.hero || "";
+            document.getElementById("lb-counter").textContent =
+               _lbIndex + 1 + " / " + _filtered.length;
+
+            document.getElementById("lb-prev").disabled = _lbIndex <= 0;
+            document.getElementById("lb-next").disabled = _lbIndex >= _filtered.length - 1;
          }
 
          /* ── filter + search wiring ── */

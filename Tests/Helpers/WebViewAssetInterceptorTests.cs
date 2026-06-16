@@ -48,7 +48,8 @@ namespace ArdysaModsTools.Tests.Helpers
         [Test]
         public void GetContentType_WithQueryString_IgnoresQueryWhenResolvingExtension()
         {
-            // Cache-busted URLs (?v=...) must still resolve by the path extension.
+            // Cache-busted URLs (?v=...) are no longer generated but may exist in
+            // cached references; the interceptor must still resolve by path extension.
             Assert.That(
                 WebViewAssetInterceptor.GetContentType("https://cdn.ardysamods.my.id/x/a.png?v=2026061400"),
                 Is.EqualTo("image/png"));

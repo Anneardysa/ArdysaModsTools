@@ -89,7 +89,12 @@ namespace ArdysaModsTools.Core.DependencyInjection
         public static IServiceCollection AddHeroServices(this IServiceCollection services)
         {
             services.AddTransient<IHeroGenerationService, HeroGenerationService>();
-            
+
+            // Manual hero-database (heroes.json) check/update for Settings. Bundled copy lives next to
+            // the executable; logger is optional and resolved when a real one is registered.
+            services.AddTransient<IHeroDatabaseService>(sp =>
+                new HeroDatabaseService(System.AppContext.BaseDirectory, sp.GetService<IAppLogger>()));
+
             return services;
         }
 

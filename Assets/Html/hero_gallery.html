@@ -1285,9 +1285,9 @@
                   return `
                   <div class="update-card" onclick="navigateToUpdate('${update.heroId}', ${update.setIndex})">
                      <div class="update-card-image">
-                        <img src="${update.setThumbnail || update.heroThumbnail || ""}" 
+                        <img src="${update.setThumbnail || ""}"
                              alt="${update.heroName}"
-                              onerror="this.src='${update.heroThumbnail || ""}'" />
+                              onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23111%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23333%22 font-size=%2210%22>?</text></svg>'" />
                          <div class="update-card-gradient"></div>
                          ${update.daysAgo <= 2 ? '<span class="new-badge">NEW</span>' : ''}
                       </div>

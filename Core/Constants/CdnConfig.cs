@@ -216,7 +216,10 @@ namespace ArdysaModsTools.Core.Constants
             int assetsIndex = url.IndexOf(AssetsMarker, StringComparison.OrdinalIgnoreCase);
             if (assetsIndex != -1)
             {
-                return url.Substring(assetsIndex + 1); // Skip the leading "/"
+                // Strip query string so ?v= or similar never propagates into fallback URLs.
+                var raw = url.Substring(assetsIndex + 1); // Skip the leading "/"
+                int q = raw.IndexOf('?');
+                return q >= 0 ? raw.Substring(0, q) : raw;
             }
 
             // 2. Match against known base URLs (longest first to avoid partial matches)
@@ -231,6 +234,8 @@ namespace ArdysaModsTools.Core.Constants
                 if (urlWithoutQuery.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase))
                 {
                     string path = url.Substring(baseUrl.Length).TrimStart('/');
+                    int qp = path.IndexOf('?');
+                    if (qp >= 0) path = path.Substring(0, qp);
                     if (!string.IsNullOrEmpty(path))
                         return path;
                 }

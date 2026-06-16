@@ -16,6 +16,7 @@
  */
 using System;
 using System.IO;
+using System.Threading;
 using ArdysaModsTools.Core.Services.Cache;
 using Microsoft.Web.WebView2.Core;
 
@@ -33,6 +34,12 @@ namespace ArdysaModsTools.UI.Helpers
         // Mirrors AssetCacheService's known-missing window: skip assets the CDN reported as
         // not-found so the browser never re-requests them (no network, no CDN-chain hammering).
         private static readonly TimeSpan KnownMissingTtl = TimeSpan.FromDays(7);
+
+        // Hard ceiling for a single intercepted image fetch. Without it, one slow/blocked CDN can let
+        // the full fallback chain (multiple CDNs × retries × passes) hold a WebView2 deferral open for
+        // minutes, so the whole gallery appears to "hang" loading thumbnails for impaired users. On
+        // timeout the cache returns null, the request falls through, and the JS onerror placeholder shows.
+        private static readonly TimeSpan ImageFetchTimeout = TimeSpan.FromSeconds(45);
 
         /// <summary>
         /// Attaches a resource interceptor that serves images under <paramref name="cdnBaseUrl"/>
@@ -69,9 +76,11 @@ namespace ArdysaModsTools.UI.Helpers
                         return;
                     }
 
-                    // Memory -> disk -> CDN-fallback download (with request coalescing).
+                    // Memory -> disk -> CDN-fallback download (with request coalescing). Bounded so a
+                    // single slow/blocked CDN can never stall this thumbnail's deferral indefinitely.
+                    using var fetchCts = new CancellationTokenSource(ImageFetchTimeout);
                     byte[]? bytes = await AssetCacheService.Instance
-                        .GetAssetBytesAsync(url)
+                        .GetAssetBytesAsync(url, fetchCts.Token)
                         .ConfigureAwait(true);
 
                     if (bytes != null && bytes.Length > 0)
