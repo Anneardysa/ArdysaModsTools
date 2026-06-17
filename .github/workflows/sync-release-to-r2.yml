@@ -2,6 +2,7 @@
 # Triggers after a release is published
 # - Uploads release assets to Cloudflare R2
 # - Updates releases.json manifest
+# - Regenerates the What's New feed (config/whatsnew.json) from the releases list
 # - Cleans up old releases to save storage
 
 name: Sync Release to R2
@@ -41,6 +42,7 @@ jobs:
            with:
               sparse-checkout: |
                  .github
+                 scripts
 
          - name: Install Dependencies
            run: |
@@ -267,6 +269,23 @@ jobs:
 
               echo "✅ Manifest updated successfully!"
 
+         - name: Generate and Upload whatsnew.json Feed
+           if: steps.release.outputs.CLEANUP_ONLY != 'true'
+           shell: pwsh
+           env:
+              # Raises the GitHub API rate limit; the script falls back to anonymous if absent.
+              GITHUB_TOKEN: ${{ github.token }}
+           run: |
+              # Single source of truth: reuse the same generator devs run locally. rclone is already
+              # configured above, so -UploadToR2 publishes to r2:${R2_BUCKET}/config/whatsnew.json
+              # (served at ${CDN_BASE_URL}/config/whatsnew.json — the WhatsNewFeedUrl default).
+              $parts = "${{ github.repository }}".Split('/')
+              ./scripts/generate-whatsnew.ps1 `
+                -Owner $parts[0] `
+                -Repo $parts[1] `
+                -UploadToR2 `
+                -R2Bucket "${{ env.R2_BUCKET }}"
+
          - name: Cleanup Old Releases
            id: cleanup
            run: |
@@ -378,6 +397,7 @@ jobs:
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "### 🔗 CDN URLs" >> $GITHUB_STEP_SUMMARY
               echo "- **Manifest**: [\`releases.json\`](${CDN_BASE}/releases/releases.json)" >> $GITHUB_STEP_SUMMARY
+              echo "- **What's New feed**: [\`whatsnew.json\`](${CDN_BASE}/config/whatsnew.json)" >> $GITHUB_STEP_SUMMARY
               echo "- **Release folder**: [\`${VERSION}/\`](${CDN_BASE}/releases/${VERSION}/)" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "### 📋 Manifest Content" >> $GITHUB_STEP_SUMMARY

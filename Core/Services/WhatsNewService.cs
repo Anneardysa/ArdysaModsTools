@@ -28,10 +28,12 @@ using ArdysaModsTools.Core.Services.Config;
 namespace ArdysaModsTools.Core.Services
 {
     /// <summary>
-    /// Fetches the in-app "What's New" changelog from the GitHub Releases API
-    /// (<see cref="EnvironmentConfig.ToolsReleasesListApi"/>) — the same source the website's
-    /// whatsnew page uses. Short timeout + short-lived cache; returns <c>null</c> on failure so the
-    /// dialog can show an offline fallback.
+    /// Fetches the in-app "What's New" changelog. Prefers a public, auth-free feed
+    /// (<see cref="EnvironmentConfig.WhatsNewFeedUrl"/>, published to R2) so it keeps working when the
+    /// source repo is private, and falls back to the GitHub Releases API
+    /// (<see cref="EnvironmentConfig.ToolsReleasesListApi"/>). Both sources share the GitHub releases
+    /// JSON shape, so <see cref="Parse"/> consumes either verbatim. Short timeout + short-lived cache;
+    /// returns <c>null</c> on failure so the dialog can show an offline fallback.
     /// </summary>
     public sealed class WhatsNewService
     {
@@ -59,7 +61,8 @@ namespace ArdysaModsTools.Core.Services
 
         /// <summary>
         /// Returns the published releases (newest first). Uses a fresh cached copy when available,
-        /// otherwise queries GitHub; returns the stale cache / <c>null</c> on failure.
+        /// otherwise queries the public feed first and the GitHub Releases API as a fallback; returns
+        /// the stale cache / <c>null</c> on failure.
         /// </summary>
         public async Task<List<ReleaseNote>?> GetReleasesAsync(CancellationToken ct = default)
         {
@@ -71,9 +74,12 @@ namespace ArdysaModsTools.Core.Services
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(TimeSpan.FromSeconds(10));
 
-                var json = await FetchReleasesJsonAsync(cts.Token).ConfigureAwait(false);
+                // Prefer the auth-free R2/website feed so What's New survives a private source repo;
+                // fall back to the GitHub Releases API when the feed is unavailable or empty.
+                var releases = Parse(await FetchFeedJsonAsync(cts.Token).ConfigureAwait(false));
+                if (releases == null || releases.Count == 0)
+                    releases = Parse(await FetchReleasesJsonAsync(cts.Token).ConfigureAwait(false));
 
-                var releases = Parse(json);
                 if (releases != null && releases.Count > 0)
                 {
                     _cached = releases;
@@ -90,6 +96,35 @@ namespace ArdysaModsTools.Core.Services
             catch (HttpRequestException)
             {
                 return _cached;
+            }
+        }
+
+        // The What's New feed is hosted on our own CDN/website, so no GitHub token is attached and
+        // anonymous access always works. A short, self-contained timeout means a slow or missing feed
+        // degrades to the GitHub fallback instead of consuming the whole budget.
+        private static async Task<string?> FetchFeedJsonAsync(CancellationToken ct)
+        {
+            try
+            {
+                using var feedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                feedCts.CancelAfter(TimeSpan.FromSeconds(5));
+
+                using var resp = await _http
+                    .GetAsync(EnvironmentConfig.WhatsNewFeedUrl, HttpCompletionOption.ResponseHeadersRead, feedCts.Token)
+                    .ConfigureAwait(false);
+
+                return resp.IsSuccessStatusCode
+                    ? await resp.Content.ReadAsStringAsync(feedCts.Token).ConfigureAwait(false)
+                    : null;
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Feed-only timeout — let the caller fall back to GitHub.
+                return null;
+            }
+            catch (HttpRequestException)
+            {
+                return null;
             }
         }
 

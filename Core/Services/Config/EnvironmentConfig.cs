@@ -224,6 +224,17 @@ namespace ArdysaModsTools.Core.Services.Config
         /// </summary>
         public static string ModsPackUpdatesUrl => $"{WebsiteBase}/updates.json";
 
+        /// <summary>
+        /// Public, auth-free feed for the in-app "What's New" changelog. A JSON array using the
+        /// same field shape as the GitHub Releases API (<c>tag_name</c>, <c>name</c>, <c>body</c>,
+        /// <c>html_url</c>, <c>draft</c>, <c>published_at</c>) so it is parsed verbatim by
+        /// <c>WhatsNewService.Parse</c>. Published to R2 by the release pipeline; this lets What's New
+        /// keep working without reaching the (potentially private) source repo on GitHub.
+        /// Overridable via <c>AMT_WHATSNEW_FEED</c>.
+        /// </summary>
+        public static string WhatsNewFeedUrl =>
+            Environment.GetEnvironmentVariable("AMT_WHATSNEW_FEED") ?? $"{R2CdnBase}/config/whatsnew.json";
+
 
         
         // ============================================================

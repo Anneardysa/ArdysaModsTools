@@ -53,6 +53,29 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public void Parse_R2FeedShape_ParsesVerbatim()
+        {
+            // The public What's New feed (EnvironmentConfig.WhatsNewFeedUrl) is published with the
+            // same field names as the GitHub Releases API so it is consumed by Parse without a mapper.
+            // A minimal entry (no draft/prerelease fields) must still parse.
+            const string feedJson = """
+            [
+              { "tag_name": "2.2.1-beta", "name": "Build 2157", "body": "- Restructured README",
+                "html_url": "https://ardysamods.my.id/whatsnew", "published_at": "2026-06-17T00:00:00Z" }
+            ]
+            """;
+
+            var notes = WhatsNewService.Parse(feedJson);
+
+            Assert.That(notes, Is.Not.Null);
+            Assert.That(notes!, Has.Count.EqualTo(1));
+            Assert.That(notes[0].Tag, Is.EqualTo("2.2.1-beta"));
+            Assert.That(notes[0].Name, Is.EqualTo("Build 2157"));
+            Assert.That(notes[0].HtmlUrl, Is.EqualTo("https://ardysamods.my.id/whatsnew"));
+            Assert.That(notes[0].Date, Is.Not.Null);
+        }
+
+        [Test]
         public void Parse_ExcludesDrafts()
         {
             const string json = """

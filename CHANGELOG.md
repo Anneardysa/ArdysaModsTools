@@ -5,6 +5,19 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1-beta] (Build 2158)
+
+### ✨ Added
+
+- **Documentation**: Added [PRIVACY.md](PRIVACY.md) to clarify that ArdysaModsTools does not collect any user data or telemetry.
+
+### 🛠️ Changed
+
+- **Documentation**: Added references and acknowledgments to SignPath Foundation in [README.md](README.md) to comply with code signing application requirements.
+- **What's New**: The in-app changelog now reads a public, auth-free feed (`EnvironmentConfig.WhatsNewFeedUrl`, default `cdn.ardysamods.my.id/config/whatsnew.json`, override `AMT_WHATSNEW_FEED`) first and only falls back to the GitHub Releases API. This removes What's New's hard dependency on the source repo being publicly readable, so it keeps working if the repo goes private. The feed reuses the existing GitHub releases JSON shape, so `WhatsNewService.Parse` is unchanged; the feed fetch has its own short timeout so a slow/missing feed cleanly degrades to the GitHub fallback.
+
+---
+
 ## [2.2.1-beta] (Build 2156)
 
 ### 🗑️ Removed
