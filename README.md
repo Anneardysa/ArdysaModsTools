@@ -88,6 +88,7 @@ Built on .NET 8 with a high-performance **WinForms + WebView2 hybrid architectur
 2. Download the latest installer executable: `ArdysaModsTools_Setup_x64.exe`.
 3. Launch the installer and complete the setup wizard.
 4. Open **ArdysaModsTools** from the desktop shortcut or Start Menu.
+5. *Note: Official releases are signed by the [SignPath Foundation](https://signpath.org) code signing service.*
 
 > [!TIP]
 > The application files install to `%LocalAppData%\ArdysaModsTools`.
@@ -325,6 +326,7 @@ Thank you to the authors of the packages enabling this project:
 
 ### Special Thanks
 
+* **[SignPath Foundation](https://signpath.org)** for providing free code signing certificates to this open-source project.
 * The **Dota 2 Modding & SkinChanger community** for sharing techniques, file indexes, and general reverse engineering knowledge.
 * **Valve Corporation** for creating Dota 2 and keeping the VPK structures accessible.
 
