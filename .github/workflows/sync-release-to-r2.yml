@@ -42,7 +42,6 @@ jobs:
            with:
               sparse-checkout: |
                  .github
-                 scripts
 
          - name: Install Dependencies
            run: |
@@ -271,20 +270,35 @@ jobs:
 
          - name: Generate and Upload whatsnew.json Feed
            if: steps.release.outputs.CLEANUP_ONLY != 'true'
-           shell: pwsh
            env:
-              # Raises the GitHub API rate limit; the script falls back to anonymous if absent.
-              GITHUB_TOKEN: ${{ github.token }}
+              GH_TOKEN: ${{ github.token }}
            run: |
-              # Single source of truth: reuse the same generator devs run locally. rclone is already
-              # configured above, so -UploadToR2 publishes to r2:${R2_BUCKET}/config/whatsnew.json
-              # (served at ${CDN_BASE_URL}/config/whatsnew.json — the WhatsNewFeedUrl default).
-              $parts = "${{ github.repository }}".Split('/')
-              ./scripts/generate-whatsnew.ps1 `
-                -Owner $parts[0] `
-                -Repo $parts[1] `
-                -UploadToR2 `
-                -R2Bucket "${{ env.R2_BUCKET }}"
+              set -eo pipefail
+
+              echo "📝 Generating What's New feed (config/whatsnew.json)..."
+
+              # Mirrors scripts/generate-whatsnew.ps1 (which is gitignored, so it can't run on the
+              # runner). Snapshots the releases list into the exact shape WhatsNewService.Parse reads
+              # (tag_name, name, body, html_url, draft, published_at), newest-first, drafts excluded.
+              gh api "repos/${{ github.repository }}/releases?per_page=30" \
+                | jq '[.[] | select(.draft == false)
+                       | {tag_name, name, body, html_url, draft, published_at}]' \
+                > whatsnew.json
+
+              # Validate before publishing
+              if ! jq -e 'type == "array"' whatsnew.json >/dev/null; then
+                echo "❌ Generated whatsnew.json is not a JSON array"
+                cat whatsnew.json
+                exit 1
+              fi
+
+              echo "✅ Feed has $(jq 'length' whatsnew.json) release(s)"
+
+              # Publish to R2 (served at ${{ env.CDN_BASE_URL }}/config/whatsnew.json — the
+              # WhatsNewFeedUrl default the app reads first).
+              rclone copyto whatsnew.json "r2:${{ env.R2_BUCKET }}/config/whatsnew.json" -v
+
+              echo "✅ whatsnew.json published"
 
          - name: Cleanup Old Releases
            id: cleanup
