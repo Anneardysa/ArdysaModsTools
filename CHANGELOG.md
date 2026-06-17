@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🗑️ Removed
 
-- Dropped the now-unused `item_namer` import, the `vpk_path` config, the `sets_renamed` result tracking, and the menu/CLI/dispatch wiring for the mode. The tool now offers modes 1–6.
+- **`scripts/tools/2-patch_models.py`**: Removed Mode 7 ("Name Item/Base sets from items_game.txt") and its `--vpk` option. Dropped the now-unused `item_namer` import, the `vpk_path` config, the `sets_renamed` result tracking, and the menu/CLI/dispatch wiring for the mode. The tool now offers modes 1–6.
 
 ---
 
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🛠️ Changed
 
-- **UI/UX**: In the Skin Selector hero modal, Legacy / Custom / Persona / Base cards no longer show the generic "Set N" name label. Each now displays a color-coded category tag badge instead — **Set** (Legacy), **Mix** (Custom), **Persona**, and **Arcana** (Base) — mirroring the slot tag badges already used on item cards. Item cards keep their name plus slot tag unchanged.
+- **UI/UX**: In the Skin Selector hero modal, set cards no longer show a name label — each shows just a color-coded category tag badge: **Set** (Legacy), **Mix** (Custom), **Persona**, **Arcana** (Base), and the existing slot tag for Items (head/weapon/…). Style Cards follow the same rule (tag only, no name on the tile); the group title and per-variant names still appear inside the Style Preview Modal.
 
 ---
 

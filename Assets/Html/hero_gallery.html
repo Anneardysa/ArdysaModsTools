@@ -2089,13 +2089,10 @@
             // Variant-count badge on styled tiles
             const styleCountBadge = hasStyles ? `<span class="style-count-badge">${groupEntries.length} styles</span>` : '';
 
-            // Use the group name for display if this is a styled tile. Kept for the
-            // image alt text; only item tiles render it as a visible name label —
-            // Legacy/Custom/Persona/Base tiles show the category tag badge instead.
+            // Display name is kept only for the image alt text — no grid tile (plain or
+            // Style Card) renders a visible name label anymore; each shows just its tag
+            // badge. The set/variant name still appears inside the Style Preview Modal.
             const displayName = styleGroup || set.name || `Set ${idx + 1}`;
-            const nameHtml = tileType === 'item'
-               ? `<p class="text-sm font-medium truncate">${displayName}</p>`
-               : '';
 
             return `
             <div class="set-tile ${tileClass} ${isSelected ? 'selected' : ''} ${
@@ -2111,7 +2108,6 @@
                   ${styleCountBadge}
                </div>
                <div class="p-3">
-                  ${nameHtml}
                   ${tagHtml}
                   ${statusHtml}
                </div>

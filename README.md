@@ -1,25 +1,25 @@
 <div align="center">
 
-<img src="Assets/Icons/AppIcon.ico" alt="ArdysaModsTools Logo" width="80" />
+<img src="Assets/Icons/AppIcon.ico" alt="ArdysaModsTools Logo" width="96" />
 
 # ArdysaModsTools (AMT 2.0)
 
-### The Ultimate Dota 2 Mod Manager
+### *The Ultimate Dota 2 Mod Manager*
 
-_Easily install, manage, and customize cosmetic mods for Dota 2 — all in one click._
+*Easily install, manage, and customize client-side cosmetic mods for Dota 2 — all with a single click.*
 
-![Version](https://img.shields.io/badge/Version-2.2.0--beta-00d4ff?style=for-the-badge&logo=v)
-![Build](https://img.shields.io/github/actions/workflow/status/Anneardysa/ArdysaModsTools/release.yml?style=for-the-badge&logo=github&label=Build)
-![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows)
-![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
-![License](https://img.shields.io/badge/License-GPL%20v3-blue?style=for-the-badge)
+[![Version](https://img.shields.io/badge/Version-2.2.1--beta-00d4ff?style=flat-square&logo=github&logoColor=white)](https://github.com/Anneardysa/ArdysaModsTools/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/Anneardysa/ArdysaModsTools/release.yml?style=flat-square&logo=github-actions&logoColor=white&label=Build)](https://github.com/Anneardysa/ArdysaModsTools/actions)
+![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=flat-square&logo=windows&logoColor=white)
+![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)
+[![License](https://img.shields.io/badge/License-GPL%20v3-blue?style=flat-square)](LICENSE)
 
-![Downloads](https://img.shields.io/github/downloads/Anneardysa/ArdysaModsTools/total?style=flat-square&color=FF6B6B&logo=github&label=Downloads)
-![Stars](https://img.shields.io/github/stars/Anneardysa/ArdysaModsTools?style=flat-square&color=yellow)
-![Last Commit](https://img.shields.io/github/last-commit/Anneardysa/ArdysaModsTools?style=flat-square&color=blue)
-![Tests](https://img.shields.io/badge/Tests-660+-brightgreen?style=flat-square)
+[![Downloads](https://img.shields.io/github/downloads/Anneardysa/ArdysaModsTools/total?style=flat-square&color=FF6B6B&logo=github&logoColor=white&label=Downloads)](https://github.com/Anneardysa/ArdysaModsTools/releases)
+[![Stars](https://img.shields.io/github/stars/Anneardysa/ArdysaModsTools?style=flat-square&color=yellow&logo=github&logoColor=black)](https://github.com/Anneardysa/ArdysaModsTools/stargazers)
+[![Last Commit](https://img.shields.io/github/last-commit/Anneardysa/ArdysaModsTools?style=flat-square&color=blue&logo=git&logoColor=white)](https://github.com/Anneardysa/ArdysaModsTools/commits/main)
+[![Tests Passed](https://img.shields.io/badge/Tests-688%20Passed-brightgreen?style=flat-square&logo=github-actions&logoColor=white)](Tests/ArdysaModsTools.Tests.csproj)
 
-[📥 Download](#-installation) · [🚀 Quick Start](#-quick-start) · [🎨 Features](#-features) · [🏗️ Architecture](#%EF%B8%8F-architecture) · [❓ FAQ](#-faq)
+[📥 Download](#-installation) • [🚀 Quick Start](#-quick-start) • [🎨 Features](#-key-features) • [🏗️ Architecture](#%EF%B8%8F-architecture--internals) • [❓ FAQ](#-faq) • [🔧 Troubleshooting](#-troubleshooting)
 
 </div>
 
@@ -34,36 +34,40 @@ _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one c
 
 ---
 
-## ✨ Features
+## ✨ Introduction
+
+**ArdysaModsTools (AMT)** is a powerful, desktop-based utility designed to elevate your Dota 2 experience. It provides a seamless interface to manage, customize, and apply client-side cosmetics, skins, terrains, weather effects, and performance optimizations. 
+
+Built on .NET 8 with a high-performance **WinForms + WebView2 hybrid architecture**, AMT combines the raw speed of native Windows applications with the fluid, modern design capabilities of web technologies.
+
+---
+
+## 🎨 Key Features
 
 ### 🎮 Core Functionality
 
-| Feature                        | Description                                                                                               |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------- |
-| **One-Click ModsPack Install** | Download and install the complete mod pack from CDN with a single click                                   |
-| **Skin & Persona Selector**    | Browse and select hero sets, individual item pieces (with slot-based mutual exclusion), and full hero Personas (with model-wide exclusion) via a gallery UI |
-| **Miscellaneous Mods**         | Toggle weather, terrain, HUD, cursors, music, battle effects, couriers, wards, and special mods           |
-| **Performance Tweaker**        | Tune Dota 2 FPS and cvars (saved to `autoexec.cfg` atomically via transactions) plus copy-ready launch options (remembered across sessions) via WebView2 |
-| **Auto-Patching**              | Automatically detects Dota 2 updates and re-applies your mods — no manual work needed                     |
-| **Manual VPK Install**         | Import your own custom `.vpk` mod files directly                                                          |
-| **Safe & Reversible**          | Click "Disable Mods" to instantly restore vanilla Dota 2 — no files are permanently altered               |
+| Feature | Description |
+| :--- | :--- |
+| **One-Click ModsPack** | Download and install the complete, curated community mod pack with a single click. |
+| **Skin & Persona Selector** | Browse and select hero sets, individual item pieces (with slot-based mutual exclusion), and full hero Personas (with model-wide exclusion) via an interactive gallery UI. |
+| **Style Card Variants** | Select from multiple visual style variations for individual sets and items, rendered via a sleek in-app Style Preview Modal. |
+| **Miscellaneous Mods** | Instantly toggle weather effects, custom terrains, HUD designs, cursor packs, custom music packs, kill/battle effects, and personalized couriers/wards. |
+| **Performance Tweaker** | Tune Dota 2 cvars (written atomically to `autoexec.cfg`) and copy optimized launch options to maximize FPS and responsiveness. |
+| **Auto-Patching** | Background update checker automatically detects Dota 2 updates and re-applies active mods. |
+| **Manual VPK Import** | Import your own custom `.vpk` mod files directly into the manager's patch structure. |
+| **Safe & Reversible** | Restore the vanilla game state instantly using the "Disable Mods" option without corrupting official assets. |
 
 ### 🛠️ Technical Highlights
 
-- **Multi-CDN Download Strategy** — Primary: Cloudflare R2, fallback: jsDelivr → GitHub Raw → GFW proxy mirrors
-- **Smart CDN Selection** — Automatic latency benchmarking picks the fastest CDN per user
-- **Resumable Downloads** — HTTP Range-based chunk streaming with cross-CDN failover without losing progress
-- **Model Exclusivity Engine** — Handles tag-based mutual exclusion for items and model-wide exclusions for Personas
-- **Atomic File Operations** — Extract-then-swap pattern (and transaction wrapper for `autoexec.cfg` saving) prevents corruption
-- **SHA-256 Hash Verification** — Downloads are verified against remote hashes for integrity
-- **Persistent Thumbnail Cache** — Gallery thumbnails are served from a local `%LocalAppData%` asset cache via a WebView2 resource interceptor, so they download once and survive restarts, temp cleanup, and app updates
-- **Background Asset Preloader** — A "Launching State" preloader warms the thumbnail cache on startup (throttled, cancellable) so the Skin Selector and Miscellaneous panels open instantly and work offline
-- **Known-Missing Asset Tracking** — Definitive `404`/`403` responses are remembered (7-day TTL) and no longer trip the CDN circuit breaker, eliminating request storms for absent thumbnails
-- **Live `items_game.txt` Extraction** — Skin generation sources `items_game.txt` directly from your installed game's `pak01_dir.vpk` each run, keeping mods aligned with the current patch
-- **PatchWatcher** — Background file watcher detects Dota 2 updates in real-time by monitoring key system manifests
-- **Remote Feature Control** — Features can be remotely enabled/disabled via Cloudflare R2 config
-- **Self-Contained Build** — .NET 8 runtime is bundled; no external runtime installation needed
-- **660+ Unit Tests** — Comprehensive test coverage for core services
+* **Resilient Multi-CDN Fallback** — Centralized download chain prioritizing Cloudflare R2 (authoritative origin) with automatic failover to jsDelivr → GitHub Raw → Proxy mirrors.
+* **Smart CDN Selector** — Automatically benchmarks latencies to determine the fastest fallback mirror per-session.
+* **Resumable HTTP Range Downloads** — Supports partial content downloads with automatic failover mid-stream if a connection drops.
+* **Atomic File Transactions** — Writes to critical files (`pak01_dir.vpk`, `autoexec.cfg`) are wrapped in transactions with verification and rollback logic to prevent data corruption.
+* **SHA-256 Manifest Verification** — Pre-verifies files against a CDN-hosted manifest to ensure file integrity prior to installation.
+* **Smart Resource Interception** — Intercepts and retrieves WebView2 assets locally from a persistent cache (`%LocalAppData%`), allowing offline operations and instant gallery loads.
+* **Launch-State Preloading** — Background thread pre-warms the thumbnail cache on startup with throttled, cancellable requests.
+* **Live `items_game.txt` Parsing** — Extracts and constructs the patch manifest directly from the game's actual VPK at run-time, maintaining compatibility with new Dota 2 patches without updates.
+* **Clean Code Foundation** — Backed by 688 unit tests verifying all core business logic, API clients, and generation pipelines.
 
 ---
 
@@ -71,142 +75,136 @@ _Easily install, manage, and customize cosmetic mods for Dota 2 — all in one c
 
 ### System Requirements
 
-| Requirement         | Details                                                                                                               |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **OS**              | Windows 10/11 (64-bit)                                                                                                |
-| **Runtime**         | Bundled (self-contained — no separate .NET install needed)                                                            |
-| **Browser Runtime** | [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (usually pre-installed on Windows 10/11) |
-| **Game**            | Dota 2 installed via Steam                                                                                            |
+| Component | Minimum Requirement | Recommended |
+| :--- | :--- | :--- |
+| **Operating System** | Windows 10 (64-bit, Build 19041+) | Windows 11 (64-bit) |
+| **Framework** | None (Self-Contained Runtime included) | None (Self-Contained Runtime included) |
+| **Browser Engine** | [Microsoft WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) | WebView2 Runtime (Pre-installed on Win 10/11) |
+| **Game** | Dota 2 installed via Steam | Dota 2 installed on an SSD |
 
-### Download & Install
+### Download & Install Steps
 
-1. Go to the [**Releases**](https://github.com/Anneardysa/ArdysaModsTools/releases) page
-2. Download the latest `ArdysaModsTools_Setup_x64.exe`
-3. Run the installer and follow the setup wizard
-4. Launch **ArdysaModsTools** from your Desktop or Start Menu
+1. Navigate to the [**Releases**](https://github.com/Anneardysa/ArdysaModsTools/releases) page.
+2. Download the latest installer executable: `ArdysaModsTools_Setup_x64.exe`.
+3. Launch the installer and complete the setup wizard.
+4. Open **ArdysaModsTools** from the desktop shortcut or Start Menu.
 
 > [!TIP]
-> The app installs to `%LocalAppData%\ArdysaModsTools` by default.
-> User settings and favorites are stored in `%AppData%\ArdysaModsTools`.
+> The application files install to `%LocalAppData%\ArdysaModsTools`.
+> User configurations, favorites, and presets are safely stored in `%AppData%\ArdysaModsTools`.
 
 ---
 
 ## 🚀 Quick Start
 
-### First-Time Setup
+### 1. Initial Setup
+1. **Close Dota 2** if it is currently running.
+2. Launch **ArdysaModsTools** (Administrator privileges recommended for path detection).
+3. The app will auto-detect your Dota 2 installation. If it fails, click **Manual Detect** and select your `dota 2 beta` folder.
+4. Click **Install ModsPack** to fetch, unpack, and hook the main mod assets.
+5. Launch Dota 2 and enjoy!
 
-```
-1. Close Dota 2 (if running)
-2. Launch ArdysaModsTools (run as Administrator recommended)
-3. The app will auto-detect your Dota 2 installation folder
-4. Click "Install ModsPack" to download and apply all mods
-5. Start Dota 2 and enjoy your new cosmetics!
-```
+### 2. Customizing Hero Skins
+1. Open the **Skin Selector** in the sidebar.
+2. Filter by hero, category (Legacy, Custom, Persona, Item, Base), or search by name.
+3. Select your desired cosmetics (mutual exclusion is handled automatically).
+4. For items with variants, click the **Style Card** to open the variant preview and select your style.
+5. Click **Generate** to compile and apply the custom patch.
 
-### After a Dota 2 Update
-
-When Dota 2 receives an update, your mods will be overwritten by Valve. AMT handles this automatically:
-
-- **If PatchWatcher is active**: AMT detects the update and prompts you to re-patch
-- **Manual**: Click **"Patch Update"** in AMT to re-apply your mods
-
-### Customizing Individual Heroes
-
-1. Click **"Skin Selector"** to open the Hero Gallery
-2. Browse heroes and pick cosmetic sets you like
-3. Click **"Generate"** to build your personalized VPK
-4. The mod is applied to your Dota 2 installation
-
-### Disabling Mods
-
-Click **"Disable Mods"** to restore vanilla Dota 2. This safely removes all modifications and restores original game files.
+### 3. Handling Dota 2 Game Updates
+Whenever Valve updates Dota 2, your custom cosmetic patch will be overwritten.
+* **Automatic**: If **PatchWatcher** is enabled, AMT will detect the update and prompt you to re-apply.
+* **Manual**: Simply open the app and click **Patch Update** to re-integrate your mod folder.
 
 ---
 
-## 🎨 Mod Types
+## 🎨 Supported Mod Types
 
-| Type               | Description                           | Examples                                             |
-| ------------------ | ------------------------------------- | ---------------------------------------------------- |
-| **Hero Sets & Personas** | Custom cosmetic sets and full hero replacement models | Arcanas, Personas, cache sets, immortals |
-| **Weather**        | Weather visual effects                | Rain, snow, moonbeam, aurora                         |
-| **Terrain**        | Custom map skins                      | TI terrains, seasonal maps                           |
-| **HUD**            | Interface themes                      | Custom HUD skins and overlays                        |
-| **Battle Effects** | Kill/ability effects                  | TI-themed effects (Aghanim, Nemestice, TI 2015–2022) |
-| **Music**          | Custom music packs                    | —                                                    |
-| **Courier**        | Cosmetic courier skins with particles | Styled couriers + up to 2 ethereal particle effects  |
-| **Ward**           | Cosmetic ward skins with styles       | Custom ward models and particle effects              |
-| **Special**        | Full ZIP-based mod packs              | LowPoly Map, community-made total conversions        |
-| **Cursor**         | Custom cursor skins                   | —                                                    |
+| Category | Description | Examples / Subtypes |
+| :--- | :--- | :--- |
+| **Hero Skins** | Full hero cosmetics, item pieces, and personas | Arcanas, Personas, custom mixes, weapon items |
+| **Weather** | Custom weather effects overrides | Rain, Snow, Aurora, Moonbeam, Spring |
+| **Terrain** | Replaces the default map terrain | TI Terrains, Seasonal Maps, Desert, Immortal Gardens |
+| **HUD Skins** | Re-skins the game's user interface overlay | Custom tournament and theme HUDs |
+| **Music Packs** | Replaces default game soundtrack | Custom themes and classic music files |
+| **Couriers & Wards** | Custom models with style selectors | Particle-heavy courier skins, custom ward models |
+| **Battle Effects** | Overrides standard kills/streaks/actions | TI-themed streak banners, Nemestice/Aghanim effects |
+| **Cursors** | Custom mouse pointer shapes and styles | Custom cursor packs |
+| **Special Packs** | Archive-based external conversions | LowPoly Map, custom community UI theme adjustments |
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture & Internals
 
-### Tech Stack
+### Tech Stack Details
 
-| Layer                    | Technology                                    |
-| ------------------------ | --------------------------------------------- |
-| **Runtime**              | .NET 8.0 (Windows, self-contained)            |
-| **UI Framework**         | WinForms + WebView2 (hybrid)                  |
-| **Architecture Pattern** | MVP (Model-View-Presenter)                    |
-| **DI**                   | `Microsoft.Extensions.DependencyInjection`    |
-| **VPK Tools**            | HLExtract, Valve vpk.exe                      |
-| **Image Processing**     | SixLabors.ImageSharp (WebP support)           |
-| **KV Parsing**           | ValveKeyValue + custom `KeyValuesBlockHelper` |
-| **CDN**                  | Cloudflare R2 (primary), jsDelivr, GitHub Raw |
+* **Language**: C# (.NET 8.0 Windows Application)
+* **Shell**: Windows Forms (WinForms) as the native container
+* **Frontend**: WebView2 embedded browser rendering high-performance HTML5/CSS3/JS
+* **Pattern**: Model-View-Presenter (MVP) with clean separation of concerns
+* **Dependency Injection**: `Microsoft.Extensions.DependencyInjection`
+* **Compression**: `SharpCompress` for zip/tar extraction
+* **KeyValues Parser**: `ValveKeyValue` + custom block overlay helpers
+* **Image Processing**: `SixLabors.ImageSharp` for local WebP decoding
 
-### Project Structure
+### Project Directory Layout
 
-```
+```text
 ArdysaModsTools/
-├── Core/                      # Business logic & services
-│   ├── Constants/             # Shared constants (paths, URLs, CDN config)
-│   ├── DependencyInjection/   # DI container setup
-│   ├── Interfaces/            # Service contracts (18 interfaces)
-│   ├── Models/                # Data models & DTOs
-│   ├── Services/
-│   │   ├── App/               # App lifecycle, update service
-│   │   ├── Cache/             # Cache cleaning, persistent asset cache & background preloader
-│   │   ├── Cdn/               # CDN config, SmartCdnSelector, fallback
-│   │   ├── Config/            # Settings, favorites, feature access
-│   │   ├── Conflict/          # Mod conflict detection & resolution
-│   │   ├── Detection/         # Dota 2 folder auto/manual detection
-│   │   ├── FileTransaction/   # Atomic file operations with rollback
-│   │   ├── Hero/              # Hero set generation & patching
-│   │   ├── Logging/           # App & fallback logging
-│   │   ├── Meta/              # Support goals (Ko-fi, YouTube)
-│   │   ├── Misc/              # Weather, terrain, HUD, courier, ward, etc.
-│   │   ├── Mods/              # ModsPack install, disable, patch
-│   │   ├── Security/          # Anti-tamper & integrity checks
-│   │   ├── Update/            # Auto-update, PatchWatcher, resumable DL
-│   │   └── Vpk/               # VPK extraction, recompilation & live items_game.txt extraction
-│   └── Helpers/               # Utility classes (incl. WebView2 environment helper)
-├── UI/                        # Presentation layer
-│   ├── Forms/                 # WinForms + WebView2 hybrid forms (33 files)
-│   ├── Presenters/            # MVP presenters (7 presenters)
-│   ├── Helpers/               # WebView2 asset interceptor
-│   ├── Controls/              # Custom UI controls
-│   └── Styles/                # Theme & styling
-├── Installer/                 # WPF-based installer project
-├── Assets/                    # Icons, HTML templates, fonts, images
-├── Tests/                     # Unit tests (660+)
-├── scripts/                   # Build & automation scripts
-├── tools/                     # VPK tools, .NET runtime, WebView2
-└── docs/                      # Developer & user documentation
+├── Core/                      # Business logic, services & interfaces
+│   ├── Constants/             # Absolute URLs, settings keys & constants
+│   ├── Controllers/           # Application coordination workflows
+│   ├── Data/                  # Static definitions & layout data
+│   ├── DependencyInjection/   # Service container composition
+│   ├── Exceptions/            # Domain-specific exceptions & error codes
+│   ├── Helpers/               # Core utility libraries (KV parser, web helpers)
+│   ├── Interfaces/            # Formal contracts for dependency decoupling
+│   ├── Models/                # Data structures & serialization classes
+│   └── Services/              # Core business services
+│       ├── App/               # App lifecycle, initialization & update checks
+│       ├── Cache/             # Local cache managers & preloading engines
+│       ├── Cdn/               # SmartCdnSelector & download fallbacks
+│       ├── Config/            # App preferences & feature gates
+│       ├── Conflict/          # Mod conflict detection & resolution
+│       ├── Detection/         # Steam & Dota 2 folder path locator
+│       ├── FileTransaction/   # Atomic file I/O transactions with rollback
+│       ├── Hero/              # Hero set mapping & VPK compiler
+│       ├── Logging/           # ILogService interface implementations
+│       ├── Meta/              # Donation and social channel endpoints
+│       ├── Misc/              # Weather, terrain, courier, ward & cursor logic
+│       ├── Mods/              # Main modspack installers & uninstallers
+│       ├── Security/          # Integrity checkers & anti-tamper services
+│       ├── Update/            # PatchWatcher, launcher updater & downloaders
+│       └── Vpk/               # VPK compilers & items_game.txt extractor
+├── UI/                        # UI Presentation Layer (View/Presenter)
+│   ├── Controls/              # Custom native GDI+ WinForms controls
+│   ├── Forms/                 # Form windows hosting WebView2 UI shells
+│   ├── Helpers/               # Interceptors for local cache assets
+│   ├── Presenters/            # MVP Presenters coordinating view events
+│   └── Styles/                # Native system style colors
+├── Helpers/                   # Shared system/OS helpers
+├── Installer/                 # WPF-based setup application project
+├── Assets/                    # App assets (icons, HTML templates, fonts)
+├── Tests/                     # Comprehensive xUnit + Moq unit test project
+├── docs/                      # Developer and user documentation
+│   └── adr/                   # Architecture Decision Records (ADRs)
+├── scripts/                   # Python build scripts and CDN sync utilities
+└── tools/                     # Core external binaries (vpk.exe, HLExtract.exe)
 ```
 
-### Key Design Decisions
+### Architectural Decisions
 
-| Decision                    | Approach                | Details                                                                   |
-| --------------------------- | ----------------------- | ------------------------------------------------------------------------- |
-| **UI Strategy**             | WebView2 Hybrid         | Rich HTML/CSS UI inside WinForms shell ([ADR-0005](docs/adr/))            |
-| **Dependency Injection**    | Constructor Injection   | Full DI via `Microsoft.Extensions.DI` ([ADR-0002](docs/adr/))             |
-| **CDN Strategy**            | Multi-CDN with Fallback | R2 → jsDelivr → GitHub Raw → Proxy mirrors ([ADR-0003](docs/adr/))        |
-| **Presenter Decomposition** | SRP Specialization      | 3 focused presenters split from MainFormPresenter ([ADR-0004](docs/adr/)) |
-| **Patch Automation**        | FileSystemWatcher       | Detects Dota 2 updates automatically ([ADR-0006](docs/adr/))              |
-| **Security**                | Anti-Tamper             | Integrity checks on critical files ([ADR-0007](docs/adr/))                |
-
-> See [Architecture Decision Records](docs/adr/) for full details on all design decisions.
+| ADR | Decision Summary | Rationale |
+| :--- | :--- | :--- |
+| **[ADR-0002](docs/adr/0002-dependency-injection.md)** | Constructor-based DI | Decouples services, increases testability, and handles lifecycles cleanly. |
+| **[ADR-0003](docs/adr/0003-multi-cdn-fallback-strategy.md)** | Multi-CDN with Fallback | Guarantees download stability for global and region-restricted users. |
+| **[ADR-0004](docs/adr/0004-presenter-decomposition.md)** | MVP Presenter Decomposition | Prevents bloated forms/presenters by adhering to Single Responsibility. |
+| **[ADR-0005](docs/adr/0005-webview2-hybrid-ui.md)** | WebView2 Hybrid Interface | Allows high-fidelity responsive styling while maintaining native Windows access. |
+| **[ADR-0006](docs/adr/0006-patch-automation.md)** | FileSystemWatcher Patching | Automates patch reconciliation immediately following official updates. |
+| **[ADR-0007](docs/adr/0007-security-integrity.md)** | Anti-Tamper Security Check | Guards internal assemblies and manifests to prevent mod injection exploits. |
+| **[ADR-0008](docs/adr/0008-hero-cosmetic-priority-merge.md)** | Layered Last-Writer-Wins Merge | Enforces a strict merging hierarchy (Base > Set > Item) during VPK compilation. |
+| **[ADR-0009](docs/adr/0009-cdn-download-resilience-layer.md)** | Exponential Backoff & Circuit Breaker | Keeps network connections stable and routes around unhealthy mirrors. |
+| **[ADR-0010](docs/adr/0010-asset-hash-verification.md)** | Stream-based SHA-256 Validation | Ensures file integrity and drops corrupt packages before extraction. |
 
 ---
 
@@ -214,188 +212,132 @@ ArdysaModsTools/
 
 ### Prerequisites
 
-- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) (with .NET Desktop workload)
-- [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
+* **.NET 8.0 SDK** (v8.0.x)
+* **Visual Studio 2022** (with *.NET Desktop Development* workload)
+* **Python 3.10+** (for utility packaging and asset scripts)
+* **WebView2 Runtime** (Pre-installed on modern Windows versions)
 
-### Build & Run
+### Local Environment Setup
 
 ```bash
-# Clone the repo
+# Clone the repository
 git clone https://github.com/Anneardysa/ArdysaModsTools.git
 cd ArdysaModsTools
 
-# Restore dependencies
+# Restore NuGet packages
 dotnet restore
 
-# Build
+# Build the project
 dotnet build
 
-# Run
-dotnet run
-
-# Run tests
+# Run unit tests
 dotnet test Tests/ArdysaModsTools.Tests.csproj
+
+# Run the application
+dotnet run --project ArdysaModsTools.csproj
 ```
 
-### Build Installer
+### Building the Installer
 
+We compile the installer using a standalone WPF bootstrapper tool:
 ```bash
 python scripts/build/build_installer.py
 ```
 
-### Documentation
+### Developer Links
 
-| Document                                       | Description                          |
-| ---------------------------------------------- | ------------------------------------ |
-| [Contributing Guide](docs/dev/CONTRIBUTING.md) | How to contribute to the project     |
-| [Security Guide](docs/dev/SECURITY.md)         | Security model & anti-tamper details |
-| [Installer Guide](docs/dev/INSTALLER.md)       | Installer build process              |
-| [Troubleshooting](docs/TROUBLESHOOTING.md)     | Common issues & fixes                |
-| [Architecture Decisions](docs/adr/)            | ADRs in MADR format                  |
-| [Changelog](CHANGELOG.md)                      | Full version history                 |
+* 📄 **[Contributing Guide](docs/dev/CONTRIBUTING.md)** — Core codebase code-styles and patterns.
+* 📄 **[Security Model](docs/dev/SECURITY.md)** — Assembly integrity and security checks.
+* 📄 **[Installer Design](docs/dev/INSTALLER.md)** — Details on bootstrapper setup configuration.
+* 📄 **[Changelog](CHANGELOG.md)** — Chronological commit and change logs.
 
 ---
 
 ## ❓ FAQ
 
 <details>
-<summary><b>Is this safe to use?</b></summary>
+<summary><b>Is ArdysaModsTools safe to use?</b></summary>
 
-Yes. AMT only modifies local cosmetic files inside your Dota 2 installation directory. It does **not** interact with Valve's online services, inject into game processes, or modify game memory. All changes are file-based and fully reversible.
-
+Yes. AMT is designed to operate client-side only. It only modifies local configuration files and compiles custom VPK files inside your local game path. It does **not** hook into the game process, inject code, or alter server-side queries.
 </details>
 
 <details>
-<summary><b>Will I get VAC banned?</b></summary>
+<summary><b>Can I get VAC banned for client-side modifications?</b></summary>
 
-Cosmetic file mods have historically not resulted in VAC bans, as they don't modify game behavior or interact with anti-cheat systems. However, Valve's policies can change at any time. **Use at your own risk.**
-
+Client-side cosmetic and key-value modifications have historically been safe from Valve Anti-Cheat (VAC) bans because they do not modify game logic, memory addresses, or official servers. However, modifying game files always carries a non-zero risk under Valve's Terms of Service. **Use at your own risk.**
 </details>
 
 <details>
-<summary><b>Can other players see my mods?</b></summary>
+<summary><b>Can other players see my custom skins?</b></summary>
 
-**No.** All mods are client-side only. Other players see the default game assets. Your modifications only affect what **you** see on your screen.
-
+**No.** All modifications are local. Other players will see whatever standard cosmetics you have equipped on the Steam servers.
 </details>
 
 <details>
-<summary><b>Mods stopped working after a Dota 2 update?</b></summary>
+<summary><b>My mods disappeared after a game update. What should I do?</b></summary>
 
-This is expected — Dota 2 updates overwrite modded files. Simply open AMT and click **"Patch Update"** or **"Install ModsPack"** to re-apply your mods. If PatchWatcher is active, AMT will notify you automatically.
-
+Dota 2 updates overwrite the main VPK index (`pak01_dir.vpk`). Simply launch ArdysaModsTools and click **Patch Update** to re-insert the mod hook. If PatchWatcher is running in the background, you will receive a notification automatically.
 </details>
 
 <details>
-<summary><b>How do I completely remove mods?</b></summary>
+<summary><b>How do I completely remove all modifications?</b></summary>
 
-Click **"Disable Mods"** in AMT. This restores the original game files. You can also verify game integrity via Steam: _Right-click Dota 2 → Properties → Local Files → Verify integrity of game files_.
-
+Inside the app, click **Disable Mods**. This will safely restore the original game configuration. If you wish to be absolutely sure, you can verify game file integrity via the Steam library client (*Dota 2 → Properties → Installed Files → Verify integrity of game files*).
 </details>
 
 <details>
-<summary><b>The app won't start or shows a WebView2 error</b></summary>
+<summary><b>Why is the interface showing a blank white page or WebView2 error?</b></summary>
 
-Install the [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/). This is usually pre-installed on Windows 10/11 but may be missing on some systems.
-
-</details>
-
-<details>
-<summary><b>Dota 2 folder is not detected</b></summary>
-
-Try running AMT **as Administrator**. If auto-detection still fails, use the **"Manual Detect"** button to browse to your `dota 2 beta` folder (typically at `C:\Program Files (x86)\Steam\steamapps\common\dota 2 beta`).
-
+AMT relies on the Microsoft Edge WebView2 engine. If it is missing or corrupted, install/re-install the latest [WebView2 Evergreen Bootstrapper](https://developer.microsoft.com/microsoft-edge/webview2/) from Microsoft.
 </details>
 
 ---
 
 ## 🔧 Troubleshooting
 
-| Problem               | Solution                                                                             |
-| --------------------- | ------------------------------------------------------------------------------------ |
-| App won't start       | Install [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) |
-| Mods not working      | Run AMT as Administrator, click "Install ModsPack"                                   |
-| Dota 2 not detected   | Run as Admin → "Auto Detect" or "Manual Detect"                                      |
-| Download fails/stalls | Check internet connection; AMT will try fallback CDN servers automatically           |
-| "Installation failed" | Close Dota 2 first, then retry. Check console log for specific errors                |
-| VPK error             | Verify Dota 2 game files via Steam, then reinstall mods                              |
-
-> For more detailed troubleshooting, see [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+| Issue | Potential Cause | Troubleshooting Steps |
+| :--- | :--- | :--- |
+| **Application Crash at Launch** | Corrupted WebView2 Runtime | Download and repair the WebView2 Evergreen Runtime. |
+| **Mods Fail to Appear in Game** | Game directory not detected correctly | Run AMT as Administrator and click **Auto Detect**, or manually select the folder path. |
+| **Download Failed/Stalled** | CDN mirror block or ISP timeout | Check your internet connection. AMT will automatically cycle to alternative mirrors. |
+| **"Operation Blocked by Lock"** | Dota 2 or Steam is running | Close the game/Steam fully and retry the installation. |
+| **VPK Extraction/Recompile Fail** | Stale game installation files | Run *Verify Integrity* in Steam, then open AMT and re-apply mods. |
 
 ---
 
 ## 🏆 Credits & Acknowledgments
 
-### Project
+### Project Team
 
-|             |                                                                  |
-| ----------- | ---------------------------------------------------------------- |
-| **Author**  | **Ardysa** ([@Anneardysa](https://github.com/Anneardysa))        |
-| **Project** | [ArdysaModsTools](https://github.com/Anneardysa/ArdysaModsTools) |
-| **License** | [GPL-3.0](LICENSE)                                               |
+* **Author & Lead Dev**: **Ardysa** ([@Anneardysa](https://github.com/Anneardysa))
+  *Copyright © 2025-2026 Ardysa. All rights reserved.*
+* **Repository**: [ArdysaModsTools](https://github.com/Anneardysa/ArdysaModsTools)
 
-### Dota 2 Modding Community
+### Open Source Libraries
 
-This project exists thanks to the incredible Dota 2 modding community. Special thanks to:
+Thank you to the authors of the packages enabling this project:
 
-- **Dota 2 SkinChanger Community** — Pioneers who first explored client-side cosmetic modding for Dota 2, laying the groundwork for community-driven tools like AMT.
-- **Dota 2 Modders & Content Creators** — The dedicated modders who create and share custom hero sets, terrain skins, weather effects, emblems, and more, making the modding scene thrive.
-- **Valve Corporation** — For creating Dota 2 and the Source 2 engine, and for the VPK/KeyValues ecosystem that makes modding possible.
+* **[Microsoft.Web.WebView2](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)** — Native WinForms Chromium frontend host.
+* **[ValveKeyValue](https://github.com/ValveResourceFormat/ValveKeyValue)** — Valve KV file format reader/writer.
+* **[SixLabors.ImageSharp](https://github.com/SixLabors/ImageSharp)** — High-performance image processing engine.
+* **[SharpCompress](https://github.com/adamhathcock/sharpcompress)** — Multi-format compression library.
+* **[HLExtract](https://github.com/Flaviusb/hl2parse)** — VPK file indexing and unpacking.
 
-### Open-Source Libraries
+### Special Thanks
 
-| Library                                                                        | Purpose                 | License    |
-| ------------------------------------------------------------------------------ | ----------------------- | ---------- |
-| [Microsoft WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) | Hybrid UI rendering     | BSD-style  |
-| [ValveKeyValue](https://github.com/ValveResourceFormat/ValveKeyValue)          | Parsing Valve KV files  | MIT        |
-| [SixLabors.ImageSharp](https://github.com/SixLabors/ImageSharp)                | Image processing (WebP) | Apache 2.0 |
-| [SharpCompress](https://github.com/adamhathcock/sharpcompress)                 | Archive extraction      | MIT        |
-| [HLLib/HLExtract](https://github.com/Flaviusb/hl2parse)                        | VPK extraction          | LGPL       |
-
-### Community & Inspiration
-
-- The **Dota 2 modding community** for sharing knowledge and techniques
-- All the **beta testers** and **users** who report bugs and provide feedback
-- Everyone who has contributed to making Dota 2 modding more accessible
+* The **Dota 2 Modding & SkinChanger community** for sharing techniques, file indexes, and general reverse engineering knowledge.
+* **Valve Corporation** for creating Dota 2 and keeping the VPK structures accessible.
 
 ---
 
 ## ⚖️ Licensing & Trademarks
 
-> [!IMPORTANT]
-> The code license and the **brand** are separate. Read both before forking.
+### Code License
+The source code of ArdysaModsTools is distributed under the terms of the **GNU General Public License v3.0**. See the [LICENSE](LICENSE) file for complete details. 
 
-- **Code (released GPL-3.0 versions):** You may copy, modify, and redistribute under
-  [GPL-3.0](LICENSE) — which requires preserving attribution and publishing your modified
-  source under the same license. **Future versions may be released under different terms**
-  (the sole copyright holder may relicense new versions; already-published GPL-3.0 versions
-  stay GPL-3.0).
-- **Brand (NOT licensed):** The names **"ArdysaMods" / "ArdysaModsTools" / "AMT"**, the logo and
-  app icon, the visual identity, and the domains **`ardysamods.my.id`** / **`cdn.ardysamods.my.id`**
-  are **not** covered by the code license and may not be used without written permission.
-- **If you fork:** use a **different name and logo**, do **not** imply official status or
-  affiliation, and do **not** use the official domains, CDN, or update endpoints.
-
-Full terms are in [`NOTICE`](NOTICE). Misuse of the brand or attribution-stripping
-redistribution is actionable under trademark/copyright law independently of the code license.
-
----
-
-## 💬 Support & Community
-
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
-- 💡 **Feature Requests**: [GitHub Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
-- 📖 **Documentation**: [docs/](docs/)
-- 🤝 **Contributing**: [CONTRIBUTING.md](docs/dev/CONTRIBUTING.md)
-
----
-
-## 📝 License
-
-This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
-
-You are free to use, modify, and distribute this software under the terms of GPLv3.
+### Brand & Intellectual Property
+The names **"ArdysaMods"**, **"ArdysaModsTools"**, **"AMT"**, the official logo, icons, visual identities, and domain names (**`ardysamods.my.id`**, **`cdn.ardysamods.my.id`**) are **strictly excluded** from the open-source license. 
+* If you fork this project, you **must** rename the application, compile it with a distinct logo/identity, and host your own CDN update endpoints. For details, refer to the [`NOTICE`](NOTICE) file.
 
 ---
 
@@ -403,8 +345,8 @@ You are free to use, modify, and distribute this software under the terms of GPL
 
 **© 2025-2026 Ardysa. All rights reserved.**
 
-Made with ❤️ for the Dota 2 community
+*Made with ❤️ for the Dota 2 community.*
 
-⭐ **Star this repo** if AMT helps you enjoy Dota 2 with style!
+⭐ **Star this repository** if ArdysaModsTools helps you enjoy the game!
 
 </div>
