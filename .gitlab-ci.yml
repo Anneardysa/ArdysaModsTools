@@ -135,12 +135,29 @@ github-release:
         'Authorization'        = "Bearer $($env:GITHUB_PAT)"
         'X-GitHub-Api-Version' = '2022-11-28'
       }
-      # TODO: notes — source release notes (e.g. extract this version's section from
-      # CHANGELOG.md). For now use a minimal body; What's New still renders it.
+      # Release notes from CHANGELOG.md: collect from the top down to (but excluding) the first
+      # heading for an OLDER version. [Unreleased] and matching [version] sections count as this
+      # release (so rename [Unreleased] → [version] at release time, or leave it — both work).
+      $notes = ""
+      if (Test-Path CHANGELOG.md) {
+        $collect = $false
+        $buf = [System.Collections.Generic.List[string]]::new()
+        foreach ($line in (Get-Content CHANGELOG.md)) {
+          if ($line -match '^##\s+\[([^\]]+)\]') {
+            $v = $Matches[1]
+            if ($v -eq $env:VERSION -or $v -ieq 'Unreleased') { $collect = $true; $buf.Add($line); continue }
+            elseif ($collect) { break }
+            else { continue }
+          }
+          if ($collect) { $buf.Add($line) }
+        }
+        $notes = ($buf -join "`n").Trim()
+      }
+      if ([string]::IsNullOrWhiteSpace($notes)) { $notes = "Release v$($env:VERSION). Download from https://ardysamods.my.id" }
       $body = @{
         tag_name         = $env:CI_COMMIT_TAG
         name             = "v$($env:VERSION)"
-        body             = "Release v$($env:VERSION). Download from https://ardysamods.my.id"
+        body             = $notes
         draft            = $false
         prerelease       = ($env:VERSION -match '-')
         target_commitish = 'main'
@@ -205,11 +222,16 @@ publish-r2:
       $releases = Invoke-RestMethod -Headers $gh -Uri "https://api.github.com/repos/$($env:GITHUB_REPO)/releases?per_page=30"
       $thisRel  = $releases | Where-Object { $_.tag_name -eq $env:CI_COMMIT_TAG } | Select-Object -First 1
       $notes    = if ($thisRel) { $thisRel.body } else { $null }
-      $build    = 0
-      if ($notes -and ($notes -match '(?is)builds?[^0-9]+[0-9]+(?:[^0-9]+([0-9]+))?')) {
-        $nums = [regex]::Matches($notes, '[0-9]+') | ForEach-Object { [int]$_.Value }
-        if ($nums) { $build = ($nums | Measure-Object -Maximum).Maximum }
+
+      # Build number: highest number that appears after "Build"/"builds" in the notes (CHANGELOG
+      # headings look like "## [..] (Build 2158)"). Anchored to "build" so years/versions are ignored.
+      $build = 0
+      $nums = @()
+      foreach ($m in [regex]::Matches([string]$notes, '(?i)build[s]?[^\d]{0,5}(\d+)([^\d]{0,5}(\d+))?')) {
+        if ($m.Groups[1].Success) { $nums += [int]$m.Groups[1].Value }
+        if ($m.Groups[3].Success) { $nums += [int]$m.Groups[3].Value }
       }
+      if ($nums.Count) { $build = ($nums | Measure-Object -Maximum).Maximum }
 
       # 3) Update releases.json (PowerShell stands in for jq)
       $manifest = @{ latest=''; releases=@{} }
