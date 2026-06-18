@@ -21,6 +21,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Services.Cache;
+using ArdysaModsTools.Core.Services.Misc;
 
 namespace ArdysaModsTools.Core.Services.App
 {
@@ -77,6 +78,15 @@ namespace ArdysaModsTools.Core.Services.App
 
                     // Also clear AssetCacheService in-memory cache so stale entries aren't served
                     AssetCacheService.Instance.ClearCache();
+
+                    // Drop the remote misc-config cache too, so a stale/broken config can't pin
+                    // bad map/misc asset URLs. It self-heals from the remote feed on next access.
+                    long configFreed = RemoteMiscConfigService.DeleteCache();
+                    if (configFreed > 0)
+                    {
+                        result.FilesDeleted++;
+                        result.BytesFreed += configFreed;
+                    }
                 });
 
                 FallbackLogger.Log($"[CacheCleaningService] Cleaned {result.FilesDeleted} files, " +
@@ -280,6 +290,18 @@ namespace ArdysaModsTools.Core.Services.App
                     {
                         totalSize += GetDirectorySizeQuick(folder.FolderPath);
                     }
+                }
+
+                // Include the remote misc-config cache file (a sibling of AssetCache, not a folder)
+                // so the displayed size matches what ClearAllCacheAsync actually frees.
+                try
+                {
+                    if (File.Exists(RemoteMiscConfigService.CacheFilePath))
+                        totalSize += new FileInfo(RemoteMiscConfigService.CacheFilePath).Length;
+                }
+                catch
+                {
+                    // Ignore inaccessible config cache file
                 }
             }
             catch (Exception ex)

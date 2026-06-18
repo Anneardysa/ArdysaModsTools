@@ -65,10 +65,14 @@ namespace ArdysaModsTools.Core.Services
 
                 var choiceNames = new List<string>();
                 var choiceStyles = new Dictionary<string, List<string>>();
+                var choiceThumbnailIds = new Dictionary<string, string>();
 
                 foreach (var choice in remoteOption.Choices)
                 {
                     choiceNames.Add(choice.Name);
+
+                    if (!string.IsNullOrEmpty(choice.ThumbnailId))
+                        choiceThumbnailIds[choice.Name] = choice.ThumbnailId;
 
                     if (choice.Styles != null && choice.Styles.Count > 0)
                     {
@@ -76,6 +80,14 @@ namespace ArdysaModsTools.Core.Services
                         // The WebView bridge (MiscFormWebView.LoadOptionsAsync) nests them under each choice.
                         var styleNames = choice.Styles.Select(s => s.Name).ToList();
                         choiceStyles[choice.Name] = styleNames;
+
+                        // Style sub-choices carry their own thumbnailId override too. Keyed by style
+                        // name, the same identifier GetThumbnailUrl/getThumbUrl resolve against.
+                        foreach (var style in choice.Styles)
+                        {
+                            if (!string.IsNullOrEmpty(style.ThumbnailId))
+                                choiceThumbnailIds[style.Name] = style.ThumbnailId;
+                        }
                     }
                 }
 
@@ -89,6 +101,7 @@ namespace ArdysaModsTools.Core.Services
                     Choices = choiceNames,
                     ThumbnailUrlPattern = thumbPattern,
                     ChoiceThumbnails = new Dictionary<string, string>(), // Not used dynamically
+                    ChoiceThumbnailIds = choiceThumbnailIds,
                     ChoiceStyles = choiceStyles
                 });
             }

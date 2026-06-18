@@ -85,6 +85,60 @@ namespace ArdysaModsTools.Tests.Models
         }
 
         [Test]
+        public void GetThumbnailUrl_UsesThumbnailIdOverride_InsteadOfSanitizedName()
+        {
+            // "Crownfall" reuses the "cavernite" art via a thumbnailId override.
+            var opt = new MiscOption
+            {
+                ThumbnailUrlPattern = "https://cdn.ardysamods.my.id/Assets/misc/dire_creep/{choice}.webp",
+                ChoiceThumbnailIds = { ["Crownfall"] = "cavernite" }
+            };
+
+            Assert.That(opt.GetThumbnailUrl("Crownfall"),
+                Is.EqualTo("https://cdn.ardysamods.my.id/Assets/misc/dire_creep/cavernite.webp"));
+        }
+
+        [Test]
+        public void GetThumbnailUrl_OverrideUsedVerbatim_NotSanitized()
+        {
+            // The override is the authored CDN stem and must be used as-is (no sanitization).
+            var opt = new MiscOption
+            {
+                ThumbnailUrlPattern = "https://cdn/{choice}.webp",
+                ChoiceThumbnailIds = { ["Some Choice"] = "shared-stem_v2" }
+            };
+
+            Assert.That(opt.GetThumbnailUrl("Some Choice"), Is.EqualTo("https://cdn/shared-stem_v2.webp"));
+        }
+
+        [Test]
+        public void GetThumbnailUrl_EmptyOverride_FallsBackToSanitizedName()
+        {
+            var opt = new MiscOption
+            {
+                ThumbnailUrlPattern = "https://cdn/{choice}.webp",
+                ChoiceThumbnailIds = { ["Woodland Warbands"] = "" }
+            };
+
+            Assert.That(opt.GetThumbnailUrl("Woodland Warbands"),
+                Is.EqualTo("https://cdn/woodland_warbands.webp"));
+        }
+
+        [Test]
+        public void GetThumbnailUrl_ExplicitChoiceThumbnail_OutranksThumbnailIdOverride()
+        {
+            // ChoiceThumbnails (full derived URL) is the highest-priority source.
+            var opt = new MiscOption
+            {
+                ThumbnailUrlPattern = "https://cdn/{choice}.webp",
+                ChoiceThumbnails = { ["Crownfall"] = "https://cdn/explicit.webp" },
+                ChoiceThumbnailIds = { ["Crownfall"] = "cavernite" }
+            };
+
+            Assert.That(opt.GetThumbnailUrl("Crownfall"), Is.EqualTo("https://cdn/explicit.webp"));
+        }
+
+        [Test]
         public void GetThumbnailUrl_NoPattern_ReturnsNull()
         {
             var opt = new MiscOption();

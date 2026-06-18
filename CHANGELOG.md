@@ -5,6 +5,22 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2-beta] (Build 2160)
+
+### ✨ Added
+
+- **`scripts/check_cdn_fallback.py`**: A CDN-fallback asset auditor that reproduces `CdnFallbackService` offline — it fetches `misc_config.json` + `heroes.json` from the CDN chain, expands every referenced asset (misc download URLs **and** thumbnails honoring the `thumbnailId` override, plus hero skin zips/images from `sets` and styled sets), and probes each across the full chain (R2 → jsDelivr → GitHub Raw → ghfast → gh-proxy). Reports an asset as DEAD only when it fails on **all** CDNs, printing the exact `[CdnFallback] Failed: <url> -> HTTP <code>` lines and exiting non-zero for CI. Complements `scripts/check_r2_assets.py`, which covers neither `heroes.json` nor thumbnails. Stdlib-only.
+
+### 🐛 Fixed
+
+- **Misc thumbnails**: The picker now honors the per-choice `thumbnailId` override in `misc_config.json`, so choices (and style sub-choices) that reuse another's art (e.g. "Crownfall" → `cavernite`) resolve to the existing CDN image instead of 404-ing on a non-existent file named after the choice. The override was previously defined in the config but read nowhere — `RemoteMiscChoice.ThumbnailId` is now bound and flows through `MiscOption.ChoiceThumbnailIds` (covering both top-level choices and nested styles) to both `MiscOption.GetThumbnailUrl` (C#) and `getThumbUrl()` (JS), which substitute the authored stem verbatim before falling back to the sanitized choice name. (Genuinely missing thumbnails with no `thumbnailId` still need uploading to R2.)
+
+### 🛠️ Changed
+
+- **Clear Cache**: The cache-cleaning sweep now also removes the remote misc-config cache (`%LocalAppData%\ArdysaModsTools\misc_config_cache.json`) via the new `RemoteMiscConfigService.DeleteCache()`, and `CacheCleaningService.GetCacheSizeBytes` counts it so the displayed size matches what is freed. Previously neither Clear Cache nor Disable Mods → Delete Permanently touched this file, leaving no in-app way to drop a stale/broken config that could pin bad map/misc asset URLs. The file still self-heals from the remote feed on the next successful launch.
+
+---
+
 ## [2.2.1-beta] (Build 2158)
 
 ### ✨ Added

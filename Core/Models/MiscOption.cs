@@ -59,6 +59,15 @@ namespace ArdysaModsTools.Core.Models
         public Dictionary<string, string> ChoiceThumbnails { get; set; } = new();
 
         /// <summary>
+        /// Per-choice thumbnail filename override (CDN file stem). Maps choice name to the stem
+        /// substituted into <see cref="ThumbnailUrlPattern"/> instead of the sanitized choice name,
+        /// letting several choices share one image (e.g. "Crownfall" -> "cavernite"). Mirrors the
+        /// per-choice <c>thumbnailId</c> carried to the JS <c>getThumbUrl()</c> so both resolve the
+        /// same URL (and therefore the same WebView interceptor cache key).
+        /// </summary>
+        public Dictionary<string, string> ChoiceThumbnailIds { get; set; } = new();
+
+        /// <summary>
         /// Whether this is a special VPK option (downloads a complete VPK file directly).
         /// </summary>
         public bool IsSpecialVpk { get; set; }
@@ -76,7 +85,8 @@ namespace ArdysaModsTools.Core.Models
 
         /// <summary>
         /// Get thumbnail URL for a specific choice.
-        /// Priority: ChoiceThumbnails (derived from zip URL) -> ThumbnailUrlPattern (legacy)
+        /// Priority: ChoiceThumbnails (derived from zip URL) -> ThumbnailUrlPattern with an optional
+        /// ChoiceThumbnailIds stem override -> sanitized choice name.
         /// </summary>
         public string? GetThumbnailUrl(string choice)
         {
@@ -91,7 +101,14 @@ namespace ArdysaModsTools.Core.Models
             // Fall back to pattern-based URL
             if (string.IsNullOrEmpty(ThumbnailUrlPattern)) return null;
 
-            return ThumbnailUrlPattern.Replace("{choice}", SanitizeChoice(choice));
+            // Honor a per-choice thumbnailId override (shared art) before sanitizing the name.
+            // The override is the authored CDN file stem, so it is used verbatim. MUST mirror the
+            // JS getThumbUrl() override logic in misc_form.html.
+            var token = ChoiceThumbnailIds.TryGetValue(choice, out var overrideId) && !string.IsNullOrEmpty(overrideId)
+                ? overrideId
+                : SanitizeChoice(choice);
+
+            return ThumbnailUrlPattern.Replace("{choice}", token);
         }
 
         /// <summary>

@@ -1213,16 +1213,34 @@
             return n.startsWith("default") || n.startsWith("disable");
          }
 
+         // Find a per-choice thumbnailId override (shared art) by choice/style id. Mirrors the
+         // C# MiscOption.ChoiceThumbnailIds lookup so both sides resolve the same thumbnail URL.
+         function findThumbnailId(opt, choiceId) {
+            if (!opt.choices) return null;
+            for (const c of opt.choices) {
+               if (c.id === choiceId) return c.thumbnailId || null;
+               if (c.styles) {
+                  for (const s of c.styles) {
+                     if (s.id === choiceId) return s.thumbnailId || null;
+                  }
+               }
+            }
+            return null;
+         }
+
          function getThumbUrl(opt, choiceId) {
             if (!opt.thumbnailPattern) return null;
             if (isDefaultChoice(choiceId)) return null;
-            // Mirror C# sanitization: strip non-alphanumeric (except space/hyphen), trim, lowercase, replace spaces
-            const safe = choiceId
+            // Honor a per-choice thumbnailId override (used verbatim as the CDN stem); otherwise
+            // mirror C# sanitization: strip non-alphanumeric (except space/hyphen), trim, lowercase,
+            // replace spaces. MUST mirror MiscOption.GetThumbnailUrl.
+            const override = findThumbnailId(opt, choiceId);
+            const token = override || choiceId
                .replace(/[^\w\s\-]/g, "")
                .trim()
                .toLowerCase()
                .replace(/ /g, "_");
-            return opt.thumbnailPattern.replace("{choice}", safe);
+            return opt.thumbnailPattern.replace("{choice}", token);
          }
 
          function getCachedThumb(opt, choiceId) {

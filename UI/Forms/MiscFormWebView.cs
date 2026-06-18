@@ -233,10 +233,14 @@ namespace ArdysaModsTools.UI.Forms
                         {
                             id = c,
                             name = c,
+                            // Per-choice thumbnail stem override (shared art); null when not set.
+                            // Mirrors MiscOption.GetThumbnailUrl so JS resolves the same URL.
+                            thumbnailId = o.ChoiceThumbnailIds.TryGetValue(c, out var tid) ? tid : null,
                             // Nest styles under each choice for the frontend style picker
                             styles = o.ChoiceStyles.ContainsKey(c) ? o.ChoiceStyles[c].Select(s => new {
                                 id = s,
-                                name = s
+                                name = s,
+                                thumbnailId = o.ChoiceThumbnailIds.TryGetValue(s, out var stid) ? stid : null
                             }).ToList() : null
                         }).ToList()
                 }).ToList();

@@ -30,7 +30,14 @@ namespace ArdysaModsTools.Core.Services.Misc
     {
         // URL now loaded from environment configuration
         private static string ConfigUrl => EnvironmentConfig.BuildRawUrl("config/misc_config.json");
-        private static readonly string CacheFilePath = Path.Combine(
+
+        /// <summary>
+        /// Absolute path of the on-disk remote-misc-config cache
+        /// (<c>%LocalAppData%\ArdysaModsTools\misc_config_cache.json</c>). Exposed so the
+        /// cache-cleaning sweep can remove it; the file otherwise self-heals on the next
+        /// launch where the remote feed fetch succeeds.
+        /// </summary>
+        public static readonly string CacheFilePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ArdysaModsTools", "misc_config_cache.json");
 
@@ -239,6 +246,33 @@ namespace ArdysaModsTools.Core.Services.Misc
             {
                 _cachedConfig = null;
             }
+        }
+
+        /// <summary>
+        /// Deletes the on-disk config cache and drops the in-memory copy so the next access
+        /// re-fetches a fresh feed. Used by the cache-cleaning sweep to clear a stale or broken
+        /// config that could pin bad asset URLs. Safe to call when no cache file exists.
+        /// </summary>
+        /// <returns>Bytes freed by deleting the cache file (0 if it did not exist).</returns>
+        public static long DeleteCache()
+        {
+            long freed = 0;
+            try
+            {
+                if (File.Exists(CacheFilePath))
+                {
+                    freed = new FileInfo(CacheFilePath).Length;
+                    File.Delete(CacheFilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"RemoteMiscConfigService: Failed to delete cache: {ex.Message}");
+                freed = 0;
+            }
+
+            InvalidateCache();
+            return freed;
         }
     }
 }

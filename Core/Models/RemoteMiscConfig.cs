@@ -149,6 +149,16 @@ namespace ArdysaModsTools.Core.Models
         public List<string>? Urls { get; set; }
 
         /// <summary>
+        /// Optional thumbnail filename override (the CDN file stem, e.g. "cavernite"). When set,
+        /// the thumbnail URL uses this stem instead of the sanitized choice name, letting several
+        /// choices share one image (e.g. "Crownfall" reusing "cavernite"). Must be the exact CDN
+        /// filename stem (no extension). Honored by both <c>MiscOption.GetThumbnailUrl</c> and the
+        /// JS <c>getThumbUrl()</c>.
+        /// </summary>
+        [JsonPropertyName("thumbnailId")]
+        public string? ThumbnailId { get; set; }
+
+        /// <summary>
         /// Sub-styles for this choice (e.g. Courier unlocked styles).
         /// Sub-styles act recursively just like normal choices with their own name/url.
         /// </summary>
