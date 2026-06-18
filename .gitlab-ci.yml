@@ -53,7 +53,7 @@ build-test:
     - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "develop"'
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/'
   script:
-    - dotnet restore "$env:PROJECT_FILE"
+    - dotnet restore "$env:SOLUTION_FILE"
     - dotnet build "$env:SOLUTION_FILE" -c Release --no-restore
     - dotnet test "$env:SOLUTION_FILE" -c Release --no-build
 
@@ -168,9 +168,10 @@ publish-r2:
     - |
       $ErrorActionPreference = 'Stop'
 
-      # Write rclone config for R2 from CI variables (string array avoids here-string indent pitfalls)
-      $cfgDir = Join-Path $env:USERPROFILE ".config/rclone"
-      New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
+      # Write rclone config to an explicit path and point rclone at it via RCLONE_CONFIG.
+      # (rclone's default config location differs per-OS/account; this is unambiguous on Windows.)
+      $confPath = Join-Path $env:TEMP "amt-rclone.conf"
+      $env:RCLONE_CONFIG = $confPath
       $cfg = @(
         "[$($env:R2_REMOTE)]"
         "type = s3"
@@ -181,7 +182,7 @@ publish-r2:
         "acl = private"
         "no_check_bucket = true"
       ) -join "`n"
-      Set-Content -Path (Join-Path $cfgDir "rclone.conf") -Value $cfg -Encoding ascii
+      Set-Content -Path $confPath -Value $cfg -Encoding ascii
 
       $version   = $env:VERSION
       $installer = $env:INSTALLER
