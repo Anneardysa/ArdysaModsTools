@@ -136,12 +136,21 @@ jobs:
                 fi
               done
 
+              # SHA-256 of each asset for the ADR-0010 integrity gate (UpdaterService verifies the
+              # downloaded file against installerSha256/portableSha256 before applying it).
+              INSTALLER_SHA=""
+              PORTABLE_SHA=""
+              [ -n "$INSTALLER_FILE" ] && INSTALLER_SHA=$(sha256sum "assets/$INSTALLER_FILE" | cut -d' ' -f1)
+              [ -n "$PORTABLE_FILE" ] && PORTABLE_SHA=$(sha256sum "assets/$PORTABLE_FILE" | cut -d' ' -f1)
+
               echo "INSTALLER_FILE=$INSTALLER_FILE" >> $GITHUB_OUTPUT
               echo "PORTABLE_FILE=$PORTABLE_FILE" >> $GITHUB_OUTPUT
+              echo "INSTALLER_SHA=$INSTALLER_SHA" >> $GITHUB_OUTPUT
+              echo "PORTABLE_SHA=$PORTABLE_SHA" >> $GITHUB_OUTPUT
 
               echo "🔍 Detected files:"
-              echo "   Installer: ${INSTALLER_FILE:-'(none)'}"
-              echo "   Portable: ${PORTABLE_FILE:-'(none)'}"
+              echo "   Installer: ${INSTALLER_FILE:-'(none)'} (sha256: ${INSTALLER_SHA:-'(none)'})"
+              echo "   Portable: ${PORTABLE_FILE:-'(none)'} (sha256: ${PORTABLE_SHA:-'(none)'})"
 
          - name: Upload Assets to R2
            if: steps.release.outputs.CLEANUP_ONLY != 'true'
@@ -178,6 +187,15 @@ jobs:
               RELEASES_PATH="${{ env.R2_RELEASES_PATH }}"
               INSTALLER_FILE="${{ steps.assets.outputs.INSTALLER_FILE }}"
               PORTABLE_FILE="${{ steps.assets.outputs.PORTABLE_FILE }}"
+              INSTALLER_SHA="${{ steps.assets.outputs.INSTALLER_SHA }}"
+              PORTABLE_SHA="${{ steps.assets.outputs.PORTABLE_SHA }}"
+
+              # Guard: never write an entry or bump `latest` for a release with no installable assets.
+              # An empty entry once became `latest` and made older clients offer a broken update.
+              if [ -z "$INSTALLER_FILE" ] && [ -z "$PORTABLE_FILE" ]; then
+                echo "⚠️ No installer/portable assets detected for $VERSION — skipping manifest update."
+                exit 0
+              fi
 
               echo "📝 Updating releases.json manifest..."
 
@@ -185,6 +203,14 @@ jobs:
               NOTES=$(gh release view "${{ steps.release.outputs.TAG }}" \
                 --repo "${{ github.repository }}" \
                 --json body -q '.body' 2>/dev/null | head -c 500 || echo "")
+
+              # Build number: highest build referenced in the notes (mirrors
+              # AppVersion.ExtractBuildFromText — "(Build N)" or the end of a "builds X → Y" range).
+              # Omitted (null) if none found; the client then falls back to parsing the notes itself.
+              BUILD=$(printf '%s' "$NOTES" | grep -oiE 'builds?[^0-9]+[0-9]+([^0-9]+[0-9]+)*' | grep -oE '[0-9]+' | sort -rn | head -1 || true)
+              BUILD_JSON="null"
+              [ -n "$BUILD" ] && BUILD_JSON="$BUILD"
+              echo "   Build: ${BUILD:-'(none)'}"
 
               # Download existing manifest or create new one
               echo "Downloading existing manifest..."
@@ -238,14 +264,20 @@ jobs:
                  --arg inst "$INSTALLER_URL" \
                  --arg port "$PORTABLE_URL" \
                  --arg notes "$NOTES" \
+                 --arg isha "$INSTALLER_SHA" \
+                 --arg psha "$PORTABLE_SHA" \
+                 --argjson build "$BUILD_JSON" \
                  --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
                  '
                  .latest = $ver |
                  .releases[$ver] = {
                    "version": $ver,
                    "date": $date,
+                   "build": $build,
                    "installer": (if $inst == "" then null else $inst end),
                    "portable": (if $port == "" then null else $port end),
+                   "installerSha256": (if $isha == "" then null else $isha end),
+                   "portableSha256": (if $psha == "" then null else $psha end),
                    "notes": (if $notes == "" then null else $notes end)
                  }
                  ' manifest.json > updated_manifest.json

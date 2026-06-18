@@ -58,6 +58,9 @@ scripts/*/*
 tools/confuserex/
 config/feature_access.json
 
+# LOCAL-ONLY DOCS (kept out of the public repo)
+docs/dev/DISTRIBUTION.md
+
 # CONFIGURATION & SECRETS
 .env
 .env.local
