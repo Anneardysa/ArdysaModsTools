@@ -43,21 +43,6 @@ default:
   tags:
     - windows
 
-# Reusable: write an rclone config for R2 from CI variables (so any runner works).
-.r2_setup: &r2_setup |
-  $cfgDir = Join-Path $env:USERPROFILE ".config/rclone"
-  New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
-  @"
-  [$($env:R2_REMOTE)]
-  type = s3
-  provider = Cloudflare
-  access_key_id = $($env:R2_ACCESS_KEY_ID)
-  secret_access_key = $($env:R2_SECRET_ACCESS_KEY)
-  endpoint = $($env:R2_ENDPOINT)
-  acl = private
-  no_check_bucket = true
-  "@ | Set-Content -Path (Join-Path $cfgDir "rclone.conf") -Encoding utf8
-
 # -----------------------------------------------------------------------------
 # test — build + unit tests on branches, MRs, and tags
 # -----------------------------------------------------------------------------
@@ -180,9 +165,24 @@ publish-r2:
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/'
   script:
-    - *r2_setup
     - |
       $ErrorActionPreference = 'Stop'
+
+      # Write rclone config for R2 from CI variables (string array avoids here-string indent pitfalls)
+      $cfgDir = Join-Path $env:USERPROFILE ".config/rclone"
+      New-Item -ItemType Directory -Force -Path $cfgDir | Out-Null
+      $cfg = @(
+        "[$($env:R2_REMOTE)]"
+        "type = s3"
+        "provider = Cloudflare"
+        "access_key_id = $($env:R2_ACCESS_KEY_ID)"
+        "secret_access_key = $($env:R2_SECRET_ACCESS_KEY)"
+        "endpoint = $($env:R2_ENDPOINT)"
+        "acl = private"
+        "no_check_bucket = true"
+      ) -join "`n"
+      Set-Content -Path (Join-Path $cfgDir "rclone.conf") -Value $cfg -Encoding ascii
+
       $version   = $env:VERSION
       $installer = $env:INSTALLER
       $sha       = $env:INSTALLER_SHA256
