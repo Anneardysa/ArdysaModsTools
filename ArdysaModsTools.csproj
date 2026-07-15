@@ -1,0 +1,346 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ============================================== -->
+  <!-- CORE PROJECT SETTINGS                          -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <RootNamespace>ArdysaModsTools</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>Assets\Icons\AppIcon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="ArdysaModsTools.Tests" />
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- BUILD & PUBLISH SETTINGS                       -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>false</PublishSingleFile>
+    <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
+  </PropertyGroup>
+
+  <!-- ============================================== -->
+  <!-- APPLICATION METADATA                           -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <Version>2.2.16-beta</Version>
+    <AssemblyVersion>2.2.16.2237</AssemblyVersion>
+    <FileVersion>2.2.16.2237</FileVersion>
+    <InformationalVersion>2.2.16-beta</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Company>Ardysa</Company>
+    <Authors>Ardysa</Authors>
+    <Product>ArdysaModsTools</Product>
+    <Description>The Ultimate Dota 2 Mod Manager - Easily install, manage, and organize your Dota 2 cosmetic mods with a sleek modern interface.</Description>
+    <Copyright>© 2025-2026 Ardysa. All rights reserved.</Copyright>
+    <PackageTags>dota2;mods;gaming;valve;vpk</PackageTags>
+  </PropertyGroup>
+
+  <!-- ============================================== -->
+  <!-- APPLICATION RESOURCES                          -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <ApplicationIcon>Assets\Icons\AppIcon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <!-- ============================================== -->
+  <!-- COMPILER SETTINGS                              -->
+  <!-- ============================================== -->
+  <PropertyGroup>
+    <!-- 
+      Suppressed Warnings:
+      - MSB3277: WebView2 WindowsBase version conflict (unavoidable)
+      - CS0649: Unused Resource fields (auto-generated)
+    -->
+    <NoWarn>$(NoWarn);MSB3277;CS0649</NoWarn>
+  </PropertyGroup>
+
+  <!-- ============================================== -->
+  <!-- EXCLUDE TEST PROJECT FILES                     -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <Compile Remove="Tests\**" />
+    <Content Remove="Tests\**" />
+    <EmbeddedResource Remove="Tests\**" />
+    <None Remove="Tests\**" />
+    <!-- Exclude Installer project (separate .csproj, shares root solution dir) -->
+    <Compile Remove="Installer\**" />
+    <Content Remove="Installer\**" />
+    <EmbeddedResource Remove="Installer\**" />
+    <None Remove="Installer\**" />
+    <Page Remove="Installer\**" />
+    <ApplicationDefinition Remove="Installer\**" />
+    <!-- Exclude Updater project (AMT.Updater.exe — standalone applier, separate .csproj) -->
+    <Compile Remove="Updater\**" />
+    <Content Remove="Updater\**" />
+    <EmbeddedResource Remove="Updater\**" />
+    <None Remove="Updater\**" />
+    <!-- Exclude public-mirror clone (regenerable, gitignored full source copy produced by
+         scripts/publish-github.ps1). It lives inside the project cone with its own copy of
+         every .cs/.resx/.html, so the SDK default globs would pull it into THIS build and
+         every file would collide with its original (MSB3577). Detach the whole subtree. -->
+    <Compile Remove="publish\**" />
+    <Content Remove="publish\**" />
+    <EmbeddedResource Remove="publish\**" />
+    <None Remove="publish\**" />
+    <Page Remove="publish\**" />
+    <ApplicationDefinition Remove="publish\**" />
+    <!-- Exclude scripts folder from compilation (contains standalone tools) -->
+    <Compile Remove="scripts\**\*.cs" />
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- NUGET PACKAGES                                 -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <!-- UI & Web -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+    
+    <!-- Compression & Parsing -->
+    <PackageReference Include="SharpCompress" Version="0.49.1" />
+    <PackageReference Include="ValveKeyValue" Version="0.20.0.417" />
+
+    <!-- Framework -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.9" />
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- NATIVE LIBRARIES (VPK Tools)                   -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <!-- VPK Extraction Tool -->
+    <Content Include="tools\hllib\HLExtract.exe">
+      <Link>HLExtract.exe</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- VPK Recompilation Tool -->
+    <Content Include="tools\vpk\vpk.exe">
+      <Link>vpk.exe</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- Valve Runtime Libraries -->
+    <Content Include="tools\vpk\tier0.dll">
+      <Link>tier0.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\vpk\tier0_s.dll">
+      <Link>tier0_s.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\vpk\vstdlib.dll">
+      <Link>vstdlib.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\vpk\vstdlib_s.dll">
+      <Link>vstdlib_s.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\vpk\filesystem_stdio.dll">
+      <Link>filesystem_stdio.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- EMBEDDED RESOURCES (DLLs)                      -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <!-- native libraries as Content (not embedded) for HLExtract/vpk -->
+    <Content Include="tools\hllib\HLLib.dll">
+      <Link>HLLib.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <!-- VC++ 2010 CRT (x64) — required by HLExtract.exe and HLLib.dll -->
+    <Content Include="tools\hllib\msvcr100.dll">
+      <Link>msvcr100.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\hllib\msvcp100.dll">
+      <Link>msvcp100.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="tools\vpk\zlib1.dll">
+      <Link>zlib1.dll</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- UI ASSETS                                      -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <!-- App Icon -->
+    <Content Include="Assets\Icons\AppIcon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <EmbeddedResource Include="Assets\Icons\AppIcon.ico" />
+
+    <!-- Brand logo (canonical Ardysa mark; source of truth for in-app SVG marks) -->
+    <Content Include="Assets\logo\ardysa.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
+    <!-- Icons -->
+    <EmbeddedResource Include="Assets\Icons\fav_off.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Assets\Icons\fav_on.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    
+    <!-- Social Icons -->
+    <Content Include="Assets\Images\discord.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Images\paypal.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Images\youtube.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Images\ko-fi.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Images\sociabuzz.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- Images -->
+    <Content Include="Assets\Images\banner.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    
+    <!-- HTML Templates -->
+    <Content Include="Assets\Html\main_shell.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\progress.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\hero_gallery.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\generation_preview.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\misc_form.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\settings_form.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\patch_required.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\install_method.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\disable_options.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\whatsnew.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\about.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\status_details.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\verify_files.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\update_available.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\dota2_performance.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\support.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\modspack_update.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Html\modspack_updates.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
+    <!-- Shared WebView i18n helper -->
+    <Content Include="Assets\Html\i18n.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
+    <!-- Shared WebView theme (light-mode token overrides) -->
+    <Content Include="Assets\Html\theme.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
+    <!-- Localization catalog (unified JSON, shared by C# + WebView) -->
+    <Content Include="Assets\Locales\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
+    <!-- Remote-config fallbacks (bundled copy of R2 config/*.json) -->
+    <Content Include="Assets\config\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
+
+    <!-- Fonts -->
+    <Content Include="Assets\Fonts\*.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Fonts\*.otf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- GENERATED FILES (Settings)                     -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <Compile Update="Properties\Settings.Designer.cs">
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
+    <None Update="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- EXCLUDED FILES                                 -->
+  <!-- ============================================== -->
+  <ItemGroup>
+    <!-- Files removed from default includes -->
+    <None Remove="Assets\Icons\fav_off.png" />
+    <None Remove="Assets\Icons\fav_on.png" />
+    <None Remove="tier0_s.dll" />
+    <None Remove="vstdlib_s.dll" />
+  </ItemGroup>
+
+  <!-- ============================================== -->
+  <!-- INSTALLER BUILD (Custom WPF Installer)         -->
+  <!-- ============================================== -->
+  <!-- The installer is now built from Installer/ArdysaModsTools.Installer.csproj -->
+  <!-- Use: python scripts/build/build_installer.py -->
+  <!-- Legacy Inno Setup targets removed — see Installer/ project -->
+
+</Project>
+

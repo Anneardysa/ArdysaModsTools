@@ -1,0 +1,187 @@
+/*
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Services.Config;
+
+namespace ArdysaModsTools.Core.Services
+{
+    public sealed class WhatsNewService
+    {
+        private static readonly HttpClient _http = CreateClient();
+
+        private static List<ReleaseNote>? _cached;
+        private static DateTime _cacheTime = DateTime.MinValue;
+        private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
+
+        private static readonly JsonSerializerOptions _jsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        private static HttpClient CreateClient()
+        {
+            var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("ArdysaModsTools");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            return client;
+        }
+
+        public async Task<List<ReleaseNote>?> GetReleasesAsync(CancellationToken ct = default)
+        {
+            if (_cached != null && DateTime.UtcNow - _cacheTime < CacheDuration)
+                return _cached;
+
+            try
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(TimeSpan.FromSeconds(10));
+
+                var releases = Parse(await FetchFeedJsonAsync(cts.Token).ConfigureAwait(false));
+                if (releases == null || releases.Count == 0)
+                    releases = Parse(await FetchReleasesJsonAsync(cts.Token).ConfigureAwait(false));
+
+                if (releases != null && releases.Count > 0)
+                {
+                    _cached = releases;
+                    _cacheTime = DateTime.UtcNow;
+                    return releases;
+                }
+
+                return _cached;
+            }
+            catch (OperationCanceledException)
+            {
+                return _cached;
+            }
+            catch (HttpRequestException)
+            {
+                return _cached;
+            }
+        }
+
+        private static async Task<string?> FetchFeedJsonAsync(CancellationToken ct)
+        {
+            try
+            {
+                using var feedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                feedCts.CancelAfter(TimeSpan.FromSeconds(5));
+
+                using var resp = await _http
+                    .GetAsync(EnvironmentConfig.WhatsNewFeedUrl, HttpCompletionOption.ResponseHeadersRead, feedCts.Token)
+                    .ConfigureAwait(false);
+
+                return resp.IsSuccessStatusCode
+                    ? await resp.Content.ReadAsStringAsync(feedCts.Token).ConfigureAwait(false)
+                    : null;
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                return null;
+            }
+            catch (HttpRequestException)
+            {
+                return null;
+            }
+        }
+
+        private static async Task<string?> FetchReleasesJsonAsync(CancellationToken ct)
+        {
+            var token = EnvironmentConfig.GitHubToken;
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                using var authed = await SendReleasesRequestAsync(token, ct).ConfigureAwait(false);
+                if (authed.IsSuccessStatusCode)
+                    return await authed.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+
+                if (authed.StatusCode != System.Net.HttpStatusCode.Unauthorized &&
+                    authed.StatusCode != System.Net.HttpStatusCode.Forbidden)
+                    return null;
+            }
+
+            using var anon = await SendReleasesRequestAsync(null, ct).ConfigureAwait(false);
+            return anon.IsSuccessStatusCode
+                ? await anon.Content.ReadAsStringAsync(ct).ConfigureAwait(false)
+                : null;
+        }
+
+        private static Task<HttpResponseMessage> SendReleasesRequestAsync(string? token, CancellationToken ct)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, EnvironmentConfig.ToolsReleasesListApi);
+            if (!string.IsNullOrWhiteSpace(token))
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            return _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        }
+
+        public static List<ReleaseNote>? Parse(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                return null;
+
+            try
+            {
+                var dtos = JsonSerializer.Deserialize<List<GitHubReleaseDto>>(json, _jsonOptions);
+                if (dtos == null)
+                    return null;
+
+                var notes = new List<ReleaseNote>();
+                foreach (var d in dtos)
+                {
+                    if (d == null || d.Draft)
+                        continue;
+
+                    var tag = d.TagName ?? "";
+                    if (string.IsNullOrWhiteSpace(tag) && string.IsNullOrWhiteSpace(d.Name))
+                        continue;
+
+                    notes.Add(new ReleaseNote
+                    {
+                        Tag = tag,
+                        Name = string.IsNullOrWhiteSpace(d.Name) ? tag : d.Name!,
+                        Date = d.PublishedAt,
+                        Body = d.Body ?? "",
+                        HtmlUrl = d.HtmlUrl ?? ""
+                    });
+                }
+
+                return notes.Count > 0 ? notes : null;
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+        }
+
+        private sealed class GitHubReleaseDto
+        {
+            [JsonPropertyName("tag_name")] public string? TagName { get; set; }
+            [JsonPropertyName("name")] public string? Name { get; set; }
+            [JsonPropertyName("body")] public string? Body { get; set; }
+            [JsonPropertyName("html_url")] public string? HtmlUrl { get; set; }
+            [JsonPropertyName("draft")] public bool Draft { get; set; }
+            [JsonPropertyName("published_at")] public DateTime? PublishedAt { get; set; }
+        }
+    }
+}

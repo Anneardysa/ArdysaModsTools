@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         /* ── ardysamods.my.id monochrome tokens (shared with main_shell) ── */
+         :root {
+            --canvas: #000000;
+            --panel: rgba(10, 10, 10, 0.9);
+            --panel-2: #050505;
+            --panel-hover: rgba(20, 20, 20, 0.95);
+            --hairline: #222222;
+            --hairline-strong: #333333;
+            --primary: #ffffff;
+            --on-primary: #000000;
+            --primary-glow: rgba(255, 255, 255, 0.16);
+            --accent-dim: rgba(255, 255, 255, 0.1);
+            --ink: #ffffff;
+            --body: #888888;
+            --mute: #444444;
+            --danger: #f85149;
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+            --clip: 12px;
+            --transition: all 0.18s ease;
+         }
+
+         html,
+         body {
+            height: 100%;
+         }
+         body {
+            font-family: var(--sans);
+            background: var(--canvas);
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--ink);
+            font-size: 14px;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--hairline-strong);
+         }
+
+         /* cut-corner notch utility */
+         .notch {
+            position: relative;
+         }
+         .notch::before {
+            content: "";
+            position: absolute;
+            top: -1px;
+            right: -1px;
+            width: var(--clip);
+            height: var(--clip);
+            background: var(--canvas);
+            border-left: 1px solid var(--hairline-strong);
+            border-bottom: 1px solid var(--hairline-strong);
+            pointer-events: none;
+            z-index: 2;
+         }
+
+         /* ── title bar ── */
+         #titlebar {
+            height: 40px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 6px 0 16px;
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.6);
+            -webkit-app-region: drag;
+         }
+         .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+         }
+         .brand .glyph {
+            display: flex;
+            color: var(--primary);
+         }
+         .brand .glyph svg {
+            width: 14px;
+            height: 14px;
+         }
+         .brand .b-name::before {
+            content: "// ";
+            color: var(--mute);
+         }
+         .win-controls {
+            margin-left: auto;
+            display: flex;
+            gap: 2px;
+         }
+         .win-btn {
+            -webkit-app-region: no-drag;
+            width: 32px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .win-btn svg {
+            width: 14px;
+            height: 14px;
+         }
+         .win-btn.close:hover {
+            background: rgba(248, 81, 73, 0.85);
+            color: #fff;
+         }
+
+         /* ── body ── */
+         .content {
+            flex: 1;
+            min-height: 0;
+            /* Scroll instead of cropping if the card is taller than the window (long localized
+               text / very small screen). No scrollbar shows when it fits. */
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 18px;
+         }
+         .lead {
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--body);
+         }
+         .lead b {
+            color: var(--ink);
+            font-weight: 600;
+         }
+         .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+         }
+
+         /* ── option card ── */
+         .opt {
+            -webkit-app-region: no-drag;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            width: 100%;
+            padding: 18px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            color: inherit;
+            font-family: var(--sans);
+            text-align: left;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .opt .icon {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--canvas);
+            border: 1px solid var(--hairline-strong);
+            color: var(--body);
+            transition: var(--transition);
+         }
+         .opt .icon svg {
+            width: 20px;
+            height: 20px;
+         }
+         .opt .info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+         }
+         .opt .t {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .opt .d {
+            font-size: 11.5px;
+            line-height: 1.6;
+            letter-spacing: 0.2px;
+            color: var(--body);
+         }
+         .opt .chev {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            color: var(--mute);
+            transition: var(--transition);
+         }
+         .opt:hover {
+            border-color: var(--primary);
+            background: var(--panel-hover);
+            box-shadow: 0 0 20px var(--primary-glow);
+         }
+         .opt:hover .icon {
+            border-color: var(--primary);
+            color: var(--ink);
+         }
+         .opt:hover .chev {
+            color: var(--ink);
+            transform: translateX(3px);
+         }
+         .opt:active {
+            transform: translateY(1px);
+         }
+
+         /* primary (recommended) emphasis */
+         .opt.primary {
+            box-shadow: inset 3px 0 0 var(--primary);
+         }
+         .opt.primary .icon {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--on-primary);
+         }
+         .opt.primary:hover {
+            box-shadow:
+               inset 3px 0 0 var(--primary),
+               0 0 20px var(--primary-glow);
+         }
+         .pill {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            padding: 2px 7px;
+            background: var(--primary);
+            color: var(--on-primary);
+            border: 1px solid var(--primary);
+         }
+
+         /* ── manual-install card ── */
+         [hidden] {
+            display: none !important;
+         }
+         .back {
+            -webkit-app-region: no-drag;
+            align-self: flex-start;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: none;
+            border: none;
+            color: var(--mute);
+            font-family: var(--sans);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            padding: 0;
+            transition: var(--transition);
+         }
+         .back:hover {
+            color: var(--ink);
+         }
+         .back svg {
+            width: 13px;
+            height: 13px;
+         }
+         .dropzone {
+            -webkit-app-region: no-drag;
+            flex: 1;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-align: center;
+            padding: 18px;
+            border: 1px dashed var(--hairline-strong);
+            background: var(--panel-2);
+            color: var(--body);
+            transition: var(--transition);
+         }
+         /* highlight only during an active OS drag (drop-only, not clickable) */
+         .dropzone.drag {
+            border-color: var(--primary);
+            color: var(--ink);
+            background: var(--panel-hover);
+            box-shadow: 0 0 20px var(--primary-glow);
+         }
+         .dropzone .dz-icon svg {
+            width: 30px;
+            height: 30px;
+            color: var(--mute);
+            transition: var(--transition);
+         }
+         .dropzone.drag .dz-icon svg {
+            color: var(--ink);
+         }
+         .dropzone .dz-main {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--ink);
+         }
+         .dropzone .dz-sub {
+            font-size: 10.5px;
+            letter-spacing: 0.3px;
+            color: var(--mute);
+         }
+
+         /* ── "or" divider ── */
+         .or-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--mute);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+         }
+         .or-divider::before,
+         .or-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--hairline-strong);
+         }
+
+         /* ── download mirrors ── */
+         .dl-section {
+            -webkit-app-region: no-drag;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+         }
+         .dl-label {
+            font-size: 10.5px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--body);
+         }
+         .dl-row {
+            display: flex;
+            gap: 8px;
+         }
+         .dl-btn {
+            -webkit-app-region: no-drag;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: var(--canvas);
+            border: 1px solid var(--hairline-strong);
+            color: var(--ink);
+            font-family: var(--sans);
+            font-size: 11.5px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .dl-btn svg {
+            width: 15px;
+            height: 15px;
+            color: var(--body);
+            transition: var(--transition);
+         }
+         .dl-btn:hover:not(:disabled) {
+            border-color: var(--primary);
+            background: var(--panel-hover);
+            box-shadow: 0 0 16px var(--primary-glow);
+         }
+         .dl-btn:hover:not(:disabled) svg {
+            color: var(--ink);
+         }
+         .dl-btn:active:not(:disabled) {
+            transform: translateY(1px);
+         }
+         .dl-btn:disabled {
+            opacity: 0.4;
+            cursor: default;
+         }
+      </style>
+   </head>
+   <body>
+      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg) -->
+      <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+         <defs>
+            <g id="ardysaGlyph">
+               <g transform="translate(1.007913, 440.428851)"><path d="M190.79,158.66c0,12.07,2.23,23.49,6.69,34.25c4.47,10.77,10.65,20.08,18.52,27.96s17.06,14.05,27.56,18.52 c10.5,4.46,21.79,6.69,33.87,6.69H84.48c11.55-1.57,22.71-5.24,33.48-11.02c10.76-5.78,20.86-13,30.31-21.67 c9.46-8.67,17.86-18.25,25.21-28.75c7.34-10.5,13.11-21.26,17.31-32.29V158.66z M342.02,246.08c11.03,0,20.48-4.59,28.35-13.77 c7.88-9.19,11.81-19.57,11.81-31.13c0-2.09,0-4.19,0-6.29c0-2.09-0.53-4.2-1.58-6.31l-22.83-66.15l-1.58-4.73L300.27-43.75 c-3.68-8.92-10.24-13.38-19.69-13.38c-8.93,0-15.23,4.46-18.9,13.38l94.5-261.46L443.6-53.98c3.68,10.5,7.88,22.97,12.6,37.42 c4.72,14.43,8.92,26.9,12.6,37.4l64.58,184.29c3.67,10.5,10.09,19.95,19.29,28.35c9.19,8.41,19.82,12.6,31.9,12.6H342.02z" /></g>
+               <g transform="translate(407.31193, 150.568186)"><path d="M400.89,182.21c0-12.07-2.23-23.49-6.69-34.25c-4.47-10.77-10.65-20.08-18.52-27.96s-17.06-14.05-27.56-18.52 c-10.5-4.46-21.79-6.69-33.88-6.69H507.2c-11.55,1.57-22.71,5.24-33.48,11.02c-10.76,5.78-20.86,13-30.31,21.67 c-9.46,8.67-17.86,18.25-25.21,28.75c-7.34,10.5-13.11,21.26-17.31,32.29V182.21z M249.66,94.79 c-11.03,0-20.48,4.59-28.35,13.77c-7.88,9.19-11.81,19.57-11.81,31.12c0,2.09,0,4.19,0,6.29c0,2.09,0.53,4.2,1.58,6.31 l22.83,66.15l1.58,4.73l55.92,161.46c3.68,8.92,10.24,13.38,19.69,13.38c8.93,0,15.23-4.46,18.9-13.38l-94.5,261.46 l-87.42-251.23c-3.68-10.5-7.88-22.97-12.6-37.42c-4.72-14.43-8.92-26.9-12.6-37.4L58.29,135.75 c-3.67-10.5-10.09-19.95-19.29-28.35c-9.19-8.41-19.82-12.6-31.9-12.6H249.66z" /></g>
+            </g>
+         </defs>
+      </svg>
+
+      <!-- ── title bar ── -->
+      <header id="titlebar" onmousedown="maybeDrag(event)">
+         <div class="brand">
+            <span class="glyph">
+               <svg viewBox="0 0 1000 1000" fill="currentColor" aria-label="Ardysa"><use href="#ardysaGlyph" /></svg>
+            </span>
+            <span class="b-name" data-i18n="shell.card.install.title">Install ModsPack</span>
+         </div>
+         <div class="win-controls">
+            <button class="win-btn close" title="Cancel" data-i18n-title="common.cancel" onclick="act('close')">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+               </svg>
+            </button>
+         </div>
+      </header>
+
+      <!-- ── body: choose method ── -->
+      <main class="content" id="card-choose">
+         <div class="lead" data-i18n="installMethod.lead">Choose how you want to install mods.</div>
+
+         <div class="options">
+            <button class="opt primary notch" onclick="act('auto')">
+               <span class="icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                     <path d="M12 3v12" />
+                     <polyline points="7 11 12 16 17 11" />
+                     <path d="M5 20h14" />
+                  </svg>
+               </span>
+               <span class="info">
+                  <span class="t"><span data-i18n="installMethod.auto.t">[ Auto-Install ]</span> <span class="pill" data-i18n="installMethod.recommended">Recommended</span></span>
+                  <span class="d" data-i18n="installMethod.auto.d">Download and install the latest ModsPack automatically from the server.</span>
+               </span>
+               <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 6 15 12 9 18" />
+               </svg>
+            </button>
+
+            <button class="opt notch" onclick="showManual()">
+               <span class="icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                     <path d="M3 7h5l2 2h11v9a2 2 0 0 1-2 2H3z" />
+                  </svg>
+               </span>
+               <span class="info">
+                  <span class="t" data-i18n="installMethod.manual.t">[ Manual-Install ]</span>
+                  <span class="d" data-i18n="installMethod.manual.d">Browse and select a VPK file to install manually.</span>
+               </span>
+               <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 6 15 12 9 18" />
+               </svg>
+            </button>
+         </div>
+      </main>
+
+      <!-- ── body: manual import ── -->
+      <main class="content" id="card-manual" hidden>
+         <button class="back" onclick="showChoose()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+               <polyline points="15 18 9 12 15 6" />
+            </svg>
+            <span data-i18n="installMethod.manual.back">Back</span>
+         </button>
+         <div class="lead" data-i18n-html="installMethod.manual.lead">Import a VPK mods file (<b>pak01_dir.vpk</b>) from your computer.</div>
+
+         <!-- download ModsPack from mirrors (links come from R2 config/mods_download.json) -->
+         <div class="dl-section">
+            <div class="dl-label" data-i18n="installMethod.manual.download">Don't have the file? Download ModsPack</div>
+            <div class="dl-row">
+               <button class="dl-btn" id="dl-mega" onclick="openUrl('mega')" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                     <polyline points="7 10 12 15 17 10" />
+                     <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>MEGA</span>
+               </button>
+               <button class="dl-btn" id="dl-mediafire" onclick="openUrl('mediafire')" disabled>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                     <polyline points="7 10 12 15 17 10" />
+                     <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <span>MediaFire</span>
+               </button>
+            </div>
+         </div>
+
+         <button class="opt notch" onclick="act('browse')">
+            <span class="icon">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3v12" />
+                  <polyline points="7 8 12 3 17 8" />
+                  <path d="M5 21h14" />
+               </svg>
+            </span>
+            <span class="info">
+               <span class="t" data-i18n="installMethod.manual.import">[ Import VPK Mods File ]</span>
+               <span class="d" data-i18n="installMethod.manual.importD">Browse and select a VPK file from your computer.</span>
+            </span>
+            <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+               <polyline points="9 6 15 12 9 18" />
+            </svg>
+         </button>
+
+         <div class="or-divider"><span data-i18n="common.or">or</span></div>
+
+         <div class="dropzone" id="dropzone">
+            <span class="dz-icon">
+               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+                  <polyline points="8 8 12 4 16 8" />
+                  <line x1="12" y1="4" x2="12" y2="15" />
+               </svg>
+            </span>
+            <span class="dz-main" data-i18n="installMethod.manual.drop">Drag &amp; drop your VPK file here</span>
+            <span class="dz-sub" data-i18n="installMethod.manual.dropSub">pak01_dir.vpk — single .vpk only</span>
+         </div>
+      </main>
+
+      <script>
+         "use strict";
+         function sendMessage(data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(data);
+            }
+         }
+         function act(type) {
+            sendMessage({ type });
+         }
+         /* card switching: external file drops are handled host-side (C#), so the
+            two cards just toggle visibility and tell C# which card is active. */
+         function showManual() {
+            document.getElementById("card-choose").hidden = true;
+            document.getElementById("card-manual").hidden = false;
+            sendMessage({ type: "manual" });
+         }
+         function showChoose() {
+            document.getElementById("card-manual").hidden = true;
+            document.getElementById("card-choose").hidden = false;
+            sendMessage({ type: "back" });
+         }
+         /* C# flips the dropzone highlight during a host-handled OS drag. */
+         function setDrag(on) {
+            const dz = document.getElementById("dropzone");
+            if (dz) dz.classList.toggle("drag", !!on);
+         }
+         /* download links are injected by C# (setDownloadLinks) from R2 config; a button
+            stays disabled until its link arrives, and clicks open in the system browser. */
+         var dlLinks = { mega: null, mediafire: null };
+         function setDownloadLinks(links) {
+            dlLinks = links || {};
+            ["mega", "mediafire"].forEach(function (k) {
+               var btn = document.getElementById("dl-" + k);
+               if (btn) btn.disabled = !dlLinks[k];
+            });
+         }
+         function openUrl(which) {
+            var url = dlLinks[which];
+            if (url) sendMessage({ type: "open", url: url });
+         }
+         /* drag only when not pressing a control */
+         function maybeDrag(ev) {
+            if (ev.target.closest(".win-btn, .opt, .dropzone, .back")) return;
+            sendMessage({ type: "startDrag" });
+         }
+         document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") act("close");
+         });
+      </script>
+   </body>
+</html>

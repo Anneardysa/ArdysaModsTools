@@ -1,0 +1,265 @@
+/*
+ * Light theme — pure monochrome: solid white surfaces, solid black ink.
+ *
+ * Single source of truth for every WebView page. Injected into each page's <head> as an inline
+ * <style> by UI/Helpers/WebViewTheming.Apply(); light mode also stamps data-theme="light" on <html>,
+ * so this block is inert in dark mode and the app's shipped look is untouched by default.
+ *
+ * Design rules (mirror of the dark theme's pure-black language):
+ *   1. Every container surface is solid #fff — panels, cards, modals, title bars. Separation comes
+ *      from hairline borders, not grey fills, so the borders are a step stronger than a typical
+ *      light UI (#c4c4c4 / #a8a8a8).
+ *   2. Ink is solid #000; secondary text is #333 and hints/disabled are #666 — dark enough to be
+ *      instantly readable, still distinguishable as hierarchy. Nothing lighter than #666 is used
+ *      for text.
+ *   3. Interactive feedback (hover, selection wash) is a faint black tint — the one deliberate
+ *      exception to "everything white", because a white-on-white hover state gives no feedback.
+ *   4. Content overlaid on artwork (install card, carousel controls, hero-card captions) keeps the
+ *      dark-theme ink: the surface under it is an image behind a dark scrim, never white.
+ *
+ * The pages grew four token vocabularies (main shell / settings / update dialogs / support); this
+ * overrides the union of them — one page only ever uses one, so extra declarations are harmless.
+ */
+:root[data-theme="light"] {
+   color-scheme: light;
+
+   /* ── main shell vocabulary (main_shell, hero_gallery, misc_form, about, whatsnew,
+         disable_options, install_method, modspack_updates, dota2_performance) ──────── */
+   --canvas: #ffffff;
+   --panel: #ffffff;
+   --panel-2: #ffffff;
+   --panel-hover: #f2f2f2;
+   --hairline: #c4c4c4;
+   --hairline-strong: #a8a8a8;
+   --dashed: rgba(0, 0, 0, 0.35);
+
+   /* single black accent (mirror of the dark theme's single white accent) */
+   --accent: #000000;
+   --primary: #000000;
+   --primary-soft: #000000;
+   --primary-deep: #000000;
+   --primary-hover: #333333;
+   --on-primary: #ffffff;
+   --primary-glow: rgba(0, 0, 0, 0.16);
+   --accent-dim: rgba(0, 0, 0, 0.08);
+
+   /* low-alpha ink-over-canvas: hover washes and table dividers */
+   --wash: rgba(0, 0, 0, 0.05);
+   --divider: rgba(0, 0, 0, 0.12);
+
+   --ink: #000000;
+   --ink-strong: #000000;
+   --body: #333333;
+   --mute: #666666;
+
+   /* Semantic cues stay monochrome: the dark theme already ships --success and --error as the same
+      white, so black for both is the faithful inversion — not a palette change. */
+   --success: #000000;
+   --warning: #333333;
+   --error: #000000;
+   --info: #333333;
+
+   /* danger (disable/install dialogs) — the soft tint is a light-on-dark red, unreadable on white */
+   --danger-soft: #b91c1c;
+
+   /* cautionary yellow (main shell "feature unavailable" confirm) — needs to bite on white */
+   --warn-accent: #a8730a;
+   --warn-glow: rgba(168, 115, 10, 0.22);
+
+   /* ── settings / progress / status / verify / preview vocabulary ────────────────── */
+   --bg-primary: #ffffff;
+   --bg-secondary: #ffffff;
+   --bg-card: #ffffff;
+   --bg-hover: #f2f2f2;
+   --border: #c4c4c4;
+   --border-light: #d6d6d6;
+   --text-primary: #000000;
+   --text-secondary: #333333;
+   --text-muted: #666666;
+
+   /* status hues (status_details, verify_files) — darkened for contrast on white */
+   --color-green: #1a7f37;
+   --color-orange: #b46b00;
+   --color-red: #cf222e;
+   --color-gray: #57606a;
+   --color-blue: #0969da;
+   --green: #1a7f37;
+   --green-dim: rgba(26, 127, 55, 0.12);
+
+   /* ── update-dialog vocabulary (update_available, modspack_update, patch_required) ─ */
+   --bg-dark: #ffffff;
+   --bg-card-hover: #f2f2f2;
+   --border-color: #c4c4c4;
+   --border-dim: #d6d6d6;
+   --accent-cyan: #006d89;
+   --accent-cyan-light: #00849f;
+   --accent-cyan-dim: rgba(0, 109, 137, 0.12);
+   --accent-cyan-glow: rgba(0, 109, 137, 0.25);
+   --accent-green: #1a7f37;
+   --accent-orange: #b46b00;
+   --accent-orange-light: #cf7c00;
+
+   /* ── support vocabulary ────────────────────────────────────────────────────────── */
+   --bg: #ffffff;
+   --surface: #ffffff;
+   --surface-hover: #f2f2f2;
+   --text: #000000;
+   --text-dim: #333333;
+   --text-muted: #666666;
+}
+
+/*
+ * Solid-white chrome: every window title bar and every in-page modal (.modal = shell
+ * news/confirm/failure, .sm-panel = misc/hero-gallery set modals, .dialog = misc confirm,
+ * .tribute-panel = misc credits). Their contents are token-driven and already resolve to black ink
+ * under the light palette — the only offenders are hardcoded dark scrims (title bar: rgba(0,0,0,.6);
+ * modal header/footer bands: rgba(0,0,0,.5); icon chips: rgba(0,0,0,.35)) that muddy over white.
+ */
+:root[data-theme="light"] #titlebar {
+   background: #ffffff;
+   border-bottom-color: var(--hairline-strong);
+   backdrop-filter: none;
+}
+
+:root[data-theme="light"] .modal,
+:root[data-theme="light"] .sm-panel,
+:root[data-theme="light"] .dialog,
+:root[data-theme="light"] .tribute-panel {
+   background: #ffffff;
+   border-color: var(--hairline-strong);
+}
+
+/* Header/footer bands and icon/badge chips inside modals: white, framed by their borders. */
+:root[data-theme="light"] .modal-head,
+:root[data-theme="light"] .sm-head,
+:root[data-theme="light"] .sm-foot,
+:root[data-theme="light"] .choice-ico,
+:root[data-theme="light"] .tribute-link-ico,
+:root[data-theme="light"] .choice-ver {
+   background: #ffffff;
+}
+
+/* The What's New card: white surface, black text and logo. */
+:root[data-theme="light"] .promo-card.news {
+   background: #ffffff;
+   border-color: var(--hairline-strong);
+}
+:root[data-theme="light"] .promo-card.news .veil {
+   background: none; /* drop the dark scrim gradient so the white surface shows through */
+}
+:root[data-theme="light"] .promo-card.news .pc-ver,
+:root[data-theme="light"] .promo-card.news .pc-ico {
+   background: #ffffff;
+}
+
+/*
+ * Structural chrome across the tool windows — every one of these carries a hardcoded rgba(0,0,0,…)
+ * scrim that muddies to grey over the white body. All go solid white; their text/icons are
+ * token-driven and already resolve to black. Covers:
+ *   #titleBar          — Skin Selector + Miscellaneous title bars (capital B: a DIFFERENT id from
+ *                        the shell dialogs' #titlebar handled above — easy to miss)
+ *   .gallery-header    — Skin Selector search/category container below the title bar
+ *   .mf-header         — Miscellaneous header container below the title bar
+ *   .controls          — ModsPack preview search + category filter container
+ *   .status-bar        — Skin Selector + Miscellaneous footers
+ *   .footer            — About / What's New changelog / ModsPack preview footers
+ */
+:root[data-theme="light"] #titleBar,
+:root[data-theme="light"] .gallery-header,
+:root[data-theme="light"] .mf-header,
+:root[data-theme="light"] .controls,
+:root[data-theme="light"] .status-bar,
+:root[data-theme="light"] .footer {
+   background: #ffffff;
+   backdrop-filter: none;
+}
+
+/* ModsPack preview: the category tag on each hero card sits over the artwork — solid white chip
+   with black text so it reads at a glance (its --ink text is re-scoped black here on purpose,
+   unlike the card's name overlay which stays white-on-artwork). */
+:root[data-theme="light"] .card .attr {
+   background: #ffffff;
+   color: #000000;
+   border-color: #a8a8a8;
+}
+
+/* About page: the version chip becomes a solid white bar with black text, and the Built-With brand
+   icons drop their white-silhouette inversion to render solid black. */
+:root[data-theme="light"] .hero-ver {
+   background: #ffffff;
+   color: #000000;
+}
+:root[data-theme="light"] .tech img {
+   filter: brightness(0);
+   opacity: 1;
+}
+
+/* Skin Selector: the attribute glyphs (Strength/Agility/Intelligence/Universal) are white-silhouette
+   PNGs. Light mode swaps the dark theme's filters: solid black on the white inactive pills, white on
+   the black active pill. */
+:root[data-theme="light"] .filter-pill img {
+   filter: grayscale(1) brightness(0);
+   opacity: 1;
+}
+:root[data-theme="light"] .filter-pill.active img {
+   filter: grayscale(1) brightness(0) invert(1);
+}
+
+/*
+ * Main-shell console. The console head drops its hardcoded rgba(0,0,0,.5) scrim for solid white —
+ * its title, brackets, LED and copy-button are token-driven and resolve to black ink. --body is
+ * pinned to #000 here so the CONSOLE title reads solid black, not secondary grey. The console body
+ * stays white, so the log stream's pale on-dark literals (soft red/amber/blue) are swapped for
+ * ink-dark equivalents that hold contrast on white.
+ */
+:root[data-theme="light"] .console-head {
+   background: #ffffff;
+   --body: #000000;
+   --mute: #666666;
+}
+
+:root[data-theme="light"] .log-line.error .msg {
+   color: #cf222e;
+}
+:root[data-theme="light"] .log-line.warning .msg {
+   color: #9a6700;
+}
+:root[data-theme="light"] .log-line.progress .msg {
+   color: #0969da;
+}
+:root[data-theme="light"] .log-line.notice {
+   background: rgba(154, 103, 0, 0.06);
+   border-color: rgba(154, 103, 0, 0.35);
+}
+:root[data-theme="light"] .log-line.notice .msg {
+   color: #7d5800;
+}
+
+/*
+ * Artwork overlays. These elements sit on top of banner/hero images behind a dark scrim, and that
+ * surface never turns white — so their ink must stay light-on-dark in BOTH themes. Re-declaring the
+ * dark palette on each overlay container flips just that subtree back. Covers: the Install ModsPack
+ * card (main shell), the banner carousel controls, and the hero-card name/favourite overlays
+ * (Skin Selector).
+ */
+:root[data-theme="light"] .promo-card.install,
+:root[data-theme="light"] .car-arrow,
+:root[data-theme="light"] .car-dots,
+:root[data-theme="light"] .hc-meta,
+:root[data-theme="light"] .hc-fav {
+   --canvas: #000000;
+   --ink: #ffffff;
+   --body: #cccccc;
+   --mute: #999999;
+   --primary: #ffffff;
+   --on-primary: #000000;
+   --hairline-strong: #333333;
+   --accent-dim: rgba(255, 255, 255, 0.1);
+   --primary-glow: rgba(255, 255, 255, 0.16);
+}
+
+/* The install card's frame borders the white page, not the artwork — keep it black for contrast
+   (the scoped --primary above would otherwise paint it white-on-white). */
+:root[data-theme="light"] .promo-card.install {
+   border-color: #000000;
+}

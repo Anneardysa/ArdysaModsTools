@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Test Framework -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="NUnit" Version="4.0.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
+    <PackageReference Include="NUnit.Analyzers" Version="4.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    
+    <!-- Mocking -->
+    <PackageReference Include="Moq" Version="4.20.70" />
+    
+    <!-- Coverage -->
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="SharpCompress" Version="0.49.1" />
+    <PackageReference Include="ValveKeyValue" Version="0.20.0.417" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ArdysaModsTools.csproj" />
+    <!-- Update applier: its rollback logic is the safety net for the whole delta path, so it is
+         tested here rather than only exercised in a release. -->
+    <ProjectReference Include="..\Updater\AMT.Updater.csproj" />
+  </ItemGroup>
+
+</Project>

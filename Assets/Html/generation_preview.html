@@ -1,0 +1,375 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Confirm Generation</title>
+      <style>
+         :root {
+            --bg-primary: #000000;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --text-muted: #444444;
+            --border: #333333;
+            --border-light: #222222;
+            --accent-dim: rgba(255, 255, 255, 0.06);
+         }
+
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         html,
+         body {
+            height: 100%;
+         }
+
+         body {
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            font-family: "JetBrains Mono", monospace;
+            color: var(--text-primary);
+            user-select: none;
+            overflow: hidden;
+         }
+
+         /* ── Animated Wave Background ── */
+         .animated-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+            background: var(--bg-primary);
+         }
+         .animated-bg::before {
+            content: "";
+            position: absolute;
+            width: 200%;
+            height: 100%;
+            left: 0;
+            top: 0;
+            opacity: 0.08;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E")
+               repeat-x;
+            background-size: 50% 100%;
+            animation: infiniteWave 20s linear infinite;
+         }
+         @keyframes infiniteWave {
+            0% {
+               transform: translateX(0);
+            }
+            100% {
+               transform: translateX(-50%);
+            }
+         }
+
+         /* ── Corner Decorations ── */
+         .corner-decoration {
+            position: fixed;
+            width: 14px;
+            height: 14px;
+            border-color: var(--border);
+            z-index: 5;
+         }
+         .corner-decoration.top-left {
+            top: 10px;
+            left: 10px;
+            border-top: 1px solid;
+            border-left: 1px solid;
+         }
+         .corner-decoration.top-right {
+            top: 10px;
+            right: 10px;
+            border-top: 1px solid;
+            border-right: 1px solid;
+         }
+         .corner-decoration.bottom-left {
+            bottom: 10px;
+            left: 10px;
+            border-bottom: 1px solid;
+            border-left: 1px solid;
+         }
+         .corner-decoration.bottom-right {
+            bottom: 10px;
+            right: 10px;
+            border-bottom: 1px solid;
+            border-right: 1px solid;
+         }
+
+         /* ── Drag Area ── */
+         .drag-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 32px;
+            cursor: move;
+            z-index: 10;
+         }
+
+         @keyframes fadeSlideIn {
+            from {
+               opacity: 0;
+               transform: translateY(8px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+         .fade-in {
+            animation: fadeSlideIn 0.35s ease-out both;
+         }
+
+         /* ── Layout ── */
+         .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: 24px 28px 20px;
+            position: relative;
+            z-index: 1;
+         }
+
+         .header {
+            text-align: center;
+            flex-shrink: 0;
+         }
+         .header-icon {
+            margin-bottom: 8px;
+         }
+         .header-icon svg {
+            width: 30px;
+            height: 30px;
+         }
+         .title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 4px;
+         }
+         .title::before {
+            content: "[ ";
+            color: var(--text-muted);
+         }
+         .title::after {
+            content: " ]";
+            color: var(--text-muted);
+         }
+         .subtitle {
+            font-size: 10px;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+         }
+         .subtitle::before {
+            content: "// ";
+         }
+
+         /* ── Selection rows ── */
+         .list {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            text-align: left;
+            margin-bottom: 16px;
+            padding-right: 4px;
+         }
+         .list::-webkit-scrollbar {
+            width: 8px;
+         }
+         .list::-webkit-scrollbar-thumb {
+            background: var(--border);
+         }
+
+         .row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 8px 12px;
+            background: var(--accent-dim);
+            border: 1px solid var(--border-light);
+            margin-bottom: 6px;
+         }
+         .row-thumb {
+            width: 56px;
+            height: 56px;
+            flex-shrink: 0;
+            object-fit: cover;
+            background: var(--border-light);
+            border: 1px solid var(--border);
+         }
+         .row-info {
+            flex: 1;
+            min-width: 0;
+         }
+         .row-hero {
+            font-size: 13px;
+            font-weight: bold;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .row-set {
+            font-size: 11px;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+            margin-top: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+
+         /* ── Buttons ── */
+         .btn-container {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            flex-shrink: 0;
+         }
+         .btn {
+            padding: 10px 30px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 10px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+         }
+         .btn:hover {
+            background: var(--text-primary);
+            border-color: var(--text-primary);
+            color: var(--bg-primary);
+         }
+         .btn:active {
+            transform: scale(0.97);
+         }
+         .btn-primary {
+            background: var(--text-primary);
+            border-color: var(--text-primary);
+            color: var(--bg-primary);
+         }
+         .btn-primary:hover {
+            background: transparent;
+            color: var(--text-primary);
+         }
+      </style>
+   </head>
+
+   <body>
+      <div class="animated-bg"></div>
+      <div class="drag-area" onmousedown="startDrag()"></div>
+
+      <div class="corner-decoration top-left"></div>
+      <div class="corner-decoration top-right"></div>
+      <div class="corner-decoration bottom-left"></div>
+      <div class="corner-decoration bottom-right"></div>
+
+      <div class="container">
+         <div class="header fade-in">
+            <div class="header-icon">
+               <svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+               </svg>
+            </div>
+            <div class="title" id="titleText">Confirm Generation</div>
+            <div class="subtitle" id="subtitleText"></div>
+         </div>
+
+         <div class="list fade-in" id="listContainer"></div>
+
+         <div class="btn-container fade-in">
+            <button class="btn" id="cancelBtn" onclick="cancel()">Cancel</button>
+            <button class="btn btn-primary" id="generateBtn" onclick="confirm()">Generate</button>
+         </div>
+      </div>
+
+      <script>
+         const PLACEHOLDER =
+            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 56'%3E%3Crect fill='%23222' width='56' height='56'/%3E%3C/svg%3E";
+
+         // Called by C# with the selected layers: [{ hero, setName, thumb }]
+         function loadItems(items) {
+            items = Array.isArray(items) ? items : [];
+
+            const n = items.length;
+            document.getElementById("subtitleText").textContent =
+               `${n} hero set${n === 1 ? "" : "s"} will be generated`;
+
+            const list = document.getElementById("listContainer");
+            list.innerHTML = items
+               .map(
+                  (it) => `
+               <div class="row">
+                  <img class="row-thumb" loading="lazy"
+                       src="${it.thumb || PLACEHOLDER}"
+                       onerror="this.onerror=null;this.src='${PLACEHOLDER}'" />
+                  <div class="row-info">
+                     <div class="row-hero">${escapeHtml(it.hero)}</div>
+                     <div class="row-set">${escapeHtml(it.setName)}</div>
+                  </div>
+               </div>`,
+               )
+               .join("");
+         }
+
+         function escapeHtml(s) {
+            return String(s == null ? "" : s)
+               .replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;")
+               .replace(/"/g, "&quot;");
+         }
+
+         function confirm() {
+            sendMessage({ type: "confirm" });
+         }
+         function cancel() {
+            sendMessage({ type: "cancel" });
+         }
+         function startDrag() {
+            sendMessage({ type: "startDrag" });
+         }
+         function sendMessage(data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(data);
+            }
+         }
+
+         document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape") cancel();
+            else if (e.key === "Enter") confirm();
+         });
+      </script>
+   </body>
+</html>

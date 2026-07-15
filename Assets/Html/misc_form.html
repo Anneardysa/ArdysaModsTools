@@ -1,0 +1,1907 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Miscellaneous</title>
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         /* ════════════════════════════════════════════════════════════════════════════
+            MISCELLANEOUS — Custom Options
+            Monochrome terminal design system, shared with the Skin Selector gallery and
+            main_shell.html / ardysamods.my.id. Black/white only, JetBrains Mono, 0px
+            corners, cut-corner brackets, grid + wave backdrop.
+            Golden-ratio type hierarchy (φ ≈ 1.618): 10 → 11 → 13(base) → 16 → 21,
+            body leading 1.618.
+            ════════════════════════════════════════════════════════════════════════════ */
+
+         :root {
+            --canvas: #000000;
+            --panel: rgba(10, 10, 10, 0.9);
+            --panel-2: #050505;
+            --panel-hover: rgba(20, 20, 20, 0.95);
+            --hairline: #222222;
+            --hairline-strong: #333333;
+            --dashed: rgba(136, 136, 136, 0.4);
+
+            --primary: #ffffff;
+            --on-primary: #000000;
+            --primary-glow: rgba(255, 255, 255, 0.16);
+            --accent-dim: rgba(255, 255, 255, 0.1);
+            --wash: var(--wash);
+
+            --ink: #ffffff;
+            --body: #888888;
+            --mute: #444444;
+
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+            --mono: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+            --fs-overline: 10px;
+            --fs-label: 11px;
+            --fs-body: 13px;
+            --fs-sub: 16px;
+            --fs-head: 21px;
+            --lh-tight: 1.2;
+            --lh-body: 1.618;
+            --ls-overline: 2px;
+            --ls-label: 1px;
+
+            --r-sm: 0px;
+            --r-md: 0px;
+            --clip: 12px;
+
+            --transition: all 0.18s ease;
+
+            --sp-1: 4px;
+            --sp-2: 8px;
+            --sp-3: 12px;
+            --sp-4: 16px;
+            --sp-5: 20px;
+            --sp-6: 24px;
+         }
+
+         * { margin: 0; padding: 0; box-sizing: border-box; }
+         html, body { height: 100%; }
+
+         body {
+            font-family: var(--sans);
+            background: var(--canvas);
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--ink);
+            font-size: var(--fs-body);
+            line-height: var(--lh-body);
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--hairline);
+            -webkit-font-smoothing: antialiased;
+         }
+
+         /* animated wave backdrop */
+         .bgfx { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+         .bgfx::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0;
+            width: 200%; height: 100%;
+            opacity: 0.05;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E")
+               repeat-x;
+            background-size: 50% 100%;
+            animation: infiniteWave 28s linear infinite;
+         }
+         @keyframes infiniteWave { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+         @media (prefers-reduced-motion: reduce) { .bgfx::before { animation: none; } }
+
+         /* ─────────────────────────── utilities ─────────────────────────── */
+         .hidden { display: none !important; }
+         .opacity-50 { opacity: 0.5; }
+         .pointer-events-none { pointer-events: none; }
+         .col-span-full { grid-column: 1 / -1; }
+
+         ::-webkit-scrollbar { width: 9px; height: 9px; }
+         ::-webkit-scrollbar-track { background: var(--panel-2); }
+         ::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 0; }
+         ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+         .animate-fade-in { animation: fadeIn 0.2s ease-out backwards; }
+         .animate-fade-in-up { animation: fadeInUp 0.25s ease-out both; opacity: 0; }
+         .animate-bounce-in { animation: bounceIn 0.26s cubic-bezier(0.16, 1, 0.3, 1); }
+         .animate-slide-left { animation: slideLeft 0.25s ease-out; }
+         .animate-slide-right { animation: slideRight 0.25s ease-out; }
+         .animate-spin { animation: spin 0.8s linear infinite; }
+         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+         @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+         @keyframes bounceIn { 0% { opacity: 0; transform: scale(0.96) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+         @keyframes slideLeft { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+         @keyframes slideRight { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
+         @keyframes spin { to { transform: rotate(360deg); } }
+
+         /* generic buttons */
+         .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            font-family: var(--sans);
+            font-size: var(--fs-label);
+            font-weight: 600;
+            letter-spacing: var(--ls-label);
+            text-transform: uppercase;
+            padding: 9px 16px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-sm);
+            color: var(--body);
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+         }
+         .btn:hover { color: var(--ink); border-color: var(--primary); background: var(--accent-dim); }
+         .btn:active { transform: translateY(1px); }
+         .btn.primary { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+         .btn.primary:hover { background: var(--primary); color: var(--on-primary); box-shadow: 0 0 18px var(--primary-glow); }
+         .btn.primary:disabled { opacity: 0.45; cursor: default; box-shadow: none; pointer-events: none; }
+         .btn.ghost { background: none; }
+
+         /* ════════════════════════════════ TITLE BAR ════════════════════════════════ */
+         #titleBar {
+            position: relative;
+            z-index: 5;
+            flex-shrink: 0;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--sp-2) 0 var(--sp-5);
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--hairline);
+            cursor: move;
+            user-select: none;
+         }
+         .tb-brand { display: flex; align-items: baseline; gap: 10px; font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+         .tb-brand .tb-logo { width: 16px; height: 16px; flex-shrink: 0; align-self: center; color: var(--ink); }
+         .tb-brand .b-name { color: var(--ink); }
+         .tb-brand .b-name::before { content: "// "; color: var(--mute); }
+         .tb-brand .b-tag { font-size: var(--fs-overline); font-weight: 600; letter-spacing: 1.5px; color: var(--mute); }
+         .tb-brand .b-tag::before { content: "["; color: var(--mute); }
+         .tb-brand .b-tag::after { content: "]"; color: var(--mute); }
+         .tb-close {
+            width: 34px; height: 30px;
+            display: flex; align-items: center; justify-content: center;
+            background: none; border: 1px solid transparent;
+            color: var(--mute); cursor: pointer; transition: var(--transition);
+         }
+         .tb-close svg { width: 15px; height: 15px; }
+         .tb-close:hover { background: rgba(248, 81, 73, 0.85); color: #fff; }
+
+         /* ════════════════════════════════ HEADER ════════════════════════════════ */
+         .mf-header {
+            position: relative;
+            z-index: 4;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--sp-4);
+            padding: var(--sp-4) var(--sp-6);
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.5);
+         }
+         .mf-title { font-size: var(--fs-sub); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink); }
+         .mf-sub { font-size: var(--fs-overline); letter-spacing: 0.5px; color: var(--mute); margin-top: 3px; }
+         .mf-sub::before { content: "> "; color: var(--mute); }
+         .mf-actions { display: flex; align-items: center; gap: var(--sp-2); }
+
+         /* ════════════════════════════════ MAIN / OPTIONS GRID ════════════════════════════════ */
+         .mf-main { position: relative; z-index: 1; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+         .mf-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-6); }
+         .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(208px, 1fr));
+            gap: var(--sp-5);
+         }
+         .tile-card {
+            position: relative;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            padding: var(--sp-3);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .tile-card:hover { border-color: var(--hairline-strong); transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55); }
+         /* corner brackets */
+         .tile-card::before, .tile-card::after {
+            content: ""; position: absolute; width: 8px; height: 8px; z-index: 3; opacity: 0; transition: var(--transition);
+         }
+         .tile-card::before { top: -1px; left: -1px; border-top: 1px solid var(--ink); border-left: 1px solid var(--ink); }
+         .tile-card::after { bottom: -1px; right: -1px; border-bottom: 1px solid var(--ink); border-right: 1px solid var(--ink); }
+         .tile-card:hover::before, .tile-card:hover::after { opacity: 0.6; width: 11px; height: 11px; }
+         .tile-card.selected { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 0 16px var(--primary-glow); }
+         .tile-thumb {
+            width: 100%;
+            aspect-ratio: 1;
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+            object-fit: cover;
+            object-position: top;
+            background: var(--panel);
+            display: block;
+         }
+         .tile-name { margin-top: var(--sp-3); font-size: var(--fs-body); font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+         .tile-choice { margin-top: 3px; font-size: var(--fs-label); color: var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+         .grid-empty { grid-column: 1 / -1; text-align: center; padding: 60px 0; color: var(--mute); font-size: var(--fs-label); letter-spacing: 0.5px; }
+         /* letter placeholder used when a thumbnail is missing */
+         .thumb-letter {
+            width: 100%;
+            aspect-ratio: 1;
+            border: 1px solid var(--hairline);
+            background: var(--panel);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            font-weight: 700;
+            color: var(--mute);
+         }
+
+         /* ════════════════════════════════ FOOTER ════════════════════════════════ */
+         .status-bar {
+            position: relative;
+            z-index: 4;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px var(--sp-6);
+            background: rgba(0, 0, 0, 0.6);
+            border-top: 1px solid var(--hairline);
+            font-size: var(--fs-overline);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--mute);
+         }
+         #statusText { color: var(--body); }
+         #statusText::before { content: "> "; color: var(--mute); }
+
+         /* ════════════════════════════════ CACHING OVERLAY ════════════════════════════════ */
+         #cachingOverlay {
+            position: fixed; inset: 0; z-index: 80;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: var(--canvas);
+         }
+         .co-box { width: 100%; max-width: 420px; padding: 0 var(--sp-4); text-align: center; }
+         .co-ico {
+            width: 64px; height: 64px; margin: 0 auto var(--sp-5);
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--hairline-strong); background: var(--wash);
+            color: var(--ink); box-shadow: 0 0 22px var(--primary-glow);
+         }
+         .co-ico svg { width: 30px; height: 30px; }
+         .co-title { font-size: var(--fs-sub); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--ink); margin-bottom: 6px; }
+         #cachingStatus { font-size: var(--fs-label); color: var(--body); margin-bottom: var(--sp-5); }
+         .co-bar { height: 6px; background: var(--panel); border: 1px solid var(--hairline-strong); overflow: hidden; margin-bottom: var(--sp-2); }
+         #cachingBar { height: 100%; background: var(--primary); transition: width 0.2s ease; width: 0%; }
+         .co-meta { display: flex; justify-content: space-between; font-size: var(--fs-overline); color: var(--mute); letter-spacing: 0.5px; }
+
+         /* ════════════════════════════════ MODAL SHELL (shared) ════════════════════════════════ */
+         .ov { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: var(--sp-4); }
+         .ov-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(3px); }
+         .modal-backdrop { background: rgba(0, 0, 0, 0.82); }
+         .sm-wrap { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: var(--sp-4); width: 100%; max-width: 1240px; }
+         .nav-arrow {
+            flex-shrink: 0;
+            width: 42px; height: 42px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--panel-2); border: 1px solid var(--hairline-strong);
+            color: var(--body); cursor: pointer; transition: var(--transition);
+         }
+         .nav-arrow:hover { color: var(--ink); border-color: var(--primary); background: var(--accent-dim); }
+         .nav-arrow:active { transform: scale(0.95); }
+         .nav-arrow svg { width: 22px; height: 22px; }
+
+         .sm-panel {
+            position: relative; z-index: 1;
+            flex: 1; max-width: 1080px; max-height: 88vh;
+            display: flex; flex-direction: column;
+            background: var(--panel-2); border: 1px solid var(--hairline-strong);
+            overflow: hidden;
+         }
+         .sm-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--hairline); background: rgba(0, 0, 0, 0.5); flex-shrink: 0; }
+         .sm-head-left { display: flex; align-items: center; gap: var(--sp-4); min-width: 0; }
+         .mf-modal-thumb { width: 52px; height: 52px; overflow: hidden; border: 1px solid var(--hairline-strong); background: var(--panel); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+         .mf-modal-thumb img { width: 100%; height: 100%; object-fit: cover; }
+         #modalTitle { font-size: var(--fs-head); font-weight: 700; letter-spacing: 0.3px; color: var(--ink); line-height: var(--lh-tight); }
+         .sm-hint { font-size: var(--fs-overline); color: var(--mute); margin-top: 3px; letter-spacing: 0.3px; }
+         .sm-x { width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; background: none; border: 1px solid transparent; color: var(--mute); cursor: pointer; transition: var(--transition); flex-shrink: 0; }
+         .sm-x svg { width: 16px; height: 16px; }
+         .sm-x:hover { background: rgba(248, 81, 73, 0.85); color: #fff; }
+         .sm-foot { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); padding: var(--sp-4) var(--sp-5); border-top: 1px solid var(--hairline); background: rgba(0, 0, 0, 0.5); flex-shrink: 0; }
+
+         /* choices grid + cards (option modal + style overlay) */
+         .choices-grid {
+            padding: var(--sp-5);
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+            gap: var(--sp-3);
+            max-height: 58vh;
+            overflow-y: auto;
+         }
+         /* the main option preview modal gets larger tiles + more room than the
+            smaller style/ethereal overlays (which keep the compact .choices-grid). */
+         #modalChoices {
+            grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+            gap: var(--sp-4);
+            max-height: 66vh;
+         }
+         .choice-card {
+            position: relative;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            padding: var(--sp-2);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .choice-card:hover { border-color: var(--hairline-strong); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
+         .choice-card::before, .choice-card::after { content: ""; position: absolute; width: 8px; height: 8px; z-index: 3; opacity: 0; transition: var(--transition); }
+         .choice-card::before { top: -1px; left: -1px; border-top: 1px solid var(--ink); border-left: 1px solid var(--ink); }
+         .choice-card::after { bottom: -1px; right: -1px; border-bottom: 1px solid var(--ink); border-right: 1px solid var(--ink); }
+         .choice-card.selected { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 0 16px var(--primary-glow); }
+         .choice-card.selected::before, .choice-card.selected::after { opacity: 1; }
+         .choice-thumb { width: 100%; aspect-ratio: 1; border-radius: var(--r-sm); object-fit: cover; display: block; background: var(--panel); }
+         .choice-letter { width: 100%; aspect-ratio: 1; background: var(--panel); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: var(--mute); }
+         .choice-name { margin-top: 8px; font-size: var(--fs-label); text-align: center; color: var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+         .choice-card.selected .choice-name { color: var(--ink); }
+         .choice-name.wrap { white-space: normal; line-height: var(--lh-tight); }
+         /* badges on choice cards (Styles / Ethereal) — bracketed mono labels */
+         .choice-badge {
+            position: absolute;
+            top: -1px;
+            padding: 2px 6px;
+            font-family: var(--mono);
+            font-size: 8.5px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: var(--ink);
+            background: var(--canvas);
+            border: 1px solid var(--hairline-strong);
+            z-index: 5;
+            white-space: nowrap;
+         }
+         .choice-badge.styles { right: -1px; }
+         .choice-badge.ethereal { left: -1px; cursor: pointer; }
+         .choice-badge.ethereal:hover { border-color: var(--primary); }
+
+         /* ════════════════════════════════ ETHEREAL OVERLAY ════════════════════════════════ */
+         .mf-dialog {
+            position: relative; z-index: 1;
+            width: 100%; max-width: 520px; max-height: 86vh;
+            display: flex; flex-direction: column;
+            background: var(--panel-2); border: 1px solid var(--hairline-strong);
+            overflow: hidden;
+         }
+         .mf-dialog-head { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--hairline); background: rgba(0, 0, 0, 0.5); }
+         .mf-back {
+            width: 30px; height: 28px; display: flex; align-items: center; justify-content: center;
+            background: none; border: 1px solid transparent; color: var(--mute); cursor: pointer; transition: var(--transition); flex-shrink: 0;
+         }
+         .mf-back:hover { color: var(--ink); border-color: var(--hairline-strong); background: var(--accent-dim); }
+         .mf-back svg { width: 16px; height: 16px; }
+         .mf-dialog-thumb { width: 44px; height: 44px; overflow: hidden; border: 1px solid var(--hairline-strong); background: var(--panel); flex-shrink: 0; }
+         .mf-dialog-thumb img { width: 100%; height: 100%; object-fit: cover; }
+         .mf-dialog-titles { flex: 1; min-width: 0; }
+         .mf-dialog-title { font-size: var(--fs-sub); font-weight: 700; letter-spacing: 0.3px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+         .mf-dialog-sub { font-size: var(--fs-overline); color: var(--body); margin-top: 3px; }
+         .mf-dialog-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-3) var(--sp-5); border-top: 1px solid var(--hairline); background: rgba(0, 0, 0, 0.5); }
+         #etherealGrid { padding: var(--sp-4); display: grid; grid-template-columns: 1fr; gap: 4px; max-height: 56vh; overflow-y: auto; }
+         .eth-row {
+            display: flex; align-items: center; gap: var(--sp-3);
+            padding: 9px var(--sp-3);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .eth-row:hover { background: var(--accent-dim); border-color: var(--hairline); }
+         .eth-row.selected { background: var(--wash); border-color: var(--primary); }
+         .eth-row.disabled { opacity: 0.4; cursor: not-allowed; }
+         .eth-box {
+            width: 18px; height: 18px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--hairline-strong); background: rgba(0, 0, 0, 0.4);
+         }
+         .eth-row.selected .eth-box { background: var(--primary); border-color: var(--primary); }
+         .eth-box svg { width: 11px; height: 11px; color: var(--on-primary); opacity: 0; }
+         .eth-row.selected .eth-box svg { opacity: 1; }
+         .eth-name { font-size: var(--fs-label); color: var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+         .eth-row.selected .eth-name { color: var(--ink); }
+         #etherealCounter { font-size: var(--fs-overline); letter-spacing: 0.5px; color: var(--body); text-transform: uppercase; }
+
+         /* ════════════════════════════════ PROGRESS OVERLAY ════════════════════════════════ */
+         #progressOverlay { background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(6px); }
+         .progress-panel { position: relative; z-index: 1; width: 100%; max-width: 540px; background: var(--panel-2); border: 1px solid var(--hairline-strong); }
+         .progress-head { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--hairline); background: rgba(0, 0, 0, 0.5); }
+         .progress-head-left { display: flex; align-items: center; gap: var(--sp-3); }
+         #progressSpinner { width: 16px; height: 16px; border: 2px solid var(--hairline-strong); border-top-color: var(--primary); border-radius: 50%; }
+         #progressTitle { font-size: var(--fs-label); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--ink); }
+         #progressPercent { font-size: var(--fs-label); font-weight: 700; color: var(--ink); }
+         .progress-bar-wrap { padding: var(--sp-4) var(--sp-5) 0; }
+         .progress-bar-track { height: 5px; background: var(--panel); border: 1px solid var(--hairline-strong); overflow: hidden; }
+         #progressBar { height: 100%; background: var(--primary); transition: width 0.3s ease; width: 0%; }
+         #progressStatus { font-size: var(--fs-overline); color: var(--body); margin-top: var(--sp-2); letter-spacing: 0.3px; }
+         .progress-console-wrap { padding: var(--sp-4) var(--sp-5); }
+         #progressConsole {
+            position: relative;
+            height: 168px;
+            overflow-y: auto;
+            padding: var(--sp-3);
+            background: var(--canvas);
+            border: 1px solid var(--hairline-strong);
+            font-family: var(--mono);
+            font-size: var(--fs-overline);
+            line-height: 1.65;
+            color: var(--body);
+         }
+         /* subtle scanline texture (retro terminal) */
+         .retro-terminal::before {
+            content: "";
+            position: absolute; inset: 0;
+            background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 3px);
+            pointer-events: none;
+         }
+         .log-line { padding: 1px 0; white-space: pre-wrap; word-break: break-word; animation: fadeIn 0.15s ease-out; }
+         /* flash feedback hooks (paired with C# flashConsole) */
+         #progressConsole.flash-success { border-color: var(--primary); box-shadow: 0 0 16px var(--primary-glow); }
+         #progressConsole.flash-error { border-color: #f85149; box-shadow: 0 0 16px rgba(248, 81, 73, 0.3); }
+         .progress-foot { display: flex; justify-content: flex-end; padding: var(--sp-4) var(--sp-5); border-top: 1px solid var(--hairline); background: rgba(0, 0, 0, 0.5); }
+
+         /* ════════════════════════════════ MODE MODAL ════════════════════════════════ */
+         .mode-panel { position: relative; z-index: 1; width: 100%; max-width: 460px; background: var(--panel-2); border: 1px solid var(--hairline-strong); border-top: 2px solid var(--primary); padding: var(--sp-5); }
+         .mode-title { font-size: var(--fs-sub); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink); margin-bottom: var(--sp-4); }
+         .mode-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+         .mode-option {
+            position: relative;
+            display: flex; align-items: center; gap: var(--sp-3);
+            width: 100%;
+            padding: var(--sp-4);
+            background: var(--panel); border: 1px solid var(--hairline-strong);
+            color: var(--body); font-family: var(--sans); text-align: left;
+            cursor: pointer; transition: var(--transition);
+         }
+         .mode-option::before, .mode-option::after { content: ""; position: absolute; width: 8px; height: 8px; opacity: 0; transition: var(--transition); }
+         .mode-option::before { top: -1px; left: -1px; border-top: 1px solid var(--ink); border-left: 1px solid var(--ink); }
+         .mode-option::after { bottom: -1px; right: -1px; border-bottom: 1px solid var(--ink); border-right: 1px solid var(--ink); }
+         .mode-option:hover { border-color: var(--primary); box-shadow: 0 0 16px var(--primary-glow); transform: translateY(-2px); }
+         .mode-option:hover::before, .mode-option:hover::after { opacity: 1; }
+         .mode-ico { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--hairline-strong); background: rgba(0, 0, 0, 0.35); color: var(--ink); }
+         .mode-ico svg { width: 20px; height: 20px; }
+         .mode-option:hover .mode-ico { border-color: var(--primary); color: var(--primary); }
+         .mode-name { font-size: var(--fs-body); font-weight: 700; letter-spacing: 0.3px; color: var(--ink); }
+         .mode-desc { font-size: var(--fs-overline); color: var(--body); margin-top: 3px; line-height: 1.5; }
+         .mode-cancel { margin-top: var(--sp-4); width: 100%; text-align: center; padding: 8px; background: none; border: 1px solid var(--hairline); color: var(--body); font-family: var(--sans); font-size: var(--fs-label); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: var(--transition); }
+         .mode-cancel:hover { color: var(--ink); border-color: var(--hairline-strong); }
+
+         /* ════════════════════════════════ ALERT DIALOG ════════════════════════════════ */
+         .dialog { position: relative; z-index: 1; width: 440px; max-width: 100%; background: var(--panel-2); border: 1px solid var(--hairline-strong); border-top: 2px solid var(--primary); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.72); }
+         .dialog-body { display: flex; align-items: flex-start; gap: var(--sp-4); padding: var(--sp-5) var(--sp-5) var(--sp-4); }
+         .dialog-ico { width: 42px; height: 42px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--hairline-strong); background: var(--wash); color: var(--ink); }
+         .dialog-ico svg { width: 20px; height: 20px; }
+         .dialog-main { flex: 1; min-width: 0; }
+         .dialog-title { font-size: var(--fs-sub); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink); margin-bottom: var(--sp-2); }
+         .dialog-msg { font-size: var(--fs-label); line-height: var(--lh-body); color: var(--body); white-space: pre-line; }
+         .dialog-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); padding: 0 var(--sp-5) var(--sp-5); }
+
+         /* log modal — wider dialog + scrollable terminal mirroring the progress console */
+         .log-dialog { width: 620px; }
+         .log-modal-console { position: relative; height: 320px; overflow-y: auto; padding: var(--sp-3); margin-top: var(--sp-2); background: var(--canvas); border: 1px solid var(--hairline-strong); font-family: var(--mono); font-size: var(--fs-overline); line-height: 1.65; color: var(--body); }
+
+         /* ════════════════════════════════ TRIBUTE MODAL ════════════════════════════════ */
+         #tributeModal .ov-scrim { background: rgba(0, 0, 0, 0.9); }
+         .tribute-panel { position: relative; z-index: 1; width: 100%; max-width: 420px; background: var(--panel-2); border: 1px solid var(--hairline-strong); border-top: 2px solid var(--primary); overflow: hidden; }
+         .tribute-head { position: relative; padding: var(--sp-6) var(--sp-5) var(--sp-4); text-align: center; }
+         .tribute-ico { width: 56px; height: 56px; margin: 0 auto var(--sp-3); display: flex; align-items: center; justify-content: center; border: 1px solid var(--hairline-strong); background: var(--wash); color: var(--ink); box-shadow: 0 0 22px var(--primary-glow); }
+         .tribute-ico svg { width: 28px; height: 28px; }
+         .tribute-title { font-size: var(--fs-sub); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--ink); }
+         #tributeSubtitle { font-size: var(--fs-overline); color: var(--body); margin-top: 6px; }
+         .tribute-links { padding: 0 var(--sp-5) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
+         .tribute-link {
+            display: flex; align-items: center; gap: var(--sp-3);
+            padding: 11px var(--sp-3);
+            background: var(--panel); border: 1px solid var(--hairline-strong);
+            color: var(--body); text-decoration: none; cursor: pointer; transition: var(--transition);
+         }
+         .tribute-link:hover { border-color: var(--primary); background: var(--accent-dim); color: var(--ink); }
+         .tribute-link-ico { width: 34px; height: 34px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--hairline-strong); background: rgba(0, 0, 0, 0.35); color: var(--ink); }
+         .tribute-link-ico svg { width: 17px; height: 17px; }
+         .tribute-link-main { flex: 1; min-width: 0; }
+         .tribute-link-title { font-size: var(--fs-label); font-weight: 700; letter-spacing: 0.3px; color: var(--ink); }
+         .tribute-link-sub { font-size: var(--fs-overline); color: var(--body); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+         .tribute-link-sub.copy { user-select: all; }
+         .tribute-link-ext { width: 14px; height: 14px; flex-shrink: 0; color: var(--mute); }
+         .tribute-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-4) var(--sp-5); border-top: 1px solid var(--hairline); }
+         .tribute-foot-note { font-size: var(--fs-overline); color: var(--mute); }
+      </style>
+   </head>
+
+   <body>
+      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg) -->
+      <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+         <defs>
+            <g id="ardysaGlyph">
+               <g transform="translate(1.007913, 440.428851)"><path d="M190.79,158.66c0,12.07,2.23,23.49,6.69,34.25c4.47,10.77,10.65,20.08,18.52,27.96s17.06,14.05,27.56,18.52 c10.5,4.46,21.79,6.69,33.87,6.69H84.48c11.55-1.57,22.71-5.24,33.48-11.02c10.76-5.78,20.86-13,30.31-21.67 c9.46-8.67,17.86-18.25,25.21-28.75c7.34-10.5,13.11-21.26,17.31-32.29V158.66z M342.02,246.08c11.03,0,20.48-4.59,28.35-13.77 c7.88-9.19,11.81-19.57,11.81-31.13c0-2.09,0-4.19,0-6.29c0-2.09-0.53-4.2-1.58-6.31l-22.83-66.15l-1.58-4.73L300.27-43.75 c-3.68-8.92-10.24-13.38-19.69-13.38c-8.93,0-15.23,4.46-18.9,13.38l94.5-261.46L443.6-53.98c3.68,10.5,7.88,22.97,12.6,37.42 c4.72,14.43,8.92,26.9,12.6,37.4l64.58,184.29c3.67,10.5,10.09,19.95,19.29,28.35c9.19,8.41,19.82,12.6,31.9,12.6H342.02z" /></g>
+               <g transform="translate(407.31193, 150.568186)"><path d="M400.89,182.21c0-12.07-2.23-23.49-6.69-34.25c-4.47-10.77-10.65-20.08-18.52-27.96s-17.06-14.05-27.56-18.52 c-10.5-4.46-21.79-6.69-33.88-6.69H507.2c-11.55,1.57-22.71,5.24-33.48,11.02c-10.76,5.78-20.86,13-30.31,21.67 c-9.46,8.67-17.86,18.25-25.21,28.75c-7.34,10.5-13.11,21.26-17.31,32.29V182.21z M249.66,94.79 c-11.03,0-20.48,4.59-28.35,13.77c-7.88,9.19-11.81,19.57-11.81,31.12c0,2.09,0,4.19,0,6.29c0,2.09,0.53,4.2,1.58,6.31 l22.83,66.15l1.58,4.73l55.92,161.46c3.68,8.92,10.24,13.38,19.69,13.38c8.93,0,15.23-4.46,18.9-13.38l-94.5,261.46 l-87.42-251.23c-3.68-10.5-7.88-22.97-12.6-37.42c-4.72-14.43-8.92-26.9-12.6-37.4L58.29,135.75 c-3.67-10.5-10.09-19.95-19.29-28.35c-9.19-8.41-19.82-12.6-31.9-12.6H249.66z" /></g>
+            </g>
+         </defs>
+      </svg>
+      <div class="bgfx"></div>
+
+      <!-- ═══════════════════════════ TITLE BAR ═══════════════════════════ -->
+      <div id="titleBar" onmousedown="startDrag(event)">
+         <div class="tb-brand">
+            <svg class="tb-logo" viewBox="0 0 1000 1000" fill="currentColor" aria-hidden="true"><use href="#ardysaGlyph" /></svg>
+            <span class="b-name" data-i18n="shell.nav.miscellaneous">Miscellaneous</span>
+            <span class="b-tag" data-i18n="miscForm.tag">Custom Options</span>
+         </div>
+         <button class="tb-close" onclick="requestClose()" onmousedown="event.stopPropagation()" title="Close" data-i18n-title="common.close">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+         </button>
+      </div>
+
+      <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
+      <header class="mf-header">
+         <div>
+            <h1 class="mf-title" data-i18n="miscForm.title">Miscellaneous Options</h1>
+            <p id="optionsCount" class="mf-sub" data-i18n="miscForm.loading">Loading...</p>
+         </div>
+         <div class="mf-actions">
+            <button id="clearBtn" class="btn ghost" onclick="clearSelections()" data-i18n="miscForm.clear">Clear</button>
+            <button class="btn ghost" onclick="loadPreset()" data-i18n="common.load">Load</button>
+            <button class="btn ghost" onclick="savePreset()" data-i18n="common.save">Save</button>
+            <button id="generateBtn" class="btn primary" onclick="generate()">
+               <span id="generateBtnText" data-i18n="miscForm.generate">Generate</span>
+            </button>
+         </div>
+      </header>
+
+      <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+      <main class="mf-main">
+         <div class="mf-scroll">
+            <div id="optionsGrid" class="options-grid"></div>
+         </div>
+      </main>
+
+      <!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+      <footer class="status-bar">
+         <span id="statusText" data-i18n="hero.status.ready">Ready</span>
+         <span id="versionText">version ...</span>
+      </footer>
+
+      <!-- ═══════════════════════════ CACHING OVERLAY ═══════════════════════════ -->
+      <div id="cachingOverlay">
+         <div class="co-box">
+            <div class="co-ico">
+               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+               </svg>
+            </div>
+            <h2 class="co-title" data-i18n="common.loadingAssets">Loading Assets</h2>
+            <p id="cachingStatus" data-i18n="common.preparingThumbs">Preparing thumbnails...</p>
+            <div class="co-bar"><div id="cachingBar"></div></div>
+            <div class="co-meta">
+               <span id="cachingCount">0 / 0</span>
+               <span id="cachingPercent">0%</span>
+            </div>
+            <button id="skipCachingBtn" onclick="skipCaching()" class="btn ghost hidden" style="margin-top: var(--sp-5)" data-i18n="miscForm.skipContinue">Skip &amp; Continue</button>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ OPTION MODAL (carousel) ═══════════════════════════ -->
+      <div id="optionModal" class="hidden ov" style="z-index: 90">
+         <div class="ov-scrim" onclick="closeOptionModal()"></div>
+         <div class="sm-wrap">
+            <button id="prevOptionBtn" onclick="navigateOption(-1)" class="nav-arrow" title="Previous" data-i18n-title="shell.carousel.prev">
+               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+               </svg>
+            </button>
+
+            <div id="modalContent" class="sm-panel animate-bounce-in">
+               <div class="sm-head">
+                  <div class="sm-head-left">
+                     <div id="modalThumb" class="mf-modal-thumb">
+                        <img id="modalThumbImg" src="" alt="" />
+                     </div>
+                     <div>
+                        <h2 id="modalTitle"></h2>
+                        <p class="sm-hint" data-i18n="miscForm.optionHint">← → browse options · click to select</p>
+                     </div>
+                  </div>
+                  <button onclick="closeOptionModal()" class="sm-x" title="Close" data-i18n-title="common.close">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                     </svg>
+                  </button>
+               </div>
+
+               <div id="modalChoices" class="choices-grid"></div>
+
+               <div class="sm-foot">
+                  <button onclick="closeOptionModal()" class="btn primary" data-i18n="common.done">Done</button>
+               </div>
+            </div>
+
+            <button id="nextOptionBtn" onclick="navigateOption(1)" class="nav-arrow" title="Next" data-i18n-title="shell.carousel.next">
+               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+               </svg>
+            </button>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ STYLE OVERLAY ═══════════════════════════ -->
+      <div id="styleOverlay" class="hidden ov" style="z-index: 95">
+         <div class="ov-scrim" onclick="closeStyleOverlay()"></div>
+         <div class="mf-dialog">
+            <div class="mf-dialog-head">
+               <button onclick="closeStyleOverlay()" class="mf-back" title="Back" data-i18n-title="common.back">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                  </svg>
+               </button>
+               <div id="styleOverlayThumb" class="mf-dialog-thumb"></div>
+               <div class="mf-dialog-titles">
+                  <h3 id="styleOverlayTitle" class="mf-dialog-title"></h3>
+                  <p class="mf-dialog-sub" data-i18n="miscForm.selectStyle">Select a style</p>
+               </div>
+            </div>
+            <div id="styleOverlayGrid" class="choices-grid" style="max-height: 56vh"></div>
+            <div class="mf-dialog-foot" style="justify-content: flex-end">
+               <button onclick="closeStyleOverlay()" class="btn primary" data-i18n="common.done">Done</button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ ETHEREAL OVERLAY ═══════════════════════════ -->
+      <div id="etherealOverlay" class="hidden ov" style="z-index: 96">
+         <div class="ov-scrim" onclick="closeEtherealOverlay()"></div>
+         <div class="mf-dialog">
+            <div class="mf-dialog-head">
+               <button onclick="closeEtherealOverlay()" class="mf-back" title="Back" data-i18n-title="common.back">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                  </svg>
+               </button>
+               <div id="etherealOverlayThumb" class="mf-dialog-thumb"></div>
+               <div class="mf-dialog-titles">
+                  <h3 class="mf-dialog-title" data-i18n="miscForm.ethereal.title">✦ Ethereal Effects</h3>
+                  <p id="etherealSlotInfo" class="mf-dialog-sub" data-i18n="miscForm.etherealSlot">Select up to 2 effects</p>
+               </div>
+            </div>
+            <div id="etherealGrid"></div>
+            <div class="mf-dialog-foot">
+               <span id="etherealCounter">0 selected</span>
+               <button onclick="closeEtherealOverlay()" class="btn primary" data-i18n="common.done">Done</button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ PROGRESS OVERLAY ═══════════════════════════ -->
+      <div id="progressOverlay" class="hidden ov" style="z-index: 100">
+         <div class="progress-panel animate-bounce-in">
+            <div class="progress-head">
+               <div class="progress-head-left">
+                  <div id="progressSpinner" class="animate-spin"></div>
+                  <span id="progressTitle" data-i18n="miscForm.generating">Generating...</span>
+               </div>
+               <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar-wrap">
+               <div class="progress-bar-track"><div id="progressBar"></div></div>
+               <p id="progressStatus" data-i18n="miscForm.preparing">Preparing...</p>
+            </div>
+            <div class="progress-console-wrap">
+               <div id="progressConsole" class="retro-terminal">
+                  <div id="progressConsoleContent"></div>
+               </div>
+            </div>
+            <div class="progress-foot">
+               <button onclick="cancelGeneration()" class="btn ghost" data-i18n="common.cancel">Cancel</button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ MODE MODAL ═══════════════════════════ -->
+      <div id="modeModal" class="hidden ov" style="z-index: 100">
+         <div class="ov-scrim" onclick="dismissModeModal()"></div>
+         <div class="mode-panel animate-bounce-in">
+            <h3 class="mode-title" data-i18n="miscForm.modeTitle">Generation Mode</h3>
+            <div class="mode-list">
+               <button onclick="selectMode('clean')" class="mode-option">
+                  <div class="mode-ico">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                     </svg>
+                  </div>
+                  <div>
+                     <div class="mode-name" data-i18n="miscForm.genOnly.name">Generate Only Misc Mods</div>
+                     <div class="mode-desc" data-i18n="miscForm.genOnly.desc">Create a clean VPK with only Misc mods</div>
+                  </div>
+               </button>
+               <button onclick="selectMode('add')" class="mode-option">
+                  <div class="mode-ico">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                     </svg>
+                  </div>
+                  <div>
+                     <div class="mode-name" data-i18n="miscForm.addCurrent.name">Add to Current Mods</div>
+                     <div class="mode-desc" data-i18n="miscForm.addCurrent.desc">Apply modifications on top of existing game mods</div>
+                  </div>
+               </button>
+            </div>
+            <button onclick="dismissModeModal()" class="mode-cancel" data-i18n="common.cancel">Cancel</button>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ ALERT MODAL ═══════════════════════════ -->
+      <div id="alertModal" class="hidden ov" style="z-index: 100">
+         <div class="ov-scrim" onclick="closeAlert()"></div>
+         <div class="dialog">
+            <div class="dialog-body">
+               <div id="alertIconContainer" class="dialog-ico">
+                  <svg id="alertIconSuccess" class="hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg id="alertIconWarning" class="hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <svg id="alertIconInfo" class="hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <svg id="alertIconError" class="hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+               </div>
+               <div class="dialog-main">
+                  <h3 id="alertTitle" class="dialog-title" data-i18n="common.alert">Alert</h3>
+                  <p id="alertMessage" class="dialog-msg"></p>
+               </div>
+            </div>
+            <div class="dialog-actions">
+               <button id="alertShowLogBtn" onclick="openLogModal()" class="btn ghost hidden" data-i18n="miscForm.showLog">Show Log</button>
+               <button onclick="closeAlert()" class="btn primary" data-i18n="common.ok">OK</button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ LOG MODAL ═══════════════════════════ -->
+      <div id="logModal" class="hidden ov" style="z-index: 250">
+         <div class="ov-scrim" onclick="closeLogModal()"></div>
+         <div class="dialog log-dialog">
+            <div class="dialog-body">
+               <div class="dialog-main">
+                  <h3 class="dialog-title" data-i18n="miscForm.genLog">Generation Log</h3>
+                  <div id="logModalConsole" class="retro-terminal log-modal-console">
+                     <div id="logModalContent"></div>
+                  </div>
+               </div>
+            </div>
+            <div class="dialog-actions">
+               <button onclick="copyLog()" class="btn ghost" data-i18n="miscForm.copyLog">Copy</button>
+               <button onclick="closeLogModal()" class="btn primary" data-i18n="common.close">Close</button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ CREATOR TRIBUTE MODAL ═══════════════════════════ -->
+      <div id="tributeModal" class="hidden ov" style="z-index: 200">
+         <div class="ov-scrim"></div>
+         <div class="tribute-panel animate-bounce-in">
+            <div class="tribute-head">
+               <div class="tribute-ico">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+               </div>
+               <h3 class="tribute-title" data-i18n="miscForm.tribute.title">Created by Darkness</h3>
+               <p id="tributeSubtitle" data-i18n="miscForm.tribute.subtitle">This mod was made with ❤ by the community</p>
+            </div>
+
+            <div class="tribute-links">
+               <a href="https://t.me/Darkness_Logovo" target="_blank" class="tribute-link"
+                  onclick="event.preventDefault(); window.open('https://t.me/Darkness_Logovo', '_blank');">
+                  <div class="tribute-link-ico">
+                     <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                     </svg>
+                  </div>
+                  <div class="tribute-link-main">
+                     <div class="tribute-link-title" data-i18n="miscForm.tribute.telegram">Telegram Channel</div>
+                     <div class="tribute-link-sub">@Darkness_Logovo</div>
+                  </div>
+                  <svg class="tribute-link-ext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+               </a>
+
+               <a href="https://www.donationalerts.com/r/darknessings" target="_blank" class="tribute-link"
+                  onclick="event.preventDefault(); window.open('https://www.donationalerts.com/r/darknessings', '_blank');">
+                  <div class="tribute-link-ico">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                     </svg>
+                  </div>
+                  <div class="tribute-link-main">
+                     <div class="tribute-link-title" data-i18n="miscForm.tribute.donation">Donation Alerts</div>
+                     <div class="tribute-link-sub" data-i18n="miscForm.tribute.donationSub">Support the creator</div>
+                  </div>
+                  <svg class="tribute-link-ext" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+               </a>
+
+               <div class="tribute-link" style="cursor: default">
+                  <div class="tribute-link-ico">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                     </svg>
+                  </div>
+                  <div class="tribute-link-main">
+                     <div class="tribute-link-title">ЮMoney</div>
+                     <div class="tribute-link-sub copy">4100 1185 8130 2645</div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="tribute-foot">
+               <span class="tribute-foot-note">Thank you for using community mods</span>
+               <button id="tributeCloseBtn" onclick="closeTributeModal()" disabled class="btn primary">
+                  <span id="tributeCountdown">Wait 10s</span>
+               </button>
+            </div>
+         </div>
+      </div>
+      <script>
+         // Default thumbnail for options without images (AMT logo)
+         let DEFAULT_THUMB = "";
+
+         // State
+         let options = [];
+         let selections = {};
+         let currentOptionIndex = -1;
+         let isGenerating = false;
+         const thumbCache = new Map();
+
+         // Ethereal effects data (static — matches EtherealEffects.cs)
+         const ETHEREAL_EFFECTS = {
+            "Touch of Midas (Midas Gold)":
+               "particles/econ/courier/courier_golden_roshan/golden_roshan_ambient.vpcf",
+            "Touch of Flame (Pyroclastic Flow)":
+               "particles/econ/courier/courier_roshan_lava/courier_roshan_lava.vpcf",
+            "Touch of Frost (Glacial Flow)":
+               "particles/econ/courier/courier_roshan_frost/courier_roshan_frost_ambient.vpcf",
+            "Desert Sands":
+               "particles/econ/courier/courier_roshan_desert_sands/baby_roshan_desert_sands_ambient.vpcf",
+            "Dark Moon":
+               "particles/econ/courier/courier_roshan_darkmoon/courier_roshan_darkmoon.vpcf",
+            "Ionic Vapor":
+               "particles/econ/courier/courier_platinum_roshan/platinum_roshan_ambient.vpcf",
+            "Trail of Burning Doom":
+               "particles/econ/courier/courier_trail_lava/courier_trail_lava.vpcf",
+            "Butterfly Romp (Plushy Shag)":
+               "particles/econ/courier/courier_shagbark/courier_shagbark_ambient.vpcf",
+            "New Bloom Celebration":
+               "particles/econ/courier/courier_trail_fireworks/courier_trail_fireworks.vpcf",
+            "Blossom Red":
+               "particles/econ/courier/courier_trail_01/blossom_red_courier_trail_01.vpcf",
+            "Glacial Flow":
+               "particles/econ/courier/courier_trail_01/glacial_flow_courier_trail_01.vpcf",
+            "Resonant Energy (ShipsInTheNight)":
+               "particles/econ/courier/courier_trail_02/courier_trail_02.vpcf",
+            "Felicity's Blessing (Light Green)":
+               "particles/econ/courier/courier_trail_03/courier_trail_03.vpcf",
+            "Affliction of Vermin": "particles/econ/courier/courier_trail_04/courier_trail_04.vpcf",
+            "Trail of the Amanita":
+               "particles/econ/courier/courier_trail_fungal/courier_trail_fungal.vpcf",
+            Sunfire: "particles/econ/courier/courier_trail_05/courier_trail_05.vpcf",
+            "Spirit of Earth":
+               "particles/econ/courier/courier_trail_earth/courier_trail_earth.vpcf",
+            "Spirit of Ember (Ember Flame)":
+               "particles/econ/courier/courier_trail_ember/courier_trail_ember.vpcf",
+            "Orbital Decay": "particles/econ/courier/courier_trail_orbit/courier_trail_orbit.vpcf",
+            "Bleak Hallucination (Creator's Light)":
+               "particles/econ/courier/courier_trail_spirit/courier_trail_spirit.vpcf",
+            "Rubiline Sheen": "particles/econ/courier/courier_trail_ruby/courier_trail_ruby.vpcf",
+            "Deep Green":
+               "particles/econ/courier/courier_polycount_01/courier_trail_polycount_01.vpcf",
+            "Divine Essence (Creator's Light)":
+               "particles/econ/courier/courier_trail_divine/courier_trail_divine_ambient.vpcf",
+            "Cursed Essence":
+               "particles/econ/courier/courier_trail_cursed/courier_trail_cursed_ambient.vpcf",
+            "Crystal Rift (Crystalline Blue)":
+               "particles/econ/courier/courier_crystal_rift/courier_ambient_crystal_rift.vpcf",
+            "Blossom Red (Int 2014)":
+               "particles/econ/courier/courier_trail_blossoms/courier_trail_blossoms.vpcf",
+            "Luminous Gaze (Explosive Burst)":
+               "particles/econ/courier/courier_eye_glow_01/courier_eye_glow_01.vpcf",
+            "Searing Essence (ShipsInTheNight)":
+               "particles/econ/courier/courier_eye_glow_02/courier_eye_glow_02.vpcf",
+            "Burning Animus (Gold)":
+               "particles/econ/courier/courier_eye_glow_03/courier_eye_glow_03.vpcf",
+            "Piercing Beams (Blue)":
+               "particles/econ/courier/courier_eye_glow_04/courier_eye_glow_04.vpcf",
+            "Triumph of Champions":
+               "particles/econ/courier/courier_eye_glow_defense_01/courier_eye_glow_defense_01.vpcf",
+            "Frostivus Frost":
+               "particles/econ/courier/courier_trail_winter_2012/courier_trail_winter_2012.vpcf",
+            "Diretide Corruption":
+               "particles/econ/courier/courier_trail_hw_2012/courier_trail_hw_2012.vpcf",
+            "Diretide Blight":
+               "particles/econ/courier/courier_trail_hw_2013/courier_trail_hw_2013.vpcf",
+            "Champion's Aura 2012 (Champion's Blue)":
+               "particles/econ/courier/courier_trail_int_2012/champ_blue_courier_trail_international_2012.vpcf",
+            "Champion's Aura 2013 (Champion's Green)":
+               "particles/econ/courier/courier_trail_international_2013/champ_green_courier_international_2013.vpcf",
+            "Champion's Aura 2014 (Champion's Purple)":
+               "particles/econ/courier/courier_trail_international_2014/champ_purple_courier_international_2014.vpcf",
+            "Blossom Red (Int 2014 Alt)":
+               "particles/econ/courier/courier_trail_international_2014/blossom_red_courier_international_2014.vpcf",
+            "Plushy Shag":
+               "particles/econ/courier/courier_trail_international_2014/plushy_shag_courier_international_2014.vpcf",
+         };
+         const MAX_ETHEREAL_SLOTS = 2;
+         let etherealSelections = []; // currently selected effect names
+         let currentEtherealOptionId = null; // which option the ethereal overlay is for
+
+         // C# calls
+         function setDefaultThumb(url) {
+            DEFAULT_THUMB = url;
+         }
+
+         function loadOptions(optionsJson) {
+            options = typeof optionsJson === "string" ? JSON.parse(optionsJson) : optionsJson;
+
+            document.getElementById("optionsCount").textContent =
+               `${options.length} options available`;
+
+            // Hide loading overlay immediately and render
+            hideCachingOverlay();
+            renderOptions();
+            setStatus("Ready");
+
+            // Preload thumbnails in background (for faster modal loading)
+            setTimeout(() => preloadThumbnailsBackground(), 100);
+         }
+
+         function loadSelections(selectionsJson) {
+            selections =
+               typeof selectionsJson === "string" ? JSON.parse(selectionsJson) : selectionsJson;
+            renderOptions();
+         }
+
+         // Reset every option to its default (first/no-op) choice. A missing entry in
+         // `selections` already renders as opt.choices[0], so emptying the map is the whole
+         // reset — no per-option loop, robust to any config. C# clears its mirror + the saved
+         // file so the cleared state survives a relaunch.
+         function clearSelections() {
+            if (isGenerating) return;
+
+            const hadSelections = Object.keys(selections).some((id) => {
+               const opt = options.find((o) => o.id === id);
+               const def = opt?.choices?.[0]?.id;
+               return selections[id] && selections[id] !== def;
+            });
+
+            selections = {};
+            etherealSelections = [];
+            renderOptions();
+            sendMessage("clearSelections");
+            setStatus(hadSelections ? "Selections cleared" : "Already at default");
+         }
+
+         // Called from C# when a conflicting option is auto-reset due to mutual exclusion
+         function resetOption(optionId, defaultChoiceId) {
+            selections[optionId] = defaultChoiceId;
+            renderOptions();
+
+            // Flash the reset tile to indicate the change
+            const tile = document.querySelector(`[data-option-id="${optionId}"]`);
+            if (tile) {
+               tile.style.transition = "border-color 0.3s, opacity 0.3s";
+               tile.style.borderColor = "#ef4444";
+               tile.style.opacity = "0.6";
+               setTimeout(() => {
+                  tile.style.borderColor = "";
+                  tile.style.opacity = "";
+               }, 600);
+            }
+         }
+
+         function setStatus(text) {
+            document.getElementById("statusText").textContent = text;
+         }
+         function setVersion(version) {
+            document.getElementById("versionText").textContent = `version ${version}`;
+         }
+
+         // Background thumbnail preloader (silent, no overlay)
+         function preloadThumbnailsBackground() {
+            options.forEach((opt) => {
+               if (!opt.thumbnailPattern) return;
+               (opt.choices || []).forEach((c) => {
+                  const url = getThumbUrl(opt, c.id);
+                  if (url && !thumbCache.has(url)) {
+                     const img = new Image();
+                     img.onload = () => thumbCache.set(url, img.src);
+                     img.onerror = () => tryAltFormats(url);
+                     img.src = url;
+                  }
+               });
+            });
+         }
+
+         function tryAltFormats(url) {
+            const formats = [".webp", ".jpg", ".jpeg"];
+            const base = url.replace(/\.(png|webp|jpg|jpeg)$/i, "");
+            for (const fmt of formats) {
+               if (url.endsWith(fmt)) continue;
+               const img = new Image();
+               img.onload = () => thumbCache.set(url, img.src);
+               img.src = base + fmt;
+               break;
+            }
+         }
+
+         // C# calls these to control caching overlay
+         function showCachingOverlay() {
+            const overlay = document.getElementById("cachingOverlay");
+            if (overlay) {
+               overlay.classList.remove("hidden");
+               overlay.style.opacity = "1";
+               document.getElementById("cachingStatus").textContent = "Downloading thumbnails...";
+               document.getElementById("cachingBar").style.width = "0%";
+               document.getElementById("cachingCount").textContent = "0 / 0";
+               document.getElementById("cachingPercent").textContent = "0%";
+            }
+         }
+
+         function updateCachingProgress(current, total) {
+            const pct = total > 0 ? Math.round((current / total) * 100) : 100;
+            document.getElementById("cachingBar").style.width = `${pct}%`;
+            document.getElementById("cachingCount").textContent = `${current} / ${total}`;
+            document.getElementById("cachingPercent").textContent = `${pct}%`;
+            setStatus(`Downloading ${current}/${total}`);
+
+            if (current >= total && total > 0) {
+               document.getElementById("cachingStatus").textContent = "Complete!";
+            }
+         }
+
+         function hideCachingOverlay() {
+            const overlay = document.getElementById("cachingOverlay");
+            if (overlay) {
+               overlay.style.opacity = "0";
+               overlay.style.transition = "opacity 0.2s ease";
+               setTimeout(() => overlay.classList.add("hidden"), 200);
+            }
+         }
+
+         function tryAltFormatsWithCallback(url, callback) {
+            const formats = [".webp", ".jpg", ".jpeg"];
+            const base = url.replace(/\.(png|webp|jpg|jpeg)$/i, "");
+            let tried = 0;
+            let found = false;
+
+            for (const fmt of formats) {
+               if (url.endsWith(fmt)) continue;
+               const altUrl = base + fmt;
+               const img = new Image();
+               img.onload = () => {
+                  if (!found) {
+                     found = true;
+                     thumbCache.set(url, img.src);
+                     callback();
+                  }
+               };
+               img.onerror = () => {
+                  tried++;
+                  if (tried >= formats.length - 1 && !found) {
+                     callback();
+                  }
+               };
+               img.src = altUrl;
+            }
+         }
+
+         function tryAltFormats(url) {
+            const formats = [".webp", ".jpg", ".jpeg"];
+            const base = url.replace(/\.(png|webp|jpg|jpeg)$/i, "");
+
+            for (const fmt of formats) {
+               if (url.endsWith(fmt)) continue;
+               const altUrl = base + fmt;
+               const img = new Image();
+               img.onload = () => thumbCache.set(url, img.src);
+               img.src = altUrl;
+               break;
+            }
+         }
+
+         // Mirror C# MiscOption.IsDefaultChoice: the "Default …"/"Disable …" no-op choices have
+         // no CDN thumbnail, so skip the request entirely and let the placeholder render.
+         function isDefaultChoice(name) {
+            const n = (name || "").replace(/^\s+/, "").toLowerCase();
+            return n.startsWith("default") || n.startsWith("disable");
+         }
+
+         // Find a per-choice thumbnailId override (shared art) by choice/style id. Mirrors the
+         // C# MiscOption.ChoiceThumbnailIds lookup so both sides resolve the same thumbnail URL.
+         function findThumbnailId(opt, choiceId) {
+            if (!opt.choices) return null;
+            for (const c of opt.choices) {
+               if (c.id === choiceId) return c.thumbnailId || null;
+               if (c.styles) {
+                  for (const s of c.styles) {
+                     if (s.id === choiceId) return s.thumbnailId || null;
+                  }
+               }
+            }
+            return null;
+         }
+
+         function getThumbUrl(opt, choiceId) {
+            if (!opt.thumbnailPattern) return null;
+            if (isDefaultChoice(choiceId)) return null;
+            // Honor a per-choice thumbnailId override (used verbatim as the CDN stem); otherwise
+            // mirror C# sanitization: strip non-alphanumeric (except space/hyphen), trim, lowercase,
+            // replace spaces. MUST mirror MiscOption.GetThumbnailUrl.
+            const override = findThumbnailId(opt, choiceId);
+            const token = override || choiceId
+               .replace(/[^\w\s\-]/g, "")
+               .trim()
+               .toLowerCase()
+               .replace(/ /g, "_");
+            return opt.thumbnailPattern.replace("{choice}", token);
+         }
+
+         function getCachedThumb(opt, choiceId) {
+            const url = getThumbUrl(opt, choiceId);
+            if (!url) return DEFAULT_THUMB;
+            return thumbCache.get(url) || url;
+         }
+
+         // Progress overlay
+         function showProgress(title = "Generating...") {
+            document.getElementById("progressOverlay").classList.remove("hidden");
+            document.getElementById("progressTitle").textContent = title;
+            document.getElementById("progressPercent").textContent = "0%";
+            document.getElementById("progressBar").style.width = "0%";
+            document.getElementById("progressStatus").textContent = "Preparing...";
+            document.getElementById("progressConsoleContent").innerHTML = "";
+         }
+
+         function hideProgress() {
+            document.getElementById("progressOverlay").classList.add("hidden");
+         }
+
+         function updateProgress(percent, status) {
+            document.getElementById("progressPercent").textContent = `${percent}%`;
+            document.getElementById("progressBar").style.width = `${percent}%`;
+            if (status) document.getElementById("progressStatus").textContent = status;
+         }
+
+         function appendConsole(msg) {
+            if (!msg) return;
+            const content = document.getElementById("progressConsoleContent");
+            if (!content) return;
+
+            const line = document.createElement("div");
+            line.className = "log-line py-0.5";
+            line.textContent = msg;
+            content.appendChild(line);
+
+            const console = document.getElementById("progressConsole");
+            if (console) console.scrollTop = console.scrollHeight;
+         }
+
+         function clearConsole() {
+            const content = document.getElementById("progressConsoleContent");
+            if (content) content.innerHTML = "";
+         }
+
+         function setGenerating(gen) {
+            isGenerating = gen;
+            document.getElementById("generateBtnText").textContent = gen
+               ? "Generating..."
+               : "Generate";
+            document.getElementById("generateBtn").classList.toggle("opacity-50", gen);
+            document.getElementById("generateBtn").classList.toggle("pointer-events-none", gen);
+            const clearBtn = document.getElementById("clearBtn");
+            if (clearBtn) {
+               clearBtn.classList.toggle("opacity-50", gen);
+               clearBtn.classList.toggle("pointer-events-none", gen);
+            }
+         }
+
+         function showAlert(title, message, type = "info") {
+            hideProgress();
+            document.getElementById("alertTitle").textContent = title;
+            document.getElementById("alertMessage").textContent = message;
+            ["Success", "Warning", "Info", "Error"].forEach((t) =>
+               document.getElementById(`alertIcon${t}`).classList.add("hidden"),
+            );
+            const iconMap = {
+               success: "Success",
+               warning: "Warning",
+               error: "Error",
+               info: "Info",
+            };
+            document
+               .getElementById(`alertIcon${iconMap[type] || "Info"}`)
+               .classList.remove("hidden");
+            // Monochrome — icons differ by shape, not color.
+            const container = document.getElementById("alertIconContainer");
+            container.className = "dialog-ico";
+
+            // Offer "Show Log" on any generation-outcome alert that actually has console
+            // output — on errors it's the only way to see the failed step, since showAlert
+            // hides the progress overlay (the log content survives until the next run).
+            const showLogBtn = document.getElementById("alertShowLogBtn");
+            if (showLogBtn) {
+               const hasLog = !!document.getElementById("progressConsoleContent")?.textContent.trim();
+               const isOutcome = type === "success" || type === "warning" || type === "error";
+               showLogBtn.classList.toggle("hidden", !(hasLog && isOutcome));
+            }
+
+            document.getElementById("alertModal").classList.remove("hidden");
+         }
+
+         function closeAlert() {
+            document.getElementById("alertModal").classList.add("hidden");
+            sendMessage("alertDismissed");
+         }
+
+         // Mirror the run's console into a dedicated modal so the user can review the full
+         // log after the completion alert. Reads from the live #progressConsoleContent.
+         function openLogModal() {
+            const src = document.getElementById("progressConsoleContent");
+            const dst = document.getElementById("logModalContent");
+            dst.innerHTML = src && src.innerHTML.trim()
+               ? src.innerHTML
+               : '<div class="log-line">No log available.</div>';
+            document.getElementById("logModal").classList.remove("hidden");
+            const box = document.getElementById("logModalConsole");
+            if (box) box.scrollTop = box.scrollHeight;
+         }
+
+         function closeLogModal() {
+            document.getElementById("logModal").classList.add("hidden");
+         }
+
+         async function copyLog() {
+            const text = document.getElementById("logModalContent")?.innerText || "";
+            try { await navigator.clipboard.writeText(text); } catch (e) { /* clipboard unavailable */ }
+         }
+
+         // Rendering
+         let firstRender = true;
+
+         function renderOptions() {
+            const grid = document.getElementById("optionsGrid");
+            grid.innerHTML = "";
+
+            const animate = firstRender;
+            firstRender = false;
+
+            options.forEach((opt, i) => {
+               const selected = selections[opt.id] || opt.choices?.[0]?.id || "default";
+               const selectedChoice = opt.choices?.find((c) => c.id === selected);
+               const thumbUrl = getThumbUrl(opt, selected);
+               const letter = (selectedChoice?.name || opt.name).charAt(0).toUpperCase();
+
+               const isChanged = selected !== (opt.choices?.[0]?.id || "default");
+               const card = document.createElement("div");
+               card.className =
+                  "tile-card" +
+                  (isChanged ? " selected" : "") +
+                  (animate ? " animate-fade-in-up" : "");
+               if (animate) card.style.animationDelay = `${i * 15}ms`;
+               card.dataset.optionId = opt.id;
+               card.onclick = () => openOptionModal(i);
+
+               // Always try to load image if URL exists, let onerror handle failures
+               const hasUrl = thumbUrl && thumbUrl.length > 0;
+
+               card.innerHTML = `
+               ${
+                  hasUrl
+                     ? `<img src="${thumbUrl}" alt="" class="tile-thumb" onerror="handleImgError(this, '${letter}')">`
+                     : `<div class="thumb-letter">${letter}</div>`
+               }
+               <div class="tile-name">${opt.name}</div>
+               <div class="tile-choice">${selectedChoice?.name || "Default"}</div>
+            `;
+               grid.appendChild(card);
+            });
+
+            if (options.length === 0) {
+               grid.innerHTML = '<div class="grid-empty">No options available</div>';
+            }
+         }
+
+         // Handle image error - try alternate formats, then fall back to letter placeholder
+         function handleImgError(img, letter) {
+            const src = img.src;
+            const formats = [".webp", ".png", ".jpg", ".jpeg"];
+            const base = src.replace(/\.(png|webp|jpg|jpeg)$/i, "");
+            const currentExt = src.match(/\.(png|webp|jpg|jpeg)$/i)?.[0]?.toLowerCase() || "";
+
+            // Track tried formats in data attribute
+            let tried = (img.dataset.triedFormats || currentExt).split(",");
+
+            // Find next format to try
+            for (const fmt of formats) {
+               if (tried.includes(fmt)) continue;
+               tried.push(fmt);
+               img.dataset.triedFormats = tried.join(",");
+               img.onerror = () => handleImgError(img, letter);
+               img.src = base + fmt;
+               return;
+            }
+
+            // All formats failed, show solid color placeholder
+            const placeholder = document.createElement("div");
+            placeholder.className = "tile-thumb";
+            placeholder.style.backgroundColor = "rgb(17, 17, 17)";
+            img.replaceWith(placeholder);
+         }
+
+         // Option Modal (Carousel)
+         function openOptionModal(index) {
+            currentOptionIndex = index;
+            showOptionInModal(options[index]);
+            document.getElementById("optionModal").classList.remove("hidden");
+            document.addEventListener("keydown", handleModalKeydown);
+         }
+
+         // Track which special options have shown tribute this session
+         let tributeShownFor = new Set();
+         let tributeTimer = null;
+         let pendingAfterTribute = null;
+
+         function closeOptionModal() {
+            closeStyleOverlay(); // Close style overlay if open
+
+            // Check if current option is Special with a non-default selection
+            if (currentOptionIndex >= 0) {
+               const opt = options[currentOptionIndex];
+               if (opt && opt.isSpecialVpk) {
+                  const currentSel = selections[opt.id];
+                  const defaultChoice = opt.choices?.[0]?.id || "default";
+                  if (currentSel && currentSel !== defaultChoice && !tributeShownFor.has(opt.id)) {
+                     tributeShownFor.add(opt.id);
+                     document.getElementById("optionModal").classList.add("hidden");
+                     document.removeEventListener("keydown", handleModalKeydown);
+                     currentOptionIndex = -1;
+                     showTributeModal(currentSel);
+                     return;
+                  }
+               }
+            }
+
+            document.getElementById("optionModal").classList.add("hidden");
+            document.removeEventListener("keydown", handleModalKeydown);
+            currentOptionIndex = -1;
+         }
+
+         function showTributeModal(choiceName) {
+            const modal = document.getElementById("tributeModal");
+            const btn = document.getElementById("tributeCloseBtn");
+            const countdown = document.getElementById("tributeCountdown");
+            const subtitle = document.getElementById("tributeSubtitle");
+
+            // Show which option triggered the tribute
+            if (choiceName) {
+               subtitle.textContent = `Selected: ${choiceName}`;
+            } else {
+               subtitle.textContent = "This mod was made with ❤ by the community";
+            }
+
+            modal.classList.remove("hidden");
+            btn.disabled = true;
+            btn.className = "btn primary";
+
+            let remaining = 10;
+            countdown.textContent = `Wait ${remaining}s`;
+
+            tributeTimer = setInterval(() => {
+               remaining--;
+               if (remaining > 0) {
+                  countdown.textContent = `Wait ${remaining}s`;
+               } else {
+                  clearInterval(tributeTimer);
+                  tributeTimer = null;
+                  countdown.textContent = "Close";
+                  btn.disabled = false;
+                  btn.className = "btn primary";
+               }
+            }, 1000);
+         }
+
+         function closeTributeModal() {
+            if (tributeTimer) {
+               clearInterval(tributeTimer);
+               tributeTimer = null;
+            }
+            document.getElementById("tributeModal").classList.add("hidden");
+
+            // Execute pending callback (e.g., proceed with generation)
+            if (pendingAfterTribute) {
+               const cb = pendingAfterTribute;
+               pendingAfterTribute = null;
+               cb();
+            }
+         }
+
+         function handleModalKeydown(e) {
+            // If style overlay is open, Escape closes it first
+            if (!document.getElementById("styleOverlay").classList.contains("hidden")) {
+               if (e.key === "Escape") {
+                  closeStyleOverlay();
+                  e.preventDefault();
+               }
+               return; // Block arrow keys while overlay is open
+            }
+            if (e.key === "ArrowLeft") {
+               navigateOption(-1);
+               e.preventDefault();
+            } else if (e.key === "ArrowRight") {
+               navigateOption(1);
+               e.preventDefault();
+            } else if (e.key === "Escape") {
+               closeOptionModal();
+               e.preventDefault();
+            }
+         }
+
+         function navigateOption(dir) {
+            if (options.length === 0) return;
+            currentOptionIndex = (currentOptionIndex + dir + options.length) % options.length;
+
+            const content = document.getElementById("modalContent");
+            content.classList.remove("animate-slide-left", "animate-slide-right");
+            void content.offsetWidth;
+            content.classList.add(dir > 0 ? "animate-slide-left" : "animate-slide-right");
+
+            showOptionInModal(options[currentOptionIndex]);
+         }
+
+         function showOptionInModal(opt) {
+            let currentSelection = selections[opt.id] || opt.choices?.[0]?.id || "default";
+
+            document.getElementById("modalTitle").textContent = opt.name;
+
+            // Header thumbnail — show the currently selected choice/style
+            const headerThumbUrl = getThumbUrl(opt, currentSelection);
+            const hasUrl = headerThumbUrl && headerThumbUrl.length > 0;
+            const headerLetter = opt.name.charAt(0).toUpperCase();
+
+            const modalThumb = document.getElementById("modalThumb");
+            if (hasUrl) {
+               modalThumb.innerHTML = `<img id="modalThumbImg" src="${headerThumbUrl}" alt="" onerror="this.parentElement.innerHTML='<div class=\\'choice-letter\\'>${headerLetter}</div>'">`;
+            } else {
+               modalThumb.innerHTML = `<div class="choice-letter">${headerLetter}</div>`;
+            }
+
+            // ALWAYS render base choices (no modalViewMode branching)
+            const choicesGrid = document.getElementById("modalChoices");
+            choicesGrid.innerHTML = "";
+            let selectedCard = null;
+
+            (opt.choices || []).forEach((c) => {
+               // A base choice is selected if it IS the current selection OR if one of its styles is
+               const isDirectlySelected = c.id === currentSelection;
+               const hasSelectedStyle = c.styles && c.styles.some((s) => s.id === currentSelection);
+               const isSelected = isDirectlySelected || hasSelectedStyle;
+
+               const cThumb = getThumbUrl(opt, c.id);
+               const cHasUrl = cThumb && cThumb.length > 0;
+               const cLetter = c.name.charAt(0).toUpperCase();
+
+               const card = document.createElement("div");
+               card.className = `choice-card${isSelected ? " selected" : ""}`;
+               card.onclick = () => selectBaseChoice(opt.id, c);
+
+               // Style badge — bracketed mono label
+               const styleBadge =
+                  c.styles && c.styles.length > 0
+                     ? `<div class="choice-badge styles">Styles</div>`
+                     : "";
+
+               // Ethereal badge — only on Courier option
+               const isCourier = opt.id && opt.id.toLowerCase() === "courier";
+               const etherealBadge = isCourier
+                  ? `<div class="choice-badge ethereal" onclick="event.stopPropagation(); openEtherealOverlay('${opt.id}', '${c.id}')">Ethereal</div>`
+                  : "";
+
+               card.innerHTML = `
+                  ${styleBadge}
+                  ${etherealBadge}
+                  ${
+                     cHasUrl
+                        ? `<img src="${cThumb}" alt="" class="choice-thumb" onerror="handleImgError(this, '${cLetter}')">`
+                        : `<div class="choice-letter">${cLetter}</div>`
+                  }
+                  <div class="choice-name">${c.name}</div>
+               `;
+               choicesGrid.appendChild(card);
+               if (isSelected) selectedCard = card;
+            });
+
+            // Scroll to selected card (item #1)
+            if (selectedCard) {
+               requestAnimationFrame(() => {
+                  selectedCard.scrollIntoView({ block: "center", behavior: "smooth" });
+               });
+            }
+
+            // Arrows always visible (no modalViewMode gating)
+            const showArrows = options.length > 1;
+            document.getElementById("prevOptionBtn").style.visibility = showArrows
+               ? "visible"
+               : "hidden";
+            document.getElementById("nextOptionBtn").style.visibility = showArrows
+               ? "visible"
+               : "hidden";
+         }
+
+         // --- Style Overlay Functions ---
+
+         function openStyleOverlay(optId, choiceObj) {
+            const opt = options.find((o) => o.id === optId);
+            if (!opt) return;
+            const currentSelection = selections[optId];
+
+            // Set header
+            document.getElementById("styleOverlayTitle").textContent = choiceObj.name;
+            const cThumb = getThumbUrl(opt, choiceObj.id);
+            const thumbEl = document.getElementById("styleOverlayThumb");
+            const cLetter = choiceObj.name.charAt(0).toUpperCase();
+            if (cThumb) {
+               thumbEl.innerHTML = `<img src="${cThumb}" onerror="handleImgError(this, '${cLetter}')">`;
+            } else {
+               thumbEl.innerHTML = `<div class="choice-letter">${cLetter}</div>`;
+            }
+
+            // Render style cards
+            const grid = document.getElementById("styleOverlayGrid");
+            grid.innerHTML = "";
+
+            choiceObj.styles.forEach((s) => {
+               const isSelected = s.id === currentSelection;
+               const sThumb = getThumbUrl(opt, s.id);
+               const sHasUrl = sThumb && sThumb.length > 0;
+               const sLetter = s.name.charAt(0).toUpperCase();
+
+               const card = document.createElement("div");
+               card.className = `choice-card${isSelected ? " selected" : ""}`;
+               card.onclick = () => selectStyle(optId, s.id, choiceObj);
+
+               card.innerHTML = `
+                  ${
+                     sHasUrl
+                        ? `<img src="${sThumb}" alt="" class="choice-thumb" onerror="handleImgError(this, '${sLetter}')">`
+                        : `<div class="choice-letter">${sLetter}</div>`
+                  }
+                  <div class="choice-name wrap" title="${s.name}">${s.name}</div>
+               `;
+               grid.appendChild(card);
+            });
+
+            document.getElementById("styleOverlay").classList.remove("hidden");
+         }
+
+         function closeStyleOverlay() {
+            document.getElementById("styleOverlay").classList.add("hidden");
+         }
+
+         // --- Ethereal Overlay Functions ---
+
+         function openEtherealOverlay(optId, choiceId) {
+            currentEtherealOptionId = optId;
+            const opt = options.find((o) => o.id === optId);
+            if (!opt) return;
+
+            // Load saved ethereal selections from main selections
+            const saved = selections["CourierEthereal"] || "";
+            etherealSelections = saved
+               ? saved
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+               : [];
+
+            // Set thumbnail
+            const cThumb = getThumbUrl(opt, choiceId);
+            const thumbEl = document.getElementById("etherealOverlayThumb");
+            const letter = (choiceId || "E").charAt(0).toUpperCase();
+            if (cThumb) {
+               thumbEl.innerHTML = `<img src="${cThumb}" onerror="handleImgError(this, '${letter}')">`;
+            } else {
+               thumbEl.innerHTML = `<div class="choice-letter">${letter}</div>`;
+            }
+
+            renderEtherealGrid();
+            document.getElementById("etherealOverlay").classList.remove("hidden");
+         }
+
+         function closeEtherealOverlay() {
+            document.getElementById("etherealOverlay").classList.add("hidden");
+            currentEtherealOptionId = null;
+         }
+
+         function renderEtherealGrid() {
+            const grid = document.getElementById("etherealGrid");
+            grid.innerHTML = "";
+
+            const maxSlots = MAX_ETHEREAL_SLOTS;
+            const selectedCount = etherealSelections.length;
+            document.getElementById("etherealSlotInfo").textContent =
+               `Select up to ${maxSlots} effects`;
+            document.getElementById("etherealCounter").textContent =
+               `${selectedCount}/${maxSlots} selected`;
+
+            Object.entries(ETHEREAL_EFFECTS).forEach(([name, path]) => {
+               const isSelected = etherealSelections.includes(name);
+               const isDisabled = !isSelected && selectedCount >= maxSlots;
+
+               const row = document.createElement("div");
+               row.className = `eth-row${isSelected ? " selected" : ""}${isDisabled ? " disabled" : ""}`;
+
+               if (!isDisabled || isSelected) {
+                  row.onclick = () => toggleEthereal(name);
+               }
+
+               // Checkbox
+               const checkbox = `<div class="eth-box">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                        </svg>
+                     </div>`;
+
+               row.innerHTML = `
+                  ${checkbox}
+                  <span class="eth-name" title="${name}">${name}</span>
+               `;
+               grid.appendChild(row);
+            });
+         }
+
+         function toggleEthereal(effectName) {
+            const idx = etherealSelections.indexOf(effectName);
+            if (idx >= 0) {
+               etherealSelections.splice(idx, 1);
+            } else if (etherealSelections.length < MAX_ETHEREAL_SLOTS) {
+               etherealSelections.push(effectName);
+            }
+
+            // Save to selections
+            selections["CourierEthereal"] = etherealSelections.join(",");
+            sendMessage("selectionChanged", {
+               optionId: "CourierEthereal",
+               choiceId: selections["CourierEthereal"],
+            });
+
+            renderEtherealGrid();
+         }
+
+         // Called when clicking a parent/base choice tile
+         function selectBaseChoice(optId, choiceObj) {
+            if (choiceObj.styles && choiceObj.styles.length > 0) {
+               // Has styles → open the style overlay ON TOP of the courier modal
+               // If no style is currently selected from this courier, auto-select the first
+               const currentSelection = selections[optId];
+               const hasSelectedStyle = choiceObj.styles.some((s) => s.id === currentSelection);
+               if (!hasSelectedStyle) {
+                  selections[optId] = choiceObj.styles[0].id;
+                  sendMessage("selectionChanged", { optionId: optId, choiceId: selections[optId] });
+               }
+               // Refresh the base modal to highlight this courier
+               const opt = options.find((o) => o.id === optId);
+               if (opt) showOptionInModal(opt);
+               renderOptions();
+               // Then open style overlay
+               openStyleOverlay(optId, choiceObj);
+            } else {
+               // No styles — direct selection
+               selections[optId] = choiceObj.id;
+               sendMessage("selectionChanged", { optionId: optId, choiceId: choiceObj.id });
+               const opt = options.find((o) => o.id === optId);
+               if (opt) showOptionInModal(opt);
+               renderOptions();
+            }
+
+            // Enforce mutual exclusion on the JS side for instant UI feedback
+            enforceExclusion(optId);
+         }
+
+         // Mutual exclusion: reset conflicting options when a non-default selection is made
+         function enforceExclusion(optId) {
+            const opt = options.find((o) => o.id === optId);
+            if (!opt || !opt.excludesWith || opt.excludesWith.length === 0) return;
+
+            // Check if current selection is default (first choice)
+            const currentChoice = selections[optId];
+            const defaultChoice = opt.choices?.[0]?.id || "default";
+            if (currentChoice === defaultChoice) return;
+
+            // Reset each conflicting option to its default
+            opt.excludesWith.forEach((excludedId) => {
+               const excludedOpt = options.find((o) => o.id === excludedId);
+               if (!excludedOpt) return;
+
+               const excludedDefault = excludedOpt.choices?.[0]?.id || "default";
+               const currentExcluded = selections[excludedId];
+               if (currentExcluded && currentExcluded !== excludedDefault) {
+                  resetOption(excludedId, excludedDefault);
+                  sendMessage("selectionChanged", {
+                     optionId: excludedId,
+                     choiceId: excludedDefault,
+                  });
+               }
+            });
+         }
+
+         // Called when clicking a specific style tile in the overlay
+         function selectStyle(optId, styleId, parentChoiceObj) {
+            selections[optId] = styleId;
+            sendMessage("selectionChanged", { optionId: optId, choiceId: styleId });
+
+            // Refresh the style overlay to update selection highlight
+            if (parentChoiceObj) openStyleOverlay(optId, parentChoiceObj);
+            // Refresh main modal header thumb and grid
+            const opt = options.find((o) => o.id === optId);
+            if (opt) showOptionInModal(opt);
+            renderOptions();
+         }
+
+         // Actions
+         function generate() {
+            if (isGenerating) return;
+
+            // Check if any Special option has a non-default selection
+            let specialChoiceName = null;
+            const hasSpecialSelected = options.some((opt) => {
+               if (!opt.isSpecialVpk) return false;
+               const sel = selections[opt.id];
+               const def = opt.choices?.[0]?.id || "default";
+               if (sel && sel !== def) {
+                  specialChoiceName = sel;
+                  return true;
+               }
+               return false;
+            });
+
+            if (hasSpecialSelected) {
+               // Show tribute first, then generate after dismissal
+               pendingAfterTribute = () => sendMessage("generate", { selections });
+               showTributeModal(specialChoiceName);
+            } else {
+               sendMessage("generate", { selections });
+            }
+         }
+
+         function showModeModal() {
+            document.getElementById("modeModal").classList.remove("hidden");
+         }
+         function closeModeModal() {
+            document.getElementById("modeModal").classList.add("hidden");
+         }
+         // Scrim / Cancel dismiss: tell C# a null mode was chosen so it stops waiting
+         // immediately instead of sitting out the full timeout.
+         function dismissModeModal() {
+            closeModeModal();
+            sendMessage("modeSelected", { mode: null });
+         }
+         function selectMode(mode) {
+            closeModeModal();
+            sendMessage("modeSelected", { mode });
+         }
+
+         function cancelGeneration() {
+            sendMessage("cancelGeneration");
+         }
+         function loadPreset() {
+            sendMessage("loadPreset");
+         }
+         function savePreset() {
+            sendMessage("savePreset", { selections });
+         }
+
+         // Messaging
+         function sendMessage(type, data = {}) {
+            if (window.chrome?.webview) window.chrome.webview.postMessage({ type, ...data });
+            else console.log("Message:", type, data);
+         }
+         function requestClose() {
+            sendMessage("close");
+         }
+         function startDrag(event) {
+            if (event.button === 0) sendMessage("startDrag");
+         }
+
+         // Demo
+         if (!window.chrome?.webview) {
+            setTimeout(() => {
+               loadOptions([
+                  {
+                     id: "weather",
+                     name: "Weather Effects",
+                     thumbnailPattern: "",
+                     choices: [
+                        { id: "default", name: "Default" },
+                        { id: "rain", name: "Rain" },
+                        { id: "snow", name: "Snow" },
+                     ],
+                  },
+                  {
+                     id: "terrain",
+                     name: "Terrain Style",
+                     thumbnailPattern: "",
+                     choices: [
+                        { id: "default", name: "Default" },
+                        { id: "desert", name: "Desert" },
+                        { id: "immortal", name: "Immortal Gardens" },
+                     ],
+                  },
+                  {
+                     id: "announcer",
+                     name: "Announcer Pack",
+                     thumbnailPattern: "",
+                     choices: [
+                        { id: "default", name: "Default" },
+                        { id: "bastion", name: "Bastion" },
+                        { id: "glados", name: "GLaDOS" },
+                     ],
+                  },
+               ]);
+               setVersion("2.0.16-beta");
+
+               // Test console
+               setTimeout(() => {
+                  showProgress("Testing...");
+                  appendConsole("Console test line 1");
+                  appendConsole("Console test line 2");
+               }, 1000);
+            }, 300);
+         }
+      </script>
+   </body>
+</html>

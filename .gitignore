@@ -1,0 +1,110 @@
+# ============================================================================
+# AMT 2.0 - .gitignore
+# ============================================================================
+
+# IDE & EDITOR FILES
+.vs/
+*.user
+*.suo
+*.cache
+.idea/
+*.rsuser
+*.userprefs
+
+# .NET BUILD ARTIFACTS
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Ll]og/
+[Ll]ogs/
+*.log
+
+# PROJECT-SPECIFIC BUILD OUTPUTS
+# Build folder is ignored but Installer subfolder is allowed for Inno Setup script
+[Bb]uild/*
+![Bb]uild/[Ii]nstaller/
+build/Installer/Output
+portable/
+publish/
+protected/
+installer_output/
+Tests/bin/
+Tests/obj/
+
+# DEPENDENCIES & PACKAGES
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# COMPILED BINARIES
+*.exe
+!tools/**/*.exe
+!AppIcon.ico
+*.dmp
+
+# SCRIPTS & TOOLS
+scripts/*
+scripts/*/*
+!scripts/**/*.iss
+# Delta-update release pipeline — must be tracked: release.yml runs the manifest generator on the
+# CI runner, and without the pair no release can publish an incremental update at all.
+!scripts/generate-files-manifest.ps1
+!scripts/publish-delta-to-r2.ps1
+tools/confuserex/
+config/feature_access.json
+
+# LOCAL-ONLY DOCS (kept out of the public repo)
+docs/dev/DISTRIBUTION.md
+
+# CONFIGURATION & SECRETS
+.env
+.env.local
+*.secrets.json
+
+# QA BOT — local question database (.env token already covered above)
+scripts/qa_bot/qa.db*
+appsettings.json
+appsettings.*.json
+!appsettings.template.json
+
+# OS-GENERATED FILES
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# DEVELOPMENT TOOLS
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.eggs/
+npm-debug.log*
+
+# LOCAL DEVELOPER TOOLS
+build.txt
+commit-and-push.ps1
+COMMIT_GUIDE.md
+
+# PERSONAL/INTERNAL DOCUMENTATION
+docs/samples/
+*.trx
+
+# AI ASSISTANT TOOLS
+.auto-claude/
+.agent/
+.antigravity
+.trains/
+.claude/
+/.train

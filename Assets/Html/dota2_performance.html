@@ -1,0 +1,1820 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script>
+         // Monochrome terminal palette — mirrors main_shell.html / ardysamods.my.id.
+         tailwind.config = {
+            theme: {
+               extend: {
+                  colors: {
+                     "amt-bg": "var(--canvas)", // canvas
+                     "amt-surface": "var(--panel-2)", // panel-2
+                     "amt-surface2": "var(--panel-hover)", // panel
+                     "amt-border": "var(--hairline)", // hairline
+                     "amt-border-strong": "var(--hairline-strong)", // hairline-strong
+                     "amt-accent": "var(--accent)", // single mono accent
+                     "amt-accent-dim": "var(--accent)",
+                     "amt-accent-hover": "var(--primary-hover)",
+                     "amt-on-accent": "var(--on-primary)", // text on a primary-filled button
+                     "amt-text": "var(--ink)", // ink
+                     "amt-text-dim": "var(--body)", // body
+                     "amt-text-muted": "var(--mute)", // mute
+                     "amt-success": "var(--ink)",
+                     "amt-error": "#ff8983",
+                     "amt-warning": "var(--body)",
+                     "amt-cyan": "var(--ink)",
+                  },
+                  borderRadius: {
+                     none: "0", sm: "0", DEFAULT: "0", md: "0",
+                     lg: "0", xl: "0", "2xl": "0", "3xl": "0", full: "0",
+                  },
+               },
+            },
+         };
+      </script>
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         /* ════ design tokens — same vocabulary as main_shell.html; theme.css overrides these
+                under :root[data-theme="light"]. Dark values below = the shipped look. ════ */
+         :root {
+            --canvas: #000000;
+            --panel-2: #050505;
+            --panel-hover: rgba(20, 20, 20, 0.95);
+            --hairline: #222222;
+            --hairline-strong: #333333;
+
+            --accent: #ffffff;
+            --primary: #ffffff;
+            --on-primary: #000000;
+            --primary-hover: #e5e5e5;
+
+            /* Hover/fill washes and table dividers: ink-over-canvas at low alpha. Kept apart from
+               --accent-dim (0.1) so the flip to light doesn't brighten every hover state here. */
+            --wash: rgba(255, 255, 255, 0.04);
+            --divider: rgba(255, 255, 255, 0.08);
+
+            --ink: #ffffff;
+            --body: #888888;
+            --mute: #444444;
+         }
+
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+         body {
+            font-family: "JetBrains Mono", monospace;
+            background: var(--canvas);
+            /* ponytail: grid lines stay literal — --accent-dim is 0.1, 3x this alpha, which would
+               visibly brighten the dark-mode grid. Decorative texture, invisible on white; fine. */
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--ink);
+            overflow: hidden;
+            font-size: 14px;
+            user-select: none;
+         }
+
+         ::-webkit-scrollbar {
+            width: 8px;
+         }
+         ::-webkit-scrollbar-track {
+            background: transparent;
+         }
+         ::-webkit-scrollbar-thumb {
+            background: var(--hairline);
+         }
+         ::-webkit-scrollbar-thumb:hover {
+            background: var(--hairline-strong);
+         }
+
+         .glass {
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+         }
+         /* preset buttons mirror the main_shell sidebar nav-btn (sharp, white inset bar on hover) */
+         .preset-btn {
+            transition: all 0.18s ease;
+            border: 1px solid var(--hairline);
+            background: var(--panel-2);
+         }
+         .preset-btn:hover {
+            border-color: var(--hairline-strong);
+            background: var(--panel-hover);
+            box-shadow: inset 2px 0 0 var(--accent);
+         }
+         .preset-btn.active {
+            border-color: #e8c878;
+            background: rgba(232, 200, 120, 0.1);
+            box-shadow: inset 3px 0 0 #e8c878, 0 0 16px rgba(232, 200, 120, 0.18);
+         }
+         .preset-btn.active .text-amt-accent {
+            color: #e8c878;
+         }
+
+         /* sharp monochrome switch (track fills white when on) */
+         .toggle-track {
+            width: 42px;
+            height: 22px;
+            border-radius: 0;
+            background: var(--panel-hover);
+            border: 1px solid var(--hairline-strong);
+            position: relative;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            flex-shrink: 0;
+         }
+         .toggle-track.on {
+            background: var(--primary);
+            border-color: var(--primary);
+         }
+         .toggle-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 0;
+            background: var(--body);
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.18s, background 0.18s;
+         }
+         .toggle-track.on .toggle-thumb {
+            background: var(--on-primary);
+            transform: translateX(20px);
+         }
+
+         .category-header {
+            cursor: pointer;
+            transition: background 0.15s;
+         }
+         .category-header:hover {
+            background: var(--wash);
+         }
+         .category-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+         }
+         .category-content.open {
+            max-height: 3000px;
+         }
+
+         .setting-row {
+            transition: background 0.15s;
+         }
+         .setting-row:hover {
+            background: var(--wash);
+         }
+
+         select.cvar-select {
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            color: var(--ink);
+            padding: 8px 12px;
+            border-radius: 0;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+         }
+         select.cvar-select:focus {
+            border-color: var(--accent);
+         }
+         input.cvar-input {
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            color: var(--ink);
+            padding: 8px 12px;
+            border-radius: 0;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 14px;
+            width: 100px;
+            outline: none;
+            text-align: center;
+         }
+         input.cvar-input:focus {
+            border-color: var(--accent);
+         }
+
+         .action-btn {
+            transition: all 0.2s;
+         }
+         .action-btn:hover {
+            transform: translateY(-1px);
+         }
+         .action-btn:active {
+            transform: translateY(0);
+         }
+         /* armed state for the two-step DELETE confirm */
+         .action-btn.armed {
+            background: #ff8983 !important;
+            border-color: #ff8983 !important;
+            color: #000 !important;
+         }
+
+         .tab-btn {
+            transition: all 0.18s;
+            border-bottom: 2px solid transparent;
+            color: var(--body);
+         }
+         .tab-btn:hover {
+            color: var(--ink);
+         }
+         .tab-btn.active {
+            color: var(--ink);
+            border-bottom-color: var(--accent);
+         }
+
+         .launch-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            border-radius: 0;
+            padding: 6px 12px;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 12px;
+            color: var(--body);
+            transition: all 0.15s;
+            cursor: pointer;
+         }
+         .launch-tag.enabled {
+            border-color: var(--accent);
+            color: var(--ink);
+            background: var(--wash);
+         }
+         .launch-tag .tag-x {
+            cursor: pointer;
+            color: var(--mute);
+            font-size: 14px;
+         }
+         .launch-tag .tag-x:hover {
+            color: #ff8983;
+         }
+
+         @keyframes fadeIn {
+            from {
+               opacity: 0;
+               transform: translateY(8px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+         .fade-in {
+            animation: fadeIn 0.35s ease both;
+         }
+
+         /* toast = solid notification card (slides in from the right, colored accent per status) */
+         .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            min-width: 290px;
+            max-width: 400px;
+            padding: 14px 16px;
+            border-radius: 0;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            z-index: 1000;
+            transform: translateX(130%);
+            opacity: 0;
+            transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.34s ease;
+            pointer-events: none;
+            box-shadow:
+               0 18px 50px rgba(0, 0, 0, 0.75),
+               inset 3px 0 0 var(--body);
+         }
+         .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+         }
+         .toast-ico {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            margin-top: 1px;
+            color: var(--body);
+         }
+         .toast-body {
+            flex: 1;
+            min-width: 0;
+         }
+         .toast-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--ink);
+            margin-bottom: 3px;
+         }
+         .toast-msg {
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.5;
+            letter-spacing: 0.2px;
+            color: var(--body);
+            word-break: break-word;
+         }
+         .toast.success {
+            border-color: var(--mute);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75), inset 3px 0 0 #3fb950;
+         }
+         .toast.success .toast-ico,
+         .toast.success .toast-title {
+            color: #56d364;
+         }
+         .toast.error {
+            border-color: rgba(248, 81, 73, 0.55);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75), inset 3px 0 0 #f85149;
+         }
+         .toast.error .toast-ico,
+         .toast.error .toast-title {
+            color: #ff7b72;
+         }
+         .toast.warning {
+            border-color: rgba(232, 200, 120, 0.55);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75), inset 3px 0 0 #e8c878;
+         }
+         .toast.warning .toast-ico,
+         .toast.warning .toast-title {
+            color: #e8c878;
+         }
+         .toast.info {
+            border-color: var(--hairline-strong);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.75), inset 3px 0 0 var(--accent);
+         }
+         .toast.info .toast-ico,
+         .toast.info .toast-title {
+            color: var(--ink);
+         }
+
+         /* "mod" badge — amber so changed-from-original values pop against the mono grid */
+         .diff-badge {
+            display: inline-block;
+            font-family: "JetBrains Mono", monospace;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 0;
+            margin-left: 8px;
+            background: rgba(232, 200, 120, 0.12);
+            color: #e8c878;
+            border: 1px solid rgba(232, 200, 120, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+         }
+
+         /* autoexec.cfg status banner — persistent, high-contrast (not a fleeting toast) */
+         .cfg-banner {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            margin: 14px 20px 0;
+            padding: 12px 14px;
+            position: relative;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            box-shadow: inset 3px 0 0 var(--body);
+            animation: fadeIn 0.3s ease both;
+         }
+         .cfg-banner.show {
+            display: flex;
+         }
+         .cfg-banner.warning {
+            background: rgba(232, 200, 120, 0.08);
+            border-color: rgba(232, 200, 120, 0.45);
+            box-shadow: inset 3px 0 0 #e8c878;
+         }
+         .cfg-banner.success {
+            background: var(--wash);
+            border-color: var(--hairline-strong);
+            box-shadow: inset 3px 0 0 var(--accent);
+         }
+         .cfg-banner-ico {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            color: var(--body);
+         }
+         .cfg-banner.warning .cfg-banner-ico {
+            color: #e8c878;
+         }
+         .cfg-banner.success .cfg-banner-ico {
+            color: var(--ink);
+         }
+         .cfg-banner-text {
+            flex: 1;
+            min-width: 0;
+         }
+         .cfg-banner-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .cfg-banner.warning .cfg-banner-title {
+            color: #e8c878;
+         }
+         .cfg-banner-msg {
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--body);
+            margin-top: 3px;
+         }
+         .cfg-banner-x {
+            flex-shrink: 0;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: all 0.15s;
+         }
+         .cfg-banner-x:hover {
+            color: #ff8983;
+         }
+         .cfg-banner-x svg {
+            width: 13px;
+            height: 13px;
+         }
+      </style>
+   </head>
+   <body class="bg-amt-bg text-amt-text select-none">
+      <!-- Titlebar -->
+      <div
+         id="titlebar"
+         class="h-11 w-full flex items-center justify-between px-4 border-b border-amt-border relative z-10"
+      >
+         <div class="flex-1 flex items-center gap-2 h-full" onmousedown="sendMessage('startDrag')">
+            <span class="text-amt-accent flex">
+               <svg viewBox="0 0 1000 1000" fill="currentColor" class="w-[15px] h-[15px]">
+                  <g><g><g transform="translate(1.007913, 440.428851)"><g><path d="M190.79,158.66c0,12.07,2.23,23.49,6.69,34.25c4.47,10.77,10.65,20.08,18.52,27.96s17.06,14.05,27.56,18.52c10.5,4.46,21.79,6.69,33.87,6.69H84.48c11.55-1.57,22.71-5.24,33.48-11.02c10.76-5.78,20.86-13,30.31-21.67c9.46-8.67,17.86-18.25,25.21-28.75c7.34-10.5,13.11-21.26,17.31-32.29V158.66z M342.02,246.08c11.03,0,20.48-4.59,28.35-13.77c7.88-9.19,11.81-19.57,11.81-31.13c0-2.09,0-4.19,0-6.29c0-2.09-0.53-4.2-1.58-6.31l-22.83-66.15l-1.58-4.73L300.27-43.75c-3.68-8.92-10.24-13.38-19.69-13.38c-8.93,0-15.23,4.46-18.9,13.38l94.5-261.46L443.6-53.98c3.68,10.5,7.88,22.97,12.6,37.42c4.72,14.43,8.92,26.9,12.6,37.4l64.58,184.29c3.67,10.5,10.09,19.95,19.29,28.35c9.19,8.41,19.82,12.6,31.9,12.6H342.02z"/></g></g></g><g><g><g transform="translate(407.31193, 150.568186)"><g><path d="M400.89,182.21c0-12.07-2.23-23.49-6.69-34.25c-4.47-10.77-10.65-20.08-18.52-27.96s-17.06-14.05-27.56-18.52c-10.5-4.46-21.79-6.69-33.88-6.69H507.2c-11.55,1.57-22.71,5.24-33.48,11.02c-10.76,5.78-20.86,13-30.31,21.67c-9.46,8.67-17.86,18.25-25.21,28.75c-7.34,10.5-13.11,21.26-17.31,32.29V182.21z M249.66,94.79c-11.03,0-20.48,4.59-28.35,13.77c-7.88,9.19-11.81,19.57-11.81,31.12c0,2.09,0,4.19,0,6.29c0,2.09,0.53,4.2,1.58,6.31l22.83,66.15l1.58,4.73l55.92,161.46c3.68,8.92,10.24,13.38,19.69,13.38c8.93,0,15.23-4.46,18.9-13.38l-94.5,261.46l-87.42-251.23c-3.68-10.5-7.88-22.97-12.6-37.42c-4.72-14.43-8.92-26.9-12.6-37.4L58.29,135.75c-3.67-10.5-10.09-19.95-19.29-28.35c-9.19-8.41-19.82-12.6-31.9-12.6H249.66z"/></g></g></g></g></g>
+               </svg>
+            </span>
+            <span class="font-bold text-xs tracking-[2px] uppercase">
+               <span class="text-amt-text-muted">// </span><span class="text-amt-accent">AMT</span>
+            </span>
+            <span class="text-amt-text-dim font-medium text-[11px] tracking-[1px] uppercase" data-i18n="perf.header"
+               >Performance Tweak</span
+            >
+            <span
+               id="presetBadge"
+               class="text-[11px] px-2 py-0.5 border border-amt-border text-amt-text-dim hidden tracking-wider"
+               data-i18n="perf.customBadge"
+               >CUSTOM</span
+            >
+         </div>
+         <button
+            id="closeBtn"
+            class="h-9 w-10 flex items-center justify-center text-amt-text-muted hover:text-white hover:bg-[rgba(248,81,73,0.85)] border border-transparent transition-colors flex-shrink-0"
+         >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="w-[14px] h-[14px]">
+               <line x1="6" y1="6" x2="18" y2="18" />
+               <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+         </button>
+      </div>
+
+      <div class="flex relative z-10" style="height: calc(100vh - 44px)">
+         <!-- Sidebar -->
+         <div
+            class="w-[220px] flex-shrink-0 flex flex-col border-r border-amt-border fade-in"
+            style="min-height: 0"
+         >
+            <div class="px-4 pt-4 pb-2 text-[11px] text-amt-text-muted tracking-[3px] flex-shrink-0" data-i18n="perf.presets">[ PRESETS ]</div>
+
+            <!-- Scrollable preset list: stays clear of the footer at any window height / DPI. -->
+            <div class="flex-1 min-h-0 overflow-y-auto px-4 pb-2 flex flex-col gap-2">
+               <button
+                  onclick="applyPreset('potato')"
+                  class="preset-btn rounded-lg px-4 py-2.5 text-left flex-shrink-0"
+                  data-preset="potato"
+               >
+                  <div class="text-sm font-bold text-amt-accent tracking-wide" data-i18n="perf.preset.potato">POTATO</div>
+                  <div class="text-[11px] text-amt-text-dim mt-1 leading-snug" data-i18n="perf.preset.potato.desc">// max_fps, min_quality</div>
+               </button>
+               <button
+                  onclick="applyPreset('low')"
+                  class="preset-btn rounded-lg px-4 py-2.5 text-left flex-shrink-0"
+                  data-preset="low"
+               >
+                  <div class="text-sm font-bold text-amt-accent tracking-wide" data-i18n="perf.preset.low">LOW</div>
+                  <div class="text-[11px] text-amt-text-dim mt-1 leading-snug" data-i18n="perf.preset.low.desc">// performance_priority</div>
+               </button>
+               <button
+                  onclick="applyPreset('medium')"
+                  class="preset-btn rounded-lg px-4 py-2.5 text-left flex-shrink-0"
+                  data-preset="medium"
+               >
+                  <div class="text-sm font-bold text-amt-accent tracking-wide" data-i18n="perf.preset.medium">MEDIUM</div>
+                  <div class="text-[11px] text-amt-text-dim mt-1 leading-snug" data-i18n="perf.preset.medium.desc">// balanced_look_fps</div>
+               </button>
+               <button
+                  onclick="applyPreset('high')"
+                  class="preset-btn rounded-lg px-4 py-2.5 text-left flex-shrink-0"
+                  data-preset="high"
+               >
+                  <div class="text-sm font-bold text-amt-accent tracking-wide" data-i18n="perf.preset.high">HIGH</div>
+                  <div class="text-[11px] text-amt-text-dim mt-1 leading-snug" data-i18n="perf.preset.high.desc">// quality_with_extras</div>
+               </button>
+               <button
+                  onclick="applyPreset('ultra')"
+                  class="preset-btn rounded-lg px-4 py-2.5 text-left flex-shrink-0"
+                  data-preset="ultra"
+               >
+                  <div class="text-sm font-bold text-amt-accent tracking-wide" data-i18n="perf.preset.ultra">ULTRA</div>
+                  <div class="text-[11px] text-amt-text-dim mt-1 leading-snug" data-i18n="perf.preset.ultra.desc">// maximum_visual</div>
+               </button>
+               <button
+                  onclick="applyPreset('competitive')"
+                  class="preset-btn rounded-lg px-4 py-2.5 text-left flex-shrink-0"
+                  data-preset="competitive"
+               >
+                  <div class="text-sm font-bold text-amt-accent tracking-wide" data-i18n="perf.preset.competitive">COMPETITIVE</div>
+                  <div class="text-[11px] text-amt-text-dim mt-1 leading-snug" data-i18n="perf.preset.competitive.desc">// tweaked_for_ranked</div>
+               </button>
+            </div>
+
+            <!-- Pinned footer: output/path, always visible below the scroll area. -->
+            <div class="flex-shrink-0 mx-4 mb-4 mt-2 text-[11px] text-amt-text-dim leading-relaxed p-3 border border-amt-border rounded-lg">
+               <span data-i18n="perf.sidebar.output" data-i18n-vars='{"file":"autoexec.cfg"}'>// output: autoexec.cfg</span><br />
+               <span data-i18n="perf.sidebar.path" data-i18n-vars='{"path":"dota/cfg/"}'>// path: dota/cfg/</span>
+            </div>
+         </div>
+
+         <!-- Main Content -->
+         <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- autoexec.cfg status banner (persistent, high-contrast) -->
+            <div id="cfgBanner" class="cfg-banner">
+               <svg
+                  class="cfg-banner-ico"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+               >
+                  <path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+               </svg>
+               <div class="cfg-banner-text">
+                  <div id="cfgBannerTitle" class="cfg-banner-title" data-i18n="perf.cfgNotFound">No autoexec.cfg found</div>
+                  <div id="cfgBannerMsg" class="cfg-banner-msg"></div>
+               </div>
+               <button class="cfg-banner-x" title="Dismiss" data-i18n-title="perf.dismiss" onclick="hideCfgBanner()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                     <line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+               </button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-amt-border px-5 pt-1">
+               <button
+                  class="tab-btn active px-5 py-3 text-base font-bold tracking-wider"
+                  data-tab="cvars"
+                  onclick="switchTab('cvars')"
+                  data-i18n="perf.tab.video"
+               >
+                  [ VIDEO ]
+               </button>
+               <button
+                  class="tab-btn px-5 py-3 text-base font-bold tracking-wider"
+                  data-tab="launch"
+                  onclick="switchTab('launch')"
+                  data-i18n="perf.tab.launch"
+               >
+                  [ LAUNCH ]
+               </button>
+            </div>
+
+            <!-- Tab: CVars -->
+            <div id="tabCvars" class="flex-1 overflow-y-auto p-5 space-y-3"></div>
+
+            <!-- Tab: Launch -->
+            <div id="tabLaunch" class="flex-1 overflow-y-auto p-5 space-y-4 hidden">
+               <div class="glass rounded-lg p-5 fade-in">
+                  <div class="text-base font-bold tracking-wider mb-1" data-i18n="perf.launch.title">[ LAUNCH_OPTIONS ]</div>
+                  <div class="text-xs text-amt-text-dim mb-1" data-i18n="perf.launch.steamHint">
+                     // steam > right-click dota 2 > properties > launch options
+                  </div>
+                  <div class="text-xs text-amt-warning mb-4" data-i18n="perf.launch.copyHint">
+                     // copy-only — NOT written by [ APPLY ]. your selection is remembered automatically.
+                  </div>
+                  <div id="launchTags" class="flex flex-wrap gap-3 mb-5"></div>
+                  <div class="text-[11px] text-amt-text-dim mb-2 tracking-wider" data-i18n="perf.launch.generated">
+                     GENERATED_STRING
+                  </div>
+                  <div class="flex items-center gap-3">
+                     <div
+                        id="launchString"
+                        class="flex-1 bg-amt-bg border border-amt-border rounded-lg px-4 py-3 text-sm text-amt-text break-all select-text"
+                        style="user-select: text"
+                     ></div>
+                     <button
+                        onclick="copyLaunchString()"
+                        class="action-btn px-4 py-3 rounded-lg text-xs font-bold border border-amt-border hover:border-amt-border-strong text-amt-text-dim hover:text-amt-accent transition-colors flex-shrink-0"
+                        data-i18n="perf.launch.copy"
+                     >
+                        COPY
+                     </button>
+                  </div>
+               </div>
+
+               <div class="glass rounded-lg p-5 fade-in">
+                  <div class="text-base font-bold tracking-wider mb-1" data-i18n="perf.launch.customTitle">[ CUSTOM ]</div>
+                  <div class="text-xs text-amt-text-dim mb-3" data-i18n="perf.launch.customDesc">// add custom launch flags</div>
+                  <div class="flex gap-3">
+                     <input
+                        id="customLaunchInput"
+                        type="text"
+                        placeholder="-high or -threads 8"
+                        data-i18n-placeholder="perf.launch.customPlaceholder"
+                        class="cvar-input flex-1 text-left"
+                        style="width: auto"
+                     />
+                     <button
+                        onclick="addCustomLaunch()"
+                        class="action-btn px-4 py-2 rounded-lg text-xs font-bold bg-amt-accent hover:bg-amt-accent-hover text-amt-on-accent transition-colors"
+                        data-i18n="perf.launch.add"
+                     >
+                        ADD
+                     </button>
+                  </div>
+               </div>
+
+               <div class="glass rounded-lg p-5 fade-in">
+                  <div class="text-base font-bold tracking-wider mb-3" data-i18n="perf.launch.referenceTitle">[ REFERENCE ]</div>
+                  <div class="overflow-x-auto">
+                     <table class="w-full text-sm">
+                        <thead>
+                           <tr class="text-amt-text-dim border-b border-amt-border">
+                              <th class="text-left py-2 pr-4" data-i18n="perf.launch.refFlag">flag</th>
+                              <th class="text-left py-2" data-i18n="perf.launch.refDesc">description</th>
+                           </tr>
+                        </thead>
+                        <tbody id="launchRefTable"></tbody>
+                     </table>
+                  </div>
+               </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="flex-shrink-0 border-t border-amt-border p-4 flex items-center gap-3">
+               <button
+                  onclick="sendMessage('applySettings')"
+                  class="action-btn flex-1 bg-amt-accent hover:bg-amt-accent-hover text-amt-on-accent font-bold py-3 rounded-lg text-sm tracking-wider transition-colors"
+                  data-i18n="perf.action.apply"
+               >
+                  [ APPLY TO AUTOEXEC.CFG ]
+               </button>
+               <button
+                  onclick="sendMessage('exportCfg')"
+                  class="action-btn px-5 py-3 rounded-lg text-xs font-bold border border-amt-border hover:border-amt-border-strong text-amt-text-dim hover:text-amt-accent transition-colors"
+                  data-i18n="perf.action.export"
+               >
+                  EXPORT
+               </button>
+               <button
+                  onclick="resetAll()"
+                  class="action-btn px-5 py-3 rounded-lg text-xs font-bold border border-amt-border hover:border-amt-border-strong text-amt-text-dim hover:text-amt-accent transition-colors"
+                  data-i18n="perf.action.reset"
+               >
+                  RESET
+               </button>
+               <button
+                  id="deleteCfgBtn"
+                  onclick="deleteCfg(this)"
+                  class="action-btn px-5 py-3 rounded-lg text-xs font-bold border border-[rgba(255,137,131,0.5)] text-amt-error hover:bg-[rgba(255,137,131,0.12)] transition-colors"
+                  data-i18n-title="perf.action.deleteTooltip"
+                  data-i18n="perf.action.delete"
+                  title="Remove the autoexec.cfg this tool wrote to your Dota 2 config folder"
+               >
+                  DELETE
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <!-- Toast -->
+      <div id="toast" class="toast"></div>
+
+      <script>
+         // ═══════════════════════════════════════════════════════════
+         // i18n STUBS — window.t / window.tp are provided by i18n.js,
+         // which C# injects AFTER navigation completes. The init()
+         // IIFE below calls renderSettings() at page-load time (before
+         // injection), so we need safe stubs that return the fallback.
+         // Once i18n.js runs, it overwrites these with the real impls.
+         // ═══════════════════════════════════════════════════════════
+         if (typeof window.t !== "function") {
+            window.t = function (key, fallback) { return typeof fallback === "string" ? fallback : key; };
+         }
+         if (typeof window.tp !== "function") {
+            window.tp = function (key, count, vars) { return count + " settings"; };
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // CVAR DEFINITIONS
+         // ═══════════════════════════════════════════════════════════
+         const SETTINGS = {
+            "DISPLAY & FPS": {
+               cvars: {
+                  fps_max: {
+                     label: "Max FPS (In-Game)",
+                     type: "input",
+                     default: "0",
+                     tip: "0 = uncapped. Match your monitor refresh rate for stability.",
+                  },
+                  fps_max_ui: {
+                     label: "Dashboard Max FPS",
+                     type: "input",
+                     default: "60",
+                     tip: "Stops the menu from cooking your GPU.",
+                  },
+                  mat_viewportscale: {
+                     label: "Render Quality",
+                     type: "select",
+                     options: {
+                        "1.0": "100%",
+                        0.91: "91%",
+                        0.85: "85%",
+                        0.81: "81%",
+                        0.71: "71%",
+                        "0.60": "60%",
+                     },
+                     default: "1.0",
+                     tip: "Lower = more FPS but softer image. Use with FSR.",
+                  },
+                  r_fullscreen_gamma: {
+                     label: "Gamma",
+                     type: "input",
+                     default: "2.2",
+                     tip: "Default 2.2. Adjust for monitor brightness.",
+                  },
+               },
+            },
+            "VISUAL TOGGLES": {
+               cvars: {
+                  dota_portrait_animate: {
+                     label: "Animate Portrait",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Reduces extra UI animation overhead.",
+                  },
+                  r_deferred_additive_pass: {
+                     label: "Additive Light Pass",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Removes extra lighting passes and reflections.",
+                  },
+                  r_deferred_simple_light: {
+                     label: "World Lighting",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Large GPU cost for cosmetic gain. 1=Simple, 0=Off.",
+                  },
+                  r_ssao: {
+                     label: "Ambient Occlusion",
+                     type: "toggle",
+                     default: "0",
+                     tip: "One of the fastest ways to gain FPS.",
+                  },
+                  r_dota_normal_maps: {
+                     label: "Normal Maps",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Reduces surface detail calculations.",
+                  },
+                  r_dota_allow_parallax_mapping: {
+                     label: "Ground Parallax",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Depth effects on terrain, irrelevant in fights.",
+                  },
+                  dota_ambient_creatures: {
+                     label: "Ambient Creatures",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Eliminates extra background units.",
+                  },
+                  dota_ambient_cloth: {
+                     label: "Ambient Cloth Sim",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Prevents cloth physics overhead.",
+                  },
+                  r_grass_quality: {
+                     label: "Grass",
+                     type: "select",
+                     options: { 0: "Off", 2: "Low", 3: "Medium", 4: "High" },
+                     default: "0",
+                     tip: "Dense ground detail that costs FPS.",
+                  },
+                  r_dota_fxaa: {
+                     label: "Anti-Aliasing",
+                     type: "toggle",
+                     default: "0",
+                     tip: "AA is a clarity trade. Off improves sharpness.",
+                  },
+                  r_deferred_specular: {
+                     label: "Specular",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Reduces shiny highlights and lighting work.",
+                  },
+                  r_deferred_specular_bloom: {
+                     label: "Specular & Light Blooms",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Bloom washes out spell effects.",
+                  },
+                  dota_cheap_water: {
+                     label: "Cheap Water",
+                     type: "toggle",
+                     default: "1",
+                     tip: "1=cheap water for better FPS near river.",
+                  },
+                  r_deferred_height_fog: {
+                     label: "Atmospheric Fog",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Removes atmospheric effects that spike in fights.",
+                  },
+                  r_dashboard_render_quality: {
+                     label: "HQ Dashboard",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Reduces menu GPU load.",
+                  },
+                  r_dota_allow_wind_on_trees: {
+                     label: "Tree Wind",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Removes constant environmental animation.",
+                  },
+                  r_dota_bloom_compute_shader: {
+                     label: "Compute Shaders",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Recommended ON for modern GPUs.",
+                  },
+               },
+            },
+            QUALITY: {
+               cvars: {
+                  r_texture_stream_mip_bias: {
+                     label: "Texture Quality",
+                     type: "select",
+                     options: { 0: "Ultra", 1: "High", 2: "Medium", 3: "Low" },
+                     default: "0",
+                     tip: "Mostly a VRAM issue. Keep higher for clarity.",
+                  },
+                  cl_particle_fallback_base: {
+                     label: "Effects Quality",
+                     type: "select",
+                     options: { 0: "Ultra", 2: "Medium", 4: "Low" },
+                     default: "2",
+                     tip: "Spell effects spike load. Low = stable.",
+                  },
+                  cl_globallight_shadow_mode: {
+                     label: "Shadow Quality",
+                     type: "select",
+                     options: { 0: "Off", 1: "Low", 2: "Medium", 3: "High" },
+                     default: "1",
+                     tip: "Shadows are the most expensive setting.",
+                  },
+                  r_texturefilteringquality: {
+                     label: "Texture Filtering",
+                     type: "select",
+                     options: { 0: "Bilinear", 1: "Trilinear", 3: "Aniso 8x", 5: "Aniso 16x" },
+                     default: "3",
+                     tip: "Higher = sharper textures at angles.",
+                  },
+               },
+            },
+            "ENGINE TWEAKS": {
+               cvars: {
+                  cl_particle_fallback_multiplier: {
+                     label: "Particle Fallback Multi",
+                     type: "input",
+                     default: "4",
+                     tip: "Higher = more aggressive particle LOD.",
+                  },
+                  cl_particle_sim_fallback_threshold_ms: {
+                     label: "Particle Sim Threshold (ms)",
+                     type: "input",
+                     default: "4",
+                     tip: "Max particle simulation time.",
+                  },
+                  dota_allow_clientside_particles: {
+                     label: "Client-side Particles",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Non-essential cosmetic particles.",
+                  },
+                  dota_disable_particle_lights: {
+                     label: "Disable Particle Lights",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Removes light from particles.",
+                  },
+                  lb_shadow_texture_width_override: {
+                     label: "Shadow Tex Width",
+                     type: "input",
+                     default: "128",
+                     tip: "Lower = less detail, more FPS.",
+                  },
+                  lb_shadow_texture_height_override: {
+                     label: "Shadow Tex Height",
+                     type: "input",
+                     default: "128",
+                     tip: "Lower = less detail, more FPS.",
+                  },
+                  r_dota_spotlight_shadows_resolution: {
+                     label: "Spotlight Shadow Res",
+                     type: "input",
+                     default: "128",
+                     tip: "Spotlight shadows resolution.",
+                  },
+                  r_particle_max_detail_level: {
+                     label: "Particle Max Detail",
+                     type: "select",
+                     options: { 0: "Low", 1: "Medium", 2: "High", 3: "Ultra" },
+                     default: "0",
+                     tip: "Particle detail level.",
+                  },
+                  r_dota_color_correction: {
+                     label: "Color Correction",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Extra post-processing.",
+                  },
+                  r_dota_render_2d_skybox: {
+                     label: "Skybox Clouds",
+                     type: "toggle",
+                     default: "0",
+                     tip: "Skybox cloud rendering.",
+                  },
+                  engine_no_focus_sleep: {
+                     label: "Alt-Tab Sleep (ms)",
+                     type: "input",
+                     default: "20",
+                     tip: "Power savings while alt-tabbed.",
+                  },
+               },
+            },
+            "VSYNC & LATENCY": {
+               cvars: {
+                  engine_low_latency_sleep_after_client_tick: {
+                     label: "Low Latency Sleep",
+                     type: "toggle",
+                     default: "1",
+                     tip: "VSync OFF with less tearing.",
+                  },
+                  r_experimental_lag_limiter: {
+                     label: "Experimental Lag Limiter",
+                     type: "toggle",
+                     default: "1",
+                     tip: "VSync ON with less input lag.",
+                  },
+                  r_low_latency: {
+                     label: "NVIDIA Reflex",
+                     type: "select",
+                     options: { 0: "Off", 1: "On", 2: "On + Boost" },
+                     default: "2",
+                     tip: "Reduces system latency on NVIDIA GPUs.",
+                  },
+               },
+            },
+            NETWORK: {
+               cvars: {
+                  rate: {
+                     label: "Net Rate",
+                     type: "input",
+                     default: "80000",
+                     tip: "Max receive rate.",
+                  },
+                  cl_updaterate: {
+                     label: "Update Rate",
+                     type: "input",
+                     default: "60",
+                     tip: "Net updates per second.",
+                  },
+                  cl_interp_ratio: {
+                     label: "Interp Ratio",
+                     type: "input",
+                     default: "2",
+                     tip: "Interpolation ratio.",
+                  },
+                  cl_smooth: {
+                     label: "Smooth Interp",
+                     type: "toggle",
+                     default: "1",
+                     tip: "Smooth interpolation errors.",
+                  },
+               },
+            },
+         };
+
+         // ═══════════════════════════════════════════════════════════
+         // LAUNCH OPTIONS
+         // ═══════════════════════════════════════════════════════════
+         const LAUNCH_OPTIONS = [
+            { flag: "-novid", desc: "Skips the intro video on startup.", default: true },
+            { flag: "-console", desc: "Enables the developer console.", default: true },
+            { flag: "-fullscreen", desc: "Forces exclusive fullscreen mode.", default: false },
+            {
+               flag: "-force_allow_excl_fullscreen",
+               desc: "Allows exclusive fullscreen with compositing.",
+               default: false,
+            },
+            { flag: "-coop_fullscreen", desc: "Desktop-friendly fullscreen mode.", default: false },
+            {
+               flag: "-force_allow_coop_fullscreen",
+               desc: "Forces cooperative fullscreen support.",
+               default: false,
+            },
+            {
+               flag: "-favor_consistent_framerate",
+               desc: "Prioritizes consistent frame times.",
+               default: true,
+            },
+            {
+               flag: "-skip_download_player_info",
+               desc: "Skips downloading player info on load.",
+               default: true,
+            },
+            { flag: "-high", desc: "Sets process to high priority.", default: false },
+            { flag: "-r_max_device_threads 32", desc: "Max rendering threads.", default: false },
+            { flag: "-threads 9", desc: "CPU threads for the engine.", default: false },
+            {
+               flag: "-mainthreadpriority 2",
+               desc: "Main thread scheduling priority.",
+               default: false,
+            },
+            {
+               flag: "-set_power_qos_disable",
+               desc: "Disables Windows power throttling.",
+               default: false,
+            },
+            {
+               flag: "-map_enable_background_maps 0",
+               desc: "Disables animated menu backgrounds.",
+               default: false,
+            },
+            {
+               flag: "-prewarm_panorama",
+               desc: "Pre-warms UI to reduce first-load stutters.",
+               default: false,
+            },
+            { flag: "-noaafonts", desc: "Disables font anti-aliasing.", default: false },
+         ];
+
+         let enabledLaunchOptions = {};
+         let customLaunchOptions = [];
+
+         // Launch options have no other source of truth (the app can't write Steam's launch
+         // options), so persist the user's selection in localStorage. The WebView2 user-data
+         // folder is persistent, so this survives across sessions.
+         const LS_LAUNCH_ENABLED = "amt_launch_enabled";
+         const LS_LAUNCH_CUSTOM = "amt_launch_custom";
+
+         function saveLaunchOptions() {
+            try {
+               localStorage.setItem(LS_LAUNCH_ENABLED, JSON.stringify(enabledLaunchOptions));
+               localStorage.setItem(LS_LAUNCH_CUSTOM, JSON.stringify(customLaunchOptions));
+            } catch (e) {
+               console.error("saveLaunchOptions error:", e);
+            }
+         }
+
+         function loadLaunchOptions() {
+            try {
+               const savedEnabled = localStorage.getItem(LS_LAUNCH_ENABLED);
+               const savedCustom = localStorage.getItem(LS_LAUNCH_CUSTOM);
+               if (savedEnabled) enabledLaunchOptions = JSON.parse(savedEnabled);
+               if (savedCustom) customLaunchOptions = JSON.parse(savedCustom);
+            } catch (e) {
+               console.error("loadLaunchOptions error:", e);
+            }
+            // Seed defaults for any flags missing from the saved set (e.g. flags added by an app update).
+            LAUNCH_OPTIONS.forEach((opt) => {
+               if (enabledLaunchOptions[opt.flag] === undefined) enabledLaunchOptions[opt.flag] = opt.default;
+            });
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // PRESETS
+         // ═══════════════════════════════════════════════════════════
+         const PRESETS = {
+            potato: {
+               fps_max: "57",
+               fps_max_ui: "20",
+               mat_viewportscale: "0.71",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "0",
+               r_deferred_additive_pass: "0",
+               r_deferred_simple_light: "0",
+               r_ssao: "0",
+               r_dota_normal_maps: "0",
+               r_dota_allow_parallax_mapping: "0",
+               dota_ambient_creatures: "0",
+               dota_ambient_cloth: "0",
+               r_grass_quality: "0",
+               r_dota_fxaa: "0",
+               r_deferred_specular: "0",
+               r_deferred_specular_bloom: "0",
+               dota_cheap_water: "1",
+               r_deferred_height_fog: "0",
+               r_dashboard_render_quality: "0",
+               r_dota_allow_wind_on_trees: "0",
+               r_dota_bloom_compute_shader: "0",
+               r_texture_stream_mip_bias: "3",
+               cl_particle_fallback_base: "4",
+               cl_globallight_shadow_mode: "0",
+               r_texturefilteringquality: "0",
+               cl_particle_fallback_multiplier: "4",
+               cl_particle_sim_fallback_threshold_ms: "4",
+               dota_allow_clientside_particles: "0",
+               dota_disable_particle_lights: "1",
+               lb_shadow_texture_width_override: "128",
+               lb_shadow_texture_height_override: "128",
+               r_dota_spotlight_shadows_resolution: "128",
+               r_particle_max_detail_level: "0",
+               r_dota_color_correction: "0",
+               r_dota_render_2d_skybox: "0",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "0",
+               r_experimental_lag_limiter: "0",
+               r_low_latency: "0",
+               rate: "80000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+            low: {
+               fps_max: "90",
+               fps_max_ui: "30",
+               mat_viewportscale: "0.81",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "0",
+               r_deferred_additive_pass: "0",
+               r_deferred_simple_light: "1",
+               r_ssao: "0",
+               r_dota_normal_maps: "0",
+               r_dota_allow_parallax_mapping: "0",
+               dota_ambient_creatures: "0",
+               dota_ambient_cloth: "1",
+               r_grass_quality: "0",
+               r_dota_fxaa: "0",
+               r_deferred_specular: "0",
+               r_deferred_specular_bloom: "0",
+               dota_cheap_water: "1",
+               r_deferred_height_fog: "0",
+               r_dashboard_render_quality: "0",
+               r_dota_allow_wind_on_trees: "0",
+               r_dota_bloom_compute_shader: "0",
+               r_texture_stream_mip_bias: "2",
+               cl_particle_fallback_base: "4",
+               cl_globallight_shadow_mode: "0",
+               r_texturefilteringquality: "0",
+               cl_particle_fallback_multiplier: "4",
+               cl_particle_sim_fallback_threshold_ms: "4",
+               dota_allow_clientside_particles: "0",
+               dota_disable_particle_lights: "1",
+               lb_shadow_texture_width_override: "128",
+               lb_shadow_texture_height_override: "128",
+               r_dota_spotlight_shadows_resolution: "128",
+               r_particle_max_detail_level: "0",
+               r_dota_color_correction: "0",
+               r_dota_render_2d_skybox: "0",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "1",
+               r_experimental_lag_limiter: "0",
+               r_low_latency: "1",
+               rate: "80000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+            medium: {
+               fps_max: "120",
+               fps_max_ui: "60",
+               mat_viewportscale: "0.91",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "1",
+               r_deferred_additive_pass: "1",
+               r_deferred_simple_light: "1",
+               r_ssao: "0",
+               r_dota_normal_maps: "1",
+               r_dota_allow_parallax_mapping: "0",
+               dota_ambient_creatures: "0",
+               dota_ambient_cloth: "1",
+               r_grass_quality: "2",
+               r_dota_fxaa: "0",
+               r_deferred_specular: "1",
+               r_deferred_specular_bloom: "0",
+               dota_cheap_water: "1",
+               r_deferred_height_fog: "1",
+               r_dashboard_render_quality: "0",
+               r_dota_allow_wind_on_trees: "1",
+               r_dota_bloom_compute_shader: "1",
+               r_texture_stream_mip_bias: "1",
+               cl_particle_fallback_base: "2",
+               // ponytail: mode 1 (not 2) is deliberate — mode >=2 with the 128px
+               // lb_shadow_texture overrides below turns the whole map black on unit
+               // hover (undersized shadow atlas). Matches Competitive's proven combo.
+               cl_globallight_shadow_mode: "1",
+               r_texturefilteringquality: "1",
+               cl_particle_fallback_multiplier: "4",
+               cl_particle_sim_fallback_threshold_ms: "4",
+               dota_allow_clientside_particles: "0",
+               dota_disable_particle_lights: "1",
+               lb_shadow_texture_width_override: "128",
+               lb_shadow_texture_height_override: "128",
+               r_dota_spotlight_shadows_resolution: "128",
+               r_particle_max_detail_level: "1",
+               r_dota_color_correction: "0",
+               r_dota_render_2d_skybox: "0",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "1",
+               r_experimental_lag_limiter: "0",
+               r_low_latency: "2",
+               rate: "80000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+            high: {
+               fps_max: "240",
+               fps_max_ui: "120",
+               mat_viewportscale: "1.0",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "1",
+               r_deferred_additive_pass: "1",
+               r_deferred_simple_light: "1",
+               r_ssao: "0",
+               r_dota_normal_maps: "1",
+               r_dota_allow_parallax_mapping: "1",
+               dota_ambient_creatures: "1",
+               dota_ambient_cloth: "1",
+               r_grass_quality: "3",
+               r_dota_fxaa: "1",
+               r_deferred_specular: "1",
+               r_deferred_specular_bloom: "1",
+               dota_cheap_water: "0",
+               r_deferred_height_fog: "1",
+               r_dashboard_render_quality: "1",
+               r_dota_allow_wind_on_trees: "1",
+               r_dota_bloom_compute_shader: "1",
+               r_texture_stream_mip_bias: "0",
+               cl_particle_fallback_base: "0",
+               cl_globallight_shadow_mode: "2",
+               r_texturefilteringquality: "3",
+               cl_particle_fallback_multiplier: "2",
+               cl_particle_sim_fallback_threshold_ms: "6",
+               dota_allow_clientside_particles: "1",
+               dota_disable_particle_lights: "0",
+               lb_shadow_texture_width_override: "-1",
+               lb_shadow_texture_height_override: "-1",
+               r_dota_spotlight_shadows_resolution: "256",
+               r_particle_max_detail_level: "2",
+               r_dota_color_correction: "1",
+               r_dota_render_2d_skybox: "1",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "1",
+               r_experimental_lag_limiter: "0",
+               r_low_latency: "2",
+               rate: "80000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+            ultra: {
+               fps_max: "0",
+               fps_max_ui: "120",
+               mat_viewportscale: "1.0",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "1",
+               r_deferred_additive_pass: "1",
+               r_deferred_simple_light: "1",
+               r_ssao: "1",
+               r_dota_normal_maps: "1",
+               r_dota_allow_parallax_mapping: "1",
+               dota_ambient_creatures: "1",
+               dota_ambient_cloth: "1",
+               r_grass_quality: "4",
+               r_dota_fxaa: "1",
+               r_deferred_specular: "1",
+               r_deferred_specular_bloom: "1",
+               dota_cheap_water: "0",
+               r_deferred_height_fog: "1",
+               r_dashboard_render_quality: "1",
+               r_dota_allow_wind_on_trees: "1",
+               r_dota_bloom_compute_shader: "1",
+               r_texture_stream_mip_bias: "0",
+               cl_particle_fallback_base: "0",
+               cl_globallight_shadow_mode: "3",
+               r_texturefilteringquality: "5",
+               cl_particle_fallback_multiplier: "2",
+               cl_particle_sim_fallback_threshold_ms: "6",
+               dota_allow_clientside_particles: "1",
+               dota_disable_particle_lights: "0",
+               lb_shadow_texture_width_override: "-1",
+               lb_shadow_texture_height_override: "-1",
+               r_dota_spotlight_shadows_resolution: "256",
+               r_particle_max_detail_level: "3",
+               r_dota_color_correction: "1",
+               r_dota_render_2d_skybox: "1",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "1",
+               r_experimental_lag_limiter: "0",
+               r_low_latency: "2",
+               rate: "1000000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+            competitive: {
+               fps_max: "0",
+               fps_max_ui: "60",
+               mat_viewportscale: "0.81",
+               r_fullscreen_gamma: "2.2",
+               dota_portrait_animate: "0",
+               r_deferred_additive_pass: "0",
+               r_deferred_simple_light: "1",
+               r_ssao: "0",
+               r_dota_normal_maps: "1",
+               r_dota_allow_parallax_mapping: "0",
+               dota_ambient_creatures: "0",
+               dota_ambient_cloth: "1",
+               r_grass_quality: "0",
+               r_dota_fxaa: "0",
+               r_deferred_specular: "0",
+               r_deferred_specular_bloom: "0",
+               dota_cheap_water: "1",
+               r_deferred_height_fog: "0",
+               r_dashboard_render_quality: "0",
+               r_dota_allow_wind_on_trees: "0",
+               r_dota_bloom_compute_shader: "1",
+               r_texture_stream_mip_bias: "0",
+               cl_particle_fallback_base: "2",
+               cl_globallight_shadow_mode: "1",
+               r_texturefilteringquality: "3",
+               cl_particle_fallback_multiplier: "4",
+               cl_particle_sim_fallback_threshold_ms: "4",
+               dota_allow_clientside_particles: "0",
+               dota_disable_particle_lights: "1",
+               lb_shadow_texture_width_override: "128",
+               lb_shadow_texture_height_override: "128",
+               r_dota_spotlight_shadows_resolution: "128",
+               r_particle_max_detail_level: "0",
+               r_dota_color_correction: "0",
+               r_dota_render_2d_skybox: "0",
+               engine_no_focus_sleep: "20",
+               engine_low_latency_sleep_after_client_tick: "1",
+               r_experimental_lag_limiter: "1",
+               r_low_latency: "2",
+               rate: "80000",
+               cl_updaterate: "60",
+               cl_interp_ratio: "2",
+               cl_smooth: "1",
+            },
+         };
+
+         let currentValues = {};
+         let originalValues = {};
+         let activePreset = null;
+
+         // ═══════════════════════════════════════════════════════════
+         // TABS
+         // ═══════════════════════════════════════════════════════════
+         function switchTab(tab) {
+            document
+               .querySelectorAll(".tab-btn")
+               .forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+            document.getElementById("tabCvars").classList.toggle("hidden", tab !== "cvars");
+            document.getElementById("tabLaunch").classList.toggle("hidden", tab !== "launch");
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // RENDER
+         // ═══════════════════════════════════════════════════════════
+         function renderSettings() {
+            const container = document.getElementById("tabCvars");
+            container.innerHTML = "";
+
+            for (const [catName, cat] of Object.entries(SETTINGS)) {
+               const catDiv = document.createElement("div");
+               catDiv.className = "glass rounded-lg overflow-hidden fade-in";
+
+               const header = document.createElement("div");
+               header.className = "category-header flex items-center justify-between px-5 py-4";
+               
+               const catId = catName.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+               const catTitle = window.t("perf.category." + catId, catName);
+               const settingsCountLabel = window.tp("settings.db.sets", Object.keys(cat.cvars).length);
+
+               header.innerHTML = `
+            <div class="flex items-center gap-3">
+               <span class="text-sm font-bold tracking-wider">[ ${catTitle} ]</span>
+               <span class="text-xs text-amt-text-dim">${settingsCountLabel}</span>
+            </div>
+            <span class="chevron text-amt-text-muted text-xs transition-transform duration-200">&#9660;</span>
+         `;
+
+               const content = document.createElement("div");
+               content.className = "category-content open";
+
+               header.addEventListener("click", () => {
+                  content.classList.toggle("open");
+                  header.querySelector(".chevron").style.transform = content.classList.contains(
+                     "open",
+                  )
+                     ? ""
+                     : "rotate(-90deg)";
+               });
+
+               for (const [cvar, cfg] of Object.entries(cat.cvars)) {
+                  const val = currentValues[cvar] ?? cfg.default;
+                  const row = document.createElement("div");
+                  row.className = "setting-row flex items-center justify-between px-5 py-3";
+                  row.id = `row-${cvar}`;
+
+                  const cvarLabel = window.t("perf.cvar." + cvar + ".label", cfg.label);
+                  const cvarTip = window.t("perf.cvar." + cvar + ".tip", cfg.tip);
+
+                  let control = "";
+                  if (cfg.type === "toggle") {
+                     const isOn = val !== "0";
+                     control = `<div class="toggle-track ${isOn ? "on" : ""}" data-cvar="${cvar}" onclick="toggleCvar('${cvar}')"><div class="toggle-thumb"></div></div>`;
+                  } else if (cfg.type === "select") {
+                     let opts = "";
+                     for (const [v, label] of Object.entries(cfg.options)) {
+                        opts += `<option value="${v}" ${val === v ? "selected" : ""}>${label}</option>`;
+                     }
+                     control = `<select class="cvar-select" data-cvar="${cvar}" onchange="setCvar('${cvar}', this.value)">${opts}</select>`;
+                  } else {
+                     control = `<input class="cvar-input" type="text" data-cvar="${cvar}" value="${val}" onchange="setCvar('${cvar}', this.value)" />`;
+                  }
+
+                  const diffText = window.t("perf.cvar.modified", "mod");
+                  const diffBadge =
+                     originalValues[cvar] !== undefined && originalValues[cvar] !== val
+                        ? `<span class="diff-badge">${diffText}</span>`
+                        : "";
+
+                  row.innerHTML = `
+               <div class="flex-1 min-w-0 mr-4">
+                  <div class="flex items-center">
+                     <span class="text-sm font-semibold">${cvarLabel}</span>${diffBadge}
+                  </div>
+                  <div class="text-xs text-amt-text-dim mt-1 truncate" title="${cvarTip}">// ${cvarTip}</div>
+               </div>
+               <div class="flex items-center gap-3">
+                  <span class="text-xs text-amt-text-dim">${cvar}</span>
+                  ${control}
+               </div>
+            `;
+                  content.appendChild(row);
+               }
+
+               catDiv.appendChild(header);
+               catDiv.appendChild(content);
+               container.appendChild(catDiv);
+            }
+         }
+
+         function toggleCvar(cvar) {
+            currentValues[cvar] = currentValues[cvar] === "0" ? "1" : "0";
+            checkPresetMatch();
+            renderSettings();
+         }
+
+         function setCvar(cvar, val) {
+            currentValues[cvar] = val;
+            checkPresetMatch();
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // LAUNCH OPTIONS
+         // ═══════════════════════════════════════════════════════════
+         function renderLaunchOptions() {
+            const container = document.getElementById("launchTags");
+            container.innerHTML = "";
+
+            LAUNCH_OPTIONS.forEach((opt) => {
+               const enabled = enabledLaunchOptions[opt.flag] ?? opt.default;
+               const tag = document.createElement("div");
+               tag.className = `launch-tag ${enabled ? "enabled" : ""}`;
+               tag.onclick = () => toggleLaunchOption(opt.flag);
+               tag.innerHTML = `<span style="font-size:11px;">${enabled ? "[x]" : "[ ]"}</span> <span>${opt.flag}</span>`;
+               container.appendChild(tag);
+            });
+
+            customLaunchOptions.forEach((opt, i) => {
+               const tag = document.createElement("div");
+               tag.className = "launch-tag enabled";
+               tag.innerHTML = `<span>${opt}</span> <span class="tag-x" onclick="event.stopPropagation(); removeCustomLaunch(${i})">x</span>`;
+               container.appendChild(tag);
+            });
+
+            updateLaunchString();
+
+            const table = document.getElementById("launchRefTable");
+            table.innerHTML = "";
+            LAUNCH_OPTIONS.forEach((opt) => {
+               const tr = document.createElement("tr");
+               tr.className = "border-b border-[color:var(--divider)]";
+               const flagId = opt.flag.substring(1).split(" ")[0];
+               const translatedDesc = window.t("perf.launch.desc." + flagId, opt.desc);
+               tr.innerHTML = `<td class="py-2 pr-4 text-amt-accent">${opt.flag}</td><td class="py-2 text-amt-text-dim">${translatedDesc}</td>`;
+               table.appendChild(tr);
+            });
+         }
+
+         function toggleLaunchOption(flag) {
+            const opt = LAUNCH_OPTIONS.find((o) => o.flag === flag);
+            const current = enabledLaunchOptions[flag] ?? (opt ? opt.default : false);
+            enabledLaunchOptions[flag] = !current;
+            saveLaunchOptions();
+            renderLaunchOptions();
+         }
+
+         function addCustomLaunch() {
+            const input = document.getElementById("customLaunchInput");
+            const val = input.value.trim();
+            if (val) {
+               customLaunchOptions.push(val);
+               input.value = "";
+               saveLaunchOptions();
+               renderLaunchOptions();
+            }
+         }
+
+         function removeCustomLaunch(idx) {
+            customLaunchOptions.splice(idx, 1);
+            saveLaunchOptions();
+            renderLaunchOptions();
+         }
+
+         function updateLaunchString() {
+            const parts = [];
+            LAUNCH_OPTIONS.forEach((opt) => {
+               if (enabledLaunchOptions[opt.flag] ?? opt.default) parts.push(opt.flag);
+            });
+            parts.push(...customLaunchOptions);
+            document.getElementById("launchString").textContent = parts.join(" ") || "(none)";
+         }
+
+         function copyLaunchString() {
+            const text = document.getElementById("launchString").textContent;
+            if (text && text !== "(none)") {
+               sendMessage("copyText", { text });
+               showToast(window.t("perf.banner.copied", "// copied to clipboard"), "success");
+            }
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // PRESETS
+         // ═══════════════════════════════════════════════════════════
+         function applyPreset(name) {
+            const preset = PRESETS[name];
+            if (!preset) return;
+            currentValues = { ...preset };
+            activePreset = name;
+            updatePresetUI();
+            renderSettings();
+         }
+
+         function checkPresetMatch() {
+            activePreset = null;
+            for (const [name, preset] of Object.entries(PRESETS)) {
+               let match = true;
+               for (const [k, v] of Object.entries(preset)) {
+                  if (currentValues[k] !== v) {
+                     match = false;
+                     break;
+                  }
+               }
+               if (match) {
+                  activePreset = name;
+                  break;
+               }
+            }
+            updatePresetUI();
+         }
+
+         function updatePresetUI() {
+            document
+               .querySelectorAll(".preset-btn")
+               .forEach((btn) =>
+                  btn.classList.toggle("active", btn.dataset.preset === activePreset),
+               );
+            const badge = document.getElementById("presetBadge");
+            badge.textContent = activePreset
+               ? window.t("perf.preset." + activePreset, activePreset.toUpperCase())
+               : window.t("perf.customBadge", "CUSTOM");
+            badge.classList.remove("hidden");
+            badge.style.color = activePreset ? "var(--ink)" : "var(--mute)";
+            badge.style.borderColor = activePreset ? "var(--ink)" : "var(--hairline)";
+         }
+
+         function resetAll() {
+            currentValues = {};
+            for (const cat of Object.values(SETTINGS)) {
+               for (const [cvar, cfg] of Object.entries(cat.cvars)) {
+                  currentValues[cvar] = cfg.default;
+               }
+            }
+            activePreset = null;
+            updatePresetUI();
+            renderSettings();
+            showToast(window.t("perf.banner.resetNotice", "// reset to defaults"), "info");
+         }
+
+         // DELETE installed autoexec.cfg — two-step confirm (no modal): first click arms, second confirms.
+         let _deleteArmed = false;
+         let _deleteTimer = null;
+         function deleteCfg(btn) {
+            if (!_deleteArmed) {
+               _deleteArmed = true;
+               btn.dataset.label = btn.textContent.trim();
+               btn.textContent = window.t("perf.action.deleteConfirm", "CONFIRM DELETE?");
+               btn.classList.add("armed");
+               _deleteTimer = setTimeout(() => resetDeleteBtn(btn), 3500);
+               return;
+            }
+            resetDeleteBtn(btn);
+            sendMessage("deleteCfg");
+         }
+         function resetDeleteBtn(btn) {
+            clearTimeout(_deleteTimer);
+            _deleteArmed = false;
+            btn.classList.remove("armed");
+            btn.textContent = btn.dataset.label || window.t("perf.action.delete", "DELETE");
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // INTEROP
+         // ═══════════════════════════════════════════════════════════
+         function sendMessage(type, data = {}) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type, ...data });
+            }
+         }
+
+         function getAllSettings() {
+            return JSON.stringify(currentValues);
+         }
+
+         function loadSettings(jsonString) {
+            try {
+               const data = JSON.parse(jsonString);
+               originalValues = { ...data };
+               currentValues = { ...data };
+               for (const cat of Object.values(SETTINGS)) {
+                  for (const [cvar, cfg] of Object.entries(cat.cvars)) {
+                     if (currentValues[cvar] === undefined) currentValues[cvar] = cfg.default;
+                  }
+               }
+               checkPresetMatch();
+               renderSettings();
+            } catch (e) {
+               console.error("loadSettings error:", e);
+            }
+         }
+
+         const TOAST_ICONS = {
+            success:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+            error:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+            warning:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+            info:
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+         };
+         let _toastTimer = null;
+
+         function showToast(msg, type = "info") {
+            const t = document.getElementById("toast");
+            const kind = (type === "success" || type === "error" || type === "warning" || type === "info") ? type : "info";
+
+            const titles = {
+               success: window.t("common.success", "Success"),
+               error: window.t("common.error", "Failed"),
+               warning: window.t("common.warning", "Warning"),
+               info: window.t("common.information", "Notice")
+            };
+
+            t.innerHTML =
+               `<span class="toast-ico">${TOAST_ICONS[kind]}</span>` +
+               '<div class="toast-body"><div class="toast-title"></div><div class="toast-msg"></div></div>';
+            t.querySelector(".toast-title").textContent = titles[kind];
+            // Message via textContent so C# error strings can't inject markup; trim a leading "// ".
+            t.querySelector(".toast-msg").textContent = String(msg ?? "").replace(/^\/\/\s*/, "");
+
+            t.className = `toast ${kind} show`;
+
+            clearTimeout(_toastTimer);
+            // Keep failures up longer so they can actually be read.
+            _toastTimer = setTimeout(() => t.classList.remove("show"), kind === "error" ? 6500 : 3800);
+         }
+
+         function showAlert(title, msg, type) {
+            showToast(`// ${title}: ${msg}`, type);
+         }
+
+         // Persistent, high-contrast status banner for the autoexec.cfg state (C# → JS).
+         // state: "warning" | "success" → shown; "ok" | "hidden" | "" → dismissed.
+         function showCfgBanner(message, state) {
+            const b = document.getElementById("cfgBanner");
+            if (!b) return;
+            if (!state || state === "ok" || state === "hidden") {
+               b.classList.remove("show");
+               return;
+            }
+            const isSuccess = state === "success";
+            b.classList.remove("warning", "success");
+            b.classList.add(isSuccess ? "success" : "warning");
+            const title = document.getElementById("cfgBannerTitle");
+            const msg = document.getElementById("cfgBannerMsg");
+            if (title) title.textContent = isSuccess ? window.t("perf.banner.ready", "autoexec.cfg ready") : window.t("perf.cfgNotFound", "No autoexec.cfg found");
+            if (msg) msg.textContent = message || "";
+            b.classList.add("show");
+         }
+
+         function hideCfgBanner() {
+            const b = document.getElementById("cfgBanner");
+            if (b) b.classList.remove("show");
+         }
+
+         // ═══════════════════════════════════════════════════════════
+         // EVENT LISTENERS — attached before init() so they survive
+         // even if init() throws (e.g. missing i18n, CDN timeout).
+         // ═══════════════════════════════════════════════════════════
+         document.getElementById("closeBtn")?.addEventListener("click", function (e) {
+            e.stopPropagation();
+            sendMessage("close");
+         });
+         document.getElementById("customLaunchInput")?.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") addCustomLaunch();
+         });
+
+         // ═══════════════════════════════════════════════════════════
+         // INIT
+         // ═══════════════════════════════════════════════════════════
+         (function init() {
+            for (const cat of Object.values(SETTINGS)) {
+               for (const [cvar, cfg] of Object.entries(cat.cvars)) {
+                  currentValues[cvar] = cfg.default;
+               }
+            }
+            loadLaunchOptions();
+            renderSettings();
+            renderLaunchOptions();
+            applyPreset("competitive");
+         })();
+      </script>
+   </body>
+</html>

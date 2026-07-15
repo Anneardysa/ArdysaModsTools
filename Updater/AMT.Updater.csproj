@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Out-of-process update applier. Deliberately standalone: it replaces the files of the app that
+    launched it (including that app's own .NET runtime DLLs), so it cannot depend on them. Published
+    by .github/workflows/release.yml with -p:PublishAot=true into publish/installer/tools/updater/,
+    which makes it a single self-contained native exe with no runtime dependency at all.
+
+    PublishAot is NOT set here on purpose: `dotnet build` (and the Tests project reference) then stay
+    plain .NET 8 and never pull the ILCompiler toolchain. Only the release publish opts in.
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>AMT.Updater</AssemblyName>
+    <RootNamespace>ArdysaModsTools.Updater</RootNamespace>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <SelfContained>true</SelfContained>
+    <!-- Source-generated JSON only: no reflection-based serialization to trim away. -->
+    <IsTrimmable>true</IsTrimmable>
+    <Version>1.0.0</Version>
+    <Company>Ardysa</Company>
+    <Product>ArdysaModsTools Updater</Product>
+  </PropertyGroup>
+
+</Project>

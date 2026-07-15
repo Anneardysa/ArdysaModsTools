@@ -1,0 +1,3374 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Skin Selector</title>
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         /* ════════════════════════════════════════════════════════════════════════════
+            SKIN SELECTOR — Hero Gallery
+            Monochrome terminal design system, mirrored from main_shell.html /
+            ardysamods.my.id. Black/white only, JetBrains Mono, 0px corners, signature
+            cut-corner notches + corner brackets, grid + wave backdrop.
+
+            Typography follows a golden-ratio hierarchy (φ ≈ 1.618):
+              10 → 11 → 13(base) → 16 → 21 — body leading is exactly 1.618.
+            ════════════════════════════════════════════════════════════════════════════ */
+
+         /* ─────────────────────────── design tokens ─────────────────────────── */
+         :root {
+            /* surfaces */
+            --canvas: #000000;
+            --panel: rgba(10, 10, 10, 0.9);
+            --panel-2: #050505;
+            --panel-hover: rgba(20, 20, 20, 0.95);
+            --hairline: #222222;
+            --hairline-strong: #333333;
+            --dashed: rgba(136, 136, 136, 0.4);
+
+            /* single white accent */
+            --primary: #ffffff;
+            --on-primary: #000000;
+            --primary-glow: rgba(255, 255, 255, 0.16);
+            --accent-dim: rgba(255, 255, 255, 0.1);
+            --wash: var(--wash);
+
+            /* text */
+            --ink: #ffffff;
+            --body: #888888;
+            --mute: #444444;
+
+            /* type */
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+            --mono: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+            /* golden-ratio type scale */
+            --fs-overline: 10px;
+            --fs-label: 11px;
+            --fs-body: 13px;
+            --fs-sub: 16px;
+            --fs-head: 21px;
+            --lh-tight: 1.2;
+            --lh-body: 1.618; /* golden leading */
+            --ls-overline: 2px;
+            --ls-label: 1px;
+
+            /* radius — sharp-cornered, signature notch */
+            --r-sm: 0px;
+            --r-md: 0px;
+            --clip: 12px;
+
+            /* motion */
+            --transition: all 0.18s ease;
+
+            /* spacing */
+            --sp-1: 4px;
+            --sp-2: 8px;
+            --sp-3: 12px;
+            --sp-4: 16px;
+            --sp-5: 20px;
+            --sp-6: 24px;
+         }
+
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         html,
+         body {
+            height: 100%;
+         }
+
+         body {
+            font-family: var(--sans);
+            background: var(--canvas);
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-attachment: fixed;
+            color: var(--ink);
+            font-size: var(--fs-body);
+            line-height: var(--lh-body);
+            min-height: 100vh;
+            padding-top: 44px; /* clear fixed titlebar */
+            -webkit-font-smoothing: antialiased;
+         }
+
+         /* ── animated wave backdrop (site .animated-bg signature) ── */
+         .bgfx {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+         }
+         .bgfx::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            opacity: 0.05;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E")
+               repeat-x;
+            background-size: 50% 100%;
+            animation: infiniteWave 28s linear infinite;
+         }
+         @keyframes infiniteWave {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+         }
+         @media (prefers-reduced-motion: reduce) {
+            .bgfx::before { animation: none; }
+         }
+
+         /* ─────────────────────────── utilities ─────────────────────────── */
+         .hidden { display: none !important; }
+         .flex { display: flex !important; }
+
+         /* scrollbars */
+         ::-webkit-scrollbar { width: 9px; height: 9px; }
+         ::-webkit-scrollbar-track { background: var(--panel-2); }
+         ::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 0; }
+         ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+         /* animations reused by JS-rendered nodes */
+         .animate-fade-in { animation: fadeIn 0.2s ease-out backwards; }
+         .animate-scale-in { animation: scaleIn 0.2s ease-out; }
+         .animate-slide-left { animation: slideLeft 0.25s ease-out; }
+         .animate-slide-right { animation: slideRight 0.25s ease-out; }
+         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+         @keyframes scaleIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+         @keyframes slideLeft { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+         @keyframes slideRight { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
+
+         /* generic buttons */
+         .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            font-family: var(--sans);
+            font-size: var(--fs-label);
+            font-weight: 600;
+            letter-spacing: var(--ls-label);
+            text-transform: uppercase;
+            padding: 9px 16px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-sm);
+            color: var(--body);
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+         }
+         .btn:hover {
+            color: var(--ink);
+            border-color: var(--primary);
+            background: var(--accent-dim);
+         }
+         .btn:active { transform: translateY(1px); }
+         .btn.primary {
+            background: var(--primary);
+            color: var(--on-primary);
+            border-color: var(--primary);
+         }
+         .btn.primary:hover {
+            background: var(--primary);
+            color: var(--on-primary);
+            box-shadow: 0 0 18px var(--primary-glow);
+         }
+         .btn.ghost { background: none; }
+
+         /* ════════════════════════════════ TITLE BAR ════════════════════════════════ */
+         #titleBar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 var(--sp-2) 0 var(--sp-5);
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--hairline);
+            cursor: move;
+            user-select: none;
+         }
+         .tb-brand {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+         }
+         .tb-brand .tb-logo { width: 16px; height: 16px; flex-shrink: 0; align-self: center; color: var(--ink); }
+         .tb-brand .b-name { color: var(--ink); }
+         .tb-brand .b-name::before { content: "// "; color: var(--mute); }
+         .tb-brand .b-tag {
+            font-size: var(--fs-overline);
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            color: var(--mute);
+         }
+         .tb-brand .b-tag::before { content: "["; color: var(--mute); }
+         .tb-brand .b-tag::after { content: "]"; color: var(--mute); }
+         .tb-close {
+            margin-left: auto;
+            width: 34px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .tb-close svg { width: 15px; height: 15px; }
+         .tb-close:hover {
+            background: rgba(248, 81, 73, 0.85);
+            color: #fff;
+         }
+
+         /* ── announcement marquee (deliberate yellow notice — the one sanctioned
+            color accent, signalling a caution/notice in the chrome). Sits just to
+            the right of the brand "Beta" tag. ── */
+         .tb-marquee {
+            flex: 0 1 440px;
+            min-width: 0;
+            display: flex;
+            justify-content: flex-start;
+            margin-left: var(--sp-5);
+            pointer-events: none; /* let title-bar drag pass through */
+         }
+         .tb-marquee-inner {
+            position: relative;
+            width: 100%;
+            max-width: 440px;
+            height: 24px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            background: #e3b341;
+            color: #000000;
+            border: 1px solid #b98a1f;
+            box-shadow: 0 0 14px rgba(227, 179, 65, 0.25);
+         }
+         /* soft fade at both edges so text enters/exits cleanly */
+         .tb-marquee-inner::before,
+         .tb-marquee-inner::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 22px;
+            z-index: 2;
+            pointer-events: none;
+         }
+         .tb-marquee-inner::before {
+            left: 0;
+            background: linear-gradient(90deg, #e3b341, rgba(227, 179, 65, 0));
+         }
+         .tb-marquee-inner::after {
+            right: 0;
+            background: linear-gradient(270deg, #e3b341, rgba(227, 179, 65, 0));
+         }
+         .tb-marquee-track {
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            animation: tbMarquee 16s linear infinite;
+            will-change: transform;
+         }
+         @keyframes tbMarquee {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+         }
+         .tb-marquee-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            padding: 0 28px;
+            font-size: var(--fs-label);
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+         }
+         .tb-marquee-item svg {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+         }
+         @media (prefers-reduced-motion: reduce) {
+            .tb-marquee-track { animation: none; }
+            .tb-marquee { justify-content: center; }
+         }
+
+         /* ════════════════════════════════ HEADER ════════════════════════════════ */
+         .gallery-header {
+            position: sticky;
+            top: 44px;
+            z-index: 40;
+            background: rgba(0, 0, 0, 0.82);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--hairline);
+            padding: var(--sp-4) var(--sp-6);
+         }
+         .gh-rows {
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-4);
+         }
+         .gh-top {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-4);
+         }
+
+         /* search */
+         .search {
+            position: relative;
+            flex: 1;
+            max-width: 420px;
+         }
+         .search svg {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            color: var(--mute);
+            pointer-events: none;
+         }
+         #searchInput {
+            width: 100%;
+            font-family: var(--sans);
+            font-size: var(--fs-body);
+            color: var(--ink);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-sm);
+            padding: 10px 14px 10px 36px;
+            outline: none;
+            transition: var(--transition);
+         }
+         #searchInput::placeholder { color: var(--mute); }
+         #searchInput:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary-glow);
+         }
+
+         /* selection counter */
+         .sel-counter {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            font-size: var(--fs-overline);
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--mute);
+         }
+         .sel-counter #selectionCount {
+            font-size: var(--fs-sub);
+            font-weight: 700;
+            color: var(--ink);
+         }
+
+         .gh-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            margin-left: auto;
+         }
+
+         /* filter pills row */
+         .gh-filters {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            overflow-x: auto;
+            padding-bottom: 2px;
+         }
+         .gh-filters::-webkit-scrollbar { height: 0; }
+         .filter-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--sans);
+            font-size: var(--fs-overline);
+            font-weight: 600;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--body);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+            padding: 7px 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: var(--transition);
+         }
+         .filter-pill:hover {
+            color: var(--ink);
+            border-color: var(--hairline-strong);
+         }
+         .filter-pill.active {
+            background: var(--primary);
+            color: var(--on-primary);
+            border-color: var(--primary);
+            font-weight: 700;
+         }
+         /* monochrome-ize the colored attribute glyphs */
+         .filter-pill img {
+            width: 15px;
+            height: 15px;
+            filter: grayscale(1) brightness(0) invert(1);
+            opacity: 0.75;
+         }
+         .filter-pill.active img {
+            filter: grayscale(1) brightness(0);
+            opacity: 1;
+         }
+         .filter-pill .star { font-size: 12px; line-height: 1; }
+         .gh-spacer { flex: 1; }
+
+         /* has-sets toggle pill */
+         .toggle-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            font-family: var(--sans);
+            font-size: var(--fs-overline);
+            font-weight: 600;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--mute);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+            padding: 7px 13px;
+            cursor: pointer;
+            white-space: nowrap;
+            user-select: none;
+            transition: var(--transition);
+         }
+         .toggle-pill:hover { color: var(--body); border-color: var(--hairline-strong); }
+         .toggle-pill.active {
+            color: var(--ink);
+            border-color: var(--primary);
+            background: var(--accent-dim);
+            font-weight: 700;
+         }
+         .toggle-pill .toggle-dot { display: inline-block; transition: var(--transition); }
+
+         /* ════════════════════════════════ MAIN ════════════════════════════════ */
+         main {
+            position: relative;
+            z-index: 1;
+            padding: var(--sp-6);
+            padding-bottom: 72px; /* clear fixed footer */
+         }
+
+         /* ── Latest Updates ── */
+         #latestUpdatesSection { margin-bottom: 32px; }
+         .lu-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--sp-4);
+         }
+         .lu-head-left { display: flex; align-items: center; gap: var(--sp-3); }
+         .lu-title {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            font-size: var(--fs-label);
+            font-weight: 700;
+            letter-spacing: var(--ls-overline);
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .lu-title::before { content: "["; color: var(--mute); }
+         .lu-title::after { content: "]"; color: var(--mute); }
+         .lu-title svg { width: 14px; height: 14px; color: var(--ink); }
+         #updatesCount {
+            font-size: var(--fs-overline);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--body);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            padding: 3px 9px;
+         }
+
+         .carousel-wrapper {
+            position: relative;
+            overflow: hidden;
+            background: var(--panel);
+            border: 1px solid var(--hairline-strong);
+            padding: 12px 0;
+         }
+         .carousel-track {
+            display: flex;
+            gap: 10px;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0 12px;
+         }
+         .carousel-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--hairline-strong);
+            color: var(--ink);
+            cursor: pointer;
+            opacity: 0;
+            transition: var(--transition);
+         }
+         .carousel-wrapper:hover .carousel-arrow:not(.disabled) { opacity: 1; }
+         .carousel-arrow:hover { background: var(--accent-dim); border-color: var(--primary); }
+         .carousel-arrow.disabled { opacity: 0 !important; pointer-events: none; }
+         .carousel-arrow svg { width: 14px; height: 14px; }
+         .carousel-arrow-left { left: 6px; }
+         .carousel-arrow-right { right: 6px; }
+
+         .carousel-dots {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 10px;
+            height: 8px;
+         }
+         .carousel-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--hairline-strong);
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            padding: 0;
+         }
+         .carousel-dot:hover { background: var(--body); }
+         .carousel-dot.active { background: var(--primary); transform: scale(1.25); box-shadow: 0 0 6px var(--primary-glow); }
+
+         .update-card {
+            flex-shrink: 0;
+            width: 150px;
+            overflow: hidden;
+            cursor: pointer;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            transition: var(--transition);
+         }
+         .update-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+         }
+         .update-card-image { position: relative; height: 130px; overflow: hidden; }
+         .update-card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top;
+            filter: grayscale(0.35);
+            transition: transform 0.3s ease, filter 0.3s ease;
+         }
+         .update-card:hover .update-card-image img { transform: scale(1.05); filter: grayscale(0); }
+         .update-card-gradient {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, transparent 55%);
+         }
+         .new-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            padding: 2px 7px;
+            background: var(--primary);
+            color: var(--on-primary);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+         }
+         .update-card-content { padding: 9px 10px; }
+         .update-card-hero {
+            font-size: var(--fs-label);
+            font-weight: 600;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 3px;
+            line-height: var(--lh-tight);
+         }
+         .update-card-date { font-size: var(--fs-overline); color: var(--body); }
+
+         #latestUpdatesContainer { transition: all 0.3s ease; max-height: 340px; opacity: 1; }
+         #latestUpdatesContainer.collapsed { max-height: 0; opacity: 0; overflow: hidden; }
+
+         /* ════════════════════════════════ HERO GRID ════════════════════════════════ */
+         #heroGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+            gap: var(--sp-3);
+         }
+         .hero-card { position: relative; }
+         .hc-inner {
+            position: relative;
+            overflow: hidden;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .hero-card:hover .hc-inner {
+            border-color: var(--hairline-strong);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+         }
+         /* signature corner brackets */
+         .hc-inner::before,
+         .hc-inner::after {
+            content: "";
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            z-index: 3;
+            opacity: 0;
+            transition: var(--transition);
+         }
+         .hc-inner::before {
+            top: -1px;
+            left: -1px;
+            border-top: 1px solid var(--ink);
+            border-left: 1px solid var(--ink);
+         }
+         .hc-inner::after {
+            bottom: -1px;
+            right: -1px;
+            border-bottom: 1px solid var(--ink);
+            border-right: 1px solid var(--ink);
+         }
+         .hero-card:hover .hc-inner::before,
+         .hero-card:hover .hc-inner::after { opacity: 0.6; width: 11px; height: 11px; }
+         .hero-card.selected .hc-inner {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary), 0 0 18px var(--primary-glow);
+         }
+         .hero-card.selected .hc-inner::before,
+         .hero-card.selected .hc-inner::after { opacity: 1; width: 11px; height: 11px; }
+
+         .hc-thumb { position: relative; aspect-ratio: 1; overflow: hidden; }
+         .hc-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top;
+            transition: transform 0.3s ease;
+         }
+         .hero-card:hover .hc-img { transform: scale(1.08); }
+         .hc-veil {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.92) 0%, rgba(0, 0, 0, 0.1) 45%, transparent 70%);
+         }
+         .check-indicator {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary);
+            color: var(--on-primary);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: var(--transition);
+            z-index: 4;
+         }
+         .check-indicator svg { width: 11px; height: 11px; }
+         .hero-card.selected .check-indicator { opacity: 1; transform: scale(1); }
+         .hc-fav {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid var(--hairline-strong);
+            color: var(--mute);
+            font-size: 12px;
+            line-height: 1;
+            cursor: pointer;
+            opacity: 0;
+            transition: var(--transition);
+            z-index: 4;
+         }
+         .hero-card:hover .hc-fav { opacity: 1; }
+         .hc-fav:hover { color: var(--ink); border-color: var(--primary); }
+         .hc-fav.on { color: var(--ink); opacity: 1; border-color: var(--hairline-strong); }
+         .hc-meta {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 8px 9px;
+            z-index: 4;
+         }
+         .hc-name {
+            font-size: var(--fs-overline);
+            font-weight: 600;
+            color: var(--ink);
+            line-height: var(--lh-tight);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .hc-sub {
+            margin-top: 2px;
+            font-size: 9px;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .hc-sub.muted { color: var(--mute); }
+
+         /* ── locked cards: heroes with no custom set yet (default set only) ──
+            Grayed out and non-interactive — they can't be selected until a set ships. */
+         .hero-card.locked .hc-inner {
+            cursor: not-allowed;
+            filter: grayscale(1);
+            opacity: 0.4;
+         }
+         .hero-card.locked:hover .hc-inner {
+            transform: none;
+            border-color: var(--hairline);
+            box-shadow: none;
+         }
+         .hero-card.locked:hover .hc-img { transform: none; }
+         .hero-card.locked:hover .hc-inner::before,
+         .hero-card.locked:hover .hc-inner::after { opacity: 0; }
+         .hero-card.locked .hc-lock {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--hairline-strong);
+            color: var(--body);
+            z-index: 4;
+         }
+         .hero-card.locked .hc-lock svg { width: 11px; height: 11px; }
+
+         /* empty state */
+         #emptyState {
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 80px 20px;
+            color: var(--mute);
+            text-align: center;
+         }
+         #emptyState svg { width: 56px; height: 56px; margin-bottom: 16px; opacity: 0.5; }
+         #emptyState .es-title { font-size: var(--fs-sub); color: var(--body); letter-spacing: 1px; }
+         #emptyState .es-sub { font-size: var(--fs-label); margin-top: 6px; }
+
+         /* ════════════════════════════════ SET MODAL ════════════════════════════════ */
+         .modal-backdrop { background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(3px); }
+         #setModal {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--sp-4);
+         }
+         .sm-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--sp-4);
+            width: 100%;
+            max-width: 980px;
+         }
+         .nav-arrow {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            color: var(--body);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .nav-arrow:hover { color: var(--ink); border-color: var(--primary); background: var(--accent-dim); }
+         .nav-arrow:active { transform: scale(0.95); }
+         .nav-arrow svg { width: 22px; height: 22px; }
+
+         .sm-panel {
+            flex: 1;
+            max-width: 820px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            overflow: hidden;
+         }
+         .sm-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--sp-4) var(--sp-5);
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.5);
+            flex-shrink: 0;
+         }
+         .sm-head-left { display: flex; align-items: center; gap: var(--sp-4); min-width: 0; }
+         #modalHeroImg {
+            width: 52px;
+            height: 52px;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border: 1px solid var(--hairline-strong);
+            flex-shrink: 0;
+         }
+         #modalHeroName {
+            font-size: var(--fs-head);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--ink);
+            line-height: var(--lh-tight);
+         }
+         .sm-hint {
+            font-size: var(--fs-overline);
+            color: var(--mute);
+            margin-top: 3px;
+            letter-spacing: 0.3px;
+         }
+         .sm-x {
+            width: 30px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+            flex-shrink: 0;
+         }
+         .sm-x svg { width: 16px; height: 16px; }
+         .sm-x:hover { background: rgba(248, 81, 73, 0.85); color: #fff; }
+
+         #modalSetsGrid {
+            padding: var(--sp-5);
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-5);
+            max-height: 62vh;
+            overflow-y: auto;
+         }
+         .sm-foot {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--sp-4) var(--sp-5);
+            border-top: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.5);
+            flex-shrink: 0;
+         }
+
+         /* ── category sections (monochrome) ── */
+         .set-category-section { width: 100%; }
+         .set-category-header {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            padding: 0 2px var(--sp-3);
+            user-select: none;
+            font-family: var(--sans);
+         }
+         .set-category-header .category-label {
+            font-size: var(--fs-label);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: var(--ls-overline);
+            color: var(--ink);
+            white-space: nowrap;
+         }
+         .set-category-header .category-line {
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(to right, var(--hairline-strong), transparent);
+         }
+         .set-category-header .category-count {
+            font-size: var(--fs-overline);
+            font-weight: 600;
+            color: var(--mute);
+            white-space: nowrap;
+         }
+         .set-category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+            gap: var(--sp-3);
+         }
+         .set-category-grid.category-locked {
+            opacity: 0.38;
+            filter: grayscale(1);
+            cursor: not-allowed;
+         }
+         .exclusion-notice {
+            font-size: var(--fs-overline);
+            color: var(--body);
+            padding: 0 0 var(--sp-2);
+            letter-spacing: 0.2px;
+         }
+
+         /* ── set tiles ── */
+         .set-tile {
+            position: relative;
+            overflow: hidden;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .set-tile:hover { border-color: var(--hairline-strong); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
+         /* corner brackets on selection */
+         .set-tile::before,
+         .set-tile::after {
+            content: "";
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            z-index: 3;
+            opacity: 0;
+            transition: var(--transition);
+         }
+         .set-tile::before { top: -1px; left: -1px; border-top: 1px solid var(--ink); border-left: 1px solid var(--ink); }
+         .set-tile::after { bottom: -1px; right: -1px; border-bottom: 1px solid var(--ink); border-right: 1px solid var(--ink); }
+         .set-tile.selected { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 0 16px var(--primary-glow); }
+         .set-tile.selected::before,
+         .set-tile.selected::after { opacity: 1; }
+         .set-tile.focused { outline: 1px dashed var(--dashed); outline-offset: 2px; }
+         .set-tile.highlighted { animation: highlightPulse 0.5s ease-out; box-shadow: 0 0 0 1px var(--primary), 0 0 18px var(--primary-glow) !important; }
+         @keyframes highlightPulse { 0% { transform: scale(1.05); } 100% { transform: scale(1); } }
+
+         .set-tile-img { position: relative; aspect-ratio: 1; overflow: hidden; }
+         .set-tile-img img { width: 100%; height: 100%; object-fit: cover; }
+         .set-tile-body { padding: var(--sp-2) 10px var(--sp-3); }
+
+         /* toggle indicator (items / base / persona / prismatic) */
+         .toggle-indicator {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--hairline-strong);
+            background: rgba(0, 0, 0, 0.55);
+            transition: var(--transition);
+            z-index: 4;
+         }
+         .toggle-indicator svg { width: 10px; height: 10px; color: var(--on-primary); opacity: 0; }
+         .set-tile.selected .toggle-indicator { border-color: var(--primary); background: var(--primary); }
+         .set-tile.selected .toggle-indicator svg { opacity: 1; }
+
+         /* style-count badge */
+         .style-count-badge {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            padding: 2px 7px;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            color: var(--ink);
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--hairline-strong);
+            pointer-events: none;
+            z-index: 4;
+         }
+
+         /* tag badges (monochrome, bracketed) */
+         .item-tag-badge,
+         .set-tag-badge {
+            display: inline-block;
+            font-family: var(--mono);
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: var(--body);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            padding: 1px 6px;
+         }
+         .item-tag-badge::before,
+         .set-tag-badge::before { content: "["; color: var(--mute); }
+         .item-tag-badge::after,
+         .set-tag-badge::after { content: "]"; color: var(--mute); }
+         .set-tile.selected .item-tag-badge,
+         .set-tile.selected .set-tag-badge { color: var(--ink); border-color: var(--primary); }
+
+         /* selection status line on a tile */
+         .set-status {
+            display: block;
+            margin-top: 6px;
+            font-size: var(--fs-overline);
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+
+         /* ════════════════════════════════ STYLE PREVIEW MODAL ════════════════════════════════ */
+         .style-preview-backdrop { background: rgba(0, 0, 0, 0.86); backdrop-filter: blur(6px); }
+         #stylePreviewModal {
+            position: fixed;
+            inset: 0;
+            z-index: 90;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--sp-4);
+         }
+         .style-preview-panel {
+            width: 100%;
+            max-width: 560px;
+            max-height: 82vh;
+            overflow: hidden;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            animation: scaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+         }
+         .style-preview-header {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-3);
+            padding: var(--sp-4) var(--sp-5);
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.5);
+         }
+         .style-preview-header-thumb {
+            width: 40px;
+            height: 40px;
+            overflow: hidden;
+            border: 1px solid var(--hairline-strong);
+            flex-shrink: 0;
+         }
+         .style-preview-header-thumb img { width: 100%; height: 100%; object-fit: cover; }
+         .style-preview-header-info { flex: 1; min-width: 0; }
+         .style-preview-header-title {
+            font-size: var(--fs-sub);
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .style-preview-header-sub { font-size: var(--fs-overline); color: var(--body); margin-top: 3px; }
+         .style-preview-close {
+            width: 30px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+            flex-shrink: 0;
+         }
+         .style-preview-close:hover { background: rgba(248, 81, 73, 0.85); color: #fff; }
+         .style-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: var(--sp-3);
+            padding: var(--sp-5);
+            max-height: 56vh;
+            overflow-y: auto;
+         }
+         .style-preview-tile {
+            position: relative;
+            overflow: hidden;
+            background: var(--panel);
+            border: 1px solid var(--hairline);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .style-preview-tile:hover { border-color: var(--hairline-strong); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
+         .style-preview-tile.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary), 0 0 18px var(--primary-glow); }
+         .style-preview-tile-img { aspect-ratio: 1; overflow: hidden; }
+         .style-preview-tile-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+         .style-preview-tile:hover .style-preview-tile-img img { transform: scale(1.06); }
+         .style-preview-tile-label {
+            padding: 8px 10px;
+            font-size: var(--fs-label);
+            font-weight: 500;
+            color: var(--body);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .style-preview-tile.active .style-preview-tile-label { color: var(--ink); }
+         .style-preview-tile-check {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary);
+            color: var(--on-primary);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: var(--transition);
+            z-index: 3;
+         }
+         .style-preview-tile.active .style-preview-tile-check { opacity: 1; transform: scale(1); }
+         .style-preview-tile-check svg { width: 12px; height: 12px; }
+         .style-preview-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: var(--sp-2);
+            padding: var(--sp-3) var(--sp-5);
+            border-top: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.5);
+         }
+
+         /* ════════════════════════════════ FOOTER ════════════════════════════════ */
+         footer.status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 11px var(--sp-6);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--hairline);
+            font-size: var(--fs-overline);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--mute);
+         }
+         #statusText { color: var(--body); }
+         #statusText::before { content: "> "; color: var(--mute); }
+
+         /* ════════════════════════════════ CACHING OVERLAY ════════════════════════════════ */
+         #cachingOverlay {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--canvas);
+         }
+         .co-box { width: 100%; max-width: 420px; padding: 0 var(--sp-4); text-align: center; }
+         .co-ico {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto var(--sp-5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--hairline-strong);
+            background: var(--wash);
+            color: var(--ink);
+            box-shadow: 0 0 22px var(--primary-glow);
+         }
+         .co-ico svg { width: 30px; height: 30px; }
+         .co-title { font-size: var(--fs-sub); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--ink); margin-bottom: 6px; }
+         #cachingStatus { font-size: var(--fs-label); color: var(--body); margin-bottom: var(--sp-5); }
+         .co-bar { height: 6px; background: var(--panel); border: 1px solid var(--hairline-strong); overflow: hidden; margin-bottom: var(--sp-2); }
+         #cachingBar { height: 100%; background: var(--primary); transition: width 0.2s ease; width: 0%; }
+         .co-meta { display: flex; justify-content: space-between; font-size: var(--fs-overline); color: var(--mute); letter-spacing: 0.5px; }
+
+         /* ════════════════════════════════ ALERT / CONFIRM MODALS ════════════════════════════════ */
+         .ov {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--sp-6);
+         }
+         .ov-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(3px); }
+         .dialog {
+            position: relative;
+            width: 440px;
+            max-width: 100%;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            border-top: 2px solid var(--primary);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.72);
+            animation: scaleIn 0.2s ease-out;
+         }
+         .dialog-body { display: flex; align-items: flex-start; gap: var(--sp-4); padding: var(--sp-5) var(--sp-5) var(--sp-4); }
+         .dialog-ico {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--hairline-strong);
+            background: var(--wash);
+            color: var(--ink);
+         }
+         .dialog-ico svg { width: 20px; height: 20px; }
+         .dialog-main { flex: 1; min-width: 0; }
+         .dialog-title { font-size: var(--fs-sub); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink); margin-bottom: var(--sp-2); }
+         .dialog-msg { font-size: var(--fs-label); line-height: var(--lh-body); color: var(--body); white-space: pre-line; }
+         .dialog-msg strong { color: var(--ink); font-weight: 700; }
+         .dialog-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); padding: 0 var(--sp-5) var(--sp-5); }
+
+         /* log modal — wider dialog + scrollable terminal (mirrors the Miscellaneous log modal) */
+         .log-dialog { width: 620px; }
+         .log-modal-console { position: relative; height: 320px; overflow-y: auto; padding: var(--sp-3); margin-top: var(--sp-2); background: var(--canvas); border: 1px solid var(--hairline-strong); font-family: var(--mono); font-size: var(--fs-overline); line-height: 1.65; color: var(--body); }
+         .retro-terminal::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 3px); pointer-events: none; }
+         .log-line { padding: 1px 0; white-space: pre-wrap; word-break: break-word; }
+
+         /* confirm selection list */
+         #confirmSelectionList {
+            margin-top: var(--sp-4);
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--hairline-strong);
+            background: rgba(0, 0, 0, 0.35);
+         }
+         .cs-row {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-3);
+            padding: var(--sp-2) var(--sp-3);
+            border-bottom: 1px solid var(--hairline);
+         }
+         .cs-row:last-child { border-bottom: none; }
+         .cs-row img { width: 32px; height: 32px; object-fit: cover; border: 1px solid var(--hairline-strong); flex-shrink: 0; }
+         .cs-info { flex: 1; min-width: 0; }
+         .cs-name { font-size: var(--fs-label); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+         .cs-set { font-size: var(--fs-overline); color: var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      </style>
+   </head>
+
+   <body>
+      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg) -->
+      <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+         <defs>
+            <g id="ardysaGlyph">
+               <g transform="translate(1.007913, 440.428851)"><path d="M190.79,158.66c0,12.07,2.23,23.49,6.69,34.25c4.47,10.77,10.65,20.08,18.52,27.96s17.06,14.05,27.56,18.52 c10.5,4.46,21.79,6.69,33.87,6.69H84.48c11.55-1.57,22.71-5.24,33.48-11.02c10.76-5.78,20.86-13,30.31-21.67 c9.46-8.67,17.86-18.25,25.21-28.75c7.34-10.5,13.11-21.26,17.31-32.29V158.66z M342.02,246.08c11.03,0,20.48-4.59,28.35-13.77 c7.88-9.19,11.81-19.57,11.81-31.13c0-2.09,0-4.19,0-6.29c0-2.09-0.53-4.2-1.58-6.31l-22.83-66.15l-1.58-4.73L300.27-43.75 c-3.68-8.92-10.24-13.38-19.69-13.38c-8.93,0-15.23,4.46-18.9,13.38l94.5-261.46L443.6-53.98c3.68,10.5,7.88,22.97,12.6,37.42 c4.72,14.43,8.92,26.9,12.6,37.4l64.58,184.29c3.67,10.5,10.09,19.95,19.29,28.35c9.19,8.41,19.82,12.6,31.9,12.6H342.02z" /></g>
+               <g transform="translate(407.31193, 150.568186)"><path d="M400.89,182.21c0-12.07-2.23-23.49-6.69-34.25c-4.47-10.77-10.65-20.08-18.52-27.96s-17.06-14.05-27.56-18.52 c-10.5-4.46-21.79-6.69-33.88-6.69H507.2c-11.55,1.57-22.71,5.24-33.48,11.02c-10.76,5.78-20.86,13-30.31,21.67 c-9.46,8.67-17.86,18.25-25.21,28.75c-7.34,10.5-13.11,21.26-17.31,32.29V182.21z M249.66,94.79 c-11.03,0-20.48,4.59-28.35,13.77c-7.88,9.19-11.81,19.57-11.81,31.12c0,2.09,0,4.19,0,6.29c0,2.09,0.53,4.2,1.58,6.31 l22.83,66.15l1.58,4.73l55.92,161.46c3.68,8.92,10.24,13.38,19.69,13.38c8.93,0,15.23-4.46,18.9-13.38l-94.5,261.46 l-87.42-251.23c-3.68-10.5-7.88-22.97-12.6-37.42c-4.72-14.43-8.92-26.9-12.6-37.4L58.29,135.75 c-3.67-10.5-10.09-19.95-19.29-28.35c-9.19-8.41-19.82-12.6-31.9-12.6H249.66z" /></g>
+            </g>
+         </defs>
+      </svg>
+      <!-- animated wave + grid backdrop -->
+      <div class="bgfx"></div>
+
+      <!-- ═══════════════════════════ TITLE BAR ═══════════════════════════ -->
+      <div id="titleBar" onmousedown="startDrag(event)">
+         <div class="tb-brand">
+            <svg class="tb-logo" viewBox="0 0 1000 1000" fill="currentColor" aria-hidden="true"><use href="#ardysaGlyph" /></svg>
+            <span class="b-name" data-i18n="shell.nav.skinSelector">Skin Selector</span>
+            <span class="b-tag" data-i18n="heroGallery.tag">Beta</span>
+         </div>
+         <div class="tb-marquee" aria-hidden="true">
+            <div class="tb-marquee-inner">
+               <div class="tb-marquee-track">
+                  <span class="tb-marquee-item">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                     </svg>
+                     <span data-i18n="heroGallery.marquee">Not all heroes have a set — sets will be updated gradually</span>
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                     </svg>
+                  </span>
+                  <span class="tb-marquee-item">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                     </svg>
+                     <span data-i18n="heroGallery.marquee">Not all heroes have a set — sets will be updated gradually</span>
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                     </svg>
+                  </span>
+               </div>
+            </div>
+         </div>
+         <button class="tb-close" onclick="requestClose()" onmousedown="event.stopPropagation()" title="Close" data-i18n-title="common.close">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+         </button>
+      </div>
+
+      <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
+      <header class="gallery-header">
+         <div class="gh-rows">
+            <!-- top row: search + counter + actions -->
+            <div class="gh-top">
+               <div class="search">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input type="text" id="searchInput" placeholder="Search heroes..." data-i18n-placeholder="progress.preview.search" />
+               </div>
+
+               <div class="sel-counter">
+                  <span id="selectionCount">0</span>
+                  <span data-i18n="heroGallery.selected">Selected</span>
+               </div>
+
+               <div class="gh-actions">
+                  <button id="savePresetBtn" class="btn ghost" title="Save selections to file" data-i18n-title="heroGallery.savePreset.title" data-i18n="common.save">Save</button>
+                  <button id="loadPresetBtn" class="btn ghost" title="Load selections from file" data-i18n-title="heroGallery.loadPreset.title" data-i18n="common.load">Load</button>
+                  <button id="clearAllBtn" class="btn ghost" data-i18n="heroGallery.clearAll">Clear All</button>
+                  <button id="generateBtn" class="btn primary" data-i18n="heroGallery.generate">Generate ModsPack</button>
+               </div>
+            </div>
+
+            <!-- filter pills -->
+            <div class="gh-filters">
+               <button class="filter-pill active" data-category="all" data-i18n="heroGallery.allHeroes">All Heroes</button>
+               <button id="hasSetsToggle" class="toggle-pill" title="Show only heroes that have custom sets" data-i18n-title="heroGallery.hasSetsToggle.title">
+                  <span class="toggle-dot">○</span> <span data-i18n="heroGallery.hasSets">Has Sets</span>
+               </button>
+               <button class="filter-pill" data-category="str">
+                  <img src="data:image/png;base64,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" alt="Strength" />
+                  <span data-i18n="filter.strength">Strength</span>
+               </button>
+               <button class="filter-pill" data-category="agi">
+                  <img src="data:image/png;base64,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" alt="Agility" />
+                  <span data-i18n="filter.agility">Agility</span>
+               </button>
+               <button class="filter-pill" data-category="int">
+                  <img src="data:image/png;base64,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" alt="Intelligence" />
+                  <span data-i18n="filter.intelligence">Intelligence</span>
+               </button>
+               <button class="filter-pill" data-category="universal">
+                  <img src="data:image/png;base64,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" alt="Universal" />
+                  <span data-i18n="filter.universal">Universal</span>
+               </button>
+               <div class="gh-spacer"></div>
+               <button class="filter-pill" data-category="favorites"><span class="star">★</span> <span data-i18n="heroGallery.favorites">Favorites</span></button>
+            </div>
+         </div>
+      </header>
+
+      <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+      <main>
+         <!-- Latest Updates -->
+         <section id="latestUpdatesSection" class="hidden">
+            <div class="lu-head">
+               <div class="lu-head-left">
+                  <span class="lu-title">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                     </svg>
+                     <span data-i18n="heroGallery.latestUpdates">Latest Updates</span>
+                  </span>
+                  <span id="updatesCount">0 new</span>
+               </div>
+               <button class="btn ghost" onclick="toggleUpdatesSection()">
+                  <span id="toggleUpdatesText" data-i18n="heroGallery.toggleHide">Hide</span>
+                  <svg id="toggleUpdatesIcon" style="width: 13px; height: 13px; transition: transform 0.3s" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                  </svg>
+               </button>
+            </div>
+
+            <div id="latestUpdatesContainer">
+               <div class="carousel-wrapper">
+                  <button class="carousel-arrow carousel-arrow-left" onclick="carouselPrev()" id="carouselPrevBtn">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                     </svg>
+                  </button>
+
+                  <div id="latestUpdatesGrid" class="carousel-track"></div>
+
+                  <button class="carousel-arrow carousel-arrow-right" onclick="carouselNext()" id="carouselNextBtn">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                     </svg>
+                  </button>
+               </div>
+               <div id="carouselDots" class="carousel-dots"></div>
+            </div>
+         </section>
+
+         <!-- Hero grid -->
+         <div id="heroGrid"></div>
+
+         <!-- Empty state -->
+         <div id="emptyState" class="hidden">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="es-title" data-i18n="progress.preview.empty">No heroes found</p>
+            <p class="es-sub" data-i18n="heroGallery.noHeroesSub">Try adjusting your search or filters</p>
+         </div>
+      </main>
+
+      <!-- ═══════════════════════════ SET MODAL ═══════════════════════════ -->
+      <div id="setModal" class="hidden modal-backdrop">
+         <div class="sm-wrap">
+            <button id="prevHeroBtn" class="nav-arrow" title="Previous hero" data-i18n-title="heroGallery.prevHero.title">
+               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+               </svg>
+            </button>
+
+            <div class="sm-panel animate-scale-in">
+               <div class="sm-head">
+                  <div class="sm-head-left">
+                     <img id="modalHeroImg" src="" alt="" />
+                     <div>
+                        <h2 id="modalHeroName"></h2>
+                        <p class="sm-hint" data-i18n="heroGallery.smHint">↑↓ browse sets · Enter select · ←→ change hero</p>
+                     </div>
+                  </div>
+                  <button class="sm-x" onclick="closeModal()" title="Close" data-i18n-title="common.close">
+                     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                     </svg>
+                  </button>
+               </div>
+
+               <div id="modalSetsGrid"></div>
+
+               <div class="sm-foot">
+                  <button class="btn ghost" onclick="deselectHero()" data-i18n="heroGallery.removeSelection">Remove Selection</button>
+                  <button class="btn primary" onclick="confirmAndClose()" data-i18n="common.done">Done</button>
+               </div>
+            </div>
+
+            <button id="nextHeroBtn" class="nav-arrow" title="Next hero" data-i18n-title="heroGallery.nextHero.title">
+               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+               </svg>
+            </button>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+      <footer class="status-bar">
+         <span id="statusText" data-i18n="hero.status.ready">Ready</span>
+         <span id="versionText">version ...</span>
+      </footer>
+
+      <!-- ═══════════════════════════ CACHING OVERLAY ═══════════════════════════ -->
+      <div id="cachingOverlay" class="hidden">
+         <div class="co-box">
+            <div class="co-ico">
+               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+               </svg>
+            </div>
+            <h2 class="co-title" data-i18n="common.loadingAssets">Loading Assets</h2>
+            <p id="cachingStatus" data-i18n="common.preparingThumbs">Preparing thumbnails...</p>
+            <div class="co-bar"><div id="cachingBar"></div></div>
+            <div class="co-meta">
+               <span id="cachingCount">0 / 0</span>
+               <span id="cachingPercent">0%</span>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ ALERT MODAL ═══════════════════════════ -->
+      <div id="alertModal" class="hidden ov">
+         <div class="ov-scrim" onclick="closeAlert()"></div>
+         <div class="dialog">
+            <div class="dialog-body">
+               <div id="alertIconContainer" class="dialog-ico">
+                  <svg id="alertIconSuccess" class="hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <svg id="alertIconWarning" class="hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <svg id="alertIconInfo" class="hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+               </div>
+               <div class="dialog-main">
+                  <h3 id="alertTitle" class="dialog-title" data-i18n="common.alert">Alert</h3>
+                  <p id="alertMessage" class="dialog-msg"></p>
+               </div>
+            </div>
+            <div class="dialog-actions">
+               <button id="alertLogButton" class="btn ghost hidden" onclick="openLogModal()" data-i18n="hero.log.button">Show Log</button>
+               <button id="alertOkButton" class="btn primary" onclick="closeAlert()" data-i18n="common.ok">OK</button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ LOG MODAL ═══════════════════════════ -->
+      <div id="logModal" class="hidden ov" style="z-index: 250">
+         <div class="ov-scrim" onclick="closeLogModal()"></div>
+         <div class="dialog log-dialog">
+            <div class="dialog-body">
+               <div class="dialog-main">
+                  <h3 class="dialog-title" data-i18n="hero.log.title">Generation Log</h3>
+                  <div id="logModalConsole" class="retro-terminal log-modal-console">
+                     <div id="logModalContent"></div>
+                  </div>
+               </div>
+            </div>
+            <div class="dialog-actions">
+               <button onclick="copyGenerationLog()" class="btn ghost" data-i18n="miscForm.copyLog">Copy</button>
+               <button onclick="closeLogModal()" class="btn primary" data-i18n="common.close">Close</button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ CONFIRM MODAL ═══════════════════════════ -->
+      <div id="confirmModal" class="hidden ov">
+         <div class="ov-scrim" onclick="closeConfirm(false)"></div>
+         <div class="dialog">
+            <div class="dialog-body">
+               <div class="dialog-ico">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+               </div>
+               <div class="dialog-main">
+                  <h3 id="confirmTitle" class="dialog-title" data-i18n="common.confirm">Confirm</h3>
+                  <div id="confirmMessage" class="dialog-msg"></div>
+                  <div id="confirmSelectionList" class="hidden"></div>
+               </div>
+            </div>
+            <div class="dialog-actions">
+               <button class="btn ghost" onclick="closeConfirm(false)" data-i18n="common.cancel">Cancel</button>
+               <button class="btn primary" onclick="closeConfirm(true)" data-i18n="heroGallery.clearConfirm">Yes, Clear All</button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════════════ STYLE PREVIEW MODAL ═══════════════════════════ -->
+      <div id="stylePreviewModal" class="hidden style-preview-backdrop" onclick="closeStylePreview()">
+         <div class="style-preview-panel" onclick="event.stopPropagation()">
+            <div class="style-preview-header">
+               <div class="style-preview-header-thumb">
+                  <img id="stylePreviewThumb" src="" alt="" />
+               </div>
+               <div class="style-preview-header-info">
+                  <div id="stylePreviewTitle" class="style-preview-header-title"></div>
+                  <div id="stylePreviewSub" class="style-preview-header-sub"></div>
+               </div>
+               <button class="style-preview-close" onclick="closeStylePreview()">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+               </button>
+            </div>
+            <div id="stylePreviewGrid" class="style-preview-grid"></div>
+            <div class="style-preview-footer">
+               <button class="btn ghost" onclick="deselectStylePreview()" data-i18n="common.deselect">Deselect</button>
+               <button class="btn primary" onclick="closeStylePreview()" data-i18n="common.done">Done</button>
+            </div>
+         </div>
+      </div>
+      <script>
+         // ============================================
+         // Data & State
+         // ============================================
+         let heroes = [];
+         let filteredHeroes = []; // Currently visible heroes after filtering
+         // Structured selections: { heroId: { set: idx|null, items: [idx...], base: idx|null } }
+         let selections = {};
+         let favorites = new Set();
+         let currentFilter = "all";
+         let searchQuery = "";
+         let showOnlyWithSets = false;
+         let currentModalHeroId = null;
+         let focusedSetIndex = 0;
+
+         // ============================================
+         // Selection Helpers
+         // ============================================
+         function getHeroSelection(heroId) {
+            if (!selections[heroId]) {
+               selections[heroId] = { set: null, items: [], base: null, prismatic: null };
+            }
+            return selections[heroId];
+         }
+
+         function hasAnySelection(heroId) {
+            const s = selections[heroId];
+            if (!s) return false;
+            return s.set !== null || (s.items && s.items.length > 0) || s.base !== null || (s.prismatic != null);
+         }
+
+         // Check if the currently selected set is a Persona category
+         function isPersonaActive(heroId) {
+            const s = selections[heroId];
+            if (!s || s.set === null) return false;
+            const hero = heroes.find(h => h.id === heroId);
+            if (!hero || !hero.sets || !hero.sets[s.set]) return false;
+            return getSetCategory(hero.sets[s.set]) === 'persona';
+         }
+
+         // Prismatic is a Base add-on: it can only be selected once a Base Hero is active.
+         function isBaseActive(heroId) {
+            const s = selections[heroId];
+            return !!(s && s.base != null);
+         }
+
+         function getSelectionSummary(hero) {
+            const s = selections[hero.id];
+            if (!s) return null;
+            const parts = [];
+            if (s.set !== null && hero.sets && hero.sets[s.set]) {
+               const setObj = hero.sets[s.set];
+               const isPersona = getSetCategory(setObj) === 'persona';
+               const setName = setObj.styleGroup
+                  ? `${setObj.styleGroup} · ${setObj.styleLabel}`
+                  : setObj.name;
+               parts.push(isPersona ? `Persona: ${setName}` : setName);
+            }
+            if (s.items && s.items.length > 0) {
+               parts.push(`${s.items.length} item${s.items.length > 1 ? 's' : ''}`);
+            }
+            if (s.base !== null) {
+               parts.push('Base');
+            }
+            if (s.prismatic != null && hero.sets && hero.sets[s.prismatic]) {
+               const prismObj = hero.sets[s.prismatic];
+               const prismName = prismObj.styleGroup
+                  ? `${prismObj.styleGroup} · ${prismObj.styleLabel}`
+                  : prismObj.name;
+               parts.push(`Prismatic: ${prismName}`);
+            }
+            return parts.length > 0 ? parts.join(' + ') : null;
+         }
+
+         function getSetCategory(set) {
+            return (set && set.category) || 'legacyset';
+         }
+
+         // Extract the slot tag from an item set's archive URL filename.
+         // Format: item_{tag}_{name}[_{N}].zip → returns the tag segment.
+         // Falls back to the 'tag' field sent from C# if available.
+         function extractItemTag(set) {
+            // Use pre-computed tag from C# if available
+            if (set && set.tag) return set.tag;
+            return null;
+         }
+
+         // Category tag shown on non-item tiles in place of a name label.
+         // Legacy → "Set", Custom → "Mix", Persona → "Persona", Base → "Arcana".
+         // Returns { label, cssClass } or null for items (they use their slot tag).
+         function getCategoryTag(set) {
+            switch (getSetCategory(set)) {
+               case 'customset': return { label: 'Mix', cssClass: 'tag-custom' };
+               case 'persona':   return { label: 'Persona', cssClass: 'tag-persona' };
+               case 'basehero':  return { label: 'Arcana', cssClass: 'tag-base' };
+               case 'prismatic': return { label: 'Prismatic', cssClass: 'tag-prismatic' };
+               case 'item':      return null;
+               default:          return { label: 'Set', cssClass: 'tag-legacy' };
+            }
+         }
+
+         // Find all item indices that share the same tag as the given index.
+         function getItemsWithSameTag(hero, targetIdx) {
+            if (!hero || !hero.sets) return [];
+            const targetSet = hero.sets[targetIdx];
+            if (!targetSet) return [];
+            const targetTag = extractItemTag(targetSet);
+            if (!targetTag) return [];
+
+            const sameTag = [];
+            hero.sets.forEach((set, idx) => {
+               if (idx !== targetIdx && getSetCategory(set) === 'item') {
+                  const tag = extractItemTag(set);
+                  if (tag && tag === targetTag) sameTag.push(idx);
+               }
+            });
+            return sameTag;
+         }
+
+         // ============================================
+         // C# Interop Functions
+         // ============================================
+         
+         // Caching Overlay Control
+         function showCachingOverlay() {
+            const overlay = document.getElementById("cachingOverlay");
+            if (overlay) {
+               overlay.classList.remove("hidden");
+               overlay.style.opacity = "1";
+               document.getElementById("cachingStatus").textContent = "Downloading thumbnails...";
+               document.getElementById("cachingBar").style.width = "0%";
+               document.getElementById("cachingCount").textContent = "0 / 0";
+               document.getElementById("cachingPercent").textContent = "0%";
+            }
+         }
+
+         function updateCachingProgress(current, total) {
+            const pct = total > 0 ? Math.round((current / total) * 100) : 100;
+            document.getElementById("cachingBar").style.width = `${pct}%`;
+            document.getElementById("cachingCount").textContent = `${current} / ${total}`;
+            document.getElementById("cachingPercent").textContent = `${pct}%`;
+            
+            if (current >= total && total > 0) {
+               document.getElementById("cachingStatus").textContent = "Complete!";
+            }
+         }
+
+         function hideCachingOverlay() {
+            const overlay = document.getElementById("cachingOverlay");
+            if (overlay) {
+               overlay.style.opacity = "0";
+               overlay.style.transition = "opacity 0.2s ease";
+               setTimeout(() => overlay.classList.add("hidden"), 200);
+            }
+         }
+
+         function loadHeroes(heroesJson) {
+            heroes = typeof heroesJson === "string" ? JSON.parse(heroesJson) : heroesJson;
+            renderHeroes();
+            updateStatus(`Loaded ${heroes.length} heroes`);
+         }
+
+         function loadSelections(selectionsJson) {
+            selections =
+               typeof selectionsJson === "string" ? JSON.parse(selectionsJson) : selectionsJson;
+            updateSelectionCount();
+            renderHeroes();
+         }
+
+         // Called from C# to restore highlighted heroes (simplified persistence)
+         function loadHighlightedHeroes(heroIdsJson) {
+            const heroIds = typeof heroIdsJson === "string" ? JSON.parse(heroIdsJson) : heroIdsJson;
+            if (!Array.isArray(heroIds)) return;
+            // Mark heroes as highlighted with empty selection state
+            heroIds.forEach(id => {
+               if (!selections[id]) {
+                  selections[id] = { set: null, items: [], base: null, prismatic: null };
+               }
+            });
+            updateSelectionCount();
+            renderHeroes();
+         }
+
+         function loadFavorites(favoritesArray) {
+            favorites = new Set(
+               typeof favoritesArray === "string" ? JSON.parse(favoritesArray) : favoritesArray,
+            );
+            renderHeroes();
+         }
+
+         // ============================================
+         // Latest Updates Carousel
+         // ============================================
+         let latestUpdates = [];
+         let updatesCollapsed = false;
+         let highlightSetIndex = -1;
+         let carouselIndex = 0;
+         const MAX_CAROUSEL_ITEMS = 30; // Maximum items to show for better UX
+
+         function loadLatestUpdates(updatesJson) {
+            let parsed = typeof updatesJson === "string" ? JSON.parse(updatesJson) : updatesJson;
+
+            if (!parsed || parsed.length === 0) {
+               document.getElementById("latestUpdatesSection").classList.add("hidden");
+               return;
+            }
+
+            // Limit to max items for better UX
+            latestUpdates = parsed.slice(0, MAX_CAROUSEL_ITEMS);
+
+            // Show section
+            document.getElementById("latestUpdatesSection").classList.remove("hidden");
+            document.getElementById("updatesCount").textContent = `${latestUpdates.length} new`;
+
+            // Render cards
+            const grid = document.getElementById("latestUpdatesGrid");
+            grid.innerHTML = latestUpdates
+               .map((update, idx) => {
+                  const daysText =
+                     update.daysAgo === 0
+                        ? "Today"
+                        : update.daysAgo === 1
+                          ? "Yesterday"
+                          : `${update.daysAgo}d ago`;
+                  return `
+                  <div class="update-card" onclick="navigateToUpdate('${update.heroId}', ${update.setIndex})">
+                     <div class="update-card-image">
+                        <img src="${update.setThumbnail || ""}"
+                             alt="${update.heroName}"
+                              onerror="this.onerror=null;this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23111%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23333%22 font-size=%2210%22>?</text></svg>'" />
+                         <div class="update-card-gradient"></div>
+                         ${update.daysAgo <= 2 ? '<span class="new-badge">NEW</span>' : ''}
+                      </div>
+                      <div class="update-card-content">
+                         <p class="update-card-hero">${update.heroName}</p>
+                         <p class="update-card-date">${daysText}</p>
+                      </div>
+                   </div>
+                `;
+               })
+               .join("");
+
+            // Init carousel
+            carouselIndex = 0;
+            updateCarouselPosition();
+            updateCarouselArrows();
+
+            window.addEventListener("resize", handleCarouselResize);
+            
+            // Add mouse wheel scrolling for carousel
+            const carouselWrapper = document.querySelector('.carousel-wrapper');
+            if (carouselWrapper) {
+               carouselWrapper.addEventListener('wheel', handleCarouselWheel, { passive: false });
+            }
+         }
+
+         function handleCarouselWheel(e) {
+            const metrics = getCarouselMetrics();
+            if (!metrics || metrics.maxScrollIndex <= 0) return;
+            
+            // Prevent page scroll when on carousel
+            e.preventDefault();
+            
+            // Scroll direction: positive deltaY = scroll down = next, negative = prev
+            if (e.deltaY > 0) {
+               // Scroll right (next)
+               if (carouselIndex < metrics.maxScrollIndex) {
+                  carouselIndex = Math.min(carouselIndex + 1, metrics.maxScrollIndex);
+                  updateCarouselPosition();
+                  updateCarouselArrows();
+               }
+            } else if (e.deltaY < 0) {
+               // Scroll left (prev)
+               if (carouselIndex > 0) {
+                  carouselIndex = Math.max(carouselIndex - 1, 0);
+                  updateCarouselPosition();
+                  updateCarouselArrows();
+               }
+            }
+         }
+
+         function handleCarouselResize() {
+            // Clamp carouselIndex to valid range after resize
+            const metrics = getCarouselMetrics();
+            if (metrics) {
+               carouselIndex = Math.min(carouselIndex, metrics.maxScrollIndex);
+            }
+            updateCarouselPosition();
+            updateCarouselArrows();
+         }
+
+         function getCarouselMetrics() {
+            const wrapper = document.querySelector(".carousel-wrapper");
+            const grid = document.getElementById("latestUpdatesGrid");
+            if (!wrapper || !grid) return null;
+
+            const cardWidth = 150; // card width
+            const gap = 10; // gap between cards
+            const padding = 24; // 12px padding on each side
+            const wrapperWidth = wrapper.clientWidth - padding;
+            const totalCards = latestUpdates.length;
+            const totalContentWidth = totalCards * cardWidth + (totalCards - 1) * gap;
+            const visibleCards = Math.floor((wrapperWidth + gap) / (cardWidth + gap));
+            const maxScrollIndex = Math.max(0, totalCards - visibleCards);
+
+            return {
+               cardWidth,
+               gap,
+               padding,
+               wrapperWidth,
+               totalCards,
+               totalContentWidth,
+               visibleCards,
+               maxScrollIndex,
+            };
+         }
+
+         function renderCarouselDots() {
+            const metrics = getCarouselMetrics();
+            const dotsContainer = document.getElementById("carouselDots");
+            if (!metrics || !dotsContainer) return;
+
+            const { totalCards, visibleCards, maxScrollIndex } = metrics;
+
+            // Hide dots if all items fit or only one page
+            if (totalCards <= visibleCards || maxScrollIndex <= 0) {
+               dotsContainer.innerHTML = "";
+               return;
+            }
+
+            // Create dots for each scroll position (page-based for cleaner UX)
+            const totalDots = Math.min(maxScrollIndex + 1, 5); // Max 5 dots
+            const dotStep = maxScrollIndex / (totalDots - 1);
+            
+            dotsContainer.innerHTML = Array.from({ length: totalDots }, (_, i) => {
+               const dotIndex = Math.round(i * dotStep);
+               const isActive = carouselIndex >= dotIndex - dotStep/2 && carouselIndex < dotIndex + dotStep/2 + 1;
+               return `<button class="carousel-dot ${i === 0 && carouselIndex === 0 ? 'active' : ''} ${isActive ? 'active' : ''}" onclick="goToCarouselIndex(${dotIndex})"></button>`;
+            }).join("");
+            
+            // Update active dot
+            const dots = dotsContainer.querySelectorAll('.carousel-dot');
+            dots.forEach((dot, i) => {
+               const dotIndex = Math.round(i * dotStep);
+               const isActive = (i === 0 && carouselIndex <= dotStep/2) || 
+                               (i === totalDots - 1 && carouselIndex >= maxScrollIndex - dotStep/2) ||
+                               (carouselIndex >= dotIndex - dotStep/2 && carouselIndex < dotIndex + dotStep/2);
+               dot.classList.toggle('active', isActive);
+            });
+         }
+
+         function goToCarouselIndex(index) {
+            const metrics = getCarouselMetrics();
+            if (!metrics) return;
+            carouselIndex = Math.max(0, Math.min(index, metrics.maxScrollIndex));
+            updateCarouselPosition();
+            updateCarouselArrows();
+         }
+
+         function updateCarouselPosition() {
+            const grid = document.getElementById("latestUpdatesGrid");
+            const metrics = getCarouselMetrics();
+            if (!grid || !metrics) return;
+
+            const { cardWidth, gap, maxScrollIndex } = metrics;
+
+            // Clamp carousel index to valid range
+            carouselIndex = Math.max(0, Math.min(carouselIndex, maxScrollIndex));
+
+            // Calculate offset
+            const offset = carouselIndex * (cardWidth + gap);
+            grid.style.transform = `translateX(-${offset}px)`;
+
+            renderCarouselDots();
+         }
+
+         function updateCarouselArrows() {
+            const prevBtn = document.getElementById("carouselPrevBtn");
+            const nextBtn = document.getElementById("carouselNextBtn");
+            const metrics = getCarouselMetrics();
+
+            if (!metrics) return;
+            const { maxScrollIndex } = metrics;
+
+            if (prevBtn) prevBtn.classList.toggle("disabled", carouselIndex <= 0);
+            if (nextBtn) nextBtn.classList.toggle("disabled", carouselIndex >= maxScrollIndex);
+         }
+
+         function carouselPrev() {
+            const metrics = getCarouselMetrics();
+            if (!metrics) return;
+
+            // Scroll by a few items at a time for better UX
+            const scrollAmount = Math.max(1, Math.floor(metrics.visibleCards / 2));
+            carouselIndex = Math.max(0, carouselIndex - scrollAmount);
+            updateCarouselPosition();
+            updateCarouselArrows();
+         }
+
+         function carouselNext() {
+            const metrics = getCarouselMetrics();
+            if (!metrics) return;
+
+            const { maxScrollIndex, visibleCards } = metrics;
+            const scrollAmount = Math.max(1, Math.floor(visibleCards / 2));
+            carouselIndex = Math.min(maxScrollIndex, carouselIndex + scrollAmount);
+            updateCarouselPosition();
+            updateCarouselArrows();
+         }
+
+         function goToCarouselPage(page) {
+            // Legacy function - kept for compatibility
+            carouselIndex = page;
+            updateCarouselPosition();
+            updateCarouselArrows();
+         }
+
+         function navigateToUpdate(heroId, setIndex) {
+            // Store which set to highlight
+            highlightSetIndex = setIndex;
+
+            // Find hero card
+            const heroCard = document.querySelector(`[data-hero-id="${heroId}"]`);
+            if (heroCard) {
+               // Scroll to hero if not visible
+               heroCard.scrollIntoView({ behavior: "smooth", block: "center" });
+
+               // Open the modal after scroll
+               setTimeout(() => {
+                  openHeroModal(heroId);
+
+                  // Highlight and focus the specific set
+                  if (setIndex >= 0) {
+                     setTimeout(() => {
+                        focusedSetIndex = setIndex;
+                        updateFocusState();
+
+                        // Add highlight effect to the set tile
+                        const setTiles = document.querySelectorAll(".set-tile");
+                        if (setTiles[setIndex]) {
+                           setTiles[setIndex].classList.add("highlighted");
+                           setTiles[setIndex].scrollIntoView({
+                              behavior: "smooth",
+                              block: "nearest",
+                           });
+
+                           // Remove highlight after animation
+                           setTimeout(() => {
+                              setTiles[setIndex].classList.remove("highlighted");
+                           }, 2000);
+                        }
+
+                        // Reset highlight tracker
+                        highlightSetIndex = -1;
+                     }, 150);
+                  }
+               }, 350);
+            }
+         }
+
+         function toggleUpdatesSection() {
+            const container = document.getElementById("latestUpdatesContainer");
+            const toggleText = document.getElementById("toggleUpdatesText");
+            const toggleIcon = document.getElementById("toggleUpdatesIcon");
+
+            updatesCollapsed = !updatesCollapsed;
+
+            if (updatesCollapsed) {
+               container.classList.add("collapsed");
+               toggleText.textContent = "Show";
+               toggleIcon.style.transform = "rotate(180deg)";
+            } else {
+               container.classList.remove("collapsed");
+               toggleText.textContent = "Hide";
+               toggleIcon.style.transform = "rotate(0deg)";
+            }
+         }
+
+         let shouldCloseFormOnAlert = false;
+
+         function showAlert(title, message, type = "info", closeFormAfter = false, showLogButton = false) {
+            document.getElementById("alertTitle").textContent = title;
+            document.getElementById("alertMessage").textContent = message;
+
+            // Optional "Show Log" action (generation completion only) — the log itself is
+            // rendered by a native dialog; this just asks C# for it. OK never shows the log.
+            document.getElementById("alertLogButton").classList.toggle("hidden", !showLogButton);
+
+            // Hide all icons first
+            document.getElementById("alertIconSuccess").classList.add("hidden");
+            document.getElementById("alertIconWarning").classList.add("hidden");
+            document.getElementById("alertIconInfo").classList.add("hidden");
+
+            // Show the appropriate icon (monochrome — icons differ by shape, not color)
+            const container = document.getElementById("alertIconContainer");
+            container.className = "dialog-ico";
+
+            if (type === "success") {
+               document.getElementById("alertIconSuccess").classList.remove("hidden");
+            } else if (type === "warning") {
+               document.getElementById("alertIconWarning").classList.remove("hidden");
+            } else {
+               document.getElementById("alertIconInfo").classList.remove("hidden");
+            }
+
+            shouldCloseFormOnAlert = closeFormAfter;
+            document.getElementById("alertModal").classList.remove("hidden");
+         }
+
+         function requestGenerate() {
+            // Filter to only heroes with actual selections
+            const activeSelections = {};
+            for (const [id, sel] of Object.entries(selections)) {
+               if (hasAnySelection(id)) activeSelections[id] = sel;
+            }
+            if (Object.keys(activeSelections).length === 0) {
+               updateStatus("Please select at least one hero");
+               return;
+            }
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "generate", selections: activeSelections });
+            }
+         }
+
+         function closeAlert() {
+            document.getElementById("alertModal").classList.add("hidden");
+            // Notify C# that alert was dismissed
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "alertDismissed" });
+            }
+         }
+
+         // Sanitized run log pushed from C# before the completion alert shows. Rendered
+         // on demand by the in-shell log modal (same style as the Miscellaneous log modal).
+         let _generationLogText = "";
+
+         function setGenerationLog(text) {
+            _generationLogText = text || "";
+            const dst = document.getElementById("logModalContent");
+            dst.innerHTML = "";
+            // textContent per line keeps this XSS-safe (the log is plain text, not HTML).
+            const lines = _generationLogText.length ? _generationLogText.split("\n") : [];
+            if (lines.length === 0) {
+               const div = document.createElement("div");
+               div.className = "log-line";
+               div.textContent = "No log available.";
+               dst.appendChild(div);
+               return;
+            }
+            for (const line of lines) {
+               const div = document.createElement("div");
+               div.className = "log-line";
+               div.textContent = line;
+               dst.appendChild(div);
+            }
+         }
+
+         function openLogModal() {
+            // Keep the alert open behind the log modal; OK never opens this.
+            document.getElementById("logModal").classList.remove("hidden");
+            const box = document.getElementById("logModalConsole");
+            if (box) box.scrollTop = box.scrollHeight;
+            // Tell C# the log was viewed so it re-arms the completion-alert dismissal timeout
+            // (a button click proves the JS bridge is alive; reading can outlast one window).
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "generationLogOpened" });
+            }
+         }
+
+         function closeLogModal() {
+            document.getElementById("logModal").classList.add("hidden");
+         }
+
+         async function copyGenerationLog() {
+            try { await navigator.clipboard.writeText(_generationLogText); } catch (e) { /* clipboard unavailable */ }
+         }
+
+         function updateStatus(text) {
+            document.getElementById("statusText").textContent = text;
+         }
+
+         function setVersion(version) {
+            document.getElementById("versionText").textContent = `version ${version}`;
+         }
+
+         // ============================================
+         // Attribute Helpers
+         // ============================================
+         function matchesCategory(heroAttr, category) {
+            if (category === "all") return true;
+            if (category === "favorites") return false;
+            const a = (heroAttr || "").toLowerCase();
+            if (category === "str") return a === "str" || a === "strength";
+            if (category === "agi") return a === "agi" || a === "agility";
+            if (category === "int") return a === "int" || a === "intelligence";
+            if (category === "universal") return a === "universal" || a === "all" || a === "";
+            return true;
+         }
+
+         // A set entry that is just the hero's stock look (no real cosmetic set).
+         function isDefaultSetEntry(s) {
+            const name = (s && s.name || "").toLowerCase();
+            return name === "default set" || name === "default";
+         }
+
+         // Count of real (non-default) cosmetic sets a hero offers.
+         function customSetCount(hero) {
+            if (!hero.sets || hero.sets.length === 0) return 0;
+            return hero.sets.filter(s => !isDefaultSetEntry(s)).length;
+         }
+
+         // Check if a hero has at least one set that is NOT "Default Set".
+         function heroHasCustomSets(hero) {
+            return customSetCount(hero) > 0;
+         }
+
+         // ============================================
+         // Rendering
+         // ============================================
+         function renderHeroes() {
+            const grid = document.getElementById("heroGrid");
+            const emptyState = document.getElementById("emptyState");
+
+            filteredHeroes = heroes.filter((hero) => {
+               if (currentFilter === "favorites") {
+                  if (!favorites.has(hero.id)) return false;
+               } else if (currentFilter !== "all") {
+                  if (!matchesCategory(hero.attribute, currentFilter)) return false;
+               }
+
+               if (searchQuery) {
+                  const q = searchQuery.toLowerCase();
+                  if (
+                     !hero.name?.toLowerCase().includes(q) &&
+                     !hero.displayName?.toLowerCase().includes(q)
+                  ) {
+                     return false;
+                  }
+               }
+
+               // Has Sets toggle filter
+               if (showOnlyWithSets && !heroHasCustomSets(hero)) {
+                  return false;
+               }
+
+               return true;
+            });
+
+            if (filteredHeroes.length === 0) {
+               grid.classList.add("hidden");
+               emptyState.classList.remove("hidden");
+               emptyState.classList.add("flex");
+               return;
+            } else {
+               grid.classList.remove("hidden");
+               emptyState.classList.add("hidden");
+               emptyState.classList.remove("flex");
+            }
+
+            grid.innerHTML = filteredHeroes
+               .map((hero, index) => {
+                  const isSelected = hasAnySelection(hero.id);
+                  const isFavorite = favorites.has(hero.id);
+                  const summary = getSelectionSummary(hero);
+                  // Selectable only when the hero ships at least one real (non-default) set.
+                  // Default-only heroes are locked: grayed out and not clickable.
+                  const setCount = customSetCount(hero);
+                  const isLocked = setCount === 0;
+
+                  // Determine display thumbnail: use selected set's thumb if available
+                  let displayThumb = hero.thumbnail;
+                  const sel = selections[hero.id];
+                  if (isSelected && sel && sel.set !== null && hero.sets && hero.sets[sel.set]) {
+                     const setThumb = hero.sets[sel.set].thumbnailUrl;
+                     if (setThumb) displayThumb = setThumb;
+                  }
+
+                  const noSetsLabel = (window.t ? window.t("heroGallery.noSetsYet") : "No sets yet");
+
+                  return `
+               <div class="hero-card animate-fade-in ${isSelected ? "selected" : ""} ${isLocked ? "locked" : ""}"
+                  data-hero-id="${hero.id}"
+                  style="animation-delay: ${Math.min(index * 15, 200)}ms">
+                  <div class="hc-inner" ${isLocked ? "" : `onclick="openHeroModal('${hero.id}')"`}>
+                     <div class="hc-thumb">
+                        <img class="hc-img" src="${displayThumb || ""}"
+                             alt="${hero.displayName || hero.name}"
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23111%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23333%22 font-size=%2212%22>?</text></svg>'" />
+                        <div class="hc-veil"></div>
+                        ${
+                           isLocked
+                              ? `<div class="hc-lock" title="${noSetsLabel}">
+                                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                       <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                    </svg>
+                                 </div>`
+                              : `<div class="check-indicator">
+                                    <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                                       <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                 </div>
+                                 <button class="hc-fav ${isFavorite ? "on" : ""}"
+                                         onclick="event.stopPropagation(); toggleFavorite('${hero.id}')">${isFavorite ? "★" : "☆"}</button>`
+                        }
+                        <div class="hc-meta">
+                           <div class="hc-name">${hero.displayName || hero.name}</div>
+                           ${
+                              isLocked
+                                 ? `<div class="hc-sub muted">${noSetsLabel}</div>`
+                                 : summary
+                                   ? `<div class="hc-sub">${summary}</div>`
+                                   : `<div class="hc-sub muted">${setCount} set${setCount > 1 ? "s" : ""}</div>`
+                           }
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            `;
+               })
+               .join("");
+         }
+
+         // ============================================
+         // Modal Functions
+         // ============================================
+         function openHeroModal(heroId) {
+            const hero = heroes.find((h) => h.id === heroId);
+            // Locked: no real (non-default) set yet — not selectable.
+            if (!hero || !heroHasCustomSets(hero)) {
+               updateStatus(`${hero?.displayName || heroId} has no sets available`);
+               return;
+            }
+
+            currentModalHeroId = heroId;
+            focusedSetIndex = 0;
+
+            const modal = document.getElementById("setModal");
+            document.getElementById("modalHeroImg").src = hero.thumbnail;
+            document.getElementById("modalHeroName").textContent = hero.displayName || hero.name;
+
+            renderModalSets();
+            modal.classList.remove("hidden");
+         }
+
+         function isCustomSet(set) {
+            return set && set.isCustom === true;
+         }
+
+         // Render a set/item/base/persona tile with appropriate styling
+         function renderSetTile(set, idx, hero, heroSel, tileType) {
+            // Styled tiles: this single tile represents a whole styleGroup. Selection and
+            // display collapse across all variants in the group, and clicking the tile opens
+            // the Style Preview modal instead of selecting directly. A group with a single
+            // variant (or no styleGroup) behaves like a normal tile that selects on click.
+            const styleGroup = set.styleGroup || null;
+            const groupEntries = styleGroup
+               ? hero.sets.map((s, i) => ({ set: s, idx: i })).filter(e => e.set.styleGroup === styleGroup)
+               : [];
+            const hasStyles = styleGroup && groupEntries.length > 1;
+            const activeStyleIdx = hasStyles ? getActiveStyleIndex(groupEntries, heroSel, tileType) : null;
+
+            let isSelected = false;
+            if (hasStyles) {
+               isSelected = activeStyleIdx !== null;
+            } else if (tileType === 'set' || tileType === 'persona') {
+               isSelected = heroSel.set === idx;
+            } else if (tileType === 'item') {
+               isSelected = heroSel.items && heroSel.items.includes(idx);
+            } else if (tileType === 'base') {
+               isSelected = heroSel.base === idx;
+            } else if (tileType === 'prismatic') {
+               isSelected = heroSel.prismatic === idx;
+            }
+            const isFocused = focusedSetIndex === idx;
+
+            // For a styled tile, show the active variant's thumbnail when one is selected; otherwise
+            // prefer the authored group cover, falling back to the first style's thumb / hero portrait.
+            const activeSet = hasStyles && activeStyleIdx !== null ? hero.sets[activeStyleIdx] : null;
+            const groupCover = hasStyles ? (set.styleGroupThumbnail || null) : null;
+            const thumbUrl = (activeSet && activeSet.thumbnailUrl) || groupCover || set.thumbnailUrl || hero.thumbnail;
+            const tileClass = tileType === 'item' ? 'item-tile' : tileType === 'base' ? 'base-tile' : tileType === 'persona' ? 'persona-tile' : tileType === 'prismatic' ? 'prismatic-tile' : '';
+
+            // Click handler depends on type
+            // Persona uses selectSet — it shares the set slot
+            // Styled tiles open the Style Preview modal for the group; everything else selects directly.
+            let clickFn;
+            if (hasStyles) {
+               // Escape the group name for an inline (double-quoted) onclick attribute.
+               const groupArg = `'${String(styleGroup).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;')}'`;
+               clickFn = `openStylePreviewForTile('${currentModalHeroId}', ${groupArg}, '${tileType}')`;
+            } else if (tileType === 'set' || tileType === 'persona') {
+               clickFn = `selectSet('${currentModalHeroId}', ${idx})`;
+            } else if (tileType === 'item') {
+               clickFn = `toggleItem('${currentModalHeroId}', ${idx})`;
+            } else if (tileType === 'prismatic') {
+               clickFn = `togglePrismatic('${currentModalHeroId}', ${idx})`;
+            } else {
+               clickFn = `toggleBase('${currentModalHeroId}', ${idx})`;
+            }
+
+            // Status label
+            let statusHtml = '';
+            if (isSelected) {
+               const activeLabel = activeSet && (activeSet.styleLabel || activeSet.name);
+               const statusText = hasStyles && activeLabel ? `\u2713 ${activeLabel}` : '\u2713 Selected';
+               statusHtml = `<span class="set-status">${statusText}</span>`;
+            }
+
+            // Tag badge — items show their slot tag (head/weapon/…); Legacy/Custom/
+            // Persona/Base tiles show a category tag (Set/Mix/Persona/Arcana) in
+            // place of a name label.
+            let tagHtml = '';
+            if (tileType === 'item') {
+               const tag = extractItemTag(set);
+               if (tag) {
+                  tagHtml = `<span class="item-tag-badge">${tag}</span>`;
+               }
+            } else {
+               const catTag = getCategoryTag(set);
+               if (catTag) {
+                  tagHtml = `<span class="set-tag-badge ${catTag.cssClass}">${catTag.label}</span>`;
+               }
+            }
+
+            // Toggle indicator for items, base, and persona
+            const showToggle = tileType === 'item' || tileType === 'base' || tileType === 'persona' || tileType === 'prismatic';
+            const toggleHtml = showToggle ? `
+               <div class="toggle-indicator">
+                  <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                  </svg>
+               </div>` : '';
+
+            // Variant-count badge on styled tiles
+            const styleCountBadge = hasStyles ? `<span class="style-count-badge">${groupEntries.length} styles</span>` : '';
+
+            // Display name is kept only for the image alt text — no grid tile (plain or
+            // Style Card) renders a visible name label anymore; each shows just its tag
+            // badge. The set/variant name still appears inside the Style Preview Modal.
+            const displayName = styleGroup || set.name || `Set ${idx + 1}`;
+
+            return `
+            <div class="set-tile ${tileClass} ${isSelected ? 'selected' : ''} ${
+               isFocused ? 'focused' : ''
+            }"
+                 data-set-index="${idx}"
+                 onclick="${clickFn}">
+               <div class="set-tile-img">
+                  <img src="${thumbUrl}" alt="${displayName}"
+                       onerror="this.src='${hero.thumbnail}'" />
+                  ${toggleHtml}
+                  ${styleCountBadge}
+               </div>
+               <div class="set-tile-body">
+                  ${tagHtml}
+                  ${statusHtml}
+               </div>
+            </div>
+            `;
+         }
+
+         // Returns the original set index of the currently-active style within a group,
+         // or null when none of the group's styles is selected. Honors the selection slot
+         // for the tile type (set/persona → sel.set, item → sel.items, base → sel.base,
+         // prismatic → sel.prismatic).
+         function getActiveStyleIndex(entries, heroSel, tileType) {
+            for (const { idx } of entries) {
+               if (tileType === 'item') {
+                  if (heroSel.items && heroSel.items.includes(idx)) return idx;
+               } else if (tileType === 'base') {
+                  if (heroSel.base === idx) return idx;
+               } else if (tileType === 'prismatic') {
+                  if (heroSel.prismatic === idx) return idx;
+               } else {
+                  if (heroSel.set === idx) return idx;
+               }
+            }
+            return null;
+         }
+
+         // ============================================
+         // Style Preview Modal
+         // ============================================
+         let stylePreviewState = null; // { heroId, tileType, groupIndices, entries }
+
+         // Selects a style within a group, enforcing one-active-style-per-group, then delegates
+         // to the existing selection handlers so all downstream rules/notifications are reused.
+         function selectStyle(heroId, tileType, idx, groupIndices) {
+            if (tileType === 'item') {
+               // Multi-select slot: drop any sibling style of this group before toggling.
+               if (isPersonaActive(heroId)) return;
+               const sel = getHeroSelection(heroId);
+               if (!sel.items.includes(idx)) {
+                  groupIndices.forEach(gi => {
+                     if (gi !== idx) {
+                        const ci = sel.items.indexOf(gi);
+                        if (ci >= 0) sel.items.splice(ci, 1);
+                     }
+                  });
+               }
+               toggleItem(heroId, idx);
+            } else if (tileType === 'base') {
+               toggleBase(heroId, idx);
+            } else if (tileType === 'prismatic') {
+               togglePrismatic(heroId, idx);
+            } else {
+               selectSet(heroId, idx);
+            }
+         }
+
+         // Opens the Style Preview Modal for a tile that belongs to a styleGroup.
+         // Called directly from tile onclick — gathers group entries from hero data.
+         function openStylePreviewForTile(heroId, groupName, tileType) {
+            const hero = heroes.find(h => h.id === heroId);
+            if (!hero) return;
+
+            // Gather all entries in this styleGroup
+            const entries = [];
+            let groupCover = null;
+            hero.sets.forEach((s, i) => {
+               if (s.styleGroup === groupName) {
+                  entries.push({ idx: i, name: s.name, styleLabel: s.styleLabel, thumbnailUrl: s.thumbnailUrl });
+                  if (!groupCover && s.styleGroupThumbnail) groupCover = s.styleGroupThumbnail;
+               }
+            });
+            if (entries.length === 0) return;
+
+            const groupIndices = entries.map(e => e.idx);
+            const heroSel = getHeroSelection(heroId);
+            const activeIdx = getActiveStyleIndex(
+               entries.map(e => ({ idx: e.idx, set: hero.sets[e.idx] })),
+               heroSel, tileType
+            );
+
+            // Store state for the preview modal
+            stylePreviewState = { heroId, tileType, groupIndices, entries, group: groupName, groupCover };
+
+            // Determine accent color for the modal
+            // Monochrome design — the selection accent is always the single white primary.
+            const accent = '#ffffff';
+
+            // Header — show the active style's thumb when one is selected, else the group cover
+            // (falling back to the first style's thumb / hero portrait).
+            const display = activeIdx !== null ? entries.find(e => e.idx === activeIdx) : entries[0];
+            const headThumb = activeIdx !== null
+               ? ((display && display.thumbnailUrl) || groupCover || hero.thumbnail)
+               : (groupCover || (display && display.thumbnailUrl) || hero.thumbnail);
+            document.getElementById('stylePreviewThumb').src = headThumb;
+            document.getElementById('stylePreviewTitle').textContent = groupName;
+            document.getElementById('stylePreviewSub').textContent = `${entries.length} style variant${entries.length > 1 ? 's' : ''} \u00b7 ${hero.displayName || hero.name}`;
+
+            // Build tile grid
+            const grid = document.getElementById('stylePreviewGrid');
+            grid.style.setProperty('--sc-accent', accent);
+            grid.innerHTML = entries.map(e => {
+               const isActive = e.idx === activeIdx;
+               const thumb = e.thumbnailUrl || hero.thumbnail;
+               const label = e.styleLabel || e.name || `Style ${e.idx + 1}`;
+               return `
+               <div class="style-preview-tile ${isActive ? 'active' : ''}"
+                    style="--sc-accent: ${accent}"
+                    onclick="selectStyleFromPreview(${e.idx})">
+                  <div class="style-preview-tile-img">
+                     <img src="${thumb}" alt="${label}" onerror="this.src='${hero.thumbnail}'" />
+                  </div>
+                  <div class="style-preview-tile-check">
+                     <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                     </svg>
+                  </div>
+                  <div class="style-preview-tile-label">${label}</div>
+               </div>`;
+            }).join('');
+
+            document.getElementById('stylePreviewModal').classList.remove('hidden');
+         }
+
+         function selectStyleFromPreview(idx) {
+            if (!stylePreviewState) return;
+            const { heroId, tileType, groupIndices } = stylePreviewState;
+            selectStyle(heroId, tileType, idx, groupIndices);
+
+            // Re-render the preview tiles to reflect new selection
+            const hero = heroes.find(h => h.id === heroId);
+            if (!hero) return;
+            const heroSel = getHeroSelection(heroId);
+            const entries = stylePreviewState.entries;
+            const activeIdx = getActiveStyleIndex(
+               entries.map(e => ({ idx: e.idx, set: hero.sets[e.idx] })),
+               heroSel, tileType
+            );
+
+            // Update active states on tiles
+            const tiles = document.querySelectorAll('#stylePreviewGrid .style-preview-tile');
+            entries.forEach((e, i) => {
+               if (tiles[i]) {
+                  tiles[i].classList.toggle('active', e.idx === activeIdx);
+               }
+            });
+
+            // Update header thumb: selected variant's thumb, else the group cover.
+            const display = activeIdx !== null ? entries.find(e => e.idx === activeIdx) : entries[0];
+            const groupCover = stylePreviewState.groupCover || null;
+            document.getElementById('stylePreviewThumb').src = activeIdx !== null
+               ? ((display && display.thumbnailUrl) || groupCover || hero.thumbnail)
+               : (groupCover || (display && display.thumbnailUrl) || hero.thumbnail);
+         }
+
+         function deselectStylePreview() {
+            if (!stylePreviewState) return;
+            const { heroId, tileType, groupIndices, entries } = stylePreviewState;
+            const heroSel = getHeroSelection(heroId);
+            const hero = heroes.find(h => h.id === heroId);
+
+            // Deselect all styles in this group
+            entries.forEach(e => {
+               if (tileType === 'item') {
+                  const ci = heroSel.items ? heroSel.items.indexOf(e.idx) : -1;
+                  if (ci >= 0) heroSel.items.splice(ci, 1);
+               } else if (tileType === 'base') {
+                  if (heroSel.base === e.idx) heroSel.base = null;
+               } else if (tileType === 'prismatic') {
+                  if (heroSel.prismatic === e.idx) heroSel.prismatic = null;
+               } else {
+                  if (heroSel.set === e.idx) heroSel.set = null;
+               }
+            });
+            // Prismatic depends on a Base — drop it if this removed the active Base.
+            if (tileType === 'base' && heroSel.base == null) heroSel.prismatic = null;
+            cleanupEmptySelection(heroId);
+            updateSelectionCount();
+            notifySelectionChanged();
+            renderModalSets();
+            renderHeroes();
+            closeStylePreview();
+         }
+
+         function closeStylePreview() {
+            document.getElementById('stylePreviewModal').classList.add('hidden');
+            stylePreviewState = null;
+         }
+
+         function renderModalSets() {
+            const hero = heroes.find((h) => h.id === currentModalHeroId);
+            if (!hero) return;
+
+            const heroSel = getHeroSelection(currentModalHeroId);
+            const setsGrid = document.getElementById("modalSetsGrid");
+
+            // Partition sets into 6 categories, keeping original indices
+            const legacySets = [];
+            const customSets = [];
+            const personaSets = [];
+            const itemSets = [];
+            const baseSets = [];
+            const prismaticSets = [];
+            hero.sets.forEach((set, idx) => {
+               const cat = getSetCategory(set);
+               if (cat === 'persona') {
+                  personaSets.push({ set, idx });
+               } else if (cat === 'item') {
+                  itemSets.push({ set, idx });
+               } else if (cat === 'basehero') {
+                  baseSets.push({ set, idx });
+               } else if (cat === 'customset') {
+                  customSets.push({ set, idx });
+               } else if (cat === 'prismatic') {
+                  prismaticSets.push({ set, idx });
+               } else {
+                  legacySets.push({ set, idx });
+               }
+            });
+
+            const totalCategories = [legacySets, customSets, personaSets, itemSets, baseSets, prismaticSets].filter(c => c.length > 0).length;
+            const showHeaders = totalCategories > 1;
+            const personaActive = isPersonaActive(currentModalHeroId);
+            const hasItemsSelected = heroSel.items && heroSel.items.length > 0;
+            let html = '';
+
+            // Section builder helper. `locked` dims the tiles to signal the whole
+            // category is currently unavailable (clicks are still blocked in the handler).
+            function buildSection(entries, headerClass, label, tileType, notice, locked) {
+               if (entries.length === 0) return '';
+               let s = '<div class="set-category-section">';
+               if (showHeaders) {
+                  s += `
+                  <div class="set-category-header ${headerClass}">
+                     <span class="category-label">${label}</span>
+                     <div class="category-line"></div>
+                     <span class="category-count">${entries.length}</span>
+                  </div>`;
+               }
+               if (notice) {
+                  s += `<div class="exclusion-notice">${notice}</div>`;
+               }
+               s += `<div class="set-category-grid${locked ? ' category-locked' : ''}">`;
+               // For entries with a styleGroup, render only ONE representative tile per group.
+               // The tile's click handler opens the Style Preview Modal for that group.
+               const renderedGroups = new Set();
+               s += entries.map(({ set, idx }) => {
+                  const group = set.styleGroup;
+                  if (group) {
+                     if (renderedGroups.has(group)) return '';
+                     renderedGroups.add(group);
+                  }
+                  return renderSetTile(set, idx, hero, heroSel, tileType);
+               }).join('');
+               s += '</div></div>';
+               return s;
+            }
+
+            // 1. Legacy Sets
+            html += buildSection(legacySets, 'legacy', 'Legacy Set', 'set');
+            // 2. Custom Sets
+            html += buildSection(customSets, 'custom', 'Custom Set', 'set');
+            // 3. Persona (shares set slot — selecting one deselects sets and vice versa)
+            const personaNotice = hasItemsSelected ? '\u26a0 Selecting a persona will clear items and base' : null;
+            html += buildSection(personaSets, 'persona', 'Persona', 'persona', personaNotice);
+            // 4. Items
+            const itemNotice = personaActive ? '\u26a0 Items are disabled while a persona is active' : null;
+            html += buildSection(itemSets, 'item', 'Items', 'item', itemNotice);
+            // 5. Base Hero
+            const baseNotice = personaActive ? '\u26a0 Base is disabled while a persona is active' : null;
+            html += buildSection(baseSets, 'basehero', 'Base Hero', 'base', baseNotice);
+            // 6. Prismatic — applied last (overrides everything). Requires an active Base Hero.
+            const baseActive = isBaseActive(currentModalHeroId);
+            const prismaticNotice = baseActive ? null : '⚠ Select a Base Hero first to enable Prismatic';
+            html += buildSection(prismaticSets, 'prismatic', 'Prismatic', 'prismatic', prismaticNotice, !baseActive);
+
+            setsGrid.innerHTML = html;
+         }
+
+         function navigateHero(direction) {
+            if (!currentModalHeroId) return;
+
+            const currentIndex = filteredHeroes.findIndex((h) => h.id === currentModalHeroId);
+            if (currentIndex === -1) return;
+
+            let newIndex = currentIndex + direction;
+
+            // Find next hero with a real (non-default) set — locked heroes are skipped.
+            while (newIndex >= 0 && newIndex < filteredHeroes.length) {
+               const nextHero = filteredHeroes[newIndex];
+               if (heroHasCustomSets(nextHero)) {
+                  // Apply slide animation
+                  const setsGrid = document.getElementById("modalSetsGrid");
+                  const animClass = direction > 0 ? "animate-slide-left" : "animate-slide-right";
+
+                  setsGrid.classList.remove("animate-slide-left", "animate-slide-right");
+                  void setsGrid.offsetWidth; // Force reflow to restart animation
+                  setsGrid.classList.add(animClass);
+
+                  openHeroModal(nextHero.id);
+                  return;
+               }
+               newIndex += direction;
+            }
+         }
+
+         function navigateSet(direction) {
+            const hero = heroes.find((h) => h.id === currentModalHeroId);
+            if (!hero || !hero.sets) return;
+
+            focusedSetIndex += direction;
+            if (focusedSetIndex < 0) focusedSetIndex = hero.sets.length - 1;
+            if (focusedSetIndex >= hero.sets.length) focusedSetIndex = 0;
+
+            renderModalSets();
+
+            // Scroll focused tile into view
+            setTimeout(() => {
+               const focusedTile = document.querySelector(
+                  `.set-tile[data-set-index="${focusedSetIndex}"]`,
+               );
+               if (focusedTile) {
+                  focusedTile.scrollIntoView({ behavior: "smooth", block: "nearest" });
+               }
+            }, 10);
+         }
+
+         function selectFocusedSet() {
+            if (currentModalHeroId && focusedSetIndex >= 0) {
+               selectSetFromModal(currentModalHeroId, focusedSetIndex);
+            }
+         }
+
+         function closeModal() {
+            document.getElementById("setModal").classList.add("hidden");
+            currentModalHeroId = null;
+         }
+
+         function confirmAndClose() {
+            closeModal();
+         }
+
+         // Rule A: Selecting a set (Legacy, Custom, or Persona) — mutually exclusive
+         // Selecting a Legacy Set deselects Custom/Persona, and vice versa.
+         // When a Persona is selected, items and base are cleared (persona replaces base).
+         function selectSet(heroId, setIndex) {
+            const sel = getHeroSelection(heroId);
+            const hero = heroes.find(h => h.id === heroId);
+            // Toggle off if already selected
+            if (sel.set === setIndex) {
+               sel.set = null;
+            } else {
+               sel.set = setIndex;
+               // If the newly selected set is a Persona, clear items and base
+               // (and Prismatic, which depends on a Base being active).
+               if (hero && hero.sets[setIndex] && getSetCategory(hero.sets[setIndex]) === 'persona') {
+                  sel.items = [];
+                  sel.base = null;
+                  sel.prismatic = null;
+               }
+            }
+            cleanupEmptySelection(heroId);
+            focusedSetIndex = setIndex;
+            updateSelectionCount();
+            notifySelectionChanged();
+            renderModalSets();
+            renderHeroes();
+         }
+
+         // Rule C: Toggle an item ON/OFF (multi-select, tag-exclusive)
+         // - Blocked if a Persona set is active (persona cannot combine with items)
+         // - Selecting an item deselects any other item with the same tag
+         function toggleItem(heroId, setIndex) {
+            const sel = getHeroSelection(heroId);
+            const hero = heroes.find(h => h.id === heroId);
+
+            // Block if persona is active — user must deselect persona first
+            if (isPersonaActive(heroId)) {
+               return;
+            }
+
+            const idx = sel.items.indexOf(setIndex);
+            if (idx >= 0) {
+               sel.items.splice(idx, 1); // turn OFF
+            } else {
+               // Tag exclusivity: deselect items with the same tag
+               if (hero) {
+                  const sameTagItems = getItemsWithSameTag(hero, setIndex);
+                  sameTagItems.forEach(conflictIdx => {
+                     const ci = sel.items.indexOf(conflictIdx);
+                     if (ci >= 0) sel.items.splice(ci, 1);
+                  });
+               }
+               sel.items.push(setIndex); // turn ON
+            }
+            cleanupEmptySelection(heroId);
+            focusedSetIndex = setIndex;
+            updateSelectionCount();
+            notifySelectionChanged();
+            renderModalSets();
+            renderHeroes();
+         }
+
+         // Rule B: Toggle base hero — only one active at a time
+         function toggleBase(heroId, setIndex) {
+            const sel = getHeroSelection(heroId);
+
+            // Block if persona is active — persona replaces base
+            if (isPersonaActive(heroId)) {
+               return;
+            }
+
+            if (sel.base === setIndex) {
+               sel.base = null; // turn OFF
+               // Prismatic depends on a Base — drop it when Base is removed.
+               if (sel.prismatic != null) {
+                  sel.prismatic = null;
+                  updateStatus('Prismatic cleared — it requires an active Base Hero');
+               }
+            } else {
+               sel.base = setIndex; // turn ON (auto-deselects previous)
+            }
+            cleanupEmptySelection(heroId);
+            focusedSetIndex = setIndex;
+            updateSelectionCount();
+            notifySelectionChanged();
+            renderModalSets();
+            renderHeroes();
+         }
+
+         // Toggle prismatic — top layer applied last, only one active at a time.
+         // Requires a Base Hero to be selected first: a Prismatic is a Base add-on and
+         // cannot be turned on without an active Base. Coexists with set/items.
+         function togglePrismatic(heroId, setIndex) {
+            const sel = getHeroSelection(heroId);
+
+            if (sel.prismatic === setIndex) {
+               sel.prismatic = null; // turn OFF
+            } else {
+               // Block turning ON unless a Base Hero is already selected.
+               if (!isBaseActive(heroId)) {
+                  updateStatus('Select a Base Hero first to enable Prismatic');
+                  return;
+               }
+               sel.prismatic = setIndex; // turn ON (auto-deselects previous)
+            }
+            cleanupEmptySelection(heroId);
+            focusedSetIndex = setIndex;
+            updateSelectionCount();
+            notifySelectionChanged();
+            renderModalSets();
+            renderHeroes();
+         }
+
+         // Legacy compat: redirect old calls
+         function selectSetFromModal(heroId, setIndex) {
+            selectSet(heroId, setIndex);
+         }
+
+         // Remove hero from selections if nothing is selected
+         function cleanupEmptySelection(heroId) {
+            if (!hasAnySelection(heroId)) {
+               delete selections[heroId];
+            }
+         }
+
+         function deselectHero() {
+            if (currentModalHeroId && selections[currentModalHeroId]) {
+               delete selections[currentModalHeroId];
+               updateSelectionCount();
+               notifySelectionChanged();
+               renderHeroes();
+            }
+            closeModal();
+         }
+
+         // ============================================
+         // User Interactions
+         // ============================================
+         function toggleFavorite(heroId) {
+            if (favorites.has(heroId)) {
+               favorites.delete(heroId);
+            } else {
+               favorites.add(heroId);
+            }
+            renderHeroes();
+            notifyFavoritesChanged();
+         }
+
+         function toggleHasSets() {
+            showOnlyWithSets = !showOnlyWithSets;
+            const btn = document.getElementById('hasSetsToggle');
+            const dot = btn.querySelector('.toggle-dot');
+            if (showOnlyWithSets) {
+               btn.classList.add('active');
+               dot.textContent = '●';
+            } else {
+               btn.classList.remove('active');
+               dot.textContent = '○';
+            }
+            renderHeroes();
+         }
+
+         function clearAllSelections() {
+            const selectionCount = Object.keys(selections).length;
+            if (selectionCount === 0) {
+               updateStatus("No selections to clear");
+               return;
+            }
+
+            // Build the list of selected heroes with summaries
+            const selectedItems = [];
+            for (const [heroId, sel] of Object.entries(selections)) {
+               const hero = heroes.find((h) => h.id === heroId);
+               if (hero) {
+                  const summary = getSelectionSummary(hero) || 'Selected';
+                  selectedItems.push({
+                     heroName: hero.displayName || hero.name,
+                     setName: summary,
+                     thumbnail: hero.thumbnail,
+                  });
+               }
+            }
+
+            showConfirmWithList(
+               "Clear All Selections",
+               `This will reset all <strong>${selectionCount}</strong> hero selection(s) to default.`,
+               selectedItems,
+            );
+         }
+
+         function doClearAllSelections() {
+            selections = {};
+            updateSelectionCount();
+            renderHeroes();
+            notifySelectionChanged();
+            updateStatus("All selections cleared");
+         }
+
+         // Confirmation modal state
+         let confirmCallback = null;
+         let confirmType = "clearAll"; // "clearAll" or "baseNoSet"
+
+         function showConfirm(title, message) {
+            confirmType = "clearAll";
+            document.getElementById("confirmTitle").textContent = title;
+            document.getElementById("confirmMessage").innerHTML = message;
+            document.getElementById("confirmSelectionList").classList.add("hidden");
+            document.getElementById("confirmSelectionList").innerHTML = "";
+            document.getElementById("confirmModal").classList.remove("hidden");
+         }
+
+         function showConfirmBaseNoSet(title, message) {
+            confirmType = "baseNoSet";
+            document.getElementById("confirmTitle").textContent = title;
+            document.getElementById("confirmMessage").innerHTML = message;
+            document.getElementById("confirmSelectionList").classList.add("hidden");
+            document.getElementById("confirmSelectionList").innerHTML = "";
+            
+            // Customize Yes button text for confirmation flow
+            const yesBtn = document.querySelector("#confirmModal button[onclick='closeConfirm(true)']");
+            if (yesBtn) {
+               yesBtn.textContent = "Continue";
+            }
+            
+            document.getElementById("confirmModal").classList.remove("hidden");
+         }
+
+         function showConfirmWithList(title, message, items) {
+            confirmType = "clearAll";
+            document.getElementById("confirmTitle").textContent = title;
+            document.getElementById("confirmMessage").innerHTML = message;
+
+            const listContainer = document.getElementById("confirmSelectionList");
+
+            if (items && items.length > 0) {
+               // Build the list HTML
+               const listHtml = items
+                  .map(
+                     (item) => `
+                  <div class="cs-row">
+                     <img src="${item.thumbnail}"
+                          alt="${item.heroName}"
+                          onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect fill=%22%23222%22 width=%2232%22 height=%2232%22/></svg>'" />
+                     <div class="cs-info">
+                        <div class="cs-name">${item.heroName}</div>
+                        <div class="cs-set">${item.setName}</div>
+                     </div>
+                  </div>
+               `,
+                  )
+                  .join("");
+
+               listContainer.innerHTML = listHtml;
+               listContainer.classList.remove("hidden");
+            } else {
+               listContainer.classList.add("hidden");
+               listContainer.innerHTML = "";
+            }
+
+            document.getElementById("confirmModal").classList.remove("hidden");
+         }
+
+         function closeConfirm(confirmed) {
+            document.getElementById("confirmModal").classList.add("hidden");
+            
+            // Restore default Yes button text
+            const yesBtn = document.querySelector("#confirmModal button[onclick='closeConfirm(true)']");
+            if (yesBtn) {
+               yesBtn.textContent = "Yes, Clear All";
+            }
+
+            if (confirmType === "clearAll") {
+               if (confirmed) {
+                  doClearAllSelections();
+               }
+            } else if (confirmType === "baseNoSet") {
+               if (window.chrome && window.chrome.webview) {
+                  window.chrome.webview.postMessage({
+                     type: "baseNoSetConfirmed",
+                     confirmed: confirmed
+                  });
+               }
+            }
+         }
+
+         function updateSelectionCount() {
+            // Count heroes that have any actual selection
+            const count = Object.keys(selections).filter(id => hasAnySelection(id)).length;
+            document.getElementById("selectionCount").textContent = count;
+         }
+
+         // ============================================
+         // Notify C#
+         // ============================================
+         function notifySelectionChanged() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({
+                  type: "selectionChanged",
+                  selections: selections,
+               });
+            }
+         }
+
+         function notifyFavoritesChanged() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({
+                  type: "favoritesChanged",
+                  favorites: Array.from(favorites),
+               });
+            }
+         }
+
+
+         function requestClose() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "close" });
+            }
+         }
+
+         function startDrag(event) {
+            // Only start drag on left mouse button
+            if (event.button !== 0) return;
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "startDrag" });
+            }
+         }
+
+         function requestSavePreset() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({
+                  type: "savePreset",
+                  selections: selections,
+               });
+            }
+         }
+
+         function requestLoadPreset() {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "loadPreset" });
+            }
+         }
+
+         // Called from C# after loading preset file
+         function applyLoadedSelections(loadedSelections) {
+            selections =
+               typeof loadedSelections === "string"
+                  ? JSON.parse(loadedSelections)
+                  : loadedSelections;
+            updateSelectionCount();
+            renderHeroes();
+            notifySelectionChanged();
+            updateStatus(`Loaded ${Object.keys(selections).length} selection(s)`);
+         }
+
+         // ============================================
+         // Event Listeners
+         // ============================================
+         document.getElementById("searchInput").addEventListener("input", (e) => {
+            searchQuery = e.target.value;
+            renderHeroes();
+         });
+
+         document.querySelectorAll(".filter-pill").forEach((pill) => {
+            pill.addEventListener("click", () => {
+               document
+                  .querySelectorAll(".filter-pill")
+                  .forEach((p) => p.classList.remove("active"));
+               pill.classList.add("active");
+               currentFilter = pill.dataset.category;
+               renderHeroes();
+            });
+         });
+
+         document.getElementById("savePresetBtn").addEventListener("click", requestSavePreset);
+         document.getElementById("loadPresetBtn").addEventListener("click", requestLoadPreset);
+         document.getElementById("clearAllBtn").addEventListener("click", clearAllSelections);
+         document.getElementById("generateBtn").addEventListener("click", requestGenerate);
+         document.getElementById("hasSetsToggle").addEventListener("click", toggleHasSets);
+         document.getElementById("prevHeroBtn").addEventListener("click", () => navigateHero(-1));
+         document.getElementById("nextHeroBtn").addEventListener("click", () => navigateHero(1));
+
+         document.getElementById("setModal").addEventListener("click", (e) => {
+            if (e.target.id === "setModal") closeModal();
+         });
+
+         document.getElementById("stylePreviewModal").addEventListener("click", (e) => {
+            if (e.target.id === "stylePreviewModal") closeStylePreview();
+         });
+
+         // Global keyboard handler
+         document.addEventListener("keydown", (e) => {
+            const modal = document.getElementById("setModal");
+            const isModalOpen = !modal.classList.contains("hidden");
+            const searchInput = document.getElementById("searchInput");
+            const isSearchFocused = document.activeElement === searchInput;
+
+            if (isModalOpen) {
+               // Style Preview Modal takes priority: Escape closes it; all other keys are
+               // swallowed so the set modal underneath doesn't navigate behind the preview.
+               const stylePreview = document.getElementById("stylePreviewModal");
+               const isStylePreviewOpen = !stylePreview.classList.contains("hidden");
+               if (isStylePreviewOpen) {
+                  if (e.key === "Escape") {
+                     e.preventDefault();
+                     closeStylePreview();
+                  }
+                  return;
+               }
+
+               // Modal navigation
+               switch (e.key) {
+                  case "ArrowLeft":
+                     e.preventDefault();
+                     navigateHero(-1);
+                     break;
+                  case "ArrowRight":
+                     e.preventDefault();
+                     navigateHero(1);
+                     break;
+                  case "ArrowUp":
+                     e.preventDefault();
+                     navigateSet(-1);
+                     break;
+                  case "ArrowDown":
+                     e.preventDefault();
+                     navigateSet(1);
+                     break;
+                  case "Enter":
+                     e.preventDefault();
+                     selectFocusedSet();
+                     confirmAndClose();
+                     break;
+                  case "Escape":
+                     e.preventDefault();
+                     closeModal();
+                     break;
+               }
+            } else {
+               // Gallery mode - instant search
+               if (
+                  !isSearchFocused &&
+                  e.key.length === 1 &&
+                  !e.ctrlKey &&
+                  !e.altKey &&
+                  !e.metaKey
+               ) {
+                  // Single character key - focus search and type
+                  searchInput.focus();
+                  // Don't prevent default - let the character be typed
+               } else if (e.key === "Escape" && isSearchFocused) {
+                  searchInput.blur();
+                  searchInput.value = "";
+                  searchQuery = "";
+                  renderHeroes();
+               }
+            }
+         });
+
+         // ============================================
+         // Demo Data
+         // ============================================
+         if (!window.chrome || !window.chrome.webview) {
+            const demoHeroes = [
+               {
+                  id: "antimage",
+                  name: "antimage",
+                  displayName: "Anti-Mage",
+                  attribute: "agi",
+                  thumbnail:
+                     "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/antimage.png",
+                  sets: [
+                     { name: "Default Set", category: "legacyset" },
+                     { name: "Mage Slayer", category: "legacyset" },
+                  ],
+               },
+               {
+                  id: "axe",
+                  name: "axe",
+                  displayName: "Axe",
+                  attribute: "str",
+                  thumbnail:
+                     "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/axe.png",
+                  sets: [
+                     { name: "Default Set", category: "legacyset" },
+                     { name: "Red Mist Reaper", category: "legacyset" },
+                     { name: "Custom Axe Mix", category: "customset", isCustom: true },
+                  ],
+               },
+               {
+                  id: "crystal_maiden",
+                  name: "crystal_maiden",
+                  displayName: "Crystal Maiden",
+                  attribute: "int",
+                  thumbnail:
+                     "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/crystal_maiden.png",
+                  sets: [
+                     { name: "Default Set", category: "legacyset" },
+                     { name: "Frost Avalanche", category: "legacyset", styleGroup: "Frost Avalanche", styleLabel: "Style 1" },
+                     { name: "Frost Avalanche Alt", category: "legacyset", styleGroup: "Frost Avalanche", styleLabel: "Style 2" },
+                     { name: "Yulsaria's Glacier", category: "legacyset" },
+                     { name: "Custom CM Arcana Mix", category: "customset", isCustom: true },
+                     { name: "Shoulder Pauldrons 1", category: "item", tag: "shoulder", styleGroup: "Shoulder Armor", styleLabel: "Gold" },
+                     { name: "Shoulder Guard 2", category: "item", tag: "shoulder", styleGroup: "Shoulder Armor", styleLabel: "Silver" },
+                     { name: "Weapon Crystal Staff", category: "item", tag: "weapon" },
+                     { name: "CM Arcana Base", category: "basehero" },
+                  ],
+               },
+               {
+                  id: "invoker",
+                  name: "invoker",
+                  displayName: "Invoker",
+                  attribute: "universal",
+                  thumbnail:
+                     "https://cdn.cloudflare.steamstatic.com/apps/dota2/images/dota_react/heroes/invoker.png",
+                  sets: [
+                     { name: "Default Set", category: "legacyset" },
+                     { name: "Dark Artistry", category: "legacyset" },
+                     { name: "Acolyte of the Lost Arts", category: "persona" },
+                     { name: "Head Crown", category: "item", tag: "head" },
+                     { name: "Weapon Cataract", category: "item", tag: "weapon" },
+                     { name: "Persona Base", category: "basehero" },
+                  ],
+               },
+            ];
+            loadHeroes(demoHeroes);
+            loadFavorites(["invoker"]);
+            console.log("Demo mode (no WebView2)");
+         }
+      </script>
+   </body>
+</html>

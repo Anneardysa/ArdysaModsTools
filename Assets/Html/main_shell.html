@@ -1,0 +1,3519 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link
+         href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         /* ════════════════ ardysamods.my.id design tokens (monochrome terminal) ════════════════ */
+         :root {
+            /* surfaces — mirror site style.css :root */
+            --canvas: #000000;
+            --panel: rgba(10, 10, 10, 0.9);
+            --panel-2: #050505;
+            --panel-hover: rgba(20, 20, 20, 0.95);
+            --hairline: #222222;
+            --hairline-strong: #333333;
+            --dashed: rgba(136, 136, 136, 0.4);
+
+            /* brand — single white accent (site --accent) */
+            --accent: #ffffff; /* onboarding spotlight/dots/card rule — same value the other shells use */
+            --primary: #ffffff;
+            --primary-soft: #ffffff;
+            --primary-deep: #ffffff;
+            --on-primary: #000000;
+            --primary-glow: rgba(255, 255, 255, 0.16);
+            --accent-dim: rgba(255, 255, 255, 0.1);
+            --wash: rgba(255, 255, 255, 0.06); /* faint ink wash; theme.css overrides for light */
+
+            /* cautionary yellow accent — used by the "feature unavailable" confirm variant */
+            --warn-accent: #f5c451;
+            --warn-glow: rgba(245, 196, 81, 0.22);
+
+            /* text */
+            --ink: #ffffff;
+            --ink-strong: #ffffff;
+            --body: #888888;
+            --mute: #444444;
+
+            /* semantic (in-product cues only) */
+            --success: #ffffff;
+            --warning: #888888;
+            --error: #ffffff;
+            --info: #888888;
+
+            /* type — site loads JetBrains Mono only */
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+            --mono: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+            /* radius — site is sharp-cornered */
+            --r-sm: 0px;
+            --r-md: 0px;
+            --r-pill: 0px;
+            --clip: 12px; /* signature cut-corner notch */
+
+            /* motion */
+            --transition: all 0.18s ease;
+
+            /* spacing */
+            --sp-1: 4px;
+            --sp-2: 8px;
+            --sp-3: 12px;
+            --sp-4: 16px;
+            --sp-5: 20px;
+            --sp-6: 24px;
+         }
+
+         /* Chinese UI only: keep JetBrains Mono for Latin (the main_shell look) but append a CJK-capable
+            fallback so Chinese renders cleanly instead of the browser default. i18n.js sets the data-cjk
+            flag while a Chinese locale is active, so every other language is untouched. Latin glyphs still
+            resolve to JetBrains Mono first; only CJK characters fall through to YaHei / JhengHei. */
+         html[data-cjk] {
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "PingFang TC", "Noto Sans CJK SC", sans-serif;
+            --mono: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "PingFang TC", "Noto Sans CJK SC", monospace;
+         }
+
+         html,
+         body {
+            height: 100%;
+         }
+
+         body {
+            font-family: var(--sans);
+            background: var(--canvas);
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--ink);
+            font-size: 14px;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--hairline);
+            border-radius: 0px;
+         }
+
+         /* ── animated wave backdrop (site .animated-bg signature) ── */
+         .bgfx {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            overflow: hidden;
+         }
+         .bgfx::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            opacity: 0.05;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E")
+               repeat-x;
+            background-size: 50% 100%;
+            animation: infiniteWave 28s linear infinite;
+         }
+         @keyframes infiniteWave {
+            0% {
+               transform: translateX(0);
+            }
+            100% {
+               transform: translateX(-50%);
+            }
+         }
+         @media (prefers-reduced-motion: reduce) {
+            .bgfx::before {
+               animation: none;
+            }
+         }
+
+         /* ── cut-corner notch utility (site --clip-size cards) ── */
+         .notch {
+            position: relative;
+         }
+         .notch::before {
+            content: "";
+            position: absolute;
+            top: -1px;
+            right: -1px;
+            width: var(--clip);
+            height: var(--clip);
+            background: var(--canvas);
+            border-left: 1px solid var(--hairline-strong);
+            border-bottom: 1px solid var(--hairline-strong);
+            pointer-events: none;
+            z-index: 2;
+         }
+
+         /* ════════════════════════════════ TITLE BAR ════════════════════════════════ */
+         #titlebar {
+            position: relative;
+            z-index: 1;
+            height: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            padding: 0 var(--sp-2) 0 var(--sp-5);
+            -webkit-app-region: drag;
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+         }
+         .brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+         }
+         .brand .glyph {
+            color: var(--primary);
+            display: flex;
+         }
+         .brand .glyph svg {
+            width: auto;
+            height: 17px;
+         }
+         .brand .b-name {
+            color: var(--ink-strong);
+         }
+         .brand .b-name::before {
+            content: "// ";
+            color: var(--mute);
+         }
+         .brand .b-tag {
+            color: var(--mute);
+            font-weight: 500;
+            letter-spacing: 1px;
+         }
+         .win-controls {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+         }
+         .win-btn {
+            -webkit-app-region: no-drag;
+            width: 34px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            border-radius: var(--r-sm);
+            transition: var(--transition);
+         }
+         .win-btn svg {
+            width: 15px;
+            height: 15px;
+         }
+         .win-btn:hover {
+            background: var(--accent-dim);
+            border-color: var(--hairline);
+            color: var(--ink);
+         }
+         .win-btn.settings:hover,
+         .win-btn.about:hover {
+            color: var(--primary);
+         }
+         .win-btn.close:hover {
+            background: rgba(248, 81, 73, 0.85);
+            border-color: transparent;
+            color: #fff;
+         }
+
+         /* ════════════════════════════════ SHELL ════════════════════════════════ */
+         .shell {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            padding: var(--sp-4);
+            gap: var(--sp-4);
+         }
+
+         /* ════════════════════════════════ SIDEBAR ════════════════════════════════ */
+         .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: var(--panel);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-md);
+            padding: var(--sp-4) var(--sp-3);
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-5);
+         }
+
+         .group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-2);
+         }
+         .group-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--mute);
+            padding: 0 var(--sp-1);
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+         }
+         .group-label::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--hairline);
+         }
+
+         /* ── nav buttons ── */
+         .nav-btn {
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            gap: var(--sp-3);
+            width: 100%;
+            padding: 9px var(--sp-3);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+            color: var(--body);
+            font-family: var(--sans);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            line-height: 15px; /* fixed so the CN<->EN font-metric change during the fade can't re-center the label */
+            white-space: nowrap; /* never wrap (e.g. long "Performance Tweak"), which would change the row height */
+            cursor: pointer;
+            text-align: left;
+            transition: var(--transition);
+         }
+         .nav-btn .ico {
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+            color: var(--mute);
+            transition: color 0.16s ease;
+         }
+         .nav-btn:hover {
+            background: var(--panel-hover);
+            color: var(--ink-strong);
+            border-color: var(--hairline-strong);
+            box-shadow: inset 2px 0 0 var(--primary);
+         }
+         .nav-btn:hover .ico {
+            color: var(--primary);
+         }
+         .nav-btn:active {
+            transform: translateY(1px);
+         }
+         .nav-btn.is-disabled {
+            opacity: 0.4;
+            pointer-events: none;
+         }
+         /* detection highlight — quiet pulse emphasis */
+         .nav-btn.highlight {
+            border-color: var(--primary-deep);
+            color: var(--ink-strong);
+            box-shadow: var(--primary-glow) 0 0 0 0;
+            animation: pulse 2.4s ease-in-out infinite;
+         }
+         .nav-btn.highlight .ico {
+            color: var(--primary);
+         }
+         @keyframes pulse {
+            0%,
+            100% {
+               box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+            }
+            50% {
+               box-shadow: 0 0 0 3px var(--primary-glow);
+            }
+         }
+
+         /* patch button accent states */
+         .nav-btn.patch.ready {
+            border-color: var(--primary-deep);
+            color: var(--primary);
+         }
+         .nav-btn.patch.ready .ico {
+            color: var(--primary);
+         }
+         .nav-btn.patch.update {
+            border-color: rgba(227, 179, 65, 0.55);
+            color: var(--warning);
+         }
+         .nav-btn.patch.update .ico {
+            color: var(--warning);
+         }
+         .nav-btn.patch.error {
+            border-color: rgba(248, 81, 73, 0.6);
+            color: var(--error);
+         }
+         .nav-btn.patch.error .ico {
+            color: var(--error);
+         }
+         .nav-btn .chev {
+            margin-left: auto;
+            width: 11px;
+            height: 11px;
+            opacity: 0.55;
+         }
+         /* "SOON" tag on not-yet-available nav entries (e.g. Utilities) */
+         .nav-btn .tag-soon {
+            margin-left: auto;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: var(--mute);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-sm);
+            padding: 1px 5px;
+         }
+
+         .sb-spacer {
+            margin-top: auto;
+         }
+
+         /* ── status card ── */
+         .status-card {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            padding: 9px var(--sp-3);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+         }
+         .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--mute);
+            flex-shrink: 0;
+            box-shadow: 0 0 8px transparent;
+            transition:
+               background 0.2s,
+               box-shadow 0.2s;
+         }
+         .status-text {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--body);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+         }
+         .status-refresh {
+            -webkit-app-region: no-drag;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: var(--mute);
+            cursor: pointer;
+            border-radius: var(--r-sm);
+            flex-shrink: 0;
+            transition: var(--transition);
+         }
+         .status-refresh:hover {
+            color: var(--ink);
+            background: var(--panel-hover);
+         }
+         .status-refresh.spin svg {
+            animation: spin 0.8s linear infinite;
+         }
+         @keyframes spin {
+            to {
+               transform: rotate(360deg);
+            }
+         }
+
+         /* ── socials + version ── */
+         .footer-row {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+         }
+         .social {
+            -webkit-app-region: no-drag;
+            width: 34px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .social img {
+            width: 15px;
+            height: 15px;
+            opacity: 0.65;
+            transition: opacity 0.16s ease;
+         }
+         .social:hover {
+            background: var(--accent-dim);
+            border-color: var(--primary);
+         }
+         .social:hover img {
+            opacity: 1;
+         }
+         .social.support {
+            flex: 1;
+            gap: 7px;
+            font-family: var(--sans);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: var(--body);
+         }
+         .social.support:hover {
+            color: var(--primary);
+            border-color: var(--primary-deep);
+         }
+         .version {
+            text-align: center;
+            font-family: var(--mono);
+            font-size: 10px;
+            color: var(--mute);
+            letter-spacing: 0.5px;
+         }
+
+         /* ════════════════════════════════ CONTENT ════════════════════════════════ */
+         .content {
+            flex: 1;
+            min-width: 0;
+            /* min-height:0 lets this flex child shrink below its content size, and overflow-y
+               makes the page scroll instead of cropping its lower cards when the viewport is
+               shorter than the content (small screens / high scale). No scrollbar appears when
+               it fits, so normal screens are unchanged. */
+            min-height: 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-3);
+         }
+
+         /* ── banner carousel ── */
+         .carousel {
+            height: 240px;
+            border-radius: var(--r-md);
+            border: 1px solid var(--hairline-strong);
+            background: var(--panel);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+         }
+         .carousel-track {
+            display: flex;
+            height: 100%;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            will-change: transform;
+         }
+         .slide {
+            position: relative;
+            min-width: 100%;
+            height: 100%;
+         }
+         .slide.link {
+            cursor: pointer;
+         }
+         .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+         }
+         .slide::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, transparent 45%, rgba(0, 0, 0, 0.78));
+            pointer-events: none;
+         }
+         .slide .cap {
+            position: absolute;
+            left: 16px;
+            right: 90px;
+            bottom: 14px;
+            z-index: 1;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+            text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
+         }
+         /* arrows (only when multiple slides) */
+         .car-arrow {
+            -webkit-app-region: no-drag;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 3;
+            width: 30px;
+            height: 30px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid var(--hairline-strong);
+            color: var(--ink);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .carousel.multi .car-arrow {
+            display: flex;
+         }
+         .car-arrow svg {
+            width: 14px;
+            height: 14px;
+         }
+         .car-arrow.prev {
+            left: 10px;
+         }
+         .car-arrow.next {
+            right: 10px;
+         }
+         .car-arrow:hover {
+            background: var(--accent-dim);
+            border-color: var(--primary);
+         }
+         /* dots */
+         .car-dots {
+            position: absolute;
+            right: 14px;
+            bottom: 12px;
+            z-index: 3;
+            display: flex;
+            gap: 6px;
+         }
+         .car-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .car-dot.active {
+            background: var(--primary);
+            box-shadow: 0 0 6px var(--primary);
+         }
+
+         /* ── latest updates strip (new Skin Selector sets, fed by loadLatestUpdates) ── */
+         .updates-strip {
+            display: none; /* revealed by loadLatestUpdates() only when cards exist */
+            flex-shrink: 0;
+         }
+         .updates-strip.show {
+            display: block;
+         }
+         .updates-head {
+            display: flex;
+            align-items: baseline;
+            gap: var(--sp-2);
+            margin-bottom: var(--sp-2);
+         }
+         .updates-title {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--body);
+         }
+         .updates-count {
+            font-size: 10px;
+            letter-spacing: 0.08em;
+            color: var(--mute);
+         }
+         .updates-wrap {
+            position: relative;
+         }
+         .updates-row {
+            display: flex;
+            gap: var(--sp-2);
+            overflow-x: auto;
+            scrollbar-width: none; /* arrows (Skin Selector style) instead of a scrollbar */
+            scroll-behavior: smooth;
+         }
+         .updates-row::-webkit-scrollbar {
+            display: none;
+         }
+         /* hover-revealed side arrows — mirrors .carousel-arrow in hero_gallery.html */
+         .updates-arrow {
+            -webkit-app-region: no-drag;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 3;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-md);
+            color: #fff; /* over artwork — stays white ink on dark scrim in both themes */
+            cursor: pointer;
+            opacity: 0;
+            transition: var(--transition);
+         }
+         .updates-wrap:hover .updates-arrow:not(.disabled) {
+            opacity: 1;
+         }
+         .updates-arrow:hover {
+            background: var(--accent-dim);
+            border-color: var(--primary);
+         }
+         .updates-arrow.disabled {
+            opacity: 0 !important;
+            pointer-events: none;
+         }
+         .updates-arrow svg {
+            width: 13px;
+            height: 13px;
+         }
+         .updates-arrow.prev {
+            left: 6px;
+         }
+         .updates-arrow.next {
+            right: 6px;
+         }
+         .update-card {
+            -webkit-app-region: no-drag;
+            position: relative;
+            flex: 0 0 180px;
+            height: 120px;
+            padding: 0;
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-md);
+            background: var(--panel);
+            overflow: hidden;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .update-card:hover {
+            border-color: var(--hairline-strong);
+         }
+         .update-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.3s ease;
+         }
+         .update-card:hover img {
+            transform: scale(1.04);
+         }
+         /* caption over artwork — stays dark ink-on-scrim in both themes */
+         .uc-cap {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding: 18px 8px 6px;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+            pointer-events: none;
+         }
+         .uc-hero {
+            font-size: 11px;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .uc-date {
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.6);
+         }
+         .uc-new {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            padding: 2px 5px;
+            background: #fff;
+            color: #000;
+            font-size: 8px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+         }
+
+         /* ── promo cards row (Install image card + News card) ── */
+         .cards {
+            display: flex;
+            gap: var(--sp-3);
+            flex-shrink: 0;
+            height: 200px;
+         }
+         .promo-card {
+            -webkit-app-region: no-drag;
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: flex-end;
+            overflow: hidden;
+            border: 1px solid var(--hairline-strong);
+            background: var(--panel-2);
+            cursor: pointer;
+            transition: var(--transition);
+            /* <button> does not inherit body font — pin it so card text stays JetBrains Mono */
+            font-family: var(--sans);
+         }
+         /* signature corner brackets */
+         .promo-card::before,
+         .promo-card::after {
+            content: "";
+            position: absolute;
+            width: 9px;
+            height: 9px;
+            z-index: 3;
+            opacity: 0.6;
+            transition: var(--transition);
+         }
+         .promo-card::before {
+            top: -1px;
+            left: -1px;
+            border-top: 1px solid var(--ink);
+            border-left: 1px solid var(--ink);
+         }
+         .promo-card::after {
+            bottom: -1px;
+            right: -1px;
+            border-bottom: 1px solid var(--ink);
+            border-right: 1px solid var(--ink);
+         }
+         .promo-card:hover::before,
+         .promo-card:hover::after {
+            width: 13px;
+            height: 13px;
+            opacity: 1;
+         }
+         .promo-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+         }
+         .promo-card .bg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            transition: transform 0.4s ease;
+         }
+         .promo-card:hover .bg {
+            transform: scale(1.05);
+         }
+         .promo-card .veil {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.82) 100%);
+         }
+         .promo-card .pc-body {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            width: 100%;
+            height: 100%;
+            padding: 16px 18px;
+         }
+         .promo-card .pc-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+         }
+         .promo-card .pc-ico {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--hairline-strong);
+            background: rgba(0, 0, 0, 0.35);
+            color: var(--ink);
+            transition: var(--transition);
+         }
+         .promo-card .pc-ico svg {
+            width: 22px;
+            height: 22px;
+         }
+         .promo-card .pc-text {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+         }
+         .promo-card .pc-title {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .promo-card .pc-sub {
+            margin-top: 7px;
+            font-size: 11px;
+            line-height: 1.6;
+            letter-spacing: 0.3px;
+            color: var(--body);
+         }
+         /* version badges on the What's New card */
+         .promo-card .pc-vers {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 10px;
+         }
+         .promo-card .pc-ver {
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 2px 7px;
+            color: var(--body);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--hairline-strong);
+         }
+         .promo-card .pc-ver.mods {
+            color: var(--ink);
+            border-color: var(--primary-deep);
+         }
+         .promo-card .pc-arrow {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            color: var(--mute);
+            transition: var(--transition);
+         }
+         .promo-card:hover .pc-ico {
+            border-color: var(--primary);
+            color: var(--ink);
+         }
+         .promo-card:hover .pc-arrow {
+            color: var(--ink);
+            transform: translateX(3px);
+         }
+         /* install card — primary emphasis */
+         .promo-card.install {
+            border-color: var(--primary);
+         }
+         /* inset the banner image from the card edge so the card surface frames it.
+            Explicit width/height (not auto) are required: an absolutely-positioned <img>
+            with auto size renders at its intrinsic resolution and overflows the card. */
+         .promo-card.install .bg {
+            inset: 10px;
+            width: calc(100% - 20px);
+            height: calc(100% - 20px);
+            object-fit: cover;
+         }
+         .promo-card.install .veil {
+            inset: 10px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.72) 100%);
+         }
+         .promo-card.install .pc-ico {
+            color: var(--primary); /* white download glyph */
+            border-color: var(--primary);
+            background: var(--canvas); /* solid black box for contrast */
+         }
+         .promo-card.is-disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            box-shadow: none;
+         }
+         .promo-card:active {
+            transform: translateY(1px);
+         }
+         /* brand logo centered in the What's New card's open space (above the title) */
+         .promo-card.news .pc-logo {
+            position: relative;
+            z-index: 2;
+            align-self: center;
+            height: 66px;
+            width: auto;
+            margin-bottom: 12px; /* breathing room above the title */
+            color: var(--ink); /* currentColor → white glyph (no background square) */
+            opacity: 0.95;
+            pointer-events: none;
+            filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5));
+            transition: var(--transition);
+         }
+         .promo-card.news:hover .pc-logo {
+            opacity: 1;
+            transform: scale(1.05);
+         }
+         /* News card: center the logo + title + subtitle group vertically;
+            keep the corner icon/chevron pinned at the top (out of flow). */
+         .promo-card.news .pc-body {
+            justify-content: center;
+            align-items: center;
+         }
+         .promo-card.news .pc-top {
+            position: absolute;
+            top: 16px;
+            left: 18px;
+            right: 18px;
+            width: auto;
+         }
+         .promo-card.news .pc-text {
+            align-items: center;
+            text-align: center;
+         }
+
+         /* ── dota running warning ── */
+         .warning {
+            display: none;
+            align-items: center;
+            gap: var(--sp-2);
+            padding: 9px var(--sp-4);
+            border-radius: var(--r-sm);
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid rgba(248, 81, 73, 0.45);
+            color: #ff8983;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            flex-shrink: 0;
+            animation: slideIn 0.25s ease-out;
+         }
+         .warning.show {
+            display: flex;
+         }
+         .warning svg {
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+         }
+         @keyframes slideIn {
+            from {
+               opacity: 0;
+               transform: translateY(-6px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+
+         /* ── dota 2 path found (transient green confirmation) ── */
+         .path-found {
+            display: none;
+            align-items: center;
+            gap: var(--sp-2);
+            padding: 9px var(--sp-4);
+            border-radius: var(--r-sm);
+            background: rgba(63, 185, 80, 0.1);
+            border: 1px solid rgba(63, 185, 80, 0.45);
+            color: #56d364;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            flex-shrink: 0;
+            animation: slideIn 0.25s ease-out;
+         }
+         .path-found.show {
+            display: flex;
+         }
+         .path-found svg {
+            width: 15px;
+            height: 15px;
+            flex-shrink: 0;
+         }
+         .path-found-value {
+            color: #8b949e;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+         }
+
+         /* ── console (code surface → mono) ── */
+         .console {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            background: var(--panel);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-md);
+         }
+         .console-head {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            padding: 9px var(--sp-4);
+            border-bottom: 1px solid var(--hairline);
+            flex-shrink: 0;
+            background: rgba(0, 0, 0, 0.5);
+         }
+         .console-head .c-title {
+            font-family: var(--sans);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--body);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+         }
+         .console-head .c-title::before {
+            content: "[";
+            color: var(--mute);
+         }
+         .console-head .c-title::after {
+            content: "]";
+            color: var(--mute);
+         }
+         .console-head .c-title .led {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 6px var(--primary);
+         }
+         .copy-btn {
+            -webkit-app-region: no-drag;
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+            color: var(--mute);
+            font-family: var(--sans);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.6px;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .copy-btn:hover {
+            color: var(--primary);
+            border-color: var(--primary-deep);
+            background: var(--accent-dim);
+         }
+         .copy-btn svg {
+            width: 11px;
+            height: 11px;
+         }
+         .console-body {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: var(--sp-3) var(--sp-4);
+            font-family: var(--mono);
+            font-size: 12px;
+            line-height: 1.65;
+         }
+         .log-line {
+            display: flex;
+            gap: var(--sp-2);
+            align-items: flex-start;
+            animation: logIn 0.15s ease-out;
+         }
+         .log-line .bar {
+            width: 2px;
+            align-self: stretch;
+            border-radius: 1px;
+            flex-shrink: 0;
+            margin: 2px 0;
+         }
+         .log-line .msg {
+            word-break: break-word;
+            white-space: pre-wrap;
+         }
+         .log-line.default .bar {
+            background: var(--mute);
+         }
+         .log-line.default .msg {
+            color: var(--body);
+         }
+         .log-line.success .bar {
+            background: var(--success);
+         }
+         .log-line.success .msg {
+            color: var(--primary-soft);
+         }
+         .log-line.error .bar {
+            background: var(--error);
+         }
+         .log-line.error .msg {
+            color: #ff9b96;
+         }
+         .log-line.warning .bar {
+            background: var(--warning);
+         }
+         .log-line.warning .msg {
+            color: #e8c878;
+         }
+         .log-line.progress .bar {
+            background: var(--info);
+         }
+         .log-line.progress .msg {
+            color: #8cc2ff;
+         }
+         /* Highlighted heads-up line (e.g. the region/CDN notice on startup). A boxed,
+            amber-accented block so it stands out from the thin-bar log stream. */
+         .log-line.notice {
+            background: rgba(232, 200, 120, 0.07);
+            border: 1px solid rgba(232, 200, 120, 0.24);
+            border-radius: 2px;
+            padding: 5px 8px;
+            margin: 3px 0;
+         }
+         .log-line.notice .bar {
+            width: 3px;
+            background: var(--warning);
+         }
+         .log-line.notice .msg {
+            color: #f0d9a6;
+         }
+         @keyframes logIn {
+            from {
+               opacity: 0;
+            }
+            to {
+               opacity: 1;
+            }
+         }
+
+         /* ── patch dropdown ── */
+         .menu {
+            position: fixed;
+            z-index: 200;
+            min-width: 200px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-md);
+            padding: var(--sp-1);
+            box-shadow:
+               0 20px 60px rgba(0, 0, 0, 0.7),
+               0 0 0 1px var(--wash) inset;
+            display: none;
+            animation: menuIn 0.14s ease-out;
+         }
+         .menu.show {
+            display: block;
+         }
+         .menu-item {
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            width: 100%;
+            padding: 9px var(--sp-3);
+            background: none;
+            border: none;
+            border-radius: var(--r-sm);
+            color: var(--body);
+            font-family: var(--sans);
+            font-size: 13px;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            transition:
+               background 0.13s,
+               color 0.13s;
+         }
+         .menu-item:hover {
+            background: var(--accent-dim);
+            color: var(--primary);
+         }
+         .menu-item .ico {
+            width: 14px;
+            height: 14px;
+            opacity: 0.85;
+         }
+         .menu-sep {
+            height: 1px;
+            background: var(--hairline);
+            margin: var(--sp-1) var(--sp-2);
+         }
+         @keyframes menuIn {
+            from {
+               opacity: 0;
+               transform: translateY(-5px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+            }
+         }
+
+         /* ════════════════════════════════ WHAT'S NEW MODAL ════════════════════════════════ */
+         .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 400;
+            display: none;
+            /* "safe center" + scroll: centered when the modal fits, but top-aligned and
+               scrollable when it's taller than the viewport, so its footer/buttons stay
+               reachable instead of being cropped off-screen (small screens / high scale). */
+            align-items: safe center;
+            justify-content: center;
+            overflow-y: auto;
+            padding: 24px;
+            background: rgba(0, 0, 0, 0.72);
+            backdrop-filter: blur(3px);
+            animation: ovFade 0.16s ease;
+         }
+         .modal-overlay.show {
+            display: flex;
+         }
+         @keyframes ovFade {
+            from {
+               opacity: 0;
+            }
+            to {
+               opacity: 1;
+            }
+         }
+         .modal {
+            width: 460px;
+            max-width: 100%;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.72);
+            animation: modalPop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+         }
+         @keyframes modalPop {
+            from {
+               opacity: 0;
+               transform: translateY(12px) scale(0.98);
+            }
+            to {
+               opacity: 1;
+               transform: none;
+            }
+         }
+         .modal-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 10px 12px 16px;
+            border-bottom: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.5);
+         }
+         .modal-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .modal-title .led {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 6px var(--primary);
+         }
+         .modal-x {
+            -webkit-app-region: no-drag;
+            margin-left: auto;
+            width: 30px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .modal-x svg {
+            width: 14px;
+            height: 14px;
+         }
+         .modal-x:hover {
+            background: rgba(248, 81, 73, 0.85);
+            color: #fff;
+         }
+         .modal-sub {
+            padding: 14px 16px 2px;
+            font-size: 11px;
+            letter-spacing: 0.4px;
+            color: var(--body);
+         }
+         .choice-grid {
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px 18px;
+         }
+         .choice {
+            -webkit-app-region: no-drag;
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            padding: 16px 14px;
+            background: var(--panel);
+            border: 1px solid var(--hairline-strong);
+            color: var(--body);
+            font-family: var(--sans);
+            text-align: left;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .choice::before,
+         .choice::after {
+            content: "";
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            opacity: 0.55;
+            transition: var(--transition);
+         }
+         .choice::before {
+            top: -1px;
+            left: -1px;
+            border-top: 1px solid var(--ink);
+            border-left: 1px solid var(--ink);
+         }
+         .choice::after {
+            bottom: -1px;
+            right: -1px;
+            border-bottom: 1px solid var(--ink);
+            border-right: 1px solid var(--ink);
+         }
+         .choice:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 18px var(--primary-glow);
+            transform: translateY(-2px);
+         }
+         .choice:hover::before,
+         .choice:hover::after {
+            width: 12px;
+            height: 12px;
+            opacity: 1;
+         }
+         .choice:active {
+            transform: translateY(0);
+         }
+         .choice-ico {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--hairline-strong);
+            background: rgba(0, 0, 0, 0.35);
+            color: var(--ink);
+            transition: var(--transition);
+         }
+         .choice-ico svg {
+            width: 20px;
+            height: 20px;
+         }
+         .choice:hover .choice-ico {
+            border-color: var(--primary);
+            color: var(--primary);
+         }
+         .choice-title {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .choice-sub {
+            font-size: 10.5px;
+            line-height: 1.5;
+            color: var(--body);
+            min-height: 32px;
+         }
+         .choice-ver {
+            align-self: flex-start;
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            padding: 2px 7px;
+            color: var(--body);
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--hairline-strong);
+         }
+         .choice-ver.mods {
+            color: var(--ink);
+            border-color: var(--primary-deep);
+         }
+
+         /* ════════════════════════════════ CONFIRM MODAL ════════════════════════════════ */
+         /* Shares the .modal-overlay / .modal shell with What's New; adds a centered
+            icon-led body + action row. Used for the Skin Selector beta gate (replaces the
+            native Yes/No MessageBox). Monochrome per the shipped design system. */
+         .modal.confirm {
+            width: 420px;
+            border-top: 2px solid var(--primary);
+         }
+         .confirm-body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: var(--sp-3);
+            padding: 22px 22px 6px;
+         }
+         .confirm-ico {
+            width: 52px;
+            height: 52px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--hairline-strong);
+            background: var(--wash);
+            color: var(--ink);
+            box-shadow: 0 0 22px var(--primary-glow);
+         }
+         .confirm-ico svg {
+            width: 26px;
+            height: 26px;
+         }
+         .confirm-heading {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .confirm-text {
+            font-size: 12px;
+            line-height: 1.7;
+            letter-spacing: 0.2px;
+            color: var(--body);
+            white-space: pre-line;
+         }
+         /* signature cut-corner callout for the IMPORTANT note */
+         .confirm-note {
+            position: relative;
+            width: 100%;
+            margin-top: 2px;
+            padding: 11px 13px 11px 14px;
+            text-align: left;
+            font-size: 11px;
+            line-height: 1.65;
+            letter-spacing: 0.2px;
+            color: var(--ink);
+            background: var(--wash);
+            border: 1px solid var(--hairline-strong);
+            border-left: 2px solid var(--primary);
+         }
+         .confirm-note::before {
+            content: "! IMPORTANT";
+            display: block;
+            margin-bottom: 5px;
+            font-family: var(--mono);
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: var(--body);
+         }
+         .confirm-actions {
+            display: flex;
+            gap: var(--sp-3);
+            padding: 16px 22px 20px;
+         }
+         .confirm-actions .ob-btn {
+            flex: 1;
+            text-align: center;
+         }
+
+         /* ── yellow "warn" accent variant (feature-unavailable notice) ── */
+         .confirm--warn .modal-title .led {
+            background: var(--warn-accent);
+            box-shadow: 0 0 6px var(--warn-accent);
+         }
+         .confirm--warn .confirm-ico {
+            color: var(--warn-accent);
+            border-color: var(--warn-accent);
+            box-shadow: 0 0 22px var(--warn-glow);
+         }
+         .confirm--warn .confirm-note {
+            border-left-color: var(--warn-accent);
+         }
+         .confirm--warn #confirm-ok.primary {
+            background: var(--warn-accent);
+            border-color: var(--warn-accent);
+            color: #000000;
+         }
+         .confirm--warn #confirm-ok.primary:hover {
+            box-shadow: 0 0 0 3px var(--warn-glow);
+         }
+
+         /* ── install-failure variant: red accent + embedded log excerpt ── */
+         .modal.confirm.failure {
+            border-top-color: var(--error);
+         }
+         .failure .modal-title .led {
+            background: var(--error);
+            box-shadow: 0 0 6px var(--error);
+         }
+         .failure .confirm-ico {
+            color: var(--error);
+         }
+         .failure-log {
+            width: 100%;
+            text-align: left;
+            margin-top: 2px;
+         }
+         .failure-log-head {
+            font-family: var(--mono);
+            font-size: 9.5px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--body);
+            margin-bottom: 5px;
+         }
+         .failure-log-body {
+            max-height: 150px;
+            overflow-y: auto;
+            padding: 8px 10px;
+            background: var(--wash);
+            border: 1px solid var(--hairline-strong);
+            border-left: 2px solid var(--error);
+            font-family: var(--mono);
+            font-size: 11.5px;
+            line-height: 1.6;
+         }
+         .failure-log-empty {
+            color: var(--mute);
+         }
+         /* success variant of the install-log modal (opened via the toast's Show Log button) */
+         .confirm-ico .ico-ok {
+            display: none;
+         }
+         .modal.confirm.logok {
+            border-top-color: var(--success);
+         }
+         .logok .modal-title .led {
+            background: var(--success);
+            box-shadow: 0 0 6px var(--success);
+         }
+         .logok .confirm-ico {
+            color: var(--success);
+         }
+         .logok .confirm-ico .ico-ok {
+            display: block;
+         }
+         .logok .confirm-ico .ico-err {
+            display: none;
+         }
+         .logok .failure-log-body {
+            border-left-color: var(--success);
+         }
+
+         /* ════════════════════════════════ TOASTS ════════════════════════════════ */
+         /* Bottom-right notification cards. Replaces the system-tray balloon for in-app
+            confirmations (e.g. "Patch update completed!") so feedback matches the shell. */
+         .toast-host {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            pointer-events: none;
+         }
+         .toast {
+            pointer-events: auto;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            min-width: 280px;
+            max-width: 360px;
+            padding: 13px 14px 13px 15px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            border-left: 2px solid var(--primary);
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.66);
+            animation: toastIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+         }
+         /* corner brackets — match promo cards */
+         .toast::before,
+         .toast::after {
+            content: "";
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            opacity: 0.55;
+            pointer-events: none;
+         }
+         .toast::before {
+            top: -1px;
+            right: -1px;
+            border-top: 1px solid var(--ink);
+            border-right: 1px solid var(--ink);
+         }
+         .toast::after {
+            bottom: -1px;
+            left: -1px;
+            border-bottom: 1px solid var(--ink);
+            border-left: 1px solid var(--ink);
+         }
+         .toast.error {
+            border-left-color: #f85149;
+         }
+         .toast.info {
+            border-left-color: var(--body);
+         }
+         .toast.hide {
+            animation: toastOut 0.22s ease forwards;
+         }
+         .toast-ico {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            margin-top: 1px;
+            color: var(--ink);
+         }
+         .toast.error .toast-ico {
+            color: #ff8983;
+         }
+         .toast-ico svg {
+            width: 18px;
+            height: 18px;
+         }
+         .toast-body {
+            flex: 1;
+            min-width: 0;
+         }
+         .toast-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .toast-msg {
+            margin-top: 4px;
+            font-size: 11.5px;
+            line-height: 1.55;
+            letter-spacing: 0.2px;
+            color: var(--body);
+         }
+         .toast-x {
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: var(--mute);
+            cursor: pointer;
+            transition: color 0.16s ease;
+         }
+         .toast-x:hover {
+            color: var(--ink);
+         }
+         .toast-x svg {
+            width: 12px;
+            height: 12px;
+         }
+         @keyframes toastIn {
+            from {
+               opacity: 0;
+               transform: translateX(20px);
+            }
+            to {
+               opacity: 1;
+               transform: none;
+            }
+         }
+         @keyframes toastOut {
+            to {
+               opacity: 0;
+               transform: translateX(20px);
+            }
+         }
+
+         /* ════════════════════════════════ ONBOARDING GUIDE ════════════════════════════════ */
+         /* DOM-native replacement for the GDI overlay (which cannot screenshot WebView2 nor
+            resolve DOM elements). Spotlight = a transparent rect with a huge box-shadow that
+            dims everything around the highlighted control while it stays visible underneath. */
+         .onboard {
+            position: fixed;
+            inset: 0;
+            z-index: 500;
+            display: none;
+         }
+         .onboard.show {
+            display: block;
+         }
+         .onboard-spot {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 0;
+            height: 0;
+            border: 1.5px solid var(--accent);
+            box-shadow:
+               0 0 0 100vmax rgba(0, 0, 0, 0.74),
+               0 0 22px rgba(255, 255, 255, 0.28);
+            transition:
+               left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+               top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+               width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+               height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+         }
+         .onboard-spot::before,
+         .onboard-spot::after {
+            content: "";
+            position: absolute;
+            width: 11px;
+            height: 11px;
+         }
+         .onboard-spot::before {
+            top: -4px;
+            left: -4px;
+            border-top: 2px solid var(--accent);
+            border-left: 2px solid var(--accent);
+         }
+         .onboard-spot::after {
+            bottom: -4px;
+            right: -4px;
+            border-bottom: 2px solid var(--accent);
+            border-right: 2px solid var(--accent);
+         }
+         .onboard-glow {
+            position: absolute;
+            inset: -2px;
+            pointer-events: none;
+            animation: obGlow 2.2s ease-in-out infinite;
+         }
+         @keyframes obGlow {
+            0%,
+            100% {
+               box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+            }
+            50% {
+               box-shadow: 0 0 24px rgba(255, 255, 255, 0.4);
+            }
+         }
+         .onboard-card {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 300px;
+            background: #080808;
+            border: 1px solid var(--hairline-strong);
+            border-top: 2px solid var(--accent);
+            padding: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+            pointer-events: auto;
+            animation: obCardIn 0.25s ease-out;
+            transition:
+               left 0.3s ease,
+               top 0.3s ease;
+         }
+         @keyframes obCardIn {
+            from {
+               opacity: 0;
+               transform: translateY(8px);
+            }
+            to {
+               opacity: 1;
+               transform: none;
+            }
+         }
+         .ob-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+         }
+         .ob-counter {
+            font-family: var(--mono);
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: var(--mute);
+         }
+         .ob-dots {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+         }
+         .ob-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--hairline-strong);
+            transition: var(--transition);
+         }
+         .ob-dot.done {
+            background: var(--body);
+         }
+         .ob-dot.active {
+            width: 7px;
+            height: 7px;
+            background: var(--accent);
+            box-shadow: 0 0 6px var(--accent);
+         }
+         .ob-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--ink);
+         }
+         .ob-sep {
+            height: 1px;
+            background: var(--hairline);
+            margin: 8px 0;
+         }
+         .ob-desc {
+            font-size: 11.5px;
+            line-height: 1.7;
+            color: var(--body);
+            white-space: pre-line;
+            margin-bottom: 14px;
+            min-height: 56px;
+         }
+         .ob-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+         }
+         .ob-btn {
+            font-family: var(--sans);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 7px 16px;
+            cursor: pointer;
+            border: 1px solid var(--hairline-strong);
+            transition: var(--transition);
+         }
+         .ob-btn.ghost {
+            background: none;
+            color: var(--body);
+         }
+         .ob-btn.ghost:hover {
+            background: var(--accent-dim);
+            color: var(--ink);
+            border-color: var(--accent);
+         }
+         .ob-btn.primary {
+            background: var(--primary);
+            color: var(--on-primary);
+            border-color: var(--primary);
+         }
+         .ob-btn.primary:hover {
+            box-shadow: 0 0 16px var(--primary-glow);
+         }
+         /* disabled while a confirm countdown runs */
+         .ob-btn.primary:disabled {
+            opacity: 0.45;
+            cursor: default;
+            box-shadow: none;
+         }
+         .ob-btn.primary:disabled:hover {
+            box-shadow: none;
+         }
+
+         /* ── scrollbar ── */
+         ::-webkit-scrollbar {
+            width: 8px;
+         }
+         ::-webkit-scrollbar-track {
+            background: transparent;
+         }
+         ::-webkit-scrollbar-thumb {
+            background: var(--hairline);
+            border-radius: var(--r-sm);
+         }
+         ::-webkit-scrollbar-thumb:hover {
+            background: var(--hairline-strong);
+         }
+      </style>
+   </head>
+   <body>
+      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg), used via <use href="#ardysaGlyph"> -->
+      <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+         <defs>
+            <g id="ardysaGlyph">
+               <g transform="translate(1.007913, 440.428851)"><path d="M190.79,158.66c0,12.07,2.23,23.49,6.69,34.25c4.47,10.77,10.65,20.08,18.52,27.96s17.06,14.05,27.56,18.52 c10.5,4.46,21.79,6.69,33.87,6.69H84.48c11.55-1.57,22.71-5.24,33.48-11.02c10.76-5.78,20.86-13,30.31-21.67 c9.46-8.67,17.86-18.25,25.21-28.75c7.34-10.5,13.11-21.26,17.31-32.29V158.66z M342.02,246.08c11.03,0,20.48-4.59,28.35-13.77 c7.88-9.19,11.81-19.57,11.81-31.13c0-2.09,0-4.19,0-6.29c0-2.09-0.53-4.2-1.58-6.31l-22.83-66.15l-1.58-4.73L300.27-43.75 c-3.68-8.92-10.24-13.38-19.69-13.38c-8.93,0-15.23,4.46-18.9,13.38l94.5-261.46L443.6-53.98c3.68,10.5,7.88,22.97,12.6,37.42 c4.72,14.43,8.92,26.9,12.6,37.4l64.58,184.29c3.67,10.5,10.09,19.95,19.29,28.35c9.19,8.41,19.82,12.6,31.9,12.6H342.02z" /></g>
+               <g transform="translate(407.31193, 150.568186)"><path d="M400.89,182.21c0-12.07-2.23-23.49-6.69-34.25c-4.47-10.77-10.65-20.08-18.52-27.96s-17.06-14.05-27.56-18.52 c-10.5-4.46-21.79-6.69-33.88-6.69H507.2c-11.55,1.57-22.71,5.24-33.48,11.02c-10.76,5.78-20.86,13-30.31,21.67 c-9.46,8.67-17.86,18.25-25.21,28.75c-7.34,10.5-13.11,21.26-17.31,32.29V182.21z M249.66,94.79 c-11.03,0-20.48,4.59-28.35,13.77c-7.88,9.19-11.81,19.57-11.81,31.12c0,2.09,0,4.19,0,6.29c0,2.09,0.53,4.2,1.58,6.31 l22.83,66.15l1.58,4.73l55.92,161.46c3.68,8.92,10.24,13.38,19.69,13.38c8.93,0,15.23-4.46,18.9-13.38l-94.5,261.46 l-87.42-251.23c-3.68-10.5-7.88-22.97-12.6-37.42c-4.72-14.43-8.92-26.9-12.6-37.4L58.29,135.75 c-3.67-10.5-10.09-19.95-19.29-28.35c-9.19-8.41-19.82-12.6-31.9-12.6H249.66z" /></g>
+            </g>
+         </defs>
+      </svg>
+
+      <!-- animated wave backdrop -->
+      <div class="bgfx" aria-hidden="true"></div>
+
+      <!-- ═══════════════════ TITLE BAR ═══════════════════ -->
+      <header id="titlebar">
+         <div class="brand">
+            <span class="glyph">
+               <svg viewBox="0 0 1000 1000" fill="currentColor" aria-label="Ardysa"><use href="#ardysaGlyph" /></svg>
+            </span>
+            <span class="b-name">ArdysaModsTools</span>
+            <span class="b-tag">Dota 2</span>
+         </div>
+         <div class="win-controls">
+            <button
+               id="btn-about"
+               class="win-btn about"
+               title="About"
+               data-i18n-title="shell.titlebar.about"
+               onclick="send('about', event)"
+            >
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+               >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="11" x2="12" y2="16" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+               </svg>
+            </button>
+            <button
+               id="btn-settings"
+               class="win-btn settings"
+               title="Settings"
+               data-i18n-title="shell.titlebar.settings"
+               onclick="send('settings', event)"
+            >
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+               >
+                  <circle cx="12" cy="12" r="3" />
+                  <path
+                     d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+                  />
+               </svg>
+            </button>
+            <button class="win-btn min" title="Minimize" data-i18n-title="shell.titlebar.minimize" onclick="send('minimize', event)">
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+               >
+                  <line x1="5" y1="12" x2="19" y2="12" />
+               </svg>
+            </button>
+            <button class="win-btn close" title="Close" data-i18n-title="shell.titlebar.close" onclick="send('close', event)">
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+               >
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                  <line x1="18" y1="6" x2="6" y2="18" />
+               </svg>
+            </button>
+         </div>
+      </header>
+
+      <!-- ═══════════════════ SHELL ═══════════════════ -->
+      <div class="shell">
+         <!-- ─────────── SIDEBAR ─────────── -->
+         <aside class="sidebar notch">
+            <div class="group">
+               <div class="group-label" data-i18n="shell.group.detectPath">Detect Path</div>
+               <button id="btn-autoDetect" class="nav-btn" onclick="send('autoDetect', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <circle cx="11" cy="11" r="7" />
+                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <span data-i18n="shell.nav.autoDetect">Auto Detect</span>
+               </button>
+               <button id="btn-manualDetect" class="nav-btn" onclick="send('manualDetect', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path d="M3 7h5l2 2h11v9a2 2 0 0 1-2 2H3z" />
+                  </svg>
+                  <span data-i18n="shell.nav.manualDetect">Manual Detect</span>
+               </button>
+            </div>
+
+            <div class="group">
+               <div class="group-label" data-i18n="shell.group.mods">Mods</div>
+               <button id="btn-hero" class="nav-btn" onclick="send('skinSelector', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path d="M12 2l2.4 5 5.6.8-4 4 1 5.5L12 19.8 6.9 22.3l1-5.5-4-4 5.6-.8z" />
+                  </svg>
+                  <span data-i18n="shell.nav.skinSelector">Skin Selector</span>
+               </button>
+               <button id="btn-misc" class="nav-btn" onclick="send('miscellaneous', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                  >
+                     <circle cx="5" cy="12" r="1.6" fill="currentColor" />
+                     <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+                     <circle cx="19" cy="12" r="1.6" fill="currentColor" />
+                  </svg>
+                  <span data-i18n="shell.nav.miscellaneous">Miscellaneous</span>
+               </button>
+            </div>
+
+            <div class="group">
+               <div class="group-label" data-i18n="shell.group.tools">Tools</div>
+               <button id="btn-patch" class="nav-btn patch" onclick="send('patchClick', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+                     <path d="M21 3v5h-5" />
+                  </svg>
+                  <span data-i18n="shell.nav.patchUpdate">Patch Update</span>
+                  <svg
+                     class="chev"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2.5"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <polyline points="6 9 12 15 18 9" />
+                  </svg>
+               </button>
+               <button id="btn-disable" class="nav-btn" onclick="send('disable', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <circle cx="12" cy="12" r="9" />
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                  <span data-i18n="shell.nav.disableMods">Disable Mods</span>
+               </button>
+            </div>
+
+            <div class="group">
+               <div class="group-label" data-i18n="shell.group.extra">Extra</div>
+               <button id="btn-tweak" class="nav-btn" onclick="send('tweak', event)">
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                  >
+                     <line x1="4" y1="8" x2="20" y2="8" />
+                     <circle cx="9" cy="8" r="2.4" fill="currentColor" stroke="none" />
+                     <line x1="4" y1="14" x2="20" y2="14" />
+                     <circle cx="15" cy="14" r="2.4" fill="currentColor" stroke="none" />
+                     <line x1="4" y1="20" x2="20" y2="20" />
+                     <circle cx="11" cy="20" r="2.4" fill="currentColor" stroke="none" />
+                  </svg>
+                  <span data-i18n="shell.nav.performanceTweak">Performance Tweak</span>
+               </button>
+               <!-- Utilities page not built yet — button ships visibly disabled with a SOON tag -->
+               <button id="btn-utilities" class="nav-btn is-disabled" disabled>
+                  <svg
+                     class="ico"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path d="M3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+                     <path d="M8 9V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3" />
+                     <line x1="12" y1="13" x2="12" y2="17" />
+                  </svg>
+                  <span data-i18n="shell.nav.utilities">Utilities</span>
+                  <span class="tag-soon" data-i18n="shell.tag.soon">SOON</span>
+               </button>
+            </div>
+
+            <div class="sb-spacer"></div>
+
+            <div class="status-card">
+               <span id="status-dot" class="status-dot"></span>
+               <span id="status-text" class="status-text" data-i18n="shell.status.notChecked">Not Checked</span>
+               <button
+                  id="status-refresh"
+                  class="status-refresh"
+                  title="Refresh status"
+                  data-i18n-title="shell.status.refresh"
+                  onclick="send('refreshStatus', event)"
+               >
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+                     <path d="M21 3v5h-5" />
+                  </svg>
+               </button>
+            </div>
+
+            <div class="group" style="gap: var(--sp-2)">
+               <div class="footer-row">
+                  <button
+                     class="social"
+                     title="Discord"
+                     onclick="openUrl('https://discord.gg/ffXw265Z7e')"
+                  >
+                     <img src="https://cdn.simpleicons.org/discord/8b949e" alt="Discord" />
+                  </button>
+                  <button
+                     class="social"
+                     title="YouTube"
+                     onclick="openUrl('https://youtube.com/@Ardysa')"
+                  >
+                     <img src="https://cdn.simpleicons.org/youtube/8b949e" alt="YouTube" />
+                  </button>
+                  <button
+                     class="social support"
+                     title="Support the project"
+                     data-i18n-title="shell.social.support"
+                     data-i18n="shell.social.supportBtn"
+                     onclick="send('support', event)"
+                  >
+                     ♥ SUPPORT
+                  </button>
+               </div>
+               <div id="version" class="version" data-i18n="shell.version.checking">Checking…</div>
+            </div>
+         </aside>
+
+         <!-- ─────────── CONTENT ─────────── -->
+         <main class="content">
+            <div id="carousel" class="carousel">
+               <div id="carousel-track" class="carousel-track"></div>
+               <button class="car-arrow prev" title="Previous" data-i18n-title="shell.carousel.prev" onclick="carouselPrev(event)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                     <polyline points="15 18 9 12 15 6" />
+                  </svg>
+               </button>
+               <button class="car-arrow next" title="Next" data-i18n-title="shell.carousel.next" onclick="carouselNext(event)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                     <polyline points="9 6 15 12 9 18" />
+                  </svg>
+               </button>
+               <div id="car-dots" class="car-dots"></div>
+            </div>
+
+            <!-- Latest hero-set additions (hidden until loadLatestUpdates pushes cards) -->
+            <div id="updates-strip" class="updates-strip">
+               <div class="updates-head">
+                  <span class="updates-title" data-i18n="heroGallery.latestUpdates">Latest Updates</span>
+                  <span id="updates-count" class="updates-count"></span>
+               </div>
+               <div class="updates-wrap">
+                  <button id="updates-prev" class="updates-arrow prev" title="Previous" data-i18n-title="shell.carousel.prev" onclick="updatesScroll(-1)">
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                     </svg>
+                  </button>
+                  <div id="updates-row" class="updates-row"></div>
+                  <button id="updates-next" class="updates-arrow next" title="Next" data-i18n-title="shell.carousel.next" onclick="updatesScroll(1)">
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 6 15 12 9 18" />
+                     </svg>
+                  </button>
+               </div>
+            </div>
+
+            <div class="cards">
+               <button id="btn-install" class="promo-card install" onclick="send('install', event)">
+                  <img
+                     id="install-card-bg"
+                     class="bg"
+                     alt=""
+                     data-src="https://cdn.ardysamods.my.id/Assets/image/banner/install_card.png"
+                     onerror="this.style.display='none'"
+                  />
+                  <span class="veil"></span>
+                  <span class="pc-body">
+                     <span class="pc-top">
+                        <span class="pc-ico">
+                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M12 3v12" />
+                              <polyline points="7 11 12 16 17 11" />
+                              <path d="M5 20h14" />
+                           </svg>
+                        </span>
+                        <svg class="pc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                           <polyline points="9 6 15 12 9 18" />
+                        </svg>
+                     </span>
+                     <span class="pc-text">
+                        <span class="pc-title" data-i18n="shell.card.install.title">Install ModsPack</span>
+                        <span class="pc-sub" data-i18n="shell.card.install.sub">Apply the latest skins &amp; mods to Dota&nbsp;2</span>
+                     </span>
+                  </span>
+               </button>
+
+               <button id="btn-news" class="promo-card news" onclick="openNewsModal(event)">
+                  <span class="veil"></span>
+                  <span class="pc-body">
+                     <span class="pc-top">
+                        <span class="pc-ico">
+                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <path d="M4 5h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+                              <line x1="7" y1="9" x2="14" y2="9" />
+                              <line x1="7" y1="13" x2="14" y2="13" />
+                              <line x1="7" y1="17" x2="11" y2="17" />
+                           </svg>
+                        </span>
+                        <svg class="pc-arrow chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                           <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                     </span>
+                     <svg class="pc-logo" viewBox="0 0 1000 1000" fill="currentColor" role="img" aria-label="Ardysa"><use href="#ardysaGlyph" /></svg>
+                     <span class="pc-text">
+                        <span class="pc-title" data-i18n="shell.card.news.title">What's New</span>
+                        <span class="pc-sub" data-i18n="shell.card.news.sub">Changelog &amp; ModsPack — latest releases</span>
+                        <span class="pc-vers">
+                           <span class="pc-ver" id="news-app-ver">App v—</span>
+                           <span class="pc-ver mods" id="news-mods-ver">ModsPack v—</span>
+                        </span>
+                     </span>
+                  </span>
+               </button>
+            </div>
+
+            <div id="warning" class="warning">
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+               >
+                  <path
+                     d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"
+                  />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+               </svg>
+               <span data-i18n="shell.warning.closeDota">Dota 2 is still running — tools are unavailable until you close the game.</span>
+            </div>
+
+            <div id="pathFoundBanner" class="path-found">
+               <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.4"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+               >
+                  <polyline points="20 6 9 17 4 12" />
+               </svg>
+               <span data-i18n="shell.pathFound.label">Dota 2 path found</span>
+               <span id="pathFoundText" class="path-found-value"></span>
+            </div>
+
+            <section id="console-panel" class="console notch">
+               <div class="console-head">
+                  <div class="c-title"><span class="led"></span> <span data-i18n="shell.console.title">Console</span></div>
+                  <button class="copy-btn" onclick="copyConsole()">
+                     <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                     >
+                        <rect x="9" y="9" width="13" height="13" rx="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                     </svg>
+                     <span data-i18n="shell.console.copy">COPY</span>
+                  </button>
+               </div>
+               <div id="console-body" class="console-body"></div>
+            </section>
+         </main>
+      </div>
+
+      <!-- ═══════════════════ PATCH MENU ═══════════════════ -->
+      <div id="patch-menu" class="menu">
+         <button class="menu-item" onclick="patchMenuAction('patchApply')">
+            <svg
+               class="ico"
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="2"
+               stroke-linecap="round"
+               stroke-linejoin="round"
+            >
+               <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+               <path d="M21 3v5h-5" />
+            </svg>
+            <span data-i18n="shell.patchMenu.update">Patch Update</span>
+         </button>
+         <div class="menu-sep"></div>
+         <button class="menu-item" onclick="patchMenuAction('patchVerify')">
+            <svg
+               class="ico"
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="2"
+               stroke-linecap="round"
+               stroke-linejoin="round"
+            >
+               <path d="M9 11l3 3L22 4" />
+               <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+            <span data-i18n="shell.patchMenu.verify">Verify Mod Files</span>
+         </button>
+         <button class="menu-item" onclick="patchMenuAction('patchViewStatus')">
+            <svg
+               class="ico"
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="2"
+               stroke-linecap="round"
+               stroke-linejoin="round"
+            >
+               <circle cx="12" cy="12" r="10" />
+               <line x1="12" y1="16" x2="12" y2="12" />
+               <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <span data-i18n="shell.patchMenu.viewStatus">View Status Details</span>
+         </button>
+      </div>
+
+      <!-- ═══════════════════ WHAT'S NEW MODAL ═══════════════════ -->
+      <div id="news-modal" class="modal-overlay" onclick="onNewsBackdrop(event)">
+         <div class="modal" role="dialog" aria-modal="true" aria-label="What's New">
+            <div class="modal-head">
+               <div class="modal-title"><span class="led"></span> <span data-i18n="shell.news.modalTitle">What's New</span></div>
+               <button class="modal-x" title="Close" data-i18n-title="shell.titlebar.close" onclick="closeNewsModal()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                     <line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+               </button>
+            </div>
+            <div class="modal-sub" data-i18n="shell.news.modalSub">Choose what you'd like to view</div>
+            <div class="choice-grid">
+               <button class="choice" onclick="newsChoose('whatsnew')">
+                  <span class="choice-ico">
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 5h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+                        <line x1="7" y1="9" x2="14" y2="9" />
+                        <line x1="7" y1="13" x2="14" y2="13" />
+                        <line x1="7" y1="17" x2="11" y2="17" />
+                     </svg>
+                  </span>
+                  <span class="choice-title" data-i18n="shell.news.changelog.title">Changelog</span>
+                  <span class="choice-sub" data-i18n="shell.news.changelog.sub">App release notes, fixes &amp; new features</span>
+                  <span class="choice-ver" id="modal-app-ver">App v—</span>
+               </button>
+               <button class="choice" onclick="newsChoose('modspackUpdates')">
+                  <span class="choice-ico">
+                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2l2.4 5 5.6.8-4 4 1 5.5L12 19.8 6.9 22.3l1-5.5-4-4 5.6-.8z" />
+                     </svg>
+                  </span>
+                  <span class="choice-title" data-i18n="shell.news.modspack.title">ModsPack</span>
+                  <span class="choice-sub" data-i18n="shell.news.modspack.sub">Latest hero skins &amp; cosmetic sets</span>
+                  <span class="choice-ver mods" id="modal-mods-ver">ModsPack v—</span>
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════ CONFIRM MODAL ═══════════════════ -->
+      <div id="confirm-modal" class="modal-overlay" onclick="onConfirmBackdrop(event)">
+         <div class="modal confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-heading">
+            <div class="modal-head">
+               <div class="modal-title"><span class="led"></span> <span id="confirm-eyebrow" data-i18n="shell.confirm.eyebrow">Confirm</span></div>
+               <button class="modal-x" title="Close" data-i18n-title="shell.titlebar.close" onclick="resolveConfirm(false)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                     <line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+               </button>
+            </div>
+            <div class="confirm-body">
+               <span class="confirm-ico">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                     <path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z" />
+                     <line x1="12" y1="9" x2="12" y2="13" />
+                     <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+               </span>
+               <div id="confirm-heading" class="confirm-heading"></div>
+               <div id="confirm-text" class="confirm-text"></div>
+               <div id="confirm-note" class="confirm-note" style="display: none"></div>
+            </div>
+            <div class="confirm-actions">
+               <button id="confirm-cancel" class="ob-btn ghost" data-i18n="common.cancel" onclick="resolveConfirm(false)">Cancel</button>
+               <button id="confirm-ok" class="ob-btn primary" data-i18n="common.continue" onclick="resolveConfirm(true)">Continue</button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════ INSTALL FAILURE MODAL ═══════════════════ -->
+      <div id="failure-modal" class="modal-overlay" onclick="onFailureBackdrop(event)">
+         <div class="modal confirm failure" role="alertdialog" aria-modal="true" aria-labelledby="failure-heading">
+            <div class="modal-head">
+               <div class="modal-title"><span class="led"></span> <span id="failure-eyebrow">Error</span></div>
+               <button class="modal-x" title="Close" data-i18n-title="shell.titlebar.close" onclick="closeFailureModal()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                     <line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+               </button>
+            </div>
+            <div class="confirm-body">
+               <span class="confirm-ico">
+                  <svg class="ico-err" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                     <circle cx="12" cy="12" r="10" />
+                     <line x1="12" y1="8" x2="12" y2="13" />
+                     <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                  <svg class="ico-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                     <circle cx="12" cy="12" r="10" />
+                     <path d="M8.5 12.2l2.4 2.4 4.6-5" />
+                  </svg>
+               </span>
+               <div id="failure-heading" class="confirm-heading"></div>
+               <div id="failure-text" class="confirm-text"></div>
+               <div class="failure-log">
+                  <div class="failure-log-head" data-i18n="shell.failure.logTitle">Recent log</div>
+                  <div id="failure-log-body" class="failure-log-body"></div>
+               </div>
+            </div>
+            <div class="confirm-actions">
+               <button id="failure-showlog" class="ob-btn ghost" style="display: none" data-i18n="shell.toast.showLog" onclick="revealInstallLog()">Show Log</button>
+               <button id="failure-copy" class="ob-btn ghost" data-i18n="shell.failure.copy" onclick="copyFailureLog()">Copy Log</button>
+               <button id="failure-close" class="ob-btn primary" onclick="closeFailureModal()">Close</button>
+            </div>
+         </div>
+      </div>
+
+      <!-- ═══════════════════ TOAST HOST ═══════════════════ -->
+      <div id="toast-host" class="toast-host" aria-live="polite"></div>
+
+      <!-- ═══════════════════ ONBOARDING GUIDE ═══════════════════ -->
+      <div id="onboard" class="onboard" aria-hidden="true">
+         <div id="onboard-spot" class="onboard-spot"><span class="onboard-glow"></span></div>
+         <div id="onboard-card" class="onboard-card">
+            <div class="ob-head">
+               <span id="ob-counter" class="ob-counter">[ 1 / 1 ]</span>
+               <div id="ob-dots" class="ob-dots"></div>
+            </div>
+            <div id="ob-title" class="ob-title"></div>
+            <div class="ob-sep"></div>
+            <div id="ob-desc" class="ob-desc"></div>
+            <div class="ob-actions">
+               <button id="ob-skip" class="ob-btn ghost" data-i18n="shell.onboard.skip" onclick="onboardSkip()">Skip</button>
+               <button id="ob-next" class="ob-btn primary" data-i18n="shell.onboard.next" onclick="onboardNext()">Next →</button>
+            </div>
+         </div>
+      </div>
+
+      <script>
+         "use strict";
+         const MAX_LINES = 500;
+
+         /* CDN images marked data-src get a per-launch cache-buster so swapping
+            the file on the CDN shows up next app start without a rebuild */
+         document.querySelectorAll("img[data-src]").forEach((img) => {
+            img.src = img.dataset.src + "?t=" + Date.now();
+         });
+
+         /* ════════ JS → C# bridge ════════ */
+         function post(type, data = {}) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(Object.assign({ type }, data));
+            }
+         }
+         /* generic button → message; stop drag/menu side-effects */
+         function send(type, ev) {
+            if (ev) ev.stopPropagation();
+            hidePatchMenu();
+            const el = ev && ev.currentTarget;
+            if (el && el.classList.contains("is-disabled")) return;
+            post(type);
+         }
+         function openUrl(url) {
+            hidePatchMenu();
+            post("openUrl", { url });
+         }
+         function patchMenuAction(type) {
+            hidePatchMenu();
+            post(type);
+         }
+         function copyConsole() {
+            const text = [...document.querySelectorAll("#console-body .msg")]
+               .map((n) => n.textContent)
+               .join("\n");
+            post("copyConsole", { text });
+         }
+
+         /* ════════ C# → JS API ════════ */
+         /* Elements seeded with data-i18n only for their PLACEHOLDER text (version, status) get
+            rewritten by applyI18n on every language switch, which would stomp the live value pushed
+            from C#. Dropping the attribute on the first dynamic write hands ownership to the host. */
+         function claimFromI18n(el) {
+            if (el) el.removeAttribute("data-i18n");
+            return el;
+         }
+
+         function setVersion(v) {
+            claimFromI18n(document.getElementById("version")).textContent = v || "";
+         }
+
+         /* C# → JS: override the install-card background from banner.json (cache-busted). */
+         function setInstallCard(url) {
+            const el = document.getElementById("install-card-bg");
+            if (!el || !url) return;
+            el.style.display = "";
+            el.src = url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
+         }
+
+         /* C# → JS: version badges on the What's New card + modal choices. */
+         function setNewsVersions(payload) {
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload || {};
+            if (p.app) {
+               ["news-app-ver", "modal-app-ver"].forEach((id) => {
+                  const el = document.getElementById(id);
+                  if (el) el.textContent = "App " + p.app;
+               });
+            }
+            if (p.modspack) {
+               ["news-mods-ver", "modal-mods-ver"].forEach((id) => {
+                  const el = document.getElementById(id);
+                  if (el) el.textContent = "ModsPack " + p.modspack;
+               });
+            }
+         }
+
+         function setStatus(payload) {
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload;
+            const dot = document.getElementById("status-dot");
+            const text = claimFromI18n(document.getElementById("status-text"));
+            const refresh = document.getElementById("status-refresh");
+            refresh.classList.remove("spin");
+            dot.style.background = p.color;
+            dot.style.boxShadow = "0 0 8px " + p.color;
+            text.textContent = p.text || "";
+            text.style.color = p.color;
+            text.title = p.tooltip || "";
+            dot.title = p.tooltip || "";
+         }
+
+         function showChecking() {
+            const dot = document.getElementById("status-dot");
+            const text = claimFromI18n(document.getElementById("status-text"));
+            const refresh = document.getElementById("status-refresh");
+            dot.style.background = "var(--primary)";
+            dot.style.boxShadow = "0 0 8px var(--primary)";
+            text.textContent = window.t ? window.t("status.checking.text") : "Checking…";
+            text.style.color = "var(--primary)";
+            // The previous status' tooltip must not linger over "Checking…".
+            text.title = "";
+            dot.title = "";
+            refresh.classList.add("spin");
+         }
+
+         function setPatchButton(status, isError) {
+            const btn = document.getElementById("btn-patch");
+            btn.classList.remove("ready", "update", "error");
+            if (isError) btn.classList.add("error");
+            else if (status === "ready") btn.classList.add("ready");
+            else if (status === "needUpdate") btn.classList.add("update");
+         }
+
+         function setButtonStates(payload) {
+            const s = typeof payload === "string" ? JSON.parse(payload) : payload;
+            const map = {
+               autoDetect: "btn-autoDetect",
+               manualDetect: "btn-manualDetect",
+               install: "btn-install",
+               disable: "btn-disable",
+               patch: "btn-patch",
+               misc: "btn-misc",
+               hero: "btn-hero",
+               tweak: "btn-tweak",
+            };
+            for (const key in map) {
+               const el = document.getElementById(map[key]);
+               if (!el || !(key in s)) continue;
+               el.classList.toggle("is-disabled", !s[key]);
+            }
+            if ("detectHighlight" in s) {
+               const hl = !!s.detectHighlight;
+               document.getElementById("btn-autoDetect").classList.toggle("highlight", hl);
+               document.getElementById("btn-manualDetect").classList.toggle("highlight", hl);
+            }
+         }
+
+         function setDotaWarning(on) {
+            document
+               .getElementById("warning")
+               .classList.toggle("show", on === true || on === "true");
+         }
+
+         // Transient green confirmation shown when the Dota 2 install path is attached
+         // (startup auto-detect, saved path, or manual detect). Auto-hides after a few seconds.
+         let _pathFoundTimer = null;
+         function showPathFound(path) {
+            const banner = document.getElementById("pathFoundBanner");
+            if (!banner) return;
+            const val = document.getElementById("pathFoundText");
+            if (val) val.textContent = path || "";
+            banner.classList.add("show");
+            if (_pathFoundTimer) clearTimeout(_pathFoundTimer);
+            _pathFoundTimer = setTimeout(() => banner.classList.remove("show"), 4000);
+         }
+
+         function appendLog(text, category) {
+            const body = document.getElementById("console-body");
+            const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+            const line = document.createElement("div");
+            line.className = "log-line " + (category || "default");
+            const bar = document.createElement("div");
+            bar.className = "bar";
+            const msg = document.createElement("div");
+            msg.className = "msg";
+            msg.textContent = text;
+            line.appendChild(bar);
+            line.appendChild(msg);
+            body.appendChild(line);
+            while (body.childElementCount > MAX_LINES) body.removeChild(body.firstChild);
+            if (atBottom) body.scrollTop = body.scrollHeight;
+         }
+
+         /* Localized console line: segJson carries i18n keys (see C# LogSegment / Logger.LogLocalized),
+            stored on the element so applyI18n can re-translate it live when the language changes. */
+         function appendLogI18n(segJson, category) {
+            const body = document.getElementById("console-body");
+            const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+            let segs;
+            try { segs = JSON.parse(segJson); } catch (e) { segs = []; }
+            const line = document.createElement("div");
+            line.className = "log-line " + (category || "default");
+            line.setAttribute("data-i18n-log", segJson);
+            const bar = document.createElement("div");
+            bar.className = "bar";
+            const msg = document.createElement("div");
+            msg.className = "msg";
+            /* Pre-bootstrap fallback: show literal strings / raw keys instead of a blank line;
+               applyI18n re-translates via data-i18n-log once the localizer arrives. */
+            msg.textContent = window.renderLogSegments
+               ? window.renderLogSegments(segs)
+               : segs.map(function (s) { return typeof s === "string" ? s : (s && s.k) || ""; }).join("");
+            line.appendChild(bar);
+            line.appendChild(msg);
+            body.appendChild(line);
+            while (body.childElementCount > MAX_LINES) body.removeChild(body.firstChild);
+            if (atBottom) body.scrollTop = body.scrollHeight;
+         }
+
+         function clearLog() {
+            document.getElementById("console-body").innerHTML = "";
+         }
+
+         /* ════════ banner carousel ════════ */
+         let _carSlides = [];
+         let _carIndex = 0;
+         let _carTimer = null;
+
+         /* C# → JS: Skin Selector "Latest Updates" cards. Payload shape lives in
+            SetUpdateResolver.SetUpdateCard (heroId/heroName/setThumbnail/daysAgo/...) — keep in sync.
+            Cards are built with createElement/textContent: hero names are remote data. */
+         function loadLatestUpdates(payload) {
+            const cards = typeof payload === "string" ? JSON.parse(payload) : payload;
+            if (!Array.isArray(cards) || cards.length === 0) return;
+            const row = document.getElementById("updates-row");
+            row.innerHTML = "";
+            cards.slice(0, 12).forEach(function (c) {
+               const card = document.createElement("button");
+               card.className = "update-card";
+               card.title = c.setName || "";
+               card.onclick = function (ev) { send("skinSelector", ev); };
+               const img = document.createElement("img");
+               img.src = c.setThumbnail || "";
+               img.alt = "";
+               img.loading = "lazy";
+               img.onerror = function () { card.remove(); updatesArrowState(); };
+               const cap = document.createElement("div");
+               cap.className = "uc-cap";
+               const hero = document.createElement("div");
+               hero.className = "uc-hero";
+               hero.textContent = c.heroName || "";
+               const date = document.createElement("div");
+               date.className = "uc-date";
+               date.textContent = c.daysAgo === 0 ? "Today" : c.daysAgo === 1 ? "Yesterday" : c.daysAgo + "d ago";
+               cap.appendChild(hero);
+               cap.appendChild(date);
+               card.appendChild(img);
+               card.appendChild(cap);
+               if (c.daysAgo <= 2) {
+                  const badge = document.createElement("span");
+                  badge.className = "uc-new";
+                  badge.textContent = "NEW";
+                  card.appendChild(badge);
+               }
+               row.appendChild(card);
+            });
+            document.getElementById("updates-count").textContent = cards.length + " new";
+            document.getElementById("updates-strip").classList.add("show");
+            /* Property handlers (not addEventListener) so a repeat push can't stack duplicates. */
+            row.onscroll = updatesArrowState;
+            row.onwheel = function (e) {
+               if (row.scrollWidth <= row.clientWidth) return;
+               e.preventDefault();
+               row.scrollLeft += e.deltaY;
+            };
+            updatesArrowState();
+         }
+
+         /* Pages the updates row left/right (dir = ±1); scroll-behavior:smooth animates it. */
+         function updatesScroll(dir) {
+            const row = document.getElementById("updates-row");
+            row.scrollLeft += dir * Math.max(row.clientWidth - 80, 160);
+         }
+
+         /* Hides each arrow at its end of the row, like the Skin Selector carousel. */
+         function updatesArrowState() {
+            const row = document.getElementById("updates-row");
+            const max = row.scrollWidth - row.clientWidth;
+            document.getElementById("updates-prev").classList.toggle("disabled", row.scrollLeft <= 2);
+            document.getElementById("updates-next").classList.toggle("disabled", row.scrollLeft >= max - 2);
+         }
+
+         /* C# → JS: single bundled-banner fallback (kept for when no R2 manifest is present). */
+         function setBanner(dataUri) {
+            if (!dataUri || _carSlides.length > 0) return;
+            renderCarousel([{ image: dataUri, link: "", title: "" }]);
+         }
+
+         /* C# → JS: R2 carousel slides [{ image, link, title }]. */
+         function loadBanners(payload) {
+            const slides = typeof payload === "string" ? JSON.parse(payload) : payload;
+            if (!Array.isArray(slides) || slides.length === 0) return;
+            renderCarousel(slides);
+         }
+
+         function renderCarousel(slides) {
+            _carSlides = slides;
+            _carIndex = 0;
+            const track = document.getElementById("carousel-track");
+            const dots = document.getElementById("car-dots");
+            const carousel = document.getElementById("carousel");
+            track.innerHTML = "";
+            dots.innerHTML = "";
+
+            slides.forEach((s, i) => {
+               const slide = document.createElement("div");
+               slide.className = "slide" + (s.link ? " link" : "");
+               if (s.link) slide.onclick = () => openUrl(s.link);
+
+               const img = document.createElement("img");
+               img.alt = s.title || "";
+               // A slide whose CDN image fails shows the panel surface + caption instead of the
+               // broken-image glyph (same guard the install card uses).
+               img.onerror = () => {
+                  img.style.display = "none";
+               };
+               img.src = s.image;
+               slide.appendChild(img);
+
+               if (s.title) {
+                  const cap = document.createElement("div");
+                  cap.className = "cap";
+                  cap.textContent = s.title;
+                  slide.appendChild(cap);
+               }
+               track.appendChild(slide);
+
+               const dot = document.createElement("span");
+               dot.className = "car-dot" + (i === 0 ? " active" : "");
+               dot.onclick = (e) => {
+                  e.stopPropagation();
+                  carouselGo(i);
+               };
+               dots.appendChild(dot);
+            });
+
+            carousel.classList.toggle("multi", slides.length > 1);
+            updateCarousel();
+            startCarouselAuto();
+         }
+
+         function updateCarousel() {
+            const track = document.getElementById("carousel-track");
+            track.style.transform = "translateX(-" + _carIndex * 100 + "%)";
+            document.querySelectorAll("#car-dots .car-dot").forEach((d, i) => {
+               d.classList.toggle("active", i === _carIndex);
+            });
+         }
+
+         function carouselGo(i) {
+            if (_carSlides.length === 0) return;
+            _carIndex = (i + _carSlides.length) % _carSlides.length;
+            updateCarousel();
+            startCarouselAuto();
+         }
+         function carouselNext(ev) {
+            if (ev) ev.stopPropagation();
+            carouselGo(_carIndex + 1);
+         }
+         function carouselPrev(ev) {
+            if (ev) ev.stopPropagation();
+            carouselGo(_carIndex - 1);
+         }
+
+         function startCarouselAuto() {
+            stopCarouselAuto();
+            if (_carSlides.length <= 1) return;
+            if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+            // Don't advance while the window is hidden/minimized — the user would come back to a
+            // slide they never saw start.
+            _carTimer = setInterval(() => {
+               if (!document.hidden) carouselGo(_carIndex + 1);
+            }, 5000);
+         }
+         function stopCarouselAuto() {
+            if (_carTimer) {
+               clearInterval(_carTimer);
+               _carTimer = null;
+            }
+         }
+
+         (function initCarousel() {
+            const c = document.getElementById("carousel");
+            if (!c) return;
+            c.addEventListener("mouseenter", stopCarouselAuto);
+            c.addEventListener("mouseleave", startCarouselAuto);
+         })();
+
+         /* ════════ patch dropdown ════════ */
+         function showPatchMenu() {
+            const btn = document.getElementById("btn-patch");
+            const menu = document.getElementById("patch-menu");
+            const r = btn.getBoundingClientRect();
+            menu.style.left = r.left + "px";
+            menu.style.top = r.bottom + 6 + "px";
+            menu.style.minWidth = r.width + "px";
+            menu.classList.add("show");
+         }
+         function hidePatchMenu() {
+            document.getElementById("patch-menu").classList.remove("show");
+         }
+
+         /* ════════ what's new modal ════════ */
+         function openNewsModal(ev) {
+            if (ev) ev.stopPropagation();
+            const btn = ev && ev.currentTarget ? ev.currentTarget : document.getElementById("btn-news");
+            if (btn && btn.classList.contains("is-disabled")) return;
+            hidePatchMenu();
+            document.getElementById("news-modal").classList.add("show");
+         }
+         function closeNewsModal() {
+            document.getElementById("news-modal").classList.remove("show");
+         }
+         function newsModalActive() {
+            return document.getElementById("news-modal").classList.contains("show");
+         }
+         function onNewsBackdrop(ev) {
+            if (ev.target === ev.currentTarget) closeNewsModal();
+         }
+         function newsChoose(type) {
+            closeNewsModal();
+            post(type);
+         }
+
+         document.addEventListener("click", (e) => {
+            const menu = document.getElementById("patch-menu");
+            const patchBtn = document.getElementById("btn-patch");
+            if (
+               menu.classList.contains("show") &&
+               !menu.contains(e.target) &&
+               !patchBtn.contains(e.target)
+            ) {
+               hidePatchMenu();
+            }
+         });
+
+         /* ════════ confirm modal (replaces native Yes/No MessageBox) ════════ */
+         /* C# → JS. payload = { id, eyebrow, heading, body, note, confirmText, cancelText }.
+            The result is posted back as { type:"shellModalResult", id, ok } and the C# side
+            resolves the awaiting Task. id ties the reply to the originating request. */
+         let _confirmId = null;
+         let _confirmLocked = false; // true while the Continue countdown is running
+         let _confirmCdTimer = null;
+
+         function showShellConfirm(payload) {
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload || {};
+            _confirmId = typeof p.id === "number" ? p.id : null;
+            // Accent variant (reset every time — the modal is reused across callers).
+            document
+               .getElementById("confirm-modal")
+               .classList.toggle("confirm--warn", p.accent === "warn");
+            document.getElementById("confirm-eyebrow").textContent = p.eyebrow || "Confirm";
+            document.getElementById("confirm-heading").textContent = p.heading || "";
+            document.getElementById("confirm-text").textContent = p.body || "";
+
+            const note = document.getElementById("confirm-note");
+            if (p.note) {
+               note.textContent = p.note;
+               note.style.display = "";
+            } else {
+               note.textContent = "";
+               note.style.display = "none";
+            }
+
+            const okBtn = document.getElementById("confirm-ok");
+            const okLabel = p.confirmText || "Continue";
+            const cancel = document.getElementById("confirm-cancel");
+            cancel.textContent = p.cancelText || "Cancel";
+
+            // Reset any prior countdown state.
+            if (_confirmCdTimer) {
+               clearInterval(_confirmCdTimer);
+               _confirmCdTimer = null;
+            }
+            _confirmLocked = false;
+            okBtn.disabled = false;
+            okBtn.textContent = okLabel;
+
+            // Optional countdown: gate Continue for N seconds (e.g. the beta gate).
+            const cd = parseInt(p.countdown, 10) || 0;
+            if (cd > 0) {
+               _confirmLocked = true;
+               okBtn.disabled = true;
+               let remaining = cd;
+               const render = () => {
+                  okBtn.textContent = okLabel + " (" + remaining + ")";
+               };
+               render();
+               _confirmCdTimer = setInterval(() => {
+                  remaining--;
+                  if (remaining <= 0) {
+                     clearInterval(_confirmCdTimer);
+                     _confirmCdTimer = null;
+                     _confirmLocked = false;
+                     okBtn.disabled = false;
+                     okBtn.textContent = okLabel;
+                  } else {
+                     render();
+                  }
+               }, 1000);
+            }
+
+            hidePatchMenu();
+            document.getElementById("confirm-modal").classList.add("show");
+            (cd > 0 ? cancel : okBtn).focus();
+         }
+
+         function confirmActive() {
+            return document.getElementById("confirm-modal").classList.contains("show");
+         }
+
+         function resolveConfirm(ok) {
+            if (!confirmActive()) return;
+            // Continue is blocked while the countdown runs; Cancel/close stay available.
+            if (ok && _confirmLocked) return;
+            if (_confirmCdTimer) {
+               clearInterval(_confirmCdTimer);
+               _confirmCdTimer = null;
+            }
+            _confirmLocked = false;
+            document.getElementById("confirm-modal").classList.remove("show");
+            const id = _confirmId;
+            _confirmId = null;
+            post("shellModalResult", { id, ok: !!ok });
+         }
+
+         function onConfirmBackdrop(ev) {
+            if (ev.target === ev.currentTarget) resolveConfirm(false);
+         }
+
+         /* ════════ install log modal (complete + failure cards) ════════ */
+         /* C# → JS. payload = { title, body, lines: [{ t, c }] }. lines is the curated
+            InstallReport from the install run (simple user-facing steps, no URLs/paths);
+            when absent the modal falls back to an excerpt of the console. */
+         function showInstallFailure(payload) {
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload || {};
+            openInstallLog(p.title, p.body, "error", true, p.lines);
+         }
+
+         /* C# → JS. Install-complete card: green accent, Done + Show Log actions; the log
+            excerpt stays hidden until Show Log is pressed. */
+         function showInstallComplete(payload) {
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload || {};
+            openInstallLog(p.title, p.body, "success", false, p.lines);
+         }
+
+         /* variant: "error" (red accent) or "success" (green accent). withLog=false keeps the
+            log excerpt collapsed behind the Show Log action (install-complete card). */
+         function openInstallLog(title, body, variant, withLog = true, reportLines = null) {
+            const ok = variant === "success";
+            const modal = document.querySelector("#failure-modal .modal");
+            modal.classList.toggle("failure", !ok);
+            modal.classList.toggle("logok", ok);
+            document.getElementById("failure-eyebrow").textContent = window.t
+               ? window.t(ok ? "shell.failure.eyebrowOk" : "shell.failure.eyebrow")
+               : ok ? "Complete" : "Error";
+            document.getElementById("failure-heading").textContent = title || "";
+            document.getElementById("failure-text").textContent = body || "";
+
+            // Collapsed log (complete card) ↔ visible log (failure card / after Show Log).
+            document.querySelector("#failure-modal .failure-log").style.display = withLog ? "" : "none";
+            document.getElementById("failure-showlog").style.display = withLog ? "none" : "";
+            document.getElementById("failure-copy").style.display = withLog ? "" : "none";
+            document.getElementById("failure-close").textContent = window.t
+               ? window.t(ok ? "common.done" : "common.close")
+               : ok ? "Done" : "Close";
+
+            const logBody = document.getElementById("failure-log-body");
+            logBody.innerHTML = "";
+
+            if (Array.isArray(reportLines) && reportLines.length > 0) {
+               // Curated install report from C# — the preferred source.
+               reportLines.forEach((r) => {
+                  const line = document.createElement("div");
+                  line.className = "log-line " + (r.c || "default");
+                  const bar = document.createElement("div");
+                  bar.className = "bar";
+                  const msg = document.createElement("div");
+                  msg.className = "msg";
+                  msg.textContent = r.t || "";
+                  line.appendChild(bar);
+                  line.appendChild(msg);
+                  logBody.appendChild(line);
+               });
+            } else {
+               // Fallback: excerpt of the shell console (no report was collected).
+               const all = [...document.querySelectorAll("#console-body .log-line")];
+               let lines = ok
+                  ? all.slice(-12)
+                  : all.filter((l) => l.classList.contains("error") || l.classList.contains("warning")).slice(-12);
+               if (lines.length === 0) lines = all.slice(-8);
+               if (lines.length === 0) {
+                  const empty = document.createElement("div");
+                  empty.className = "failure-log-empty";
+                  empty.textContent = window.t ? window.t("shell.failure.empty") : "No log entries captured.";
+                  logBody.appendChild(empty);
+               } else {
+                  lines.forEach((l) => {
+                     const clone = l.cloneNode(true);
+                     clone.removeAttribute("data-i18n-log"); // snapshot — don't re-translate live
+                     logBody.appendChild(clone);
+                  });
+               }
+            }
+
+            hidePatchMenu();
+            document.getElementById("failure-modal").classList.add("show");
+            logBody.scrollTop = logBody.scrollHeight;
+            document.getElementById("failure-close").focus();
+         }
+
+         function failureActive() {
+            return document.getElementById("failure-modal").classList.contains("show");
+         }
+
+         function revealInstallLog() {
+            document.querySelector("#failure-modal .failure-log").style.display = "";
+            document.getElementById("failure-showlog").style.display = "none";
+            document.getElementById("failure-copy").style.display = "";
+            const logBody = document.getElementById("failure-log-body");
+            logBody.scrollTop = logBody.scrollHeight;
+         }
+
+         function closeFailureModal() {
+            document.getElementById("failure-modal").classList.remove("show");
+         }
+
+         function onFailureBackdrop(ev) {
+            if (ev.target === ev.currentTarget) closeFailureModal();
+         }
+
+         function copyFailureLog() {
+            const text = [...document.querySelectorAll("#failure-log-body .msg")]
+               .map((n) => n.textContent)
+               .join("\n");
+            post("copyConsole", { text });
+         }
+
+         /* ════════ toasts (replaces tray balloon for in-app feedback) ════════ */
+         /* C# → JS. payload = { title, message, variant: "success|error|info", timeout }. */
+         const TOAST_ICONS = {
+            success:
+               '<path d="M20 6 9 17l-5-5" />',
+            error:
+               '<circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="13" /><line x1="12" y1="16" x2="12.01" y2="16" />',
+            info:
+               '<circle cx="12" cy="12" r="10" /><line x1="12" y1="11" x2="12" y2="16" /><line x1="12" y1="8" x2="12.01" y2="8" />',
+         };
+
+         function showToast(payload) {
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload || {};
+            const variant = TOAST_ICONS[p.variant] ? p.variant : "success";
+            const host = document.getElementById("toast-host");
+
+            const toast = document.createElement("div");
+            toast.className = "toast " + variant;
+
+            const ico = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            ico.setAttribute("viewBox", "0 0 24 24");
+            ico.setAttribute("fill", "none");
+            ico.setAttribute("stroke", "currentColor");
+            ico.setAttribute("stroke-width", "2.2");
+            ico.setAttribute("stroke-linecap", "round");
+            ico.setAttribute("stroke-linejoin", "round");
+            ico.innerHTML = TOAST_ICONS[variant];
+            const icoWrap = document.createElement("span");
+            icoWrap.className = "toast-ico";
+            icoWrap.appendChild(ico);
+
+            const body = document.createElement("div");
+            body.className = "toast-body";
+            if (p.title) {
+               const t = document.createElement("div");
+               t.className = "toast-title";
+               t.textContent = p.title;
+               body.appendChild(t);
+            }
+            if (p.message) {
+               const m = document.createElement("div");
+               m.className = "toast-msg";
+               m.textContent = p.message;
+               body.appendChild(m);
+            }
+            const close = document.createElement("button");
+            close.className = "toast-x";
+            close.title = window.t ? window.t("shell.toast.dismiss") : "Dismiss";
+            close.innerHTML =
+               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>';
+
+            let timer = null;
+            const dismiss = () => {
+               if (timer) clearTimeout(timer);
+               toast.classList.add("hide");
+               toast.addEventListener("animationend", () => toast.remove(), { once: true });
+            };
+            close.onclick = dismiss;
+
+            toast.appendChild(icoWrap);
+            toast.appendChild(body);
+            toast.appendChild(close);
+            host.appendChild(toast);
+
+            const timeout = typeof p.timeout === "number" && p.timeout > 0 ? p.timeout : 4000;
+            timer = setTimeout(dismiss, timeout);
+
+            // Hovering holds the toast open (a long message must not vanish mid-read); leaving
+            // re-arms the full timeout.
+            toast.addEventListener("mouseenter", () => {
+               if (timer) {
+                  clearTimeout(timer);
+                  timer = null;
+               }
+            });
+            toast.addEventListener("mouseleave", () => {
+               if (!toast.classList.contains("hide")) timer = setTimeout(dismiss, timeout);
+            });
+         }
+
+         /* ════════ onboarding guide (DOM-native, replaces GDI overlay) ════════ */
+         let _obSteps = [];
+         let _obIndex = 0;
+
+         function onboardActive() {
+            return document.getElementById("onboard").classList.contains("show");
+         }
+
+         /* C# → JS entry. payload = [{ target, title, desc, pad }] */
+         function startOnboarding(payload) {
+            _obSteps = typeof payload === "string" ? JSON.parse(payload) : payload;
+            if (!Array.isArray(_obSteps) || _obSteps.length === 0) return;
+            _obIndex = 0;
+            hidePatchMenu();
+            const dots = document.getElementById("ob-dots");
+            dots.innerHTML = "";
+            for (let i = 0; i < _obSteps.length; i++) {
+               const d = document.createElement("span");
+               d.className = "ob-dot";
+               dots.appendChild(d);
+            }
+            document.getElementById("onboard").classList.add("show");
+            window.addEventListener("resize", positionOnboard);
+            renderOnboard();
+         }
+
+         function renderOnboard() {
+            const step = _obSteps[_obIndex];
+            if (!step) return;
+            document.getElementById("ob-counter").textContent =
+               "[ " + (_obIndex + 1) + " / " + _obSteps.length + " ]";
+            document.getElementById("ob-title").textContent = step.title || "";
+            document.getElementById("ob-desc").textContent = step.desc || "";
+
+            const last = _obIndex === _obSteps.length - 1;
+            document.getElementById("ob-next").textContent = last
+               ? (window.t ? window.t("shell.onboard.gotIt") : "Got it")
+               : (window.t ? window.t("shell.onboard.next") : "Next →");
+            document.getElementById("ob-skip").style.visibility = last ? "hidden" : "visible";
+
+            const dots = document.querySelectorAll("#ob-dots .ob-dot");
+            dots.forEach((d, i) => {
+               d.classList.toggle("active", i === _obIndex);
+               d.classList.toggle("done", i < _obIndex);
+            });
+
+            positionOnboard();
+         }
+
+         function positionOnboard() {
+            const step = _obSteps[_obIndex];
+            if (!step) return;
+            const el = document.getElementById(step.target);
+            const spot = document.getElementById("onboard-spot");
+            const card = document.getElementById("onboard-card");
+            const pad = typeof step.pad === "number" ? step.pad : 8;
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+
+            let rect;
+            if (el) {
+               const r = el.getBoundingClientRect();
+               rect = {
+                  left: r.left - pad,
+                  top: r.top - pad,
+                  width: r.width + pad * 2,
+                  height: r.height + pad * 2,
+               };
+            } else {
+               rect = { left: vw / 2 - 80, top: vh / 2 - 24, width: 160, height: 48 };
+            }
+
+            spot.style.left = rect.left + "px";
+            spot.style.top = rect.top + "px";
+            spot.style.width = rect.width + "px";
+            spot.style.height = rect.height + "px";
+
+            // Place card: prefer right, then left, then below, then above the spotlight.
+            const cw = card.offsetWidth || 300;
+            const ch = card.offsetHeight || 190;
+            const gap = 16;
+            const m = 12;
+            let cx, cy;
+            if (rect.left + rect.width + gap + cw <= vw - m) {
+               cx = rect.left + rect.width + gap;
+               cy = rect.top;
+            } else if (rect.left - gap - cw >= m) {
+               cx = rect.left - gap - cw;
+               cy = rect.top;
+            } else if (rect.top + rect.height + gap + ch <= vh - m) {
+               cx = rect.left;
+               cy = rect.top + rect.height + gap;
+            } else {
+               cx = rect.left;
+               cy = rect.top - gap - ch;
+            }
+            cx = Math.max(m, Math.min(cx, vw - cw - m));
+            cy = Math.max(m, Math.min(cy, vh - ch - m));
+            card.style.left = cx + "px";
+            card.style.top = cy + "px";
+         }
+
+         function onboardNext() {
+            if (_obIndex >= _obSteps.length - 1) {
+               finishOnboarding();
+               return;
+            }
+            _obIndex++;
+            renderOnboard();
+         }
+         function onboardPrev() {
+            if (_obIndex <= 0) return;
+            _obIndex--;
+            renderOnboard();
+         }
+         function onboardSkip() {
+            finishOnboarding();
+         }
+         function finishOnboarding() {
+            const root = document.getElementById("onboard");
+            if (!root.classList.contains("show")) return;
+            root.classList.remove("show");
+            window.removeEventListener("resize", positionOnboard);
+            post("onboardingDone");
+         }
+
+         /* ════════ window drag (titlebar) ════════ */
+         document.getElementById("titlebar").addEventListener("mousedown", (e) => {
+            if (onboardActive()) return;
+            if (e.target.closest(".win-btn")) return;
+            post("startDrag");
+         });
+
+         /* keyboard: onboarding nav takes priority while active, else ESC closes patch menu */
+         document.addEventListener("keydown", (e) => {
+            if (confirmActive()) {
+               if (e.key === "Escape") resolveConfirm(false);
+               else if (e.key === "Enter") {
+                  // If a button in the modal has focus (e.g. the user tabbed to Cancel), let the
+                  // native Enter→click on THAT button win. Defaulting Enter to Continue here would
+                  // turn a deliberate Cancel into a Continue on a destructive-action gate.
+                  const f = document.activeElement;
+                  if (f && f.tagName === "BUTTON" && f.closest("#confirm-modal")) return;
+                  e.preventDefault();
+                  resolveConfirm(true);
+               }
+               return;
+            }
+            if (failureActive()) {
+               if (e.key === "Escape") closeFailureModal();
+               return;
+            }
+            if (onboardActive()) {
+               if (e.key === "Escape") {
+                  finishOnboarding();
+               } else if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onboardNext();
+               } else if (e.key === "ArrowLeft") {
+                  onboardPrev();
+               }
+               return;
+            }
+            if (e.key === "Escape") {
+               if (newsModalActive()) {
+                  closeNewsModal();
+                  return;
+               }
+               hidePatchMenu();
+            }
+         });
+      </script>
+   </body>
+</html>

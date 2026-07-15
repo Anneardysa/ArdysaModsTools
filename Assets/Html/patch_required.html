@@ -1,0 +1,247 @@
+<!--
+ * Copyright (C) 2026 Ardysa
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ -->
+<!doctype html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Patch Required - AMT 2.0</title>
+      <style>
+         * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+         }
+
+         :root {
+            --bg-dark: #000000;
+            --bg-card: #141414;
+            --border-color: #333333;
+            --text-primary: #ffffff;
+            --text-secondary: #aaaaaa;
+            --text-muted: #666666;
+            --accent-orange: #ffb432;
+            --accent-orange-light: #ffc860;
+         }
+
+         body {
+            font-family: "JetBrains Mono", "Consolas", monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* safe center: centered when it fits, top-aligned + scrollable when too tall at
+               high DPI, so the bottom buttons are never clipped. */
+            justify-content: safe center;
+            overflow-y: auto;
+            user-select: none;
+            border: 1px solid var(--accent-orange);
+         }
+
+         .container {
+            width: 100%;
+            max-width: 460px;
+            padding: 32px;
+            text-align: center;
+         }
+
+         /* Badge */
+         .badge {
+            display: inline-block;
+            padding: 8px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--accent-orange);
+            color: var(--accent-orange);
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 24px;
+         }
+
+         /* Title */
+         .title {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            letter-spacing: 0.5px;
+         }
+
+         /* Brand mark */
+         .brand-mark {
+            width: 34px;
+            height: 34px;
+            margin: 0 auto 18px;
+            color: var(--text-primary);
+            opacity: 0.85;
+         }
+         .brand-mark svg { width: 100%; height: 100%; display: block; }
+
+         /* Icon */
+         .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            animation: pulse 2s ease-in-out infinite;
+         }
+
+         @keyframes pulse {
+            0%,
+            100% {
+               opacity: 1;
+               transform: scale(1);
+            }
+            50% {
+               opacity: 0.8;
+               transform: scale(1.05);
+            }
+         }
+
+         /* Message */
+         .message {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 32px;
+         }
+
+         .message .highlight {
+            color: var(--accent-orange);
+            font-weight: bold;
+         }
+
+         /* Buttons */
+         .buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+         }
+
+         .btn {
+            padding: 14px 28px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid;
+         }
+
+         .btn-primary {
+            background: var(--accent-orange);
+            border-color: var(--accent-orange);
+            color: black;
+         }
+
+         .btn-primary:hover {
+            background: var(--accent-orange-light);
+            border-color: var(--accent-orange-light);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 180, 50, 0.3);
+         }
+
+         .btn-secondary {
+            background: transparent;
+            border-color: var(--border-color);
+            color: var(--text-muted);
+         }
+
+         .btn-secondary:hover {
+            background: var(--bg-card);
+            border-color: var(--text-muted);
+            color: var(--text-secondary);
+         }
+
+         /* Draggable Header */
+         .drag-area {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            cursor: move;
+            -webkit-app-region: drag;
+         }
+      </style>
+   </head>
+   <body>
+      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg) -->
+      <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+         <defs>
+            <g id="ardysaGlyph">
+               <g transform="translate(1.007913, 440.428851)"><path d="M190.79,158.66c0,12.07,2.23,23.49,6.69,34.25c4.47,10.77,10.65,20.08,18.52,27.96s17.06,14.05,27.56,18.52 c10.5,4.46,21.79,6.69,33.87,6.69H84.48c11.55-1.57,22.71-5.24,33.48-11.02c10.76-5.78,20.86-13,30.31-21.67 c9.46-8.67,17.86-18.25,25.21-28.75c7.34-10.5,13.11-21.26,17.31-32.29V158.66z M342.02,246.08c11.03,0,20.48-4.59,28.35-13.77 c7.88-9.19,11.81-19.57,11.81-31.13c0-2.09,0-4.19,0-6.29c0-2.09-0.53-4.2-1.58-6.31l-22.83-66.15l-1.58-4.73L300.27-43.75 c-3.68-8.92-10.24-13.38-19.69-13.38c-8.93,0-15.23,4.46-18.9,13.38l94.5-261.46L443.6-53.98c3.68,10.5,7.88,22.97,12.6,37.42 c4.72,14.43,8.92,26.9,12.6,37.4l64.58,184.29c3.67,10.5,10.09,19.95,19.29,28.35c9.19,8.41,19.82,12.6,31.9,12.6H342.02z" /></g>
+               <g transform="translate(407.31193, 150.568186)"><path d="M400.89,182.21c0-12.07-2.23-23.49-6.69-34.25c-4.47-10.77-10.65-20.08-18.52-27.96s-17.06-14.05-27.56-18.52 c-10.5-4.46-21.79-6.69-33.88-6.69H507.2c-11.55,1.57-22.71,5.24-33.48,11.02c-10.76,5.78-20.86,13-30.31,21.67 c-9.46,8.67-17.86,18.25-25.21,28.75c-7.34,10.5-13.11,21.26-17.31,32.29V182.21z M249.66,94.79 c-11.03,0-20.48,4.59-28.35,13.77c-7.88,9.19-11.81,19.57-11.81,31.12c0,2.09,0,4.19,0,6.29c0,2.09,0.53,4.2,1.58,6.31 l22.83,66.15l1.58,4.73l55.92,161.46c3.68,8.92,10.24,13.38,19.69,13.38c8.93,0,15.23-4.46,18.9-13.38l-94.5,261.46 l-87.42-251.23c-3.68-10.5-7.88-22.97-12.6-37.42c-4.72-14.43-8.92-26.9-12.6-37.4L58.29,135.75 c-3.67-10.5-10.09-19.95-19.29-28.35c-9.19-8.41-19.82-12.6-31.9-12.6H249.66z" /></g>
+            </g>
+         </defs>
+      </svg>
+      <div class="drag-area" onmousedown="startDrag()"></div>
+
+      <div class="container">
+         <div class="brand-mark"><svg viewBox="0 0 1000 1000" fill="currentColor" aria-label="Ardysa"><use href="#ardysaGlyph" /></svg></div>
+
+         <div class="badge">[ ATTENTION ]</div>
+
+         <div class="icon">⚠️</div>
+
+         <div class="title" data-i18n="patchReq.title">PATCH UPDATE REQUIRED</div>
+
+         <div class="message" id="messageText">
+            <span class="highlight" data-i18n="mods.install.successBody">ModsPack installed successfully!</span>
+            <br /><br />
+            <span data-i18n="patchReq.body">However, Dota 2 files need to be patched for mods to work.</span>
+            <br />
+            <span data-i18n="patchReq.clickHint">Click 'Patch Now' to complete the installation.</span>
+         </div>
+
+         <div class="buttons">
+            <button class="btn btn-primary" onclick="patchNow()" data-i18n="patchReq.patchNow">PATCH NOW</button>
+            <button class="btn btn-secondary" onclick="later()" data-i18n="patchReq.later">LATER</button>
+         </div>
+      </div>
+
+      <script>
+         function setMessage(successMessage) {
+            document.getElementById("messageText").innerHTML =
+               `<span class="highlight">${successMessage}</span>
+                <br><br>
+                ${t("patchReq.body")}
+                <br>
+                ${t("patchReq.clickHint")}`;
+         }
+
+         function patchNow() {
+            sendMessage({ type: "patchNow" });
+         }
+
+         function later() {
+            sendMessage({ type: "later" });
+         }
+
+         function startDrag() {
+            sendMessage({ type: "startDrag" });
+         }
+
+         function sendMessage(data) {
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage(data);
+            }
+         }
+      </script>
+   </body>
+</html>
