@@ -49,6 +49,9 @@ namespace ArdysaModsTools.UI.Forms
 
         private bool _manualActive;
 
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int cx, int cy);
+
         [DllImport("user32.dll")]
         private static extern bool ReleaseCapture();
 
@@ -87,6 +90,9 @@ namespace ArdysaModsTools.UI.Forms
             };
             Controls.Add(_webView);
 
+            ApplyRoundedForm();
+            this.Resize += (s, e) => ApplyRoundedForm();
+
             KeyPreview = true;
             KeyDown += (s, e) =>
             {
@@ -104,6 +110,11 @@ namespace ArdysaModsTools.UI.Forms
         private static readonly System.Drawing.Size ChooseSize = new(440, 348);
         private static readonly System.Drawing.Size ManualSize = new(520, 560);
 
+        private void ApplyRoundedForm()
+        {
+            this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, 12, 12));
+        }
+
         private void ResizeKeepingCenter(System.Drawing.Size baseClient)
         {
             double scale = Helpers.DpiLayout.CurrentUiScale;
@@ -114,6 +125,7 @@ namespace ArdysaModsTools.UI.Forms
             var center = new System.Drawing.Point(Left + Width / 2, Top + Height / 2);
             ClientSize = client;
             Location = new System.Drawing.Point(center.X - Width / 2, center.Y - Height / 2);
+            ApplyRoundedForm();
             Helpers.DpiLayout.ClampToWorkingArea(this);
         }
 

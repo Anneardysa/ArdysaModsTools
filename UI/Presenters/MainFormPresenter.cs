@@ -46,7 +46,6 @@ namespace ArdysaModsTools.UI.Presenters
         private readonly ModInstallerService _modInstaller;
         private readonly DetectionService _detection;
         private readonly IStatusService _status;
-        private readonly ISetupVerificationService _verification;
         private readonly IConfigService _config;
         private readonly Dota2Monitor _dotaMonitor;
         private readonly DotaVersionService _versionService;
@@ -81,14 +80,12 @@ namespace ArdysaModsTools.UI.Presenters
 
         #region Constructor & Initialization
 
-        public MainFormPresenter(IMainFormView view, Logger logger, IConfigService configService,
-            IStatusService statusService, ISetupVerificationService? verificationService = null)
+        public MainFormPresenter(IMainFormView view, Logger logger, IConfigService configService, IStatusService statusService)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _config = configService ?? throw new ArgumentNullException(nameof(configService));
             _status = statusService ?? throw new ArgumentNullException(nameof(statusService));
-            _verification = verificationService ?? new SetupVerificationService(_logger);
 
             _updater = new UpdaterService(_logger);
             _updater.OnVersionChanged += version =>
@@ -105,7 +102,7 @@ namespace ArdysaModsTools.UI.Presenters
             _dotaMonitor.OnDota2StateChanged += OnDotaStateChanged;
             _dotaMonitor.Start();
 
-            _navigationPresenter = new NavigationPresenter(_view, _logger, _status, _updater);
+            _navigationPresenter = new NavigationPresenter(_view, _logger, _status);
             
             WireUpPresenterEvents();
 
@@ -358,7 +355,8 @@ namespace ArdysaModsTools.UI.Presenters
                 FeatureAccessService.InstallModsPackFeature);
             if (!installAccess.IsAllowed)
             {
-                await UIHelpers.ShowFeatureBlockedAsync(_view, installAccess, _updater, _logger.Log);
+                await UIHelpers.ShowFeatureUnavailableAsync(
+                    _view, installAccess.FeatureDisplayName, installAccess.BlockedMessage!, _logger.Log);
                 return false;
             }
             if (installAccess.IsDevModeBypass)
@@ -461,15 +459,13 @@ namespace ArdysaModsTools.UI.Presenters
         {
             if (isUpToDate)
             {
-                bool reinstall = await _view.ShowShellConfirmAsync(
-                    Loc.T("mods.upToDate.title"),
-                    Loc.T("mods.upToDate.heading"),
+                var result = _view.ShowMessageBox(
                     Loc.T("mods.upToDate.body"),
-                    "",
-                    Loc.T("mods.upToDate.confirm"),
-                    Loc.T("common.cancel"));
+                    Loc.T("mods.upToDate.title"),
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
 
-                if (reinstall)
+                if (result == DialogResult.Yes)
                 {
                     await ReinstallAsync(appPath);
                 }
@@ -885,15 +881,9 @@ namespace ArdysaModsTools.UI.Presenters
 
                 _currentStatus = statusInfo;
 
-                var verification =
-                    statusInfo.Status is ModStatus.NotInstalled or ModStatus.NotChecked
-                        ? SetupVerificationResult.Empty
-                        : statusInfo.Verification;
-
                 _view.InvokeOnUIThread(() =>
                 {
                     _view.SetModsStatusDetailed(statusInfo);
-                    _view.SetSetupChecks(verification);
 
                     if (!isSameStatus)
                     {
@@ -905,7 +895,7 @@ namespace ArdysaModsTools.UI.Presenters
                             LogSegment.T(statusInfo.DescriptionKey, statusInfo.DescriptionVars));
                     }
                     
-                    if (statusInfo.Status == ModStatus.Error && statusInfo.SetupFailure == null)
+                    if (statusInfo.Status == ModStatus.Error)
                     {
                         _view.EnableDetectionButtonsOnly();
                     }
@@ -915,47 +905,6 @@ namespace ArdysaModsTools.UI.Presenters
             {
                 _logger.Log($"[STATUS] Error checking status: {ex.Message}");
                 _view.SetModsStatus(false, Loc.T("status.error.text"));
-            }
-        }
-
-        public async Task FixSetupAsync()
-        {
-            if (string.IsNullOrEmpty(_targetPath))
-            {
-                await CheckModsStatusAsync();
-                return;
-            }
-
-            try
-            {
-                var (cleared, error) = await _verification.TryClearForcedAdminAsync(_targetPath);
-
-                if (error != null)
-                {
-                    _logger.Log(Loc.T("verify.fix.error", new { message = error }));
-                    _view.ShowShellToast(Loc.T("verify.title"),
-                        Loc.T("verify.fix.error", new { message = error }), "error");
-                }
-                else if (cleared == 0)
-                {
-                    _view.ShowShellToast(Loc.T("verify.title"), Loc.T("verify.fix.none"), "info");
-                }
-                else
-                {
-                    string message = Loc.T("verify.fix.success");
-                    _logger.Log(message);
-                    _view.ShowShellToast(Loc.T("verify.title"), message, "success");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.Log($"[VERIFY] Fix setup failed: {ex.Message}");
-                _view.ShowShellToast(Loc.T("verify.title"),
-                    Loc.T("verify.fix.error", new { message = ex.Message }), "error");
-            }
-            finally
-            {
-                await CheckModsStatusAsync();
             }
         }
 
@@ -1366,7 +1315,8 @@ namespace ArdysaModsTools.UI.Presenters
                 FeatureAccessService.MiscellaneousFeature);
             if (!miscAccess.IsAllowed)
             {
-                await UIHelpers.ShowFeatureBlockedAsync(_view, miscAccess, _updater, _logger.Log);
+                await UIHelpers.ShowFeatureUnavailableAsync(
+                    _view, miscAccess.FeatureDisplayName, miscAccess.BlockedMessage!, _logger.Log);
                 return;
             }
             if (miscAccess.IsDevModeBypass)
@@ -1375,9 +1325,11 @@ namespace ArdysaModsTools.UI.Presenters
             }
 
             var (result, generationResult) = _view.ShowMiscForm(_targetPath);
-
+            
             if (generationResult != null)
-                LogGenerationOutcome(generationResult);
+            {
+                LogGenerationResult(generationResult);
+            }
 
             if (result == DialogResult.OK)
             {
@@ -1402,7 +1354,8 @@ namespace ArdysaModsTools.UI.Presenters
                 FeatureAccessService.SkinSelectorFeature);
             if (!skinAccess.IsAllowed)
             {
-                await UIHelpers.ShowFeatureBlockedAsync(_view, skinAccess, _updater, _logger.Log);
+                await UIHelpers.ShowFeatureUnavailableAsync(
+                    _view, skinAccess.FeatureDisplayName, skinAccess.BlockedMessage!, _logger.Log);
                 return;
             }
             if (skinAccess.IsDevModeBypass)
@@ -1456,8 +1409,10 @@ namespace ArdysaModsTools.UI.Presenters
             }
             
             if (generationResult != null)
-                LogGenerationOutcome(generationResult);
-
+            {
+                LogGenerationResult(generationResult);
+            }
+            
             await CheckModsStatusAsync();
             
             if (dialogResult == DialogResult.OK)
@@ -1516,12 +1471,15 @@ namespace ArdysaModsTools.UI.Presenters
             return false;
         }
         
-        private void LogGenerationOutcome(ModGenerationResult result)
+        private void LogGenerationResult(ModGenerationResult result)
         {
             if (result.Success)
             {
                 var details = result.Details ?? Loc.T("log.gen.completed");
                 _logger.LogLocalized("success", LogSegment.Text("[GEN] "), LogSegment.T("log.gen.success", new { details }));
+                _logger.LogLocalized("default", LogSegment.Text("[GEN] "), LogSegment.T("log.gen.totalItems", new { count = result.OptionsCount }));
+                _logger.LogLocalized("default", LogSegment.Text("[GEN] "),
+                    LogSegment.T("log.gen.timeTaken", new { seconds = result.Duration.TotalSeconds.ToString("F2") }));
             }
             else
             {

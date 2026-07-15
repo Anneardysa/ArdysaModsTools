@@ -23,24 +23,14 @@ namespace ArdysaModsTools.UI.Helpers
     public static class WebViewTheming
     {
         private const string StyleId = "amt-theme";
-        private const string FontStyleId = "amt-fonts";
         private const string HtmlAnchor = "<html lang=\"en\"";
         private const string HeadAnchor = "</head>";
 
         private static string? _cssCache;
-        private static string? _fontCssCache;
 
         public static string Apply(string html)
         {
             if (string.IsNullOrEmpty(html)) return html;
-
-            string fontCss = ReadFontCss();
-            if (fontCss.Length > 0)
-            {
-                int head = html.IndexOf(HeadAnchor, StringComparison.OrdinalIgnoreCase);
-                if (head >= 0)
-                    html = html.Insert(head, $"<style id=\"{FontStyleId}\">\n{fontCss}\n</style>\n");
-            }
 
             string css = ReadCss();
             if (css.Length > 0)
@@ -72,21 +62,19 @@ namespace ArdysaModsTools.UI.Helpers
                 ? "document.documentElement.removeAttribute('data-theme');"
                 : "document.documentElement.setAttribute('data-theme','light');";
 
-        private static string ReadCss() => _cssCache ??= ReadAsset("theme.css");
-
-        private static string ReadFontCss() => _fontCssCache ??= ReadAsset("fonts.css");
-
-        private static string ReadAsset(string fileName)
+        private static string ReadCss()
         {
+            if (_cssCache != null) return _cssCache;
             try
             {
-                var path = Path.Combine(AppContext.BaseDirectory, "Assets", "Html", fileName);
-                return File.Exists(path) ? File.ReadAllText(path) : string.Empty;
+                var path = Path.Combine(AppContext.BaseDirectory, "Assets", "Html", "theme.css");
+                _cssCache = File.Exists(path) ? File.ReadAllText(path) : string.Empty;
             }
             catch
             {
-                return string.Empty;
+                _cssCache = string.Empty;
             }
+            return _cssCache;
         }
     }
 }

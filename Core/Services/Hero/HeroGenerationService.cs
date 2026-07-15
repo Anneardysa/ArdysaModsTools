@@ -21,7 +21,6 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
@@ -180,7 +179,7 @@ namespace ArdysaModsTools.Core.Services
 
                     var mergedBlocks = new Dictionary<string, (string block, string heroId)>();
 
-                    var protectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    bool anyEncrypted = false;
 
                     stageProgress?.Report((20, "Processing"));
 
@@ -194,7 +193,7 @@ namespace ArdysaModsTools.Core.Services
                         var firstItem = group.First();
                         var hero = firstItem.hero;
 
-                        var extractedList = new List<(HeroModel hero, string setName, HeroModelMapper.SkinCategory category, string folderPath, string zipUrl, bool encrypted)>();
+                        var extractedList = new List<(HeroModel hero, string setName, HeroModelMapper.SkinCategory category, string folderPath, string zipUrl)>();
 
                         foreach (var item in group)
                         {
@@ -239,24 +238,18 @@ namespace ArdysaModsTools.Core.Services
                             }
 
                             string setFolder;
-                            bool selEncrypted = false;
                             try
                             {
                                 var fastZipUrl = Core.Services.Config.EnvironmentConfig.ConvertToFastUrl(zipUrl);
                                 setFolder = await _downloader.DownloadAndExtractAsync(
                                     item.hero.Id, item.setName, fastZipUrl, log, ct, speedProgress,
-                                    onEncryptedDetected: () => selEncrypted = true).ConfigureAwait(false);
+                                    onEncryptedDetected: () => anyEncrypted = true).ConfigureAwait(false);
 
                                 speedProgress?.Report(new ArdysaModsTools.Core.Models.SpeedMetrics 
                                 { 
                                     CurrentFile = processedSelectionsCount,
                                     TotalFiles = totalSelections
                                 });
-                            }
-                            catch (DownloadException dex) when (dex.ErrorCode == ErrorCodes.DL_ASSET_INCOMPATIBLE)
-                            {
-                                _logger?.LogDebug($"[{dex.ErrorCode}] Aborting batch: {dex.Message}");
-                                return Fail(dex.Message, report, targetPath, dex.ErrorCode);
                             }
                             catch (Exception ex)
                             {
@@ -265,7 +258,7 @@ namespace ArdysaModsTools.Core.Services
                             }
 
                             var category = HeroModelMapper.ClassifySet(item.hero.Sets, item.setName);
-                            extractedList.Add((item.hero, item.setName, category, setFolder, zipUrl, selEncrypted));
+                            extractedList.Add((item.hero, item.setName, category, setFolder, zipUrl));
                         }
 
                         if (extractedList.Count == 0)
@@ -316,14 +309,6 @@ namespace ArdysaModsTools.Core.Services
                                 System.Diagnostics.Debug.WriteLine(
                                     $"[DEBUG] {hero.DisplayName}: '{selection.setName}' ({selection.category}) merged {copiedFiles.Count} asset file(s).");
 
-                                foreach (var rel in copiedFiles)
-                                {
-                                    if (selection.encrypted && ProtectedVpkStore.IsProtectable(rel))
-                                        protectedPaths.Add(rel);
-                                    else
-                                        protectedPaths.Remove(rel);
-                                }
-
                                 if (selection.category == HeroModelMapper.SkinCategory.Prismatic)
                                 {
                                     log($"[Patcher] {hero.DisplayName}: Prismatic '{selection.setName}' merged {copiedFiles.Count} asset file(s) as an overlay (no index.txt).");
@@ -365,7 +350,7 @@ namespace ArdysaModsTools.Core.Services
                         catch (Exception ex)
                         {
                             failedHeroes.Add((hero.DisplayName, ex.Message));
-                            _logger?.LogDebug($"Error merging assets for {hero.DisplayName}: {ex}");
+                            _logger?.Log($"Error merging assets for {hero.DisplayName}: {ex}");
                         }
                         finally
                         {
@@ -417,11 +402,7 @@ namespace ArdysaModsTools.Core.Services
                     stageProgress?.Report((60, Loc.T("progress.downloadingAssets")));
                     log("Downloading assets...");
                     var locSuccess = await _localizationPatcher.PatchLocalizationAsync(
-                        extractDir, log, ct,
-                        onFileDone: (done, total) =>
-                            stageProgress?.Report((60 + done * 5 / Math.Max(total, 1),
-                                Loc.T("progress.downloadingAssets"))))
-                        .ConfigureAwait(false);
+                        extractDir, s => { }, ct).ConfigureAwait(false);
                     if (!locSuccess)
                     {
                         report.Warn("Some localization files failed to download — some text labels may be missing.");
@@ -436,27 +417,11 @@ namespace ArdysaModsTools.Core.Services
                         TotalBytes = 0 
                     });
 
-                    string protectedDir = Path.Combine(tempRoot, "protected");
-                    int protectedMoved = 0;
-                    if (protectedPaths.Count > 0 && ProtectedVpkStore.IsMounted(targetPath))
-                    {
-                        ProtectedVpkStore.Ensure(targetPath);
-                        protectedMoved = ProtectedVpkStore.MoveProtected(
-                            extractDir, protectedDir, protectedPaths, _logger, ct);
-                    }
-                    else if (protectedPaths.Count > 0)
-                    {
-                        _logger?.LogDebug("Protected split skipped: the installed game config does not mount the second package yet.");
-                    }
-
-                    if (protectedMoved > 0)
-                        _logger?.LogDebug($"Protected split: {protectedMoved} file(s) moved out of the main package into game/mod.");
-
                     stageProgress?.Report((65, "Building"));
                     log("Building VPK...");
-
+                    
                     var newVpkPath = await _recompiler.RecompileAsync(
-                        vpkToolPath, extractDir, buildDir, tempRoot,
+                        vpkToolPath, extractDir, buildDir, tempRoot, 
                         vpkLog => log($"[VPK] {vpkLog}"),
                         ct).ConfigureAwait(false);
 
@@ -468,34 +433,12 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
-                    string? newProtectedVpkPath = null;
-                    if (protectedMoved > 0)
-                    {
-                        newProtectedVpkPath = await _recompiler.RecompileAsync(
-                            vpkToolPath, protectedDir, buildDir, tempRoot,
-                            vpkLog => log($"[VPK] {vpkLog}"),
-                            ct).ConfigureAwait(false);
-
-                        if (string.IsNullOrWhiteSpace(newProtectedVpkPath) ||
-                            string.Equals(newProtectedVpkPath, newVpkPath, StringComparison.OrdinalIgnoreCase))
-                        {
-                            log("[VPK] Protected package build returned null - check logs above for details");
-                            return Fail("VPK recompilation failed.", report, targetPath);
-                        }
-                    }
-
-                    ct.ThrowIfCancellationRequested();
-
                     stageProgress?.Report((80, Loc.T("progress.installingShort")));
                     log("Installing...");
                     var replaceSuccess = await _replacer.ReplaceAsync(
-                        targetPath, newVpkPath, log, ct).ConfigureAwait(false);
+                        targetPath, newVpkPath, log, ct, hideOutput: anyEncrypted).ConfigureAwait(false);
 
                     if (!replaceSuccess)
-                        return Fail("VPK replacement failed.", report, targetPath);
-
-                    if (!await ProtectedVpkStore.DeployAsync(
-                            targetPath, newProtectedVpkPath, log, CancellationToken.None, _logger).ConfigureAwait(false))
                         return Fail("VPK replacement failed.", report, targetPath);
 
                     extractionLog.Save(targetPath);
@@ -535,7 +478,7 @@ namespace ArdysaModsTools.Core.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger?.LogDebug($"Cleanup failed: {ex.Message}");
+                        _logger?.Log($"Cleanup failed: {ex.Message}");
                     }
 
                     System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
@@ -552,7 +495,7 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 log($"Error: {ex.Message}");
-                _logger?.LogDebug($"HeroGenerationService batch error: {ex}");
+                _logger?.Log($"HeroGenerationService batch error: {ex}");
                 return new OperationResult { Success = false, Message = ex.Message, Exception = ex };
             }
         }
@@ -585,7 +528,7 @@ namespace ArdysaModsTools.Core.Services
             var contentRoot = FindContentRoot(setFolder);
             if (string.IsNullOrEmpty(contentRoot))
             {
-                _logger?.LogDebug($"No content found in {setFolder}");
+                _logger?.Log($"No content found in {setFolder}");
                 return (setFolder, copiedFiles);
             }
 
@@ -615,7 +558,7 @@ namespace ArdysaModsTools.Core.Services
 #if DEBUG
             System.Diagnostics.Debug.WriteLine($"[DEBUG] Copied {copiedFiles.Count} files");
 #endif
-            _logger?.LogDebug($"Merged {copiedFiles.Count} files");
+            _logger?.Log($"Merged {copiedFiles.Count} files");
 
             await Task.CompletedTask;
             return (contentRoot, copiedFiles);
@@ -672,7 +615,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger?.LogDebug($"Bundled index read failed for {setFolder}: {ex.Message}");
+                _logger?.Log($"Bundled index read failed for {setFolder}: {ex.Message}");
                 return null;
             }
         }
@@ -701,8 +644,7 @@ namespace ArdysaModsTools.Core.Services
             return new OperationResult { Success = false, Message = message };
         }
 
-        private static OperationResult Fail(
-            string message, GenerationReport report, string targetPath, string? errorCode = null)
+        private static OperationResult Fail(string message, GenerationReport report, string targetPath)
         {
             report.Log($"Error: {message}");
             report.Save(targetPath);
@@ -710,7 +652,6 @@ namespace ArdysaModsTools.Core.Services
             {
                 Success = false,
                 Message = message,
-                ErrorCode = errorCode,
                 Warnings = report.Warnings.Count > 0 ? report.Warnings.ToList() : null,
                 LogLines = report.Lines.ToList()
             };

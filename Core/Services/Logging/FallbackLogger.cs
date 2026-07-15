@@ -25,17 +25,12 @@ namespace ArdysaModsTools.Core.Services
 
         public static Action<string>? UserLogger { get; set; }
 
-        public static void Log(string message) => Write(message, toUi: true);
-
-        public static void LogFileOnly(string message) => Write(message, toUi: false);
-
-        private static void Write(string message, bool toUi)
+        public static void Log(string message)
         {
             try
             {
                 string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}";
-                if (toUi)
-                    try { UserLogger?.Invoke(message); } catch {  }
+                try { UserLogger?.Invoke(message); } catch {  }
 
                 File.AppendAllText(_logFile, line + Environment.NewLine);
             }

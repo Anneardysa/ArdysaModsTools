@@ -29,7 +29,6 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using ArdysaModsTools.Core.Services.Update.Models;
-using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.UI.Forms
 {
@@ -307,7 +306,7 @@ namespace ArdysaModsTools.UI.Forms
                 await ExecuteScriptSafeAsync("showPreviewLoading()");
 
                 using var request = new HttpRequestMessage(HttpMethod.Get, GitHubApiUrl);
-                request.Headers.TryAddWithoutValidation("User-Agent", HttpClientProvider.UserAgent);
+                request.Headers.Add("User-Agent", "ArdysaModsTools");
                 request.Headers.Add("Accept", "application/vnd.github.v3+json");
 
                 using var response = await _httpClient.SendAsync(request);

@@ -52,21 +52,14 @@ packages/
 !AppIcon.ico
 *.dmp
 
-# SCRIPTS & TOOLS — all local tooling ignored; a few pipeline scripts are force-tracked below.
-scripts/**
-# Re-include directories so git descends into them to reach the whitelisted files.
-!scripts/**/
+# SCRIPTS & TOOLS
+scripts/*
+scripts/*/*
 !scripts/**/*.iss
 # Delta-update release pipeline — must be tracked: release.yml runs the manifest generator on the
 # CI runner, and without the pair no release can publish an incremental update at all.
-!scripts/release/generate-files-manifest.ps1
-!scripts/release/publish-delta-to-r2.ps1
-# Public-mirror engine — must be tracked so the GitLab CI mirror job can run it (kept out of the
-# public mirror itself via .mirrorignore). publish.py / publish_gui.py stay ignored (local only).
-!scripts/release/publish-github.ps1
-# Git hooks — must be tracked so a fresh clone can install them. The pre-push guard is what stops
-# a raw push to the public GitHub mirror from publishing real key material and full comments.
-!scripts/dev/hooks/*
+!scripts/generate-files-manifest.ps1
+!scripts/publish-delta-to-r2.ps1
 tools/confuserex/
 config/feature_access.json
 
@@ -79,7 +72,7 @@ docs/dev/DISTRIBUTION.md
 *.secrets.json
 
 # QA BOT — local question database (.env token already covered above)
-scripts/community/qa_bot/qa.db*
+scripts/qa_bot/qa.db*
 appsettings.json
 appsettings.*.json
 !appsettings.template.json
@@ -116,6 +109,3 @@ docs/samples/
 .claude/
 .CLAUDE.md
 /.train
-
-# AMT 3.0 (next/) - ignored on main branch (2.0)
-next/

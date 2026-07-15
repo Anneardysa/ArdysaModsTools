@@ -22,7 +22,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Config;
-using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -42,7 +41,7 @@ namespace ArdysaModsTools.Core.Services
         private static HttpClient CreateClient()
         {
             var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", HttpClientProvider.UserAgent);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("ArdysaModsTools");
             return client;
         }
 

@@ -25,7 +25,6 @@ using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Localization;
-using ArdysaModsTools.Core.Services.Update;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.UI.Interfaces;
 using ArdysaModsTools.UI.Forms;
@@ -39,8 +38,7 @@ namespace ArdysaModsTools.UI.Presenters
         private readonly IMainFormView _view;
         private readonly Logger _logger;
         private readonly IStatusService _status;
-        private readonly UpdaterService? _updater;
-
+        
         private bool _patchDialogDismissedByUser;
 
         #endregion
@@ -63,16 +61,11 @@ namespace ArdysaModsTools.UI.Presenters
 
         #region Constructor
 
-        public NavigationPresenter(
-            IMainFormView view,
-            Logger logger,
-            IStatusService statusService,
-            UpdaterService? updater = null)
+        public NavigationPresenter(IMainFormView view, Logger logger, IStatusService statusService)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _status = statusService ?? throw new ArgumentNullException(nameof(statusService));
-            _updater = updater;
         }
 
         #endregion
@@ -87,9 +80,11 @@ namespace ArdysaModsTools.UI.Presenters
                 return;
 
             var (result, generationResult) = _view.ShowMiscForm(TargetPath);
-
+            
             if (generationResult != null)
-                LogGenerationOutcome(generationResult);
+            {
+                LogGenerationResult(generationResult);
+            }
 
             if (result == DialogResult.OK)
             {
@@ -159,8 +154,10 @@ namespace ArdysaModsTools.UI.Presenters
             }
             
             if (generationResult != null)
-                LogGenerationOutcome(generationResult);
-
+            {
+                LogGenerationResult(generationResult);
+            }
+            
             await RaiseStatusRefreshAsync();
             
             if (dialogResult == DialogResult.OK)
@@ -310,19 +307,24 @@ namespace ArdysaModsTools.UI.Presenters
 
             if (!result.IsAllowed)
             {
-                await UIHelpers.ShowFeatureBlockedAsync(_view, result, _updater, _logger.Log);
+                await UIHelpers.ShowFeatureUnavailableAsync(
+                    _view, result.FeatureDisplayName, result.BlockedMessage!, _logger.Log);
                 return false;
             }
 
             return true;
         }
 
-        private void LogGenerationOutcome(ModGenerationResult result)
+        private void LogGenerationResult(ModGenerationResult result)
         {
             if (result.Success)
-                _logger.Log($"[GEN] Complete: {result.OptionsCount} items generated");
+            {
+                _logger.Log($"[GEN] Success: {result.OptionsCount} items generated");
+            }
             else
-                _logger.Log($"[GEN] Error: {result.ErrorMessage}");
+            {
+                _logger.Log($"[GEN] Failed: {result.ErrorMessage}");
+            }
         }
 
         private async Task RaiseStatusRefreshAsync()

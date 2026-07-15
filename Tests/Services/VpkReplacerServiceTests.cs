@@ -52,32 +52,48 @@ namespace ArdysaModsTools.Tests.Services
             catch {  }
         }
 
-        private void DeployLegacyHiddenVpk()
+        [Test]
+        public async Task ReplaceAsync_HideOutputTrue_MarksDeployedVpkHiddenAndSystem()
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(DeployedVpk)!);
-            File.WriteAllBytes(DeployedVpk, new byte[] { 9, 9, 9 });
-            File.SetAttributes(DeployedVpk, FileAttributes.Hidden | FileAttributes.System);
+            var service = new VpkReplacerService();
+
+            var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { }, default, hideOutput: true);
+
+            Assert.That(ok, Is.True);
+            Assert.That(File.Exists(DeployedVpk), Is.True);
+            var attrs = File.GetAttributes(DeployedVpk);
+            Assert.That(attrs.HasFlag(FileAttributes.Hidden), Is.True, "expected Hidden");
+            Assert.That(attrs.HasFlag(FileAttributes.System), Is.True, "expected System");
         }
 
         [Test]
-        public async Task ReplaceAsync_OverLegacyHiddenVpk_Succeeds()
+        public async Task ReplaceAsync_OverExistingHiddenVpk_Succeeds()
         {
             var service = new VpkReplacerService();
-            DeployLegacyHiddenVpk();
 
-            var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { });
+            var first = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { }, default, hideOutput: true);
+            Assert.That(first, Is.True);
+            Assert.That(File.GetAttributes(DeployedVpk).HasFlag(FileAttributes.Hidden), Is.True);
 
-            Assert.That(ok, Is.True, "replace over a hidden VPK must not throw");
-            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
+            var source2 = Path.Combine(_root, "new_pak01_dir_2.vpk");
+            File.WriteAllBytes(source2, new byte[] { 9, 9, 9 });
+
+            var second = await service.ReplaceAsync(_targetPath, source2, _ => { }, default, hideOutput: true);
+            Assert.That(second, Is.True, "second replace over a hidden VPK must not throw");
+            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 9, 9, 9 }));
         }
 
         [Test]
-        public async Task ReplaceAsync_OverLegacyHiddenVpk_LeavesVpkVisible()
+        public async Task ReplaceAsync_HideOutputFalse_LeavesVpkVisible()
         {
             var service = new VpkReplacerService();
-            DeployLegacyHiddenVpk();
 
-            var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { });
+            await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { }, default, hideOutput: true);
+
+            var source2 = Path.Combine(_root, "new_pak01_dir_2.vpk");
+            File.WriteAllBytes(source2, new byte[] { 5, 6 });
+
+            var ok = await service.ReplaceAsync(_targetPath, source2, _ => { }, default, hideOutput: false);
 
             Assert.That(ok, Is.True);
             var attrs = File.GetAttributes(DeployedVpk);

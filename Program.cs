@@ -77,17 +77,6 @@ namespace ArdysaModsTools
 
             try
             {
-                try
-                {
-                    var logDir = System.IO.Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        "ArdysaModsTools");
-                    System.IO.Directory.CreateDirectory(logDir);
-                    Core.Services.FallbackLogger.SetLogFile(
-                        System.IO.Path.Combine(logDir, "ardysa_fallback.log"));
-                }
-                catch {  }
-
                 Log("=== ArdysaModsTools startup begin ===");
                 Log($"OS: {Environment.OSVersion}, .NET: {Environment.Version}, 64-bit: {Environment.Is64BitProcess}");
                 Log($"Exe: {Environment.ProcessPath}");

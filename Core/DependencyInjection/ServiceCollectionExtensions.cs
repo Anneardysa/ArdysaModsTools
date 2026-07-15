@@ -40,8 +40,6 @@ namespace ArdysaModsTools.Core.DependencyInjection
             services.AddTransient<IModInstallerService, ModInstallerService>();
             services.AddTransient<IStatusService, StatusService>();
             services.AddTransient<IActiveModsService, ActiveModsService>();
-
-            services.AddTransient<ISetupVerificationService, SetupVerificationService>();
             
             services.AddTransient<IDetectionService, DetectionService>();
             

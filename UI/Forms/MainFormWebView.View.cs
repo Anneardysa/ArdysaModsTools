@@ -418,7 +418,7 @@ namespace ArdysaModsTools
                 }
             }
 
-            StatusDetailsDialogWebView.Show(this, status, versionInfo, () => patchAction(), _currentVerification);
+            StatusDetailsDialogWebView.Show(this, status, versionInfo, () => patchAction());
         }
 
         #endregion

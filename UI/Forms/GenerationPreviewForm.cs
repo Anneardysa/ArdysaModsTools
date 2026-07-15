@@ -38,6 +38,9 @@ namespace ArdysaModsTools.UI.Forms
 
         public bool Confirmed { get; private set; }
 
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int cx, int cy);
+
         [DllImport("user32.dll")]
         private static extern bool ReleaseCapture();
 
@@ -76,6 +79,9 @@ namespace ArdysaModsTools.UI.Forms
             };
             Controls.Add(_webView);
 
+            ApplyRoundedForm();
+            this.Resize += (s, e) => ApplyRoundedForm();
+
             KeyPreview = true;
             KeyDown += (s, e) =>
             {
@@ -87,6 +93,11 @@ namespace ArdysaModsTools.UI.Forms
             };
 
             ResumeLayout(false);
+        }
+
+        private void ApplyRoundedForm()
+        {
+            this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, 12, 12));
         }
 
         private async Task InitializeAsync()

@@ -58,19 +58,5 @@ namespace ArdysaModsTools.Core.Services.Cdn
             string actualHash = await ComputeSha256Async(filePath, ct).ConfigureAwait(false);
             return string.Equals(actualHash, expected.Sha256, StringComparison.OrdinalIgnoreCase);
         }
-
-        public static bool Verify(ReadOnlySpan<byte> data, AssetHashEntry expected)
-        {
-            if (expected == null) throw new ArgumentNullException(nameof(expected));
-            if (string.IsNullOrEmpty(expected.Sha256))
-                return false;
-
-            if (expected.Size > 0 && data.Length != expected.Size)
-                return false;
-
-            Span<byte> hash = stackalloc byte[32];
-            SHA256.HashData(data, hash);
-            return string.Equals(Convert.ToHexString(hash), expected.Sha256, StringComparison.OrdinalIgnoreCase);
-        }
     }
 }

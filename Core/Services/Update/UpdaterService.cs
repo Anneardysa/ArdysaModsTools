@@ -54,8 +54,19 @@ namespace ArdysaModsTools.Core.Services.Update
             _httpClient = HttpClientProvider.Client;
             _delta = new DeltaUpdateService(logger);
 
-            CurrentVersion = AppVersion.Current.Version;
-            CurrentBuildNumber = AppVersion.Current.BuildNumber;
+            var version = Application.ProductVersion;
+            CurrentVersion = string.IsNullOrEmpty(version) ? "1.0.0.0" : version;
+
+            try
+            {
+                var fvi = FileVersionInfo.GetVersionInfo(Application.ExecutablePath);
+                CurrentBuildNumber = fvi.FilePrivatePart;
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Could not read build number from FileVersion: {ex.Message}");
+                CurrentBuildNumber = 0;
+            }
 
             _installationType = InstallationDetector.Detect();
 
@@ -123,8 +134,8 @@ namespace ArdysaModsTools.Core.Services.Update
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                using var response = await _httpClient.GetAsync(CdnConfig.ReleaseManifestUrl, cts.Token).ConfigureAwait(false);
-
+                var response = await _httpClient.GetAsync(CdnConfig.ReleaseManifestUrl, cts.Token).ConfigureAwait(false);
+                
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.Log($"R2 manifest not available (HTTP {(int)response.StatusCode})");
@@ -229,16 +240,13 @@ namespace ArdysaModsTools.Core.Services.Update
         {
             try
             {
-                using var response = await RetryHelper.ExecuteAsync(async () =>
+                var response = await RetryHelper.ExecuteAsync(async () =>
                 {
                     var res = await _httpClient.GetAsync(GitHubApiUrl).ConfigureAwait(false);
-
+                    
                     if (RetryHelper.IsTransientStatusCode(res.StatusCode))
-                    {
-                        res.Dispose();
                         throw new HttpRequestException($"Server returned {res.StatusCode}");
-                    }
-
+                    
                     return res;
                 },
                 maxAttempts: 3,

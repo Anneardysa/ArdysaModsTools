@@ -241,4 +241,4 @@ dotnet build -c Debug
 
 1. **Check console logs** - Copy and share error messages
 2. **GitHub Issues** - [Open an issue](https://github.com/Anneardysa/ArdysaModsTools/issues)
-3. **Discord** - [Join community](https://discord.gg/5xKg4fyumv)
+3. **Discord** - [Join community](https://discord.gg/ffXw265Z7e)

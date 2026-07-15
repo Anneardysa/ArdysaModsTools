@@ -65,7 +65,7 @@ namespace ArdysaModsTools.Core.Services
             if (!File.Exists(hlExtractPath) || !File.Exists(vpkToolPath))
             {
                 status("Packaging tools not found.");
-                FallbackLogger.LogFileOnly($"ModsPackData: missing tool — HLExtract={File.Exists(hlExtractPath)}, vpk.exe={File.Exists(vpkToolPath)}");
+                FallbackLogger.Log($"ModsPackData: missing tool — HLExtract={File.Exists(hlExtractPath)}, vpk.exe={File.Exists(vpkToolPath)}");
                 InstallReport.Fail("Packaging tools are missing — please reinstall the app.");
                 return false;
             }
@@ -90,7 +90,7 @@ namespace ArdysaModsTools.Core.Services
                     || !Directory.EnumerateFileSystemEntries(extractDir).Any())
                 {
                     status("Failed to extract ModsPack.");
-                    FallbackLogger.LogFileOnly($"ModsPackData: HLExtract failed or produced empty dir for {vpkPath}");
+                    FallbackLogger.Log($"ModsPackData: HLExtract failed or produced empty dir for {vpkPath}");
                     InstallReport.Fail("Could not unpack the ModsPack package.");
                     return false;
                 }
@@ -128,7 +128,7 @@ namespace ArdysaModsTools.Core.Services
                 if (mergedBlocks == null || mergedBlocks.Count == 0)
                 {
                     status("ModsPack package data did not match the hero database.");
-                    FallbackLogger.LogFileOnly("ModsPackData: 0 blocks matched heroes.json — index/heroes.json out of sync?");
+                    FallbackLogger.Log("ModsPackData: 0 blocks matched heroes.json — index/heroes.json out of sync?");
                     InstallReport.Fail("Package data did not match the hero database — please try again later.");
                     return false;
                 }
@@ -160,7 +160,7 @@ namespace ArdysaModsTools.Core.Services
                     ).ConfigureAwait(false))
                 {
                     status("Warning: some localization files failed to download.");
-                    InstallReport.Warn($"Some of the {LocalizationPatcherService.FileCount} localization files failed to download — default text will be used for those languages.");
+                    InstallReport.Warn("Some localization files failed to download — default text will be used.");
                 }
 
                 ct.ThrowIfCancellationRequested();
@@ -190,14 +190,14 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 status("Failed to build ModsPack package.");
-                FallbackLogger.LogFileOnly($"ModsPackData: RebuildVpkAsync exception: {ex}");
+                FallbackLogger.Log($"ModsPackData: RebuildVpkAsync exception: {ex}");
                 InstallReport.Fail("Package build hit an unexpected error — please try again.");
                 return false;
             }
             finally
             {
                 try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true); }
-                catch (Exception ex) { FallbackLogger.LogFileOnly($"ModsPackData: temp cleanup failed: {ex.Message}"); }
+                catch (Exception ex) { FallbackLogger.Log($"ModsPackData: temp cleanup failed: {ex.Message}"); }
             }
         }
 
@@ -221,7 +221,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                FallbackLogger.LogFileOnly($"ModsPackData: StripBundledData failed: {ex.Message}");
+                FallbackLogger.Log($"ModsPackData: StripBundledData failed: {ex.Message}");
             }
         }
 
@@ -241,7 +241,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                FallbackLogger.LogFileOnly($"ModsPackData: index download failed: {ex.Message}");
+                FallbackLogger.Log($"ModsPackData: index download failed: {ex.Message}");
                 return null;
             }
         }
@@ -258,7 +258,7 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 status("Failed to load hero database.");
-                FallbackLogger.LogFileOnly($"ModsPackData: heroes.json load failed: {ex.Message}");
+                FallbackLogger.Log($"ModsPackData: heroes.json load failed: {ex.Message}");
                 InstallReport.Fail("Could not load the hero database — please try again.");
                 return null;
             }
@@ -316,7 +316,7 @@ namespace ArdysaModsTools.Core.Services
             {
                 var err = await proc.StandardError.ReadToEndAsync().ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(err))
-                    FallbackLogger.LogFileOnly($"ModsPackData HLExtract: {err.Trim()}");
+                    FallbackLogger.Log($"ModsPackData HLExtract: {err.Trim()}");
             });
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -335,7 +335,7 @@ namespace ArdysaModsTools.Core.Services
                 {
                     try { if (!proc.HasExited) proc.Kill(); } catch {  }
                     ct.ThrowIfCancellationRequested();
-                    FallbackLogger.LogFileOnly($"ModsPackData: HLExtract timed out after {ExtractTimeoutMinutes} minutes.");
+                    FallbackLogger.Log($"ModsPackData: HLExtract timed out after {ExtractTimeoutMinutes} minutes.");
                     return false;
                 }
             }

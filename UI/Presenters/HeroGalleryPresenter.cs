@@ -21,7 +21,6 @@ using System.Text;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
-using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Localization;
 using ArdysaModsTools.Models;
 using ArdysaModsTools.UI.Interfaces;
@@ -33,7 +32,6 @@ namespace ArdysaModsTools.UI.Presenters
         private readonly IHeroGenerationService _generationService;
         private readonly IConfigService _configService;
         private readonly IAppLogger? _logger;
-        private readonly Func<Task<FeatureCheckResult>> _featureCheck;
 
         private IHeroGalleryView? _view;
         private bool _isGenerating;
@@ -41,14 +39,11 @@ namespace ArdysaModsTools.UI.Presenters
         public HeroGalleryPresenter(
             IHeroGenerationService generationService,
             IConfigService configService,
-            IAppLogger? logger = null,
-            Func<Task<FeatureCheckResult>>? featureCheck = null)
+            IAppLogger? logger = null)
         {
             _generationService = generationService ?? throw new ArgumentNullException(nameof(generationService));
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _logger = logger;
-            _featureCheck = featureCheck
-                ?? (() => FeatureAccessService.CheckFeatureAsync(FeatureAccessService.SkinSelectorFeature));
         }
 
         public void SetView(IHeroGalleryView view)
@@ -166,16 +161,6 @@ namespace ArdysaModsTools.UI.Presenters
                     await _view.ShowAlertAsync(
                         Loc.T("hero.noSelections.title"),
                         Loc.T("hero.noSelections.body"));
-                    return;
-                }
-
-                var access = await _featureCheck().ConfigureAwait(true);
-                if (!access.IsAllowed)
-                {
-                    _logger?.LogDebug($"Skin Selector generation blocked at write boundary: {access.BlockedMessage}");
-                    await _view.ShowAlertAsync(
-                        access.IsOutdated ? Loc.T("update.required.title") : Loc.T("common.error"),
-                        access.BlockedMessage ?? Loc.T("feature.blocked.offline"));
                     return;
                 }
 

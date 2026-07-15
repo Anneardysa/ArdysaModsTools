@@ -113,7 +113,15 @@ namespace ArdysaModsTools.Core.Services
                     ct.ThrowIfCancellationRequested();
 
                     log("Installing...");
-                    if (!await _replacer.ReplaceAsync(targetPath, newVpk, log, ct).ConfigureAwait(false))
+                    bool wasHidden = false;
+                    try
+                    {
+                        var attrs = File.GetAttributes(vpkPath);
+                        wasHidden = attrs.HasFlag(FileAttributes.Hidden) && attrs.HasFlag(FileAttributes.System);
+                    }
+                    catch {  }
+
+                    if (!await _replacer.ReplaceAsync(targetPath, newVpk, log, ct, hideOutput: wasHidden).ConfigureAwait(false))
                         return Fail("Could not install the rebuilt mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
 
                     log("Finalizing...");

@@ -29,63 +29,6 @@ namespace ArdysaModsTools.Tests.Services
     {
         private string _file = null!;
 
-        private const string HelloWorldSha256 =
-            "B94D27B9934D3E08A52E52D7DA7DABFAC484EFE37A5380EE9088F7ACE2EFCDE9";
-
-
-        [Test]
-        public void Verify_Bytes_MatchingHashAndSize_ReturnsTrue()
-        {
-            var data = Encoding.UTF8.GetBytes("hello world");
-            var expected = new AssetHashEntry { Sha256 = HelloWorldSha256, Size = data.Length };
-
-            Assert.That(AssetHashVerifier.Verify(data, expected), Is.True);
-        }
-
-        [Test]
-        public void Verify_Bytes_IsCaseInsensitiveOnHex()
-        {
-            var data = Encoding.UTF8.GetBytes("hello world");
-            var expected = new AssetHashEntry { Sha256 = HelloWorldSha256.ToLowerInvariant(), Size = data.Length };
-
-            Assert.That(AssetHashVerifier.Verify(data, expected), Is.True);
-        }
-
-        [Test]
-        public void Verify_Bytes_WrongContent_ReturnsFalse()
-        {
-            var data = Encoding.UTF8.GetBytes("hello worlx");
-            var expected = new AssetHashEntry { Sha256 = HelloWorldSha256, Size = data.Length };
-
-            Assert.That(AssetHashVerifier.Verify(data, expected), Is.False);
-        }
-
-        [Test]
-        public void Verify_Bytes_WrongSize_ReturnsFalse()
-        {
-            var data = Encoding.UTF8.GetBytes("hello world");
-            var expected = new AssetHashEntry { Sha256 = HelloWorldSha256, Size = data.Length + 1 };
-
-            Assert.That(AssetHashVerifier.Verify(data, expected), Is.False);
-        }
-
-        [Test]
-        public void Verify_Bytes_WithoutExpectedHash_ReturnsFalse()
-        {
-            var data = Encoding.UTF8.GetBytes("hello world");
-
-            Assert.That(AssetHashVerifier.Verify(data, new AssetHashEntry { Sha256 = "" }), Is.False);
-        }
-
-        [Test]
-        public void Verify_Bytes_WithoutExpectedSize_ChecksHashOnly()
-        {
-            var data = Encoding.UTF8.GetBytes("hello world");
-            var expected = new AssetHashEntry { Sha256 = HelloWorldSha256, Size = 0 };
-
-            Assert.That(AssetHashVerifier.Verify(data, expected), Is.True);
-        }
-
         [SetUp]
         public void Setup()
         {

@@ -27,22 +27,16 @@
     <SelfContained>true</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
     <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
-    <!-- Pin the exact runtime pack bundled by self-contained publishes. Without this, any SDK
-         update (local or CI) silently swaps ~450 runtime DLLs (~167 MB) that are supposed to be
-         byte-identical across releases, turning the next incremental update into a near-full
-         re-download (ADR-0012; the 2.2.15→2.2.16 delta was 157 MB because of exactly this).
-         Bump deliberately and rarely — the release after a bump ships a one-time large delta. -->
-    <RuntimeFrameworkVersion>8.0.29</RuntimeFrameworkVersion>
   </PropertyGroup>
 
   <!-- ============================================== -->
   <!-- APPLICATION METADATA                           -->
   <!-- ============================================== -->
   <PropertyGroup>
-    <Version>2.2.19-beta</Version>
-    <AssemblyVersion>2.2.19.2280</AssemblyVersion>
-    <FileVersion>2.2.19.2280</FileVersion>
-    <InformationalVersion>2.2.19-beta</InformationalVersion>
+    <Version>2.2.16-beta</Version>
+    <AssemblyVersion>2.2.16.2237</AssemblyVersion>
+    <FileVersion>2.2.16.2237</FileVersion>
+    <InformationalVersion>2.2.16-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
     <Authors>Ardysa</Authors>
@@ -93,7 +87,7 @@
     <EmbeddedResource Remove="Updater\**" />
     <None Remove="Updater\**" />
     <!-- Exclude public-mirror clone (regenerable, gitignored full source copy produced by
-         scripts/release/publish-github.ps1). It lives inside the project cone with its own copy of
+         scripts/publish-github.ps1). It lives inside the project cone with its own copy of
          every .cs/.resx/.html, so the SDK default globs would pull it into THIS build and
          every file would collide with its original (MSB3577). Detach the whole subtree. -->
     <Compile Remove="publish\**" />
@@ -295,16 +289,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
 
-    <!-- Bundled JetBrains Mono @font-face (replaces the Google Fonts CDN link) -->
-    <Content Include="Assets\Html\fonts.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-
-    <!-- Vendored web assets (Tailwind Play CDN build — see Assets\Html\vendor\README.md) -->
-    <Content Include="Assets\Html\vendor\*.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-
     <!-- Localization catalog (unified JSON, shared by C# + WebView) -->
     <Content Include="Assets\Locales\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -355,7 +339,7 @@
   <!-- INSTALLER BUILD (Custom WPF Installer)         -->
   <!-- ============================================== -->
   <!-- The installer is now built from Installer/ArdysaModsTools.Installer.csproj -->
-  <!-- Use: python scripts/release/build_installer.py -->
+  <!-- Use: python scripts/build/build_installer.py -->
   <!-- Legacy Inno Setup targets removed — see Installer/ project -->
 
 </Project>

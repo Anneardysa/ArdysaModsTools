@@ -22,7 +22,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Helpers;
@@ -185,15 +184,6 @@ namespace ArdysaModsTools.Core.Services
                     decryptedTemp = await AssetCipher.DecryptToTempAsync(localZipPath, assetPath!, ct).ConfigureAwait(false);
                     extractSource = decryptedTemp;
                 }
-                catch (Exception ex) when (IsAssetTooNew(ex))
-                {
-                    var dlEx = new DownloadException(ErrorCodes.DL_ASSET_INCOMPATIBLE,
-                        $"Set '{setName}' needs a newer version of the app. Please update to continue.", ex, zipUrl);
-                    log($"'{setName}' requires a newer version of the app — please update.");
-                    _logger?.Log($"[{dlEx.ErrorCode}] Asset newer than this build for set '{setName}' " +
-                                 $"(asset epoch {EmbeddedAssetKey.AssetEpoch}): {ex.GetType().Name}: {ex.Message}");
-                    throw dlEx;
-                }
                 catch (Exception ex)
                 {
                     try { if (File.Exists(localZipPath)) File.Delete(localZipPath); } catch { }
@@ -231,9 +221,6 @@ namespace ArdysaModsTools.Core.Services
             log("Extraction completed.");
             return workFolder;
         }
-
-        private static bool IsAssetTooNew(Exception ex) =>
-            ex is AuthenticationTagMismatchException || ex is AssetVersionException;
 
         private async Task DownloadSplitZipAsync(
             string startUrl, 

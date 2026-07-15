@@ -15,9 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
-using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 
 namespace ArdysaModsTools.Core.Services.Update.Models
 {
@@ -113,44 +111,6 @@ namespace ArdysaModsTools.Core.Services.Update.Models
         #endregion
 
         #region Factory Methods
-
-        private static readonly Lazy<AppVersion> _current = new(ReadCurrent);
-
-        public static AppVersion Current => _current.Value;
-
-        private static AppVersion ReadCurrent()
-        {
-            string version = "1.0.0.0";
-            int build = 0;
-
-            try
-            {
-                var informational = Assembly.GetEntryAssembly()
-                    ?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-                    ?.InformationalVersion;
-
-                if (!string.IsNullOrWhiteSpace(informational))
-                {
-                    int plus = informational.IndexOf('+');
-                    version = plus >= 0 ? informational.Substring(0, plus) : informational;
-                }
-            }
-            catch
-            {
-            }
-
-            try
-            {
-                string? exePath = Environment.ProcessPath;
-                if (!string.IsNullOrEmpty(exePath))
-                    build = FileVersionInfo.GetVersionInfo(exePath).FilePrivatePart;
-            }
-            catch
-            {
-            }
-
-            return new AppVersion(version, build);
-        }
 
         public static int ParseBuildFromFileVersion(string? fileVersion)
         {

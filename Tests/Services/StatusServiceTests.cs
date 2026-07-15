@@ -36,7 +36,7 @@ namespace ArdysaModsTools.Tests.Services
         {
             _testConsole = new RichTextBox();
             _logger = new Logger(_testConsole);
-            _service = new StatusService(_logger, new StubVerification(SetupVerificationResult.Empty));
+            _service = new StatusService(_logger);
             _root = Path.Combine(Path.GetTempPath(), "AMT_StatusTests_" + Guid.NewGuid().ToString("N"));
         }
 
@@ -75,34 +75,6 @@ namespace ArdysaModsTools.Tests.Services
             Directory.CreateDirectory(Path.GetDirectoryName(full)!);
             File.WriteAllText(full, content);
         }
-
-        private sealed class StubVerification : ArdysaModsTools.Core.Interfaces.ISetupVerificationService
-        {
-            private readonly SetupVerificationResult _result;
-            public StubVerification(SetupVerificationResult result) => _result = result;
-
-            public Task<SetupVerificationResult> VerifyAsync(string? targetPath, CancellationToken ct = default)
-                => Task.FromResult(_result);
-
-            public Task<(int cleared, string? error)> TryClearForcedAdminAsync(string? targetPath, CancellationToken ct = default)
-                => Task.FromResult<(int, string?)>((0, null));
-        }
-
-        private static SetupVerificationResult SweepWith(SetupCheckId id, ModStatus failStatus) =>
-            new()
-            {
-                Checks = new[]
-                {
-                    new SetupCheck
-                    {
-                        Id = id,
-                        State = SetupCheckState.Fail,
-                        DetailKey = "verify.signature.fail",
-                        Diagnostic = "test failure",
-                        FailStatus = failStatus
-                    }
-                }
-            };
 
         #endregion
 
@@ -211,69 +183,6 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public async Task GetDetailedStatusAsync_SetupCheckFails_DoesNotReportReady()
-        {
-            BuildDotaTree(signaturesContent: PatchedSignatures);
-            var service = new StatusService(_logger,
-                new StubVerification(SweepWith(SetupCheckId.SignatureMatchesGameInfo, ModStatus.NeedUpdate)));
-
-            var result = await service.GetDetailedStatusAsync(_root);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.Status, Is.EqualTo(ModStatus.NeedUpdate));
-                Assert.That(result.Action, Is.EqualTo(RecommendedAction.Update));
-                Assert.That(result.SetupFailure, Is.EqualTo(SetupCheckId.SignatureMatchesGameInfo));
-                Assert.That(result.DescriptionKey, Is.EqualTo("verify.signature.fail"));
-                Assert.That(result.ErrorMessage, Is.EqualTo("test failure"));
-            });
-        }
-
-        [Test]
-        public async Task GetDetailedStatusAsync_ForcedAdminFails_ReportsErrorTaggedAsSetupFailure()
-        {
-            BuildDotaTree(signaturesContent: PatchedSignatures);
-            var service = new StatusService(_logger,
-                new StubVerification(SweepWith(SetupCheckId.NotForcedToRunAsAdmin, ModStatus.Error)));
-
-            var result = await service.GetDetailedStatusAsync(_root);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.Status, Is.EqualTo(ModStatus.Error));
-                Assert.That(result.Action, Is.EqualTo(RecommendedAction.Fix));
-                Assert.That(result.SetupFailure, Is.EqualTo(SetupCheckId.NotForcedToRunAsAdmin));
-            });
-        }
-
-        [Test]
-        public async Task GetDetailedStatusAsync_SweepIsExposedForTheUi()
-        {
-            BuildDotaTree(signaturesContent: PatchedSignatures);
-            var sweep = SweepWith(SetupCheckId.SearchPathsMounted, ModStatus.NeedUpdate);
-            var service = new StatusService(_logger, new StubVerification(sweep));
-
-            var result = await service.GetDetailedStatusAsync(_root);
-
-            Assert.That(result.Verification.Checks, Has.Count.EqualTo(1),
-                "the shell chips read the sweep off the status result rather than re-running the probes");
-        }
-
-        [Test]
-        public async Task GetDetailedStatusAsync_NoPathAttached_ClearsThePreviousSweep()
-        {
-            BuildDotaTree(signaturesContent: PatchedSignatures);
-            var service = new StatusService(_logger,
-                new StubVerification(SweepWith(SetupCheckId.SearchPathsMounted, ModStatus.NeedUpdate)));
-            await service.GetDetailedStatusAsync(_root);
-
-            var result = await service.GetDetailedStatusAsync(null);
-
-            Assert.That(result.Verification.Checks, Is.Empty,
-                "stale chips must not linger after the folder is detached");
-        }
-
-        [Test]
         public async Task GetDetailedStatusAsync_PatchLineAbsent_ReturnsNeedUpdateWithUpdateAction()
         {
             BuildDotaTree(signaturesContent: "SIGNATURES V2\nDIGEST:ABCDEF0123456789;\n");
@@ -289,7 +198,7 @@ namespace ArdysaModsTools.Tests.Services
         {
             BuildDotaTree(signaturesContent:
                 "SIGNATURES V2\nDIGEST:ABCDEF0123456789;\n" +
-                ModConstants.ModPatchLine.Substring(ModConstants.ModPatchLine.IndexOf("gameinfo_", StringComparison.Ordinal)) + "\n");
+                $"gameinfo_branchspecific.gi~SHA1:{ModConstants.ModPatchSHA1};CRC:043F604A\n");
 
             var result = await _service.GetDetailedStatusAsync(_root);
 

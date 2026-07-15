@@ -15,16 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Helpers;
-using ArdysaModsTools.Core.Services.Cdn;
+using ArdysaModsTools.Models;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Interfaces;
 
@@ -35,7 +34,11 @@ namespace ArdysaModsTools.Core.Services
         private readonly IAppLogger? _logger;
         private readonly HttpClient _http = HttpClientProvider.Client;
 
-        private const string RemoteDir = "remote/localization/";
+        private static string[] BaseUrls => new[]
+        {
+            $"{Constants.CdnConfig.R2BaseUrl}/remote/localization/",
+            EnvironmentConfig.BuildRawUrl("remote/localization/")
+        };
 
         private static readonly string CacheDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -46,36 +49,19 @@ namespace ArdysaModsTools.Core.Services
         private static readonly string[] LocalizationFiles = new[]
         {
             "dota_brazilian.txt",
-            "dota_bulgarian.txt",
-            "dota_czech.txt",
-            "dota_danish.txt",
-            "dota_dutch.txt",
             "dota_english.txt",
-            "dota_finnish.txt",
             "dota_french.txt",
             "dota_german.txt",
-            "dota_greek.txt",
-            "dota_hungarian.txt",
             "dota_italian.txt",
             "dota_japanese.txt",
             "dota_koreana.txt",
-            "dota_latam.txt",
-            "dota_norwegian.txt",
-            "dota_polish.txt",
             "dota_portuguese.txt",
-            "dota_romanian.txt",
             "dota_russian.txt",
             "dota_schinese.txt",
             "dota_spanish.txt",
-            "dota_swedish.txt",
             "dota_tchinese.txt",
-            "dota_thai.txt",
-            "dota_turkish.txt",
-            "dota_ukrainian.txt",
-            "dota_vietnamese.txt"
+            "dota_ukrainian.txt"
         };
-
-        public static int FileCount => LocalizationFiles.Length;
 
         public LocalizationPatcherService(IAppLogger? logger = null)
         {
@@ -97,7 +83,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                LogDiag($"[LOC] Failed to create cache directory: {ex.Message}");
+                _logger?.Log($"[LOC] Failed to create cache directory: {ex.Message}");
             }
 
             string localizationDir = Path.Combine(extractDir, "resource", "localization");
@@ -107,7 +93,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                LogDiag($"[LOC] Failed to create localization directory: {ex.Message}");
+                _logger?.Log($"[LOC] Failed to create localization directory: {ex.Message}");
                 return false;
             }
 
@@ -116,10 +102,9 @@ namespace ArdysaModsTools.Core.Services
             int successCount = 0;
             int cachedCount = 0;
             int totalFiles = LocalizationFiles.Length;
-            var failed = new ConcurrentBag<string>();
 
             log?.Invoke($"Downloading {totalFiles} localization files...");
-            LogDiag($"[LOC] Starting localization download to: {localizationDir}");
+            _logger?.Log($"[LOC] Starting localization download to: {localizationDir}");
 
             var semaphore = new SemaphoreSlim(3, 3);
             var tasks = new List<Task<(bool success, bool fromCache)>>();
@@ -128,8 +113,6 @@ namespace ArdysaModsTools.Core.Services
             async Task<(bool success, bool fromCache)> RunOneAsync(string filename)
             {
                 var result = await DownloadOrCopyFileAsync(filename, localizationDir, hashManifest, semaphore, ct).ConfigureAwait(false);
-                if (!result.success)
-                    failed.Add(filename);
                 onFileDone?.Invoke(Interlocked.Increment(ref filesDone), totalFiles);
                 return result;
             }
@@ -140,7 +123,7 @@ namespace ArdysaModsTools.Core.Services
             }
 
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-
+            
             foreach (var (success, fromCache) in results)
             {
                 if (success)
@@ -153,18 +136,15 @@ namespace ArdysaModsTools.Core.Services
             SaveHashManifest(hashManifest);
 
             log?.Invoke($"Localization: {successCount}/{totalFiles} files");
-            LogDiag($"[LOC] Applied {successCount}/{totalFiles} localization files ({cachedCount} from cache)");
+            _logger?.Log($"[LOC] Applied {successCount}/{totalFiles} localization files ({cachedCount} from cache)");
 
-            if (!failed.IsEmpty)
-                LogDiag($"[LOC] Missing: {string.Join(", ", failed.OrderBy(f => f, StringComparer.Ordinal))}");
-
-            return successCount == totalFiles;
+            return successCount >= totalFiles / 2;
         }
 
         private async Task<(bool success, bool fromCache)> DownloadOrCopyFileAsync(
             string filename,
             string targetDir,
-            ConcurrentDictionary<string, string> hashManifest,
+            Dictionary<string, string> hashManifest,
             SemaphoreSlim semaphore,
             CancellationToken ct)
         {
@@ -174,76 +154,101 @@ namespace ArdysaModsTools.Core.Services
             {
                 string targetPath = Path.Combine(targetDir, filename);
                 string cachedPath = Path.Combine(CacheDir, filename);
-                string url = EnvironmentConfig.BuildRawUrl(RemoteDir + filename);
 
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(TimeSpan.FromMinutes(2));
-
-                string? remoteTag = await TryGetRemoteTagAsync(url, cts.Token).ConfigureAwait(false);
-
-                if (!string.IsNullOrEmpty(remoteTag) &&
-                    hashManifest.TryGetValue(filename, out var cachedTag) &&
-                    cachedTag == remoteTag &&
-                    File.Exists(cachedPath))
+                foreach (var baseUrl in BaseUrls)
                 {
+                    ct.ThrowIfCancellationRequested();
+                    string url = baseUrl + filename;
+
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts.CancelAfter(TimeSpan.FromMinutes(2));
+
+                    string? remoteHash = null;
                     try
                     {
-                        File.Copy(cachedPath, targetPath, overwrite: true);
-                        return (true, true);
+                        using var headRequest = new HttpRequestMessage(HttpMethod.Head, url);
+                        var headResponse = await _http.SendAsync(headRequest, cts.Token).ConfigureAwait(false);
+
+                        if (headResponse.IsSuccessStatusCode)
+                        {
+                            remoteHash = headResponse.Headers.ETag?.Tag
+                                ?? headResponse.Content.Headers.LastModified?.ToString("O");
+                        }
+                    }
+                    catch
+                    {
+                    }
+
+                    if (!string.IsNullOrEmpty(remoteHash) &&
+                        hashManifest.TryGetValue(filename, out var cachedHash) &&
+                        cachedHash == remoteHash &&
+                        File.Exists(cachedPath))
+                    {
+                        try
+                        {
+                            File.Copy(cachedPath, targetPath, overwrite: true);
+                            return (true, true);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.Log($"[LOC] Failed to copy cached {filename}: {ex.Message}");
+                        }
+                    }
+
+                    byte[] content;
+                    try
+                    {
+                        var response = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cts.Token)
+                            .ConfigureAwait(false);
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            _logger?.Log($"[LOC] Failed to download {filename} from {url}: {response.StatusCode}");
+                            continue;
+                        }
+
+                        content = await response.Content.ReadAsByteArrayAsync(cts.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
-                        LogDiag($"[LOC] Failed to copy cached {filename}: {ex.Message}");
+                        _logger?.Log($"[LOC] Error downloading {filename} from {url}: {ex.Message}");
+                        continue;
                     }
+
+                    try
+                    {
+                        await File.WriteAllBytesAsync(cachedPath, content, cts.Token).ConfigureAwait(false);
+
+                        string newHash = remoteHash ?? ComputeSha1(content);
+                        lock (hashManifest)
+                        {
+                            hashManifest[filename] = newHash;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.Log($"[LOC] Failed to cache {filename}: {ex.Message}");
+                    }
+
+                    await File.WriteAllBytesAsync(targetPath, content, cts.Token).ConfigureAwait(false);
+
+                    return (true, false);
                 }
 
-                var result = await CdnFallbackService.Instance
-                    .DownloadWithFallbackAsync(url, cts.Token).ConfigureAwait(false);
-
-                if (!result.Success || result.Data == null)
-                {
-                    LogDiag($"[LOC] All CDNs failed for {filename}: {result.ErrorMessage}");
-                    return (false, false);
-                }
-
-                if (!LooksLikeLocalization(result.Data))
-                {
-                    LogDiag($"[LOC] Rejected {filename} from {result.SuccessfulUrl}: " +
-                            $"not a localization file ({result.Data.Length} bytes) — likely an interstitial page.");
-                    return (false, false);
-                }
-
-                string? tag = result.ETag ?? result.LastModified;
-                try
-                {
-                    await File.WriteAllBytesAsync(cachedPath, result.Data, cts.Token).ConfigureAwait(false);
-
-                    if (!string.IsNullOrEmpty(tag))
-                        hashManifest[filename] = tag;
-                    else
-                        hashManifest.TryRemove(filename, out _);
-                }
-                catch (Exception ex)
-                {
-                    LogDiag($"[LOC] Failed to cache {filename}: {ex.Message}");
-                }
-
-                await File.WriteAllBytesAsync(targetPath, result.Data, cts.Token).ConfigureAwait(false);
-
-                return (true, false);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                throw;
+                return (false, false);
             }
             catch (OperationCanceledException)
             {
-                LogDiag($"[LOC] Timed out: {filename}");
+                _logger?.Log($"[LOC] Download cancelled: {filename}");
                 return (false, false);
             }
             catch (Exception ex)
             {
-                LogDiag($"[LOC] Error downloading {filename}: {ex.Message}");
+                _logger?.Log($"[LOC] Error downloading {filename}: {ex.Message}");
                 return (false, false);
             }
             finally
@@ -252,63 +257,25 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private async Task<string?> TryGetRemoteTagAsync(string url, CancellationToken ct)
-        {
-            try
-            {
-                using var request = new HttpRequestMessage(HttpMethod.Head, url);
-                var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
-
-                if (!response.IsSuccessStatusCode)
-                    return null;
-
-                return response.Headers.ETag?.Tag
-                    ?? response.Content.Headers.LastModified?.ToString("R");
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        public static bool LooksLikeLocalization(byte[] data)
-        {
-            if (data == null)
-                return false;
-
-            int i = (data.Length >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF) ? 3 : 0;
-
-            while (i < data.Length &&
-                   (data[i] == 0x20 || data[i] == 0x09 || data[i] == 0x0D || data[i] == 0x0A))
-            {
-                i++;
-            }
-
-            ReadOnlySpan<byte> expected = "\"lang\""u8;
-            return data.Length - i >= expected.Length
-                && data.AsSpan(i, expected.Length).SequenceEqual(expected);
-        }
-
-        private ConcurrentDictionary<string, string> LoadHashManifest()
+        private Dictionary<string, string> LoadHashManifest()
         {
             try
             {
                 if (File.Exists(HashManifestPath))
                 {
                     var json = File.ReadAllText(HashManifestPath);
-                    var parsed = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-                    if (parsed != null)
-                        return new ConcurrentDictionary<string, string>(parsed);
+                    return JsonSerializer.Deserialize<Dictionary<string, string>>(json) 
+                        ?? new Dictionary<string, string>();
                 }
             }
             catch (Exception ex)
             {
-                LogDiag($"[LOC] Failed to load hash manifest: {ex.Message}");
+                _logger?.Log($"[LOC] Failed to load hash manifest: {ex.Message}");
             }
-            return new ConcurrentDictionary<string, string>();
+            return new Dictionary<string, string>();
         }
 
-        private void SaveHashManifest(ConcurrentDictionary<string, string> manifest)
+        private void SaveHashManifest(Dictionary<string, string> manifest)
         {
             try
             {
@@ -317,16 +284,17 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                LogDiag($"[LOC] Failed to save hash manifest: {ex.Message}");
+                _logger?.Log($"[LOC] Failed to save hash manifest: {ex.Message}");
             }
         }
 
-        private void LogDiag(string message)
+        private static string ComputeSha1(byte[] data)
         {
-            if (_logger != null)
-                _logger.Log(message);
-            else
-                FallbackLogger.LogFileOnly(message);
+            using var sha1 = SHA1.Create();
+            var hash = sha1.ComputeHash(data);
+            return Convert.ToHexString(hash);
         }
     }
 }
+
+

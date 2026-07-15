@@ -39,7 +39,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -52,6 +51,9 @@ namespace ArdysaModsTools
     public partial class MainFormWebView : Form, IMainFormView
     {
         private string? targetPath = null;
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int cx, int cy);
 
         [DllImport("user32.dll")]
         private static extern bool ReleaseCapture();
@@ -86,7 +88,6 @@ namespace ArdysaModsTools
 
         private WebView2 _webView = null!;
         private ModStatusInfo? _currentStatus;
-        private SetupVerificationResult _currentVerification = SetupVerificationResult.Empty;
 
         private static readonly TimeSpan ShellLoadTimeout = TimeSpan.FromSeconds(30);
 
@@ -186,6 +187,9 @@ namespace ArdysaModsTools
                 DefaultBackgroundColor = Theme.Canvas
             };
             Controls.Add(_webView);
+
+            ApplyRoundedForm();
+            this.Resize += (s, e) => ApplyRoundedForm();
 
             this.FormClosing += MainForm_FormClosing;
             this.FormClosed += MainForm_FormClosed;
@@ -331,7 +335,6 @@ namespace ArdysaModsTools
                 {
                     if (!_webReady) return;
                     PostExec(WebViewLocalizer.BuildApplyScript(_loc));
-                    SetSetupChecks(_currentVerification);
                 };
                 _loc.CultureChanged += _cultureChangedHandler;
             }
@@ -663,6 +666,12 @@ namespace ArdysaModsTools
             }
         }
 
+        private void ApplyRoundedForm()
+        {
+            int radius = 16;
+            this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, radius, radius));
+        }
+
 
         private void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
@@ -755,10 +764,6 @@ namespace ArdysaModsTools
                         break;
                     case "patchViewStatus":
                         _presenter.ShowStatusDetails();
-                        break;
-
-                    case "fixSetup":
-                        await _presenter.FixSetupAsync();
                         break;
 
                     case "support":
@@ -997,53 +1002,6 @@ namespace ArdysaModsTools
             PushStatus(statusInfo.StatusColor, statusInfo.StatusText, tooltip);
             UpdateButtonsForStatus(statusInfo);
         }
-
-        public void SetSetupChecks(SetupVerificationResult result)
-        {
-            if (InvokeRequired)
-            {
-                BeginInvoke(new Action(() => SetSetupChecks(result)));
-                return;
-            }
-
-            _currentVerification = result;
-
-            var payload = JsonSerializer.Serialize(new
-            {
-                title = Loc.T("verify.title"),
-                checks = result.Checks.Select(c => new
-                {
-                    id = c.Id.ToString(),
-                    state = c.State.ToString().ToLowerInvariant(),
-                    label = Loc.T(ChipLabelKey(c.Id)),
-                    stateText = Loc.T(StateLabelKey(c.State)),
-                    detail = c.DetailVars != null ? Loc.T(c.DetailKey, c.DetailVars) : Loc.T(c.DetailKey),
-                    canFix = c.CanAutoFix,
-                    hasOwnDialog = c.HasOwnDialog,
-                    detected = c.DetailVars != null
-                }).ToArray(),
-                fixLabel = Loc.T("verify.fix.button"),
-                canFix = result.Checks.Any(c => c.CanAutoFix)
-            }, _jsonOptions);
-
-            Js("verify", $"setSetupChecks({payload})");
-        }
-
-        private static string ChipLabelKey(SetupCheckId id) => id switch
-        {
-            SetupCheckId.SignatureMatchesGameInfo => "verify.chip.signature",
-            SetupCheckId.SearchPathsMounted => "verify.chip.paths",
-            SetupCheckId.NotForcedToRunAsAdmin => "verify.chip.admin",
-            _ => "verify.title"
-        };
-
-        private static string StateLabelKey(SetupCheckState state) => state switch
-        {
-            SetupCheckState.Pass => "verify.state.pass",
-            SetupCheckState.Fail => "verify.state.fail",
-            SetupCheckState.Advisory => "verify.state.advisory",
-            _ => "verify.state.unknown"
-        };
 
         public void ShowCheckingState()
         {

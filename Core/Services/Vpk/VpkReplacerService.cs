@@ -25,7 +25,7 @@ namespace ArdysaModsTools.Core.Services
     public interface IVpkReplacer
     {
         Task<bool> ReplaceAsync(string targetPath, string newVpkPath,
-            Action<string> log, CancellationToken ct = default);
+            Action<string> log, CancellationToken ct = default, bool hideOutput = false);
     }
 
     public sealed class VpkReplacerService : IVpkReplacer
@@ -38,49 +38,27 @@ namespace ArdysaModsTools.Core.Services
         }
 
         public async Task<bool> ReplaceAsync(string targetPath, string newVpkPath,
-            Action<string> log, CancellationToken ct = default)
+            Action<string> log, CancellationToken ct = default, bool hideOutput = false)
         {
             string modsDir = Path.Combine(targetPath, "game", "_ArdysaMods");
             Directory.CreateDirectory(modsDir);
 
             string currentVpk = Path.Combine(modsDir, "pak01_dir.vpk");
-
-            if (!await DeployVpkAsync(currentVpk, newVpkPath, hideOutput: false, log, ct, _logger).ConfigureAwait(false))
-                return false;
-
-            try
-            {
-                string hashFile = Path.Combine(modsDir, "ModsPack.hash");
-                if (File.Exists(hashFile))
-                    File.Delete(hashFile);
-            }
-            catch (Exception ex)
-            {
-                _logger?.Log($"VpkReplacerService: failed removing ModsPack.hash: {ex.Message}");
-            }
-
-            return true;
-        }
-
-        internal static async Task<bool> DeployVpkAsync(string destVpk, string? newVpkPath,
-            bool hideOutput, Action<string> log, CancellationToken ct, IAppLogger? logger = null)
-        {
-            string backupVpk = destVpk + ".bak";
+            string backupVpk = currentVpk + ".bak";
 
             ct.ThrowIfCancellationRequested();
 
             try { if (File.Exists(backupVpk)) File.Delete(backupVpk); } catch { }
 
-            if (newVpkPath != null)
-                await WaitForFileReadyAsync(newVpkPath, ct).ConfigureAwait(false);
+            await WaitForFileReadyAsync(newVpkPath, ct).ConfigureAwait(false);
 
             bool hasBackup = false;
-            if (File.Exists(destVpk))
+            if (File.Exists(currentVpk))
             {
-                if (!await TryMoveAsideAsync(destVpk, backupVpk, ct).ConfigureAwait(false))
+                if (!await TryMoveAsideAsync(currentVpk, backupVpk, ct).ConfigureAwait(false))
                 {
                     log("The current mod package is locked by another program — close Dota 2 and try again.");
-                    logger?.Log($"VpkReplacerService: rename-aside failed, {destVpk} is locked.");
+                    _logger?.Log($"VpkReplacerService: rename-aside failed, {currentVpk} is locked.");
                     return false;
                 }
                 hasBackup = true;
@@ -88,13 +66,20 @@ namespace ArdysaModsTools.Core.Services
 
             try
             {
-                if (newVpkPath != null)
-                {
-                    Directory.CreateDirectory(Path.GetDirectoryName(destVpk)!);
-                    File.Copy(newVpkPath, destVpk, true);
+                File.Copy(newVpkPath, currentVpk, true);
 
-                    if (hideOutput)
-                        try { File.SetAttributes(destVpk, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                if (hideOutput)
+                    try { File.SetAttributes(currentVpk, FileAttributes.Hidden | FileAttributes.System); } catch { }
+
+                try
+                {
+                    string hashFile = Path.Combine(modsDir, "ModsPack.hash");
+                    if (File.Exists(hashFile))
+                        File.Delete(hashFile);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Log($"VpkReplacerService: failed removing ModsPack.hash: {ex.Message}");
                 }
 
                 if (hasBackup)
@@ -105,14 +90,14 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 log($"Failed to replace VPK: {ex.Message}");
-                logger?.Log($"VpkReplacerService replace failed: {ex}");
+                _logger?.Log($"VpkReplacerService replace failed: {ex}");
 
                 if (hasBackup)
                 {
-                    try { File.Move(backupVpk, destVpk, overwrite: true); }
+                    try { File.Move(backupVpk, currentVpk, overwrite: true); }
                     catch (Exception restoreEx)
                     {
-                        logger?.Log($"VpkReplacerService: backup restore failed: {restoreEx}");
+                        _logger?.Log($"VpkReplacerService: backup restore failed: {restoreEx}");
                     }
                 }
                 return false;
@@ -142,7 +127,7 @@ namespace ArdysaModsTools.Core.Services
             return false;
         }
 
-        private static async Task WaitForFileReadyAsync(string filePath, CancellationToken ct)
+        private async Task WaitForFileReadyAsync(string filePath, CancellationToken ct)
         {
             const int maxAttempts = 30;
             for (int i = 0; i < maxAttempts; i++)

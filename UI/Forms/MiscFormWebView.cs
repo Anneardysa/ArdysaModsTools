@@ -568,17 +568,6 @@ namespace ArdysaModsTools.UI.Forms
                 return;
             }
 
-            var access = await FeatureAccessService.CheckFeatureAsync(FeatureAccessService.MiscellaneousFeature);
-            if (!access.IsAllowed)
-            {
-                _log($"Miscellaneous is unavailable: {access.BlockedMessage}");
-                var blockTitle = access.IsOutdated ? Loc.T("update.required.title") : Loc.T("common.error");
-                var blockBody = access.BlockedMessage ?? Loc.T("feature.blocked.offline");
-                await ExecuteScriptAsync(
-                    $"showAlert('{EscapeJs(blockTitle)}', '{EscapeJs(blockBody)}', 'warning')");
-                return;
-            }
-
             _modeSelected = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
             await ExecuteScriptAsync("showModeModal()");
             var modeResult = await Task.WhenAny(_modeSelected.Task, Task.Delay(60000));
@@ -730,8 +719,7 @@ namespace ArdysaModsTools.UI.Forms
 
                     var detail = (result.Message ?? "Unknown error")
                         + (string.IsNullOrEmpty(result.ErrorCode) ? "" : $"\n\nError code: {result.ErrorCode}")
-                        + "\n\nClick Show Log to review the step that failed. Full details were saved to"
-                        + " %LocalAppData%\\ArdysaModsTools\\ardysa_fallback.log.";
+                        + "\n\nClick Show Log to review the step that failed. Full details were saved to ardysa_fallback.log.";
                     var errorMsg = detail.Replace("'", "\\'").Replace("\n", "\\n");
                     await ExecuteScriptAsync($"showAlert('Generation Failed', '{errorMsg}', 'error')");
                 }
