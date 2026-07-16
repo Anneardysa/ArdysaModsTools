@@ -47,6 +47,8 @@ namespace ArdysaModsTools.UI.Forms
         private DeltaPlan? _plan;
         private bool _applying;
 
+        private readonly bool _deltaPending;
+
         public bool ApplierStarted { get; private set; }
 
         private static string DownloadPageUrl => $"{EnvironmentConfig.WebsiteBase}/#download";
@@ -66,6 +68,9 @@ namespace ArdysaModsTools.UI.Forms
             _updateInfo = updateInfo;
             _installationType = installationType;
             _delta = delta;
+            _deltaPending = installationType == InstallationType.Installer
+                && delta != null
+                && !string.IsNullOrEmpty(updateInfo.FilesManifestUrl);
 
             InitializeComponent();
             SetupForm();
@@ -135,14 +140,19 @@ namespace ArdysaModsTools.UI.Forms
                     throw new FileNotFoundException("update_available.html not found");
                 }
 
-                var tcs = new TaskCompletionSource<bool>();
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 void handler(object? s, CoreWebView2NavigationCompletedEventArgs e)
                 {
                     _webView.CoreWebView2.NavigationCompleted -= handler;
-                    tcs.SetResult(e.IsSuccess);
+                    tcs.TrySetResult(e.IsSuccess);
                 }
                 _webView.CoreWebView2.NavigationCompleted += handler;
-                await tcs.Task;
+
+                if (await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(10))) != tcs.Task)
+                {
+                    _webView.CoreWebView2.NavigationCompleted -= handler;
+                    throw new TimeoutException("Update dialog navigation timed out.");
+                }
 
                 await Task.Delay(100);
 
@@ -175,7 +185,7 @@ namespace ArdysaModsTools.UI.Forms
             string? cdnUrl = isInstaller
                 ? _updateInfo.MirrorInstallerUrl
                 : _updateInfo.MirrorPortableUrl;
-            cdnUrl ??= $"{CdnConfig.R2BaseUrl}/releases/";
+            cdnUrl ??= DownloadPageUrl;
 
             string? githubUrl = isInstaller
                 ? _updateInfo.InstallerDownloadUrl
@@ -193,7 +203,8 @@ namespace ArdysaModsTools.UI.Forms
                 cdnUrl = cdnUrl,
                 githubUrl = githubUrl,
                 cdnFilename = cdnFilename,
-                githubFilename = githubFilename
+                githubFilename = githubFilename,
+                deltaPending = _deltaPending
             };
 
             var json = JsonSerializer.Serialize(data);
@@ -204,17 +215,20 @@ namespace ArdysaModsTools.UI.Forms
 
         private async Task PrepareDeltaAsync()
         {
-            if (_delta == null || string.IsNullOrEmpty(_updateInfo.FilesManifestUrl))
-                return;
-
-            if (_installationType != InstallationType.Installer)
+            if (!_deltaPending)
                 return;
 
             try
             {
-                var plan = await _delta.PrepareAsync(_updateInfo, _cts.Token).ConfigureAwait(true);
-                if (plan == null || IsDisposed || _cts.IsCancellationRequested)
+                var plan = await _delta!.PrepareAsync(_updateInfo, _cts.Token).ConfigureAwait(true);
+                if (IsDisposed || _cts.IsCancellationRequested)
                     return;
+
+                if (plan == null)
+                {
+                    await CallJsAsync("setDeltaUnavailable");
+                    return;
+                }
 
                 _plan = plan;
 
@@ -228,6 +242,8 @@ namespace ArdysaModsTools.UI.Forms
             catch (Exception ex)
             {
                 FallbackLogger.Log($"Delta prepare failed, offering full download only: {ex.Message}");
+                if (!IsDisposed && !_cts.IsCancellationRequested)
+                    await CallJsAsync("setDeltaUnavailable");
             }
         }
 
@@ -278,7 +294,7 @@ namespace ArdysaModsTools.UI.Forms
 
         private Task CallJsAsync(string function, params object[] args)
         {
-            var encoded = string.Join(",", Array.ConvertAll(args, a => JsonSerializer.Serialize(a, a.GetType())));
+            var encoded = string.Join(",", Array.ConvertAll(args, a => JsonSerializer.Serialize<object?>(a)));
             return ExecuteScriptAsync($"{function}({encoded})");
         }
 

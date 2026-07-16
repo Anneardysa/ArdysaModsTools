@@ -453,6 +453,7 @@
   "updateAvail.notNow": "Nicht jetzt",
   "updateAvail.updateNow": "Jetzt aktualisieren",
   "updateAvail.updateDesc": "Nur {size} — lädt ausschließlich die geänderten Dateien",
+  "updateAvail.checking": "Updategröße wird berechnet…",
   "updateAvail.downloading": "Update wird heruntergeladen...",
   "updateAvail.restarting": "Neustart, um das Update anzuwenden...",
   "updateAvail.failed": "Update fehlgeschlagen. Nutze einen Download-Link unten.",

@@ -453,6 +453,7 @@
   "updateAvail.notNow": "暂不",
   "updateAvail.updateNow": "立即更新",
   "updateAvail.updateDesc": "仅 {size} — 只下载发生变化的文件",
+  "updateAvail.checking": "正在计算更新大小…",
   "updateAvail.downloading": "正在下载更新...",
   "updateAvail.restarting": "正在重启以应用更新...",
   "updateAvail.failed": "更新失败，请使用下方的下载链接。",

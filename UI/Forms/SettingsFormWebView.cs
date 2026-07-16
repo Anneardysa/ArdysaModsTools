@@ -442,16 +442,14 @@ namespace ArdysaModsTools.UI.Forms
 
         private async Task HandleCheckUpdates()
         {
+            bool applierStarted = false;
             try
             {
                 var updateInfo = await _updaterService.GetUpdateInfoAsync();
                 if (updateInfo?.IsUpdateAvailable == true)
                 {
-                    await ToastAsync("toast.update.available", "success");
-                    _trayService?.ShowNotification(
-                        _loc?.T("notification.update.title") ?? "Update Available",
-                        _loc?.T("notification.update.body") ?? "A new version of ArdysaModsTools is available.",
-                        System.Windows.Forms.ToolTipIcon.Info);
+                    applierStarted = UpdateAvailableDialogWebView.Show(
+                        this, updateInfo, _updaterService.InstallationType, _updaterService.Delta);
                 }
                 else
                 {
@@ -464,7 +462,8 @@ namespace ArdysaModsTools.UI.Forms
             }
             finally
             {
-                await ExecuteScriptAsync("resetCheckUpdatesButton()");
+                if (!applierStarted)
+                    await ExecuteScriptAsync("resetCheckUpdatesButton()");
             }
         }
 

@@ -298,6 +298,13 @@ namespace ArdysaModsTools.Core.Services.Update
                 var backups = Enumerate(BackupExtension);
                 var incoming = Enumerate(IncomingExtension);
 
+                if (backups is null || incoming is null)
+                {
+                    if (interrupted)
+                        _logger.Log("Warning: a previous update did not finish and the install folder could not be scanned — it will be retried on the next start.");
+                    return;
+                }
+
                 if (!interrupted && backups.Count == 0 && incoming.Count == 0)
                     return;
 
@@ -349,7 +356,7 @@ namespace ArdysaModsTools.Core.Services.Update
             }
         }
 
-        private List<string> Enumerate(string extension)
+        private List<string>? Enumerate(string extension)
         {
             try
             {
@@ -357,7 +364,7 @@ namespace ArdysaModsTools.Core.Services.Update
             }
             catch
             {
-                return new List<string>();
+                return null;
             }
         }
 
