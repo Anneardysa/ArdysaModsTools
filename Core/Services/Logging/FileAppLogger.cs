@@ -24,14 +24,14 @@ namespace ArdysaModsTools.Core.Services
         public static readonly FileAppLogger Instance = new();
 
         public void Log(string message, LogLevel level = LogLevel.Info) =>
-            FallbackLogger.Log($"[{level}] {message}");
+            FallbackLogger.LogFileOnly($"[{level}] {message}");
 
         public void LogError(string message, Exception? ex = null) =>
-            FallbackLogger.Log($"[Error] {message}{(ex != null ? $" :: {ex}" : string.Empty)}");
+            FallbackLogger.LogFileOnly($"[Error] {message}{(ex != null ? $" :: {ex}" : string.Empty)}");
 
-        public void LogWarning(string message) => FallbackLogger.Log($"[Warning] {message}");
+        public void LogWarning(string message) => FallbackLogger.LogFileOnly($"[Warning] {message}");
 
-        public void LogDebug(string message) => FallbackLogger.Log($"[Debug] {message}");
+        public void LogDebug(string message) => FallbackLogger.LogFileOnly($"[Debug] {message}");
 
         public void FlushBufferedLogs() {  }
     }
