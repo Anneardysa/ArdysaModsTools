@@ -453,6 +453,7 @@
   "updateAvail.notNow": "Не сейчас",
   "updateAvail.updateNow": "Обновить сейчас",
   "updateAvail.updateDesc": "Всего {size} — загружаются только изменённые файлы",
+  "updateAvail.checking": "Вычисление размера обновления…",
   "updateAvail.downloading": "Загрузка обновления...",
   "updateAvail.restarting": "Перезапуск для применения обновления...",
   "updateAvail.failed": "Не удалось обновить. Используй ссылку для скачивания ниже.",

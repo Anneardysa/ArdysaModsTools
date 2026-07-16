@@ -453,6 +453,7 @@
   "updateAvail.notNow": "Pas maintenant",
   "updateAvail.updateNow": "Mettre à jour",
   "updateAvail.updateDesc": "Seulement {size} — télécharge uniquement les fichiers modifiés",
+  "updateAvail.checking": "Calcul de la taille de la mise à jour…",
   "updateAvail.downloading": "Téléchargement de la mise à jour...",
   "updateAvail.restarting": "Redémarrage pour appliquer la mise à jour...",
   "updateAvail.failed": "Échec de la mise à jour. Utilise un lien de téléchargement ci-dessous.",

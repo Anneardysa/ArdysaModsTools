@@ -134,8 +134,8 @@ namespace ArdysaModsTools.Core.Services.Update
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                var response = await _httpClient.GetAsync(CdnConfig.ReleaseManifestUrl, cts.Token).ConfigureAwait(false);
-                
+                using var response = await _httpClient.GetAsync(CdnConfig.ReleaseManifestUrl, cts.Token).ConfigureAwait(false);
+
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.Log($"R2 manifest not available (HTTP {(int)response.StatusCode})");
@@ -240,13 +240,16 @@ namespace ArdysaModsTools.Core.Services.Update
         {
             try
             {
-                var response = await RetryHelper.ExecuteAsync(async () =>
+                using var response = await RetryHelper.ExecuteAsync(async () =>
                 {
                     var res = await _httpClient.GetAsync(GitHubApiUrl).ConfigureAwait(false);
-                    
+
                     if (RetryHelper.IsTransientStatusCode(res.StatusCode))
+                    {
+                        res.Dispose();
                         throw new HttpRequestException($"Server returned {res.StatusCode}");
-                    
+                    }
+
                     return res;
                 },
                 maxAttempts: 3,
