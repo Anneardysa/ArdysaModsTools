@@ -27,6 +27,12 @@
     <SelfContained>true</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
     <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
+    <!-- Pin the exact runtime pack bundled by self-contained publishes. Without this, any SDK
+         update (local or CI) silently swaps ~450 runtime DLLs (~167 MB) that are supposed to be
+         byte-identical across releases, turning the next incremental update into a near-full
+         re-download (ADR-0012; the 2.2.15→2.2.16 delta was 157 MB because of exactly this).
+         Bump deliberately and rarely — the release after a bump ships a one-time large delta. -->
+    <RuntimeFrameworkVersion>8.0.29</RuntimeFrameworkVersion>
   </PropertyGroup>
 
   <!-- ============================================== -->

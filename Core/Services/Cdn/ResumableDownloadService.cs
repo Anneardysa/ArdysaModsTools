@@ -208,23 +208,26 @@ namespace ArdysaModsTools.Core.Services.Cdn
             long totalBytes = -1;
             bool supportsRange = false;
 
-            try
+            if (existingBytes > 0)
             {
-                using var headReq = new HttpRequestMessage(HttpMethod.Head, url);
-                using var headResp = await client.SendAsync(headReq, cdnCts.Token).ConfigureAwait(false);
+                try
+                {
+                    using var headReq = new HttpRequestMessage(HttpMethod.Head, url);
+                    using var headResp = await client.SendAsync(headReq, cdnCts.Token).ConfigureAwait(false);
 
-                if (!headResp.IsSuccessStatusCode)
-                    throw new HttpRequestException($"HTTP {(int)headResp.StatusCode} {headResp.StatusCode}");
+                    if (!headResp.IsSuccessStatusCode)
+                        throw new HttpRequestException($"HTTP {(int)headResp.StatusCode} {headResp.StatusCode}");
 
-                totalBytes = headResp.Content.Headers.ContentLength ?? -1;
-                supportsRange = headResp.Headers.AcceptRanges?.Contains("bytes") == true;
+                    totalBytes = headResp.Content.Headers.ContentLength ?? -1;
+                    supportsRange = headResp.Headers.AcceptRanges?.Contains("bytes") == true;
 
-                Debug.WriteLine($"[ResumableDL] HEAD {url}: {totalBytes} bytes, Range={supportsRange}");
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                Debug.WriteLine($"[ResumableDL] HEAD failed ({ex.Message}), falling back to GET");
-                supportsRange = false;
+                    Debug.WriteLine($"[ResumableDL] HEAD {url}: {totalBytes} bytes, Range={supportsRange}");
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    Debug.WriteLine($"[ResumableDL] HEAD failed ({ex.Message}), falling back to GET");
+                    supportsRange = false;
+                }
             }
 
             long offset = 0;
