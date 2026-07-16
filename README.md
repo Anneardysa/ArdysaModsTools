@@ -11,8 +11,7 @@ Install, customize, and safely revert client-side skins, terrains, HUDs, and mor
 
 ---
 
-[Preview](#-preview) · [Features](#-features) · [Safety](#-safety--reliability) · [Install](#-installat
-ion) · [Quick Start](#-quick-start) · [How It Works](#-how-it-works) · [Docs](#-documentation) · [FAQ](
+[Features](#-features) · [Safety](#-safety--reliability) · [Install](#-installation) · [Quick Start](#-quick-start) · [How It Works](#-how-it-works) · [Docs](#-documentation) · [FAQ](
 docs/user/FAQ.md) · [Website](https://ardysamods.my.id)
 
 </div>
@@ -31,22 +30,6 @@ docs/user/FAQ.md) · [Website](https://ardysamods.my.id)
 **ArdysaModsTools (AMT)** is a Windows desktop app for managing client-side cosmetic mods in Dota 2 hero skins, terrains, weather, HUDs, couriers, music, and performance tweaks. It writes only local files, verifies every download, and lets you return to the vanilla game at any time with a single click.
 
 The UI is a clean monochrome shell rendered through an embedded WebView2 view, consistent with [ardysamods.my.id](https://ardysamods.my.id).
-
-## 🎬 Preview
-
-<div align="center">
-
-<img src="https://cdn.ardysamods.my.id/image/preview-1.gif" alt="ArdysaModsTools in action — ModsPack i
-nstall" width="820" />
-
-<img src="https://cdn.ardysamods.my.id/image/preview-2.gif" alt="ArdysaModsTools in action — Skin Selec
-tor" width="820" />
-
-<img src="https://cdn.ardysamods.my.id/image/preview-3.gif" alt="ArdysaModsTools in action — Miscellane
-ous & Performance" width="820" />
-
-</div>
-
 
 ## ✨ Features
 
@@ -140,15 +123,11 @@ AMT is built as a maintainable, file-safe desktop app rather than a game hook no
 ---
 
 <p align="center">
-  <img src="docs/user/images/lang/csharp.svg" alt="C#" title="C#" height="44" />&nbsp;&nbsp;
-  <img src="docs/user/images/lang/python.svg" alt="Python" title="Python" height="44" />&nbsp;&nbsp;
-  <img src="docs/user/images/lang/html5.svg" alt="HTML5" title="HTML5" height="44" />&nbsp;&nbsp;
-  <img src="docs/user/images/lang/javascript.svg" alt="JavaScript" title="JavaScript" height="44" />
+  <img src="docs/user/images/lang/csharp.svg" alt="C#" title="C#" height="240" />&nbsp;&nbsp;
+  <img src="docs/user/images/lang/python.svg" alt="Python" title="Python" height="240" />&nbsp;&nbsp;
+  <img src="docs/user/images/lang/html5.svg" alt="HTML5" title="HTML5" height="240" />&nbsp;&nbsp;
+  <img src="docs/user/images/lang/javascript.svg" alt="JavaScript" title="JavaScript" height="240" />
 </p>
-  
-<div align="center">
-**Built with** [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/), [ValveKeyValue](https://github.com/ValveResourceFormat/ValveKeyValue), [ImageSharp](https://github.com/SixLabors/ImageSharp), [SharpCompress](https://github.com/adamhathcock/sharpcompress), and HLLib / HLExtract.
-</div>
 
 ## 📚 Documentation
 <div align="center">
