@@ -5,7 +5,17 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.16-beta] (Build 2236)
+## [2.2.16-beta] (Builds 2236–2242)
+
+### 🎨 UI/UX (builds 2240–2241)
+
+- **Update dialog redesigned, installer updates now delta-first** (2241): `update_available.html` reworked; on installer installs with a delta available the full-download links stay hidden behind a "Calculating update size…" state until the diff answers (`_deltaPending` in `UpdateAvailableDialogWebView`, mirroring `PrepareDeltaAsync`'s gate so the links are never hidden for a diff that never runs). Navigation wait bounded to 10s + `RunContinuationsAsynchronously` (blank-window hang / STATUS_BREAKPOINT guards); `UpdaterService` HTTP responses now disposed (per-retry connection leak fixed). New locale key `updateAvail.checking` in all 8 catalogs.
+- **Generation output stays in each feature's own console** (2240): log routing in `MainFormPresenter`/`NavigationPresenter` (+ `FallbackLogger`/`FileAppLogger`) fixed so a feature's generation output no longer bleeds into another feature's console.
+
+### 🔧 Build (builds 2237–2239, 2242)
+
+- **GitLab CI auto-mirrors `main` to the public GitHub repo** (2239): comment-stripped, secret-redacted, gated via `scripts/publish-github.ps1`; `.mirrorignore` expanded to drop dev/internal paths. `EmbeddedAssetKey` fragments redacted in the mirror via `[AMT:MIRROR-*]` markers (2238). `publish/` mirror-clone excluded from the main build globs (fixes MSB3577 duplicate `ProgressOverlay.resources`) (2237).
+- **`sync-release-to-r2.yml` restored on the GitHub mirror** (2242): the earlier blanket `.github/workflows` exclusion had removed it, so publishing a GitHub release no longer updated `releases.json`. `.mirrorignore` now drops only `ci.yml`/`release.yml`, keeping the release-sync workflow public so `release: published` fires again.
 
 ### ✨ Added (build 2236)
 
