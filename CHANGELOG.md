@@ -5,13 +5,14 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.17-beta] (Build 2244)
+## [2.2.17-beta] (Builds 2243–2244)
+
+> Build 2243 was committed under the `2.2.16-beta` label but landed after the v2.2.16-beta release
+> (build 2242) was cut — it first ships in v2.2.17-beta, so it is recorded here.
 
 ### 🔧 Build (build 2244)
 
 - **Mirror-to-GitHub marker push force-pushed so an amended `main` can't wedge CI** (2244): `.gitlab-ci.yml`'s `mirror-to-github` job persists a `refs/amt/last-published` marker back to GitLab so the next run only mirrors new commits; an amended/force-pushed `main` orphans the ref history behind that marker, making the plain push non-fast-forward **forever** — every later mirror run would fail at that one step. Now force-pushed (`+refs/amt/last-published`); safe because the marker is pipeline-owned state with no other reader.
-
-## [2.2.16-beta] (Builds 2236–2243)
 
 ### ⚡ Performance (build 2243)
 
@@ -22,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🐛 Fixed (build 2243)
 
 - **Every delta file uploaded as `text/html` broke its own integrity check (DL_006)** (2243): Cloudflare rewrites `text/html` responses in transit (Bot Fight Mode / JS Detections injects a challenge script before `</body>`), so an `.html` file served with its real MIME type reached the client with bytes that no longer matched its `files.json` SHA-256 — every delta was failing verification on its 18 `.html` files. Both upload paths (`release.yml` and `scripts/publish-delta-to-r2.ps1`) now force `Content-Type: application/octet-stream` on the whole tree; safe because `DeltaUpdateService` streams raw bytes and never reads Content-Type. Amends [ADR-0012](docs/adr/0012-incremental-delta-updates.md).
+
+## [2.2.16-beta] (Builds 2236–2242)
 
 ### 🎨 UI/UX (builds 2240–2241)
 
