@@ -5,7 +5,23 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.16-beta] (Builds 2236–2242)
+## [2.2.17-beta] (Build 2244)
+
+### 🔧 Build (build 2244)
+
+- **Mirror-to-GitHub marker push force-pushed so an amended `main` can't wedge CI** (2244): `.gitlab-ci.yml`'s `mirror-to-github` job persists a `refs/amt/last-published` marker back to GitLab so the next run only mirrors new commits; an amended/force-pushed `main` orphans the ref history behind that marker, making the plain push non-fast-forward **forever** — every later mirror run would fail at that one step. Now force-pushed (`+refs/amt/last-published`); safe because the marker is pipeline-owned state with no other reader.
+
+## [2.2.16-beta] (Builds 2236–2243)
+
+### ⚡ Performance (build 2243)
+
+- **Delta staging now downloads up to 6 files in parallel instead of one at a time** (2243): `DeltaUpdateService.StageAsync` looped `ResumableDownloadService.DownloadAsync` sequentially — for a typical delta of hundreds of small files, wall time was dominated by per-file round-trips, not bandwidth. Restaged onto `Parallel.ForEachAsync` (`MaxParallelDownloads = 6` — all files share one R2 host, so more buys little); per-file byte counts are tracked in a `long[]` slot array behind one lock so the reported percent is monotonic no matter how the concurrent callbacks interleave — the progress bar can never move backwards or double-count. Tagged `[AMT:OPUS]`: the `.staged-ok` ordering (every file verified → `apply.json` → marker) is the applier's entire safety contract and must never reorder, concurrency or not.
+- **Skip the HEAD probe for a fresh download** (2243): `ResumableDownloadService`'s HEAD-before-GET only answers resume questions (does the server support Range, is the `.partial` already complete) — irrelevant when there's no partial file to resume. The probe now runs only when `existingBytes > 0`, saving one round-trip per file; with hundreds of files in a delta this was the other half of the staging speedup.
+- **`RuntimeFrameworkVersion` pinned to 8.0.29** (2243): the self-contained publish bundles the .NET runtime (~167 MB), which ADR-0012 relies on being byte-identical across releases so a delta ships only the app files that changed. Left floating, any SDK update (local or CI) silently swaps all ~450 runtime DLLs — exactly what happened for 2.2.15→2.2.16, a 157 MB "delta." Pin is deliberate and bumped rarely; the release right after a bump eats a one-time large delta.
+
+### 🐛 Fixed (build 2243)
+
+- **Every delta file uploaded as `text/html` broke its own integrity check (DL_006)** (2243): Cloudflare rewrites `text/html` responses in transit (Bot Fight Mode / JS Detections injects a challenge script before `</body>`), so an `.html` file served with its real MIME type reached the client with bytes that no longer matched its `files.json` SHA-256 — every delta was failing verification on its 18 `.html` files. Both upload paths (`release.yml` and `scripts/publish-delta-to-r2.ps1`) now force `Content-Type: application/octet-stream` on the whole tree; safe because `DeltaUpdateService` streams raw bytes and never reads Content-Type. Amends [ADR-0012](docs/adr/0012-incremental-delta-updates.md).
 
 ### 🎨 UI/UX (builds 2240–2241)
 
