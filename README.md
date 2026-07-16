@@ -7,14 +7,13 @@
 **The one-click cosmetic mod manager for Dota 2.**
 Install, customize, and safely revert client-side skins, terrains, HUDs, and more.
 
-[![Version](https://img.shields.io/github/v/release/Anneardysa/ArdysaModsTools?include_prereleases&style=flat-square&logo=github&logoColor=white&label=Version&color=00d4ff)](https://github.com/Anneardysa/ArdysaModsTools/releases)
-![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=flat-square&logo=windows&logoColor=white)
-![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)
-[![License](https://img.shields.io/badge/License-GPL%20v3-blue?style=flat-square)](LICENSE)
-[![Downloads](https://img.shields.io/github/downloads/Anneardysa/ArdysaModsTools/total?style=flat-square&color=FF6B6B&logo=github&logoColor=white&label=Downloads)](https://github.com/Anneardysa/ArdysaModsTools/releases)
-[![Stars](https://img.shields.io/github/stars/Anneardysa/ArdysaModsTools?style=flat-square&color=yellow&logo=github&logoColor=black)](https://github.com/Anneardysa/ArdysaModsTools/stargazers)
+[![Version](https://img.shields.io/github/v/release/Anneardysa/ArdysaModsTools?include_prereleases&style=flat-square&logo=github&logoColor=white&label=Version&color=00d4ff)](https://github.com/Anneardysa/ArdysaModsTools/releases) ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6?style=flat-square&logo=windows&logoColor=white) ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white) [![License](https://img.shields.io/badge/License-GPL%20v3-blue?style=flat-square)](LICENSE) [![Downloads](https://img.shields.io/github/downloads/Anneardysa/ArdysaModsTools/total?style=flat-square&color=FF6B6B&logo=github&logoColor=white&label=Downloads)](https://github.com/Anneardysa/ArdysaModsTools/releases) [![Stars](https://img.shields.io/github/stars/Anneardysa/ArdysaModsTools?style=flat-square&color=yellow&logo=github&logoColor=black)](https://github.com/Anneardysa/ArdysaModsTools/stargazers)
 
-[Preview](#-preview) · [Features](#-features) · [Safety](#-safety--reliability) · [Install](#-installation) · [Quick Start](#-quick-start) · [How It Works](#-how-it-works) · [Docs](#-documentation) · [FAQ](docs/user/FAQ.md) · [Website](https://ardysamods.my.id)
+---
+
+[Preview](#-preview) · [Features](#-features) · [Safety](#-safety--reliability) · [Install](#-installat
+ion) · [Quick Start](#-quick-start) · [How It Works](#-how-it-works) · [Docs](#-documentation) · [FAQ](
+docs/user/FAQ.md) · [Website](https://ardysamods.my.id)
 
 </div>
 
@@ -25,11 +24,11 @@ Install, customize, and safely revert client-side skins, terrains, HUDs, and mor
 </div>
 
 > [!CAUTION]
-> Not affiliated with Valve or Steam. All mods are **client-side only** — no one else sees them. Modifying game files can violate Valve's Terms of Service. **Use at your own risk.**
+> Not affiliated with Valve or Steam. All mods are **client-side only** no one else sees them. Modifying game files can violate Valve's Terms of Service. **Use at your own risk.**
 
 ## 📖 Overview
 
-**ArdysaModsTools (AMT)** is a Windows desktop app for managing client-side cosmetic mods in Dota 2 — hero skins, terrains, weather, HUDs, couriers, music, and performance tweaks. It writes only local files, verifies every download, and lets you return to the vanilla game at any time with a single click.
+**ArdysaModsTools (AMT)** is a Windows desktop app for managing client-side cosmetic mods in Dota 2 hero skins, terrains, weather, HUDs, couriers, music, and performance tweaks. It writes only local files, verifies every download, and lets you return to the vanilla game at any time with a single click.
 
 The UI is a clean monochrome shell rendered through an embedded WebView2 view, consistent with [ardysamods.my.id](https://ardysamods.my.id).
 
@@ -37,13 +36,17 @@ The UI is a clean monochrome shell rendered through an embedded WebView2 view, c
 
 <div align="center">
 
-<img src="https://cdn.ardysamods.my.id/image/preview-1.gif" alt="ArdysaModsTools in action — ModsPack install" width="820" />
+<img src="https://cdn.ardysamods.my.id/image/preview-1.gif" alt="ArdysaModsTools in action — ModsPack i
+nstall" width="820" />
 
-<img src="https://cdn.ardysamods.my.id/image/preview-2.gif" alt="ArdysaModsTools in action — Skin Selector" width="820" />
+<img src="https://cdn.ardysamods.my.id/image/preview-2.gif" alt="ArdysaModsTools in action — Skin Selec
+tor" width="820" />
 
-<img src="https://cdn.ardysamods.my.id/image/preview-3.gif" alt="ArdysaModsTools in action — Miscellaneous & Performance" width="820" />
+<img src="https://cdn.ardysamods.my.id/image/preview-3.gif" alt="ArdysaModsTools in action — Miscellane
+ous & Performance" width="820" />
 
 </div>
+
 
 ## ✨ Features
 
@@ -54,8 +57,7 @@ The UI is a clean monochrome shell rendered through an embedded WebView2 view, c
 | **Miscellaneous Mods** | Toggle weather, terrains, HUDs, cursors, music packs, kill/battle effects, and custom couriers & wards. |
 | **Performance Tweaker** | Tune Dota 2 cvars (`autoexec.cfg`) and copy optimized launch options for more FPS. |
 | **Auto-Patching** | Detects Dota 2 updates in the background and re-applies your active mods. |
-| **Manual VPK Import** | Bring your own `.vpk` mods into the manager. |
-| **Safe & Reversible** | **Disable Mods** restores the vanilla game instantly — official assets are never corrupted. |
+| **Safe & Reversible** | **Disable Mods** restores the vanilla game instantly official assets are never corrupted. |
 
 <details>
 <summary><b>Supported mod types</b></summary>
@@ -75,8 +77,13 @@ The UI is a clean monochrome shell rendered through an embedded WebView2 view, c
 </details>
 
 <div align="center">
-
-<img src="docs/user/images/skin-selector.png" alt="Skin Selector — hero gallery" width="900" />
+<table>
+<tr>
+<td><img src="docs/user/images/skin-selector.png" alt="Skin Selector hero gallery" width="900" /></td>
+</tr>
+<tr>
+<td align="center"><b>Skin Selector</b></td>
+</table>
 
 <table>
 <tr>
@@ -95,10 +102,10 @@ The UI is a clean monochrome shell rendered through an embedded WebView2 view, c
 
 Because AMT rewrites real game files, correctness and rollback safety come first:
 
-- **Integrity-checked** — every downloaded file is verified against a SHA-256 manifest before it's applied.
-- **Transactional writes** — changes are staged, verified, then atomically swapped, with automatic rollback on any failure.
-- **Resilient downloads** — a multi-CDN chain (Cloudflare R2 → mirrors) with automatic failover and resumable transfers keeps installs working worldwide.
-- **One-click revert** — **Disable Mods** returns you to the original game; official VPKs are never overwritten in place.
+- **Integrity-checked** every downloaded file is verified against a SHA-256 manifest before it's applied.
+- **Transactional writes** changes are staged, verified, then atomically swapped, with automatic rollback on any failure.
+- **Resilient downloads** a multi-CDN chain (Cloudflare R2 → mirrors) with automatic failover and resumable transfers keeps installs working worldwide.
+- **One-click revert** **Disable Mods** returns you to the original game; official VPKs are never overwritten in place.
 
 ## 📥 Installation
 
@@ -113,7 +120,7 @@ Because AMT rewrites real game files, correctness and rollback safety come first
 
 ## 🚀 Quick Start
 
-1. **Close Dota 2**, then launch AMT. It auto-detects your install — or click **Manual Detect** and pick your `dota 2 beta` folder.
+1. **Close Dota 2**, then launch AMT. It auto-detects your install or click **Manual Detect** and pick your `dota 2 beta` folder.
 2. Click **Install ModsPack** for the full curated pack, or open the **Skin Selector** to pick specific cosmetics and hit **Generate**.
 3. After a Dota 2 update overwrites your patch, click **Patch Update** (or let **PatchWatcher** re-apply it automatically).
 
@@ -121,26 +128,30 @@ Full walkthrough: [User Guide](docs/user/USER_GUIDE.md).
 
 ## 🔧 How It Works
 
-AMT is built as a maintainable, file-safe desktop app rather than a game hook — nothing is injected into the Dota 2 process.
+AMT is built as a maintainable, file-safe desktop app rather than a game hook nothing is injected into the Dota 2 process.
 
-- **Platform** — .NET 8 (C#), Windows 10/11 x64.
-- **UI** — hybrid **WinForms + WebView2** shell; JS ↔ C# only over the WebView message bridge.
-- **Architecture** — strict **MVP** (View → Presenter → Service) with constructor-based dependency injection; every service sits behind an interface.
-- **Delivery** — resilient **multi-CDN** asset chain with **SHA-256** verification on every download.
-- **File safety** — all writes to the game folder go through a transactional pipeline: extract → verify → atomic swap → rollback.
+- **Platform** .NET 8 (C#), Windows 10/11 x64.
+- **UI** hybrid **WinForms + WebView2** shell; JS ↔ C# only over the WebView message bridge.
+- **Architecture** strict **MVP** (View → Presenter → Service) with constructor-based dependency injection; every service sits behind an interface.
+- **Delivery** resilient **multi-CDN** asset chain with **SHA-256** verification on every download.
+- **File safety** all writes to the game folder go through a transactional pipeline: extract → verify → atomic swap → rollback.
 
 **Languages**
+---
 
-<p align="left">
+<p align="center">
   <img src="docs/user/images/lang/csharp.svg" alt="C#" title="C#" height="44" />&nbsp;&nbsp;
   <img src="docs/user/images/lang/python.svg" alt="Python" title="Python" height="44" />&nbsp;&nbsp;
   <img src="docs/user/images/lang/html5.svg" alt="HTML5" title="HTML5" height="44" />&nbsp;&nbsp;
   <img src="docs/user/images/lang/javascript.svg" alt="JavaScript" title="JavaScript" height="44" />
 </p>
-
-**Built with** — [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/), [ValveKeyValue](https://github.com/ValveResourceFormat/ValveKeyValue), [ImageSharp](https://github.com/SixLabors/ImageSharp), [SharpCompress](https://github.com/adamhathcock/sharpcompress), and HLLib / HLExtract.
+  
+<div align="center">
+**Built with** [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/), [ValveKeyValue](https://github.com/ValveResourceFormat/ValveKeyValue), [ImageSharp](https://github.com/SixLabors/ImageSharp), [SharpCompress](https://github.com/adamhathcock/sharpcompress), and HLLib / HLExtract.
+</div>
 
 ## 📚 Documentation
+<div align="center">
 
 | Guide | |
 | :--- | :--- |
@@ -152,29 +163,28 @@ AMT is built as a maintainable, file-safe desktop app rather than a game hook �
 | [Security Policy](docs/dev/SECURITY.md) | Reporting vulnerabilities |
 | [Changelog](CHANGELOG.md) | What changed in each release |
 
+</div>
+
 ## 📊 Project Activity
 
 <div align="center">
 
 ![Repobeats analytics](https://repobeats.axiom.co/api/embed/37af48bc220aaa1f0c79d9f2f0860127b2e69329.svg "Repobeats analytics image")
 
-**Contributors**
 
-<a href="https://github.com/Anneardysa/ArdysaModsTools/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Anneardysa/ArdysaModsTools" alt="Contributors" />
-</a>
-
-</div>
-
-## 🤝 Contributing
-
-Contributions are welcome — see [CONTRIBUTING.md](docs/dev/CONTRIBUTING.md). Branch from `develop`, follow the code style, and open your PR against `develop`.
 
 ## 🏆 Credits
 
-- **Author & Lead Developer** — **Ardysa** ([@Anneardysa](https://github.com/Anneardysa))
-- **Code signing** — [SignPath Foundation](https://signpath.org)
-- The **Dota 2 modding community**, and **Valve** for the game.
+**Author & Lead Developer** — **Ardysa** ([@Anneardysa](https://github.com/Anneardysa))
+**Code signing** — [SignPath Foundation](https://signpath.org)
+The **Dota 2 modding community**, and **Valve** for the game.
+[Dota 2 Skinchanger](https://dota2changer.com)
+[Darkness](https://t.me/s/Darkness_Logovo)
+[Kisilev](https://vk.com/id363951132)
+[Source 2 Viewer](https://github.com/ValveResourceFormat/ValveResourceFormat)
+
+
+</div>
 
 ## ⚖️ License & Trademarks
 
