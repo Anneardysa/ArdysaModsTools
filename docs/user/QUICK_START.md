@@ -23,7 +23,7 @@
 
 ### Step 2: Detect Dota 2
 
-![Detection](images/main_window_interface.jpg)
+![Detection](images/shell.png)
 
 1. Click **Auto Detect** button
 2. Wait for automatic detection
@@ -66,7 +66,7 @@ Patch Update → Done
 Select Hero → Choose hero → Select set → Generate → Wait
 ```
 
-![Hero Selection](images/hero_selection_screen.jpg)
+![Hero Selection](images/skin-selector.png)
 
 1. Click **Select Hero** from main window
 2. Find your hero (use search or scroll)
@@ -81,7 +81,7 @@ Select Hero → Choose hero → Select set → Generate → Wait
 Miscellaneous → Select options → Generate → Done
 ```
 
-![Misc Mods](images/misc_mods_screen.jpg)
+![Misc Mods](images/miscellaneous.png)
 
 1. Click **Miscellaneous** from main window
 2. Choose generation mode:

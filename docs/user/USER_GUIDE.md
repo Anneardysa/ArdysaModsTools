@@ -2,7 +2,7 @@
 
 **Version 2.1.22-beta** | The Ultimate Dota 2 Mod Manager
 
-![Banner](images/main_window_interface.jpg)
+![Banner](images/shell.png)
 
 ---
 
@@ -161,7 +161,7 @@ ArdysaModsTools offers four core features:
 
 ### Mod Installation
 
-![Main Window](images/main_window_interface.jpg)
+![Main Window](images/shell.png)
 
 The primary feature is installing curated mod packs that include multiple cosmetic enhancements.
 
@@ -215,7 +215,7 @@ When game updates or new mod versions are available:
 
 ### Hero Set Generation
 
-![Hero Selection](images/hero_selection_screen.jpg)
+![Hero Selection](images/skin-selector.png)
 
 Create custom hero skins by selecting from community-created cosmetic sets.
 
@@ -278,7 +278,7 @@ Mark frequently used heroes as favorites:
 
 ### Miscellaneous Mods
 
-![Misc Mods](images/misc_mods_screen.jpg)
+![Misc Mods](images/miscellaneous.png)
 
 Customize additional game elements beyond hero skins.
 
