@@ -156,6 +156,13 @@ namespace ArdysaModsTools.Tests.Services
         private static bool Exists(string root, string relPath) =>
             File.Exists(Path.Combine(root, relPath.Replace('/', Path.DirectorySeparatorChar)));
 
+        private sealed class SynchronousProgress : IProgress<int>
+        {
+            private readonly Action<int> _callback;
+            public SynchronousProgress(Action<int> callback) => _callback = callback;
+            public void Report(int value) => _callback(value);
+        }
+
 
         [Test]
         public async Task FullDeltaUpdate_DownloadsOnlyWhatChanged_AndAppliesIt()
@@ -214,10 +221,27 @@ namespace ArdysaModsTools.Tests.Services
                 Assert.That(plan.Deletions, Is.EqualTo(new[] { "Assets/Locales/id.json" }));
             });
 
-            await service.StageAsync(plan);
+            var percents = new System.Collections.Concurrent.ConcurrentQueue<int>();
+            var logLines = new System.Collections.Concurrent.ConcurrentQueue<string>();
+
+            await service.StageAsync(plan,
+                log: line => logLines.Enqueue(line),
+                progress: new SynchronousProgress(p => percents.Enqueue(p)));
 
             Assert.That(File.Exists(Path.Combine(plan.StagingDir, DeltaUpdateService.StagedOkMarker)), Is.True,
                 ".staged-ok is written only after every file downloaded AND verified");
+
+            var percentList = percents.ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(percentList, Is.Ordered.Ascending.And.Unique,
+                    "concurrent staging must never report a percent that goes backwards or repeats");
+                Assert.That(percentList[^1], Is.EqualTo(100), "staging must finish at 100%");
+                Assert.That(logLines.Count, Is.EqualTo(plan.Files.Count), "one completion line per file");
+                Assert.That(
+                    logLines.Select(l => l[..l.IndexOf(']')]).OrderBy(s => s, StringComparer.Ordinal),
+                    Is.Unique, "each completion index is used exactly once");
+            });
 
             var result = ApplyEngine.Run(plan.StagingDir, waitPid: 0, log: _ => { });
 

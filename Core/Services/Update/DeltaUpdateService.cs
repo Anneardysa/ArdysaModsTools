@@ -47,6 +47,8 @@ namespace ArdysaModsTools.Core.Services.Update
 
         private const int ManifestTimeoutSeconds = 15;
 
+        private const int MaxParallelDownloads = 6;
+
         private static readonly JsonSerializerOptions PlanJsonOptions = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -186,39 +188,62 @@ namespace ArdysaModsTools.Core.Services.Update
             Directory.CreateDirectory(plan.StagingDir);
 
             long total = Math.Max(1, plan.TotalDownloadBytes);
-            long done = 0;
-            int index = 0;
+            var files = plan.Files;
+            var bytesStaged = new long[files.Count];
+            int filesDone = 0;
+            int lastPercent = 0;
+            object progressGate = new();
 
-            foreach (var file in plan.Files)
+            void UpdateProgress(int slot, long fileBytes)
             {
-                ct.ThrowIfCancellationRequested();
-                index++;
+                if (progress == null) return;
+                lock (progressGate)
+                {
+                    if (fileBytes <= bytesStaged[slot]) return;
+                    bytesStaged[slot] = fileBytes;
 
-                string destPath = Path.Combine(
-                    plan.StagingDir, "files", file.RelPath.Replace('/', Path.DirectorySeparatorChar));
-                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                    long done = 0;
+                    for (int i = 0; i < bytesStaged.Length; i++) done += bytesStaged[i];
 
-                string url = plan.FilesBaseUrl + EncodePath(file.RelPath);
-                log?.Invoke($"[{index}/{plan.Files.Count}] {file.RelPath}");
-
-                long fileStart = done;
-                var fileProgress = new Progress<int>(percent =>
-                    progress?.Report((int)Math.Min(100, (fileStart + file.Size * percent / 100.0) * 100 / total)));
-
-                await ResumableDownloadService.Instance.DownloadAsync(
-                    new[] { url },
-                    destPath,
-                    log: null,
-                    progress: fileProgress,
-                    speedProgress: null,
-                    ct: ct,
-                    expected: new AssetHashEntry { Sha256 = file.Sha256, Size = file.Size },
-                    reportCdnHealth: false)
-                    .ConfigureAwait(false);
-
-                done += file.Size;
-                progress?.Report((int)Math.Min(100, done * 100 / total));
+                    int percent = (int)Math.Min(100, done * 100 / total);
+                    if (percent > lastPercent)
+                    {
+                        lastPercent = percent;
+                        progress.Report(percent);
+                    }
+                }
             }
+
+            await Parallel.ForEachAsync(
+                Enumerable.Range(0, files.Count),
+                new ParallelOptions { MaxDegreeOfParallelism = MaxParallelDownloads, CancellationToken = ct },
+                async (i, token) =>
+                {
+                    var file = files[i];
+
+                    string destPath = Path.Combine(
+                        plan.StagingDir, "files", file.RelPath.Replace('/', Path.DirectorySeparatorChar));
+                    Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+
+                    string url = plan.FilesBaseUrl + EncodePath(file.RelPath);
+
+                    var fileProgress = new Progress<int>(percent =>
+                        UpdateProgress(i, file.Size * Math.Clamp(percent, 0, 100) / 100));
+
+                    await ResumableDownloadService.Instance.DownloadAsync(
+                        new[] { url },
+                        destPath,
+                        log: null,
+                        progress: fileProgress,
+                        speedProgress: null,
+                        ct: token,
+                        expected: new AssetHashEntry { Sha256 = file.Sha256, Size = file.Size },
+                        reportCdnHealth: false)
+                        .ConfigureAwait(false);
+
+                    UpdateProgress(i, file.Size);
+                    log?.Invoke($"[{Interlocked.Increment(ref filesDone)}/{files.Count}] {file.RelPath}");
+                }).ConfigureAwait(false);
 
             await File.WriteAllTextAsync(
                 Path.Combine(plan.StagingDir, ApplyPlanFile),
