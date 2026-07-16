@@ -80,11 +80,9 @@ namespace ArdysaModsTools.UI.Presenters
                 return;
 
             var (result, generationResult) = _view.ShowMiscForm(TargetPath);
-            
+
             if (generationResult != null)
-            {
-                LogGenerationResult(generationResult);
-            }
+                LogGenerationOutcome(generationResult);
 
             if (result == DialogResult.OK)
             {
@@ -154,10 +152,8 @@ namespace ArdysaModsTools.UI.Presenters
             }
             
             if (generationResult != null)
-            {
-                LogGenerationResult(generationResult);
-            }
-            
+                LogGenerationOutcome(generationResult);
+
             await RaiseStatusRefreshAsync();
             
             if (dialogResult == DialogResult.OK)
@@ -315,16 +311,12 @@ namespace ArdysaModsTools.UI.Presenters
             return true;
         }
 
-        private void LogGenerationResult(ModGenerationResult result)
+        private void LogGenerationOutcome(ModGenerationResult result)
         {
             if (result.Success)
-            {
-                _logger.Log($"[GEN] Success: {result.OptionsCount} items generated");
-            }
+                _logger.Log($"[GEN] Complete: {result.OptionsCount} items generated");
             else
-            {
-                _logger.Log($"[GEN] Failed: {result.ErrorMessage}");
-            }
+                _logger.Log($"[GEN] Error: {result.ErrorMessage}");
         }
 
         private async Task RaiseStatusRefreshAsync()

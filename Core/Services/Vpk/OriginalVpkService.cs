@@ -109,7 +109,7 @@ namespace ArdysaModsTools.Core.Services
             }
             else
             {
-                log("Using cached Original.zip...");
+                log("Using cached base files...");
             }
 
             ct.ThrowIfCancellationRequested();
@@ -123,7 +123,7 @@ namespace ArdysaModsTools.Core.Services
                 }
                 Directory.CreateDirectory(zipExtractDir);
 
-                log("Extracting Original.zip...");
+                log("Extracting base files...");
                 try
                 {
                     ZipFile.ExtractToDirectory(zipPath, zipExtractDir, overwriteFiles: true);

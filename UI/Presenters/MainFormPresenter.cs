@@ -1325,11 +1325,9 @@ namespace ArdysaModsTools.UI.Presenters
             }
 
             var (result, generationResult) = _view.ShowMiscForm(_targetPath);
-            
+
             if (generationResult != null)
-            {
-                LogGenerationResult(generationResult);
-            }
+                LogGenerationOutcome(generationResult);
 
             if (result == DialogResult.OK)
             {
@@ -1409,10 +1407,8 @@ namespace ArdysaModsTools.UI.Presenters
             }
             
             if (generationResult != null)
-            {
-                LogGenerationResult(generationResult);
-            }
-            
+                LogGenerationOutcome(generationResult);
+
             await CheckModsStatusAsync();
             
             if (dialogResult == DialogResult.OK)
@@ -1471,15 +1467,12 @@ namespace ArdysaModsTools.UI.Presenters
             return false;
         }
         
-        private void LogGenerationResult(ModGenerationResult result)
+        private void LogGenerationOutcome(ModGenerationResult result)
         {
             if (result.Success)
             {
                 var details = result.Details ?? Loc.T("log.gen.completed");
                 _logger.LogLocalized("success", LogSegment.Text("[GEN] "), LogSegment.T("log.gen.success", new { details }));
-                _logger.LogLocalized("default", LogSegment.Text("[GEN] "), LogSegment.T("log.gen.totalItems", new { count = result.OptionsCount }));
-                _logger.LogLocalized("default", LogSegment.Text("[GEN] "),
-                    LogSegment.T("log.gen.timeTaken", new { seconds = result.Duration.TotalSeconds.ToString("F2") }));
             }
             else
             {
