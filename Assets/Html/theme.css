@@ -1,34 +1,38 @@
 /*
- * Light theme — pure monochrome: solid white surfaces, solid black ink.
+ * Light theme — layered white: a four-step neutral ramp, solid black ink.
  *
  * Single source of truth for every WebView page. Injected into each page's <head> as an inline
  * <style> by UI/Helpers/WebViewTheming.Apply(); light mode also stamps data-theme="light" on <html>,
  * so this block is inert in dark mode and the app's shipped look is untouched by default.
  *
- * Design rules (mirror of the dark theme's pure-black language):
- *   1. Every container surface is solid #fff — panels, cards, modals, title bars. Separation comes
- *      from hairline borders, not grey fills, so the borders are a step stronger than a typical
- *      light UI (#c4c4c4 / #a8a8a8).
+ * Design rules (mirror of the dark theme's elevation language — chrome recedes, content lifts):
+ *   1. Surfaces are one neutral ramp, ordered by elevation (Windows 11 Settings / Discord light):
+ *        #f3f3f3  chrome base — page background, sidebar, title bars, headers/footers/status bars
+ *        #fbfbfb  elevated content — cards, modals, dialogs, console body (the brightest tier)
+ *        #f6f6f6  nested — inputs, chips, nav buttons, modal head/foot bands, context menus
+ *        #f0f0f0  hover — a step DOWN from the surface it sits on, so feedback reads as it darkens
+ *      Hairline borders (#c4c4c4 / #a8a8a8) still frame every surface; the ramp adds a second,
+ *      softer separation cue on top of them.
  *   2. Ink is solid #000; secondary text is #333 and hints/disabled are #666 — dark enough to be
  *      instantly readable, still distinguishable as hierarchy. Nothing lighter than #666 is used
  *      for text.
- *   3. Interactive feedback (hover, selection wash) is a faint black tint — the one deliberate
- *      exception to "everything white", because a white-on-white hover state gives no feedback.
- *   4. Content overlaid on artwork (install card, carousel controls, hero-card captions) keeps the
- *      dark-theme ink: the surface under it is an image behind a dark scrim, never white.
+ *   3. Content overlaid on artwork (install card, carousel controls, hero-card captions) keeps the
+ *      dark-theme ink: the surface under it is an image behind a dark scrim, never light.
  *
  * The pages grew four token vocabularies (main shell / settings / update dialogs / support); this
  * overrides the union of them — one page only ever uses one, so extra declarations are harmless.
+ * Each vocabulary maps its own names onto the shared ramp above; keep the tiers consistent across
+ * the four so an input in Settings matches an input in the shell.
  */
 :root[data-theme="light"] {
    color-scheme: light;
 
    /* ── main shell vocabulary (main_shell, hero_gallery, misc_form, about, whatsnew,
          disable_options, install_method, modspack_updates, dota2_performance) ──────── */
-   --canvas: #ffffff;
-   --panel: #ffffff;
-   --panel-2: #ffffff;
-   --panel-hover: #f2f2f2;
+   --canvas: #f3f3f3;    /* chrome base */
+   --panel: #fbfbfb;     /* elevated content */
+   --panel-2: #f6f6f6;   /* nested (inputs, chips, nav buttons, menus) */
+   --panel-hover: #f0f0f0;
    --hairline: #c4c4c4;
    --hairline-strong: #a8a8a8;
    --dashed: rgba(0, 0, 0, 0.35);
@@ -67,10 +71,10 @@
    --warn-glow: rgba(168, 115, 10, 0.22);
 
    /* ── settings / progress / status / verify / preview vocabulary ────────────────── */
-   --bg-primary: #ffffff;
-   --bg-secondary: #ffffff;
-   --bg-card: #ffffff;
-   --bg-hover: #f2f2f2;
+   --bg-primary: #f3f3f3;    /* chrome base */
+   --bg-secondary: #f6f6f6;  /* nested */
+   --bg-card: #fbfbfb;       /* elevated content */
+   --bg-hover: #f0f0f0;
    --border: #c4c4c4;
    --border-light: #d6d6d6;
    --text-primary: #000000;
@@ -87,8 +91,8 @@
    --green-dim: rgba(26, 127, 55, 0.12);
 
    /* ── update-dialog vocabulary (update_available, modspack_update, patch_required) ─ */
-   --bg-dark: #ffffff;
-   --bg-card-hover: #f2f2f2;
+   --bg-dark: #f3f3f3;       /* dialog body = chrome base */
+   --bg-card-hover: #f0f0f0;
    --border-color: #c4c4c4;
    --border-dim: #d6d6d6;
    --accent-cyan: #006d89;
@@ -100,62 +104,66 @@
    --accent-orange-light: #cf7c00;
 
    /* ── support vocabulary ────────────────────────────────────────────────────────── */
-   --bg: #ffffff;
-   --surface: #ffffff;
-   --surface-hover: #f2f2f2;
+   --bg: #f3f3f3;            /* chrome base */
+   --surface: #fbfbfb;       /* elevated content */
+   --surface-hover: #f0f0f0;
    --text: #000000;
    --text-dim: #333333;
    --text-muted: #666666;
 }
 
 /*
- * Solid-white chrome: every window title bar and every in-page modal (.modal = shell
- * news/confirm/failure, .sm-panel = misc/hero-gallery set modals, .dialog = misc confirm,
- * .tribute-panel = misc credits). Their contents are token-driven and already resolve to black ink
- * under the light palette — the only offenders are hardcoded dark scrims (title bar: rgba(0,0,0,.6);
- * modal header/footer bands: rgba(0,0,0,.5); icon chips: rgba(0,0,0,.35)) that muddy over white.
+ * Chrome and modal surfaces. These elements carry hardcoded dark scrims (title bar: rgba(0,0,0,.6);
+ * modal header/footer bands: rgba(0,0,0,.5); icon chips: rgba(0,0,0,.35)) that muddy over a light
+ * surface, so each is re-pinned to its tier on the ramp. Their contents are token-driven and already
+ * resolve to black ink. Title bars are chrome (#f3f3f3); modals lift to content (#fbfbfb); the
+ * head/foot bands and chips inside them sit at the nested tier (#f6f6f6).
  */
 :root[data-theme="light"] #titlebar {
-   background: #ffffff;
+   background: #f3f3f3;
    border-bottom-color: var(--hairline-strong);
    backdrop-filter: none;
 }
 
+/* Modals (.modal = shell news/confirm/failure, .sm-panel = misc/hero-gallery set modals,
+   .dialog = misc confirm, .tribute-panel = misc credits) lift above the page to the content tier,
+   framed in solid black — a modal is the most "elevated" surface in the UI, so its stroke is the
+   strongest one on the ramp. */
 :root[data-theme="light"] .modal,
 :root[data-theme="light"] .sm-panel,
 :root[data-theme="light"] .dialog,
 :root[data-theme="light"] .tribute-panel {
-   background: #ffffff;
-   border-color: var(--hairline-strong);
+   background: #fbfbfb;
+   border-color: #000000;
 }
 
-/* Header/footer bands and icon/badge chips inside modals: white, framed by their borders. */
+/* Header/footer bands and icon/badge chips inside modals: nested tier, framed by their borders. */
 :root[data-theme="light"] .modal-head,
 :root[data-theme="light"] .sm-head,
 :root[data-theme="light"] .sm-foot,
 :root[data-theme="light"] .choice-ico,
 :root[data-theme="light"] .tribute-link-ico,
 :root[data-theme="light"] .choice-ver {
-   background: #ffffff;
+   background: #f6f6f6;
 }
 
-/* The What's New card: white surface, black text and logo. */
+/* The What's New card: content-tier surface, black text and logo, with a nested-tier version chip. */
 :root[data-theme="light"] .promo-card.news {
-   background: #ffffff;
-   border-color: var(--hairline-strong);
+   background: #fbfbfb;
+   border-color: #000000;
 }
 :root[data-theme="light"] .promo-card.news .veil {
-   background: none; /* drop the dark scrim gradient so the white surface shows through */
+   background: none; /* drop the dark scrim gradient so the light surface shows through */
 }
 :root[data-theme="light"] .promo-card.news .pc-ver,
 :root[data-theme="light"] .promo-card.news .pc-ico {
-   background: #ffffff;
+   background: #f6f6f6;
 }
 
 /*
  * Structural chrome across the tool windows — every one of these carries a hardcoded rgba(0,0,0,…)
- * scrim that muddies to grey over the white body. All go solid white; their text/icons are
- * token-driven and already resolve to black. Covers:
+ * scrim that muddies to grey over the body. All go to the chrome tier (#f3f3f3), one step below the
+ * content they frame; their text/icons are token-driven and already resolve to black. Covers:
  *   #titleBar          — Skin Selector + Miscellaneous title bars (capital B: a DIFFERENT id from
  *                        the shell dialogs' #titlebar handled above — easy to miss)
  *   .gallery-header    — Skin Selector search/category container below the title bar
@@ -170,23 +178,68 @@
 :root[data-theme="light"] .controls,
 :root[data-theme="light"] .status-bar,
 :root[data-theme="light"] .footer {
-   background: #ffffff;
+   background: #f3f3f3;
    backdrop-filter: none;
 }
 
-/* ModsPack preview: the category tag on each hero card sits over the artwork — solid white chip
+/* Main-shell sidebar (nav pane). It shares --panel with content cards, so pin it to the chrome tier
+   here — a Discord/Win11 nav pane recedes below the content it sits beside. Its nav buttons stay at
+   --panel-2 (#f6f6f6), lifted on the gray, and darken to --panel-hover (#f0f0f0) on hover. */
+:root[data-theme="light"] .sidebar {
+   background: #f3f3f3;
+}
+
+/*
+ * Window frame. The dark theme's body border token differs per template (--hairline, --hairline-strong,
+ * --border, even an accent color on the update dialogs) and five templates (hero_gallery,
+ * dota2_performance, generation_preview, status_details, verify_files) have no body border at all —
+ * several of those scroll, where a `body { border }` would scroll away with the content instead of
+ * framing the window. A fixed-position overlay sidesteps all of that: one rule gives every window a
+ * solid black 1px frame in light mode, pinned to the viewport regardless of scroll or which template's
+ * border token it's standing in for. progress.html already paints its own black frame in C#
+ * (ProgressOverlay's border pen is Theme.CanvasInk) — this rule is a harmless no-op there.
+ */
+:root[data-theme="light"] body::after {
+   content: "";
+   position: fixed;
+   inset: 0;
+   border: 1px solid #000000;
+   pointer-events: none;
+   z-index: 2147483647;
+}
+
+/*
+ * Cards. Elevated content containers get the same solid-black frame as modals — the "does this sit
+ * above the page" test is what decides black vs. the gray hairline, not just "is it a box with a
+ * border". Interactive/inner elements (nav buttons, chips, inputs, list rows, radio-cards) stay on
+ * --hairline/--border so the black stroke reads as structure, not noise.
+ */
+:root[data-theme="light"] .status-card,
+:root[data-theme="light"] .carousel,
+:root[data-theme="light"] .update-card,
+:root[data-theme="light"] .promo-card,
+:root[data-theme="light"] .console,
+:root[data-theme="light"] .settings-card,
+:root[data-theme="light"] .version-info,
+:root[data-theme="light"] .progress-box,
+:root[data-theme="light"] .rel,
+:root[data-theme="light"] .info-section {
+   border-color: #000000;
+}
+
+/* ModsPack preview: the category tag on each hero card sits over the artwork — a nested-tier chip
    with black text so it reads at a glance (its --ink text is re-scoped black here on purpose,
    unlike the card's name overlay which stays white-on-artwork). */
 :root[data-theme="light"] .card .attr {
-   background: #ffffff;
+   background: #f6f6f6;
    color: #000000;
    border-color: #a8a8a8;
 }
 
-/* About page: the version chip becomes a solid white bar with black text, and the Built-With brand
+/* About page: the version chip becomes a nested-tier bar with black text, and the Built-With brand
    icons drop their white-silhouette inversion to render solid black. */
 :root[data-theme="light"] .hero-ver {
-   background: #ffffff;
+   background: #f6f6f6;
    color: #000000;
 }
 :root[data-theme="light"] .tech img {
@@ -206,14 +259,15 @@
 }
 
 /*
- * Main-shell console. The console head drops its hardcoded rgba(0,0,0,.5) scrim for solid white —
- * its title, brackets, LED and copy-button are token-driven and resolve to black ink. --body is
- * pinned to #000 here so the CONSOLE title reads solid black, not secondary grey. The console body
- * stays white, so the log stream's pale on-dark literals (soft red/amber/blue) are swapped for
- * ink-dark equivalents that hold contrast on white.
+ * Main-shell console. The console head drops its hardcoded rgba(0,0,0,.5) scrim and matches the
+ * console body's content tier (#fbfbfb, from --panel) so head and body read as one surface — its
+ * title, brackets, LED and copy-button are token-driven and resolve to black ink. --body is pinned
+ * to #000 here so the CONSOLE title reads solid black, not secondary grey. The body is light, so the
+ * log stream's pale on-dark literals (soft red/amber/blue) are swapped for ink-dark equivalents that
+ * hold contrast.
  */
 :root[data-theme="light"] .console-head {
-   background: #ffffff;
+   background: #fbfbfb;
    --body: #000000;
    --mute: #666666;
 }

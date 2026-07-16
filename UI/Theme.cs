@@ -52,7 +52,7 @@ namespace ArdysaModsTools.UI
         public static int RowPadding = 14;
         public static int RowOuterMargin = 10;
 
-        public static Color Canvas => IsDarkMode ? Color.Black : Color.White;
+        public static Color Canvas => IsDarkMode ? Color.Black : Color.FromArgb(0xF3, 0xF3, 0xF3);
         public static Color CanvasInk => IsDarkMode ? Color.White : Color.Black;
 
         public static Color WindowBackground => IsDarkMode ? Color.FromArgb(0, 0, 0) : Color.FromArgb(245, 245, 245);

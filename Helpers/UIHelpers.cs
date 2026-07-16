@@ -17,7 +17,6 @@
 using System;
 using System.Diagnostics;
 using System.Drawing;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ArdysaModsTools.Core.Services.Localization;
@@ -28,16 +27,6 @@ namespace ArdysaModsTools.Helpers
     public static class UIHelpers
     {
         #region Window Styling
-
-        [DllImport("gdi32.dll")]
-        private static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
-
-        public static void ApplyRoundedCorner(Form form, int radius = 16)
-        {
-            if (form == null) return;
-            var region = CreateRoundRectRgn(0, 0, form.Width + 1, form.Height + 1, radius, radius);
-            form.Region = Region.FromHrgn(region);
-        }
 
         public static void SlideInFromRight(Form form, Rectangle targetBounds, int durationMs = 300)
         {
