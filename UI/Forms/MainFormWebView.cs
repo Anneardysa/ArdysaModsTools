@@ -52,9 +52,6 @@ namespace ArdysaModsTools
     {
         private string? targetPath = null;
 
-        [DllImport("gdi32.dll")]
-        private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int cx, int cy);
-
         [DllImport("user32.dll")]
         private static extern bool ReleaseCapture();
 
@@ -187,9 +184,6 @@ namespace ArdysaModsTools
                 DefaultBackgroundColor = Theme.Canvas
             };
             Controls.Add(_webView);
-
-            ApplyRoundedForm();
-            this.Resize += (s, e) => ApplyRoundedForm();
 
             this.FormClosing += MainForm_FormClosing;
             this.FormClosed += MainForm_FormClosed;
@@ -664,12 +658,6 @@ namespace ArdysaModsTools
                 _ = _presenter.OpenHeroSelectionAsync();
                 e.Handled = true;
             }
-        }
-
-        private void ApplyRoundedForm()
-        {
-            int radius = 16;
-            this.Region = Region.FromHrgn(CreateRoundRectRgn(0, 0, Width, Height, radius, radius));
         }
 
 

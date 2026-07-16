@@ -170,15 +170,10 @@ namespace ArdysaModsTools.UI.Forms
 
             Paint += (s, e) =>
             {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                
                 using var pen = new Pen(BorderColor, 1);
                 var rect = new Rectangle(0, 0, Width - 1, Height - 1);
-                using var path = CreateRoundedRectangle(rect, 12);
-                e.Graphics.DrawPath(pen, path);
+                e.Graphics.DrawRectangle(pen, rect);
             };
-
-            Region = new Region(CreateRoundedRectangle(new Rectangle(0, 0, Width, Height), 12));
 
             titleLabel.MouseDown += HandleDragStart;
             iconPanel.MouseDown += HandleDragStart;
@@ -191,20 +186,6 @@ namespace ArdysaModsTools.UI.Forms
                 NativeMethods.ReleaseCapture();
                 NativeMethods.SendMessage(Handle, 0xA1, 0x2, 0);
             }
-        }
-
-        private static GraphicsPath CreateRoundedRectangle(Rectangle rect, int radius)
-        {
-            var path = new GraphicsPath();
-            int diameter = radius * 2;
-
-            path.AddArc(rect.X, rect.Y, diameter, diameter, 180, 90);
-            path.AddArc(rect.Right - diameter, rect.Y, diameter, diameter, 270, 90);
-            path.AddArc(rect.Right - diameter, rect.Bottom - diameter, diameter, diameter, 0, 90);
-            path.AddArc(rect.X, rect.Bottom - diameter, diameter, diameter, 90, 90);
-            path.CloseFigure();
-
-            return path;
         }
 
         private static class NativeMethods
