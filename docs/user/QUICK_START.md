@@ -152,7 +152,7 @@ Patch Update → Done
 
 - 💬 Join our Discord: [discord.gg/ffXw265Z7e](https://discord.gg/ffXw265Z7e)
 - 📺 Watch tutorials: [youtube.com/@ardysa](https://youtube.com/@ardysa)
-- 📖 Read full guide: See [USER_GUIDE.md](USER_GUIDE.md)
+- 📖 Read full guide: See [USER_GUIDE.md](USER_GUIDE.md) (includes FAQ)
 
 ---
 
