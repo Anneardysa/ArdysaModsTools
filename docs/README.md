@@ -12,8 +12,7 @@ Welcome to the AMT 2.0 documentation hub. Find everything you need to use or con
 | -------------------------------------- | ------------------------------------------------- |
 | **[Main README](../README.md)**        | Complete project overview, features, installation |
 | **[Quick Start](user/QUICK_START.md)** | Get up and running in 5 minutes                   |
-| **[User Guide](user/USER_GUIDE.md)**   | Detailed usage walkthrough                        |
-| **[FAQ](user/FAQ.md)**                 | Frequently asked questions (ban safety, tips)     |
+| **[User Guide](user/USER_GUIDE.md)**   | Detailed usage walkthrough with FAQ               |
 
 ### 👨‍💻 For Developers
 
@@ -32,45 +31,48 @@ Welcome to the AMT 2.0 documentation hub. Find everything you need to use or con
 
 ```
 docs/
-├── README.md                  ← You are here
-├── TROUBLESHOOTING.md         ← Common issues & solutions
+├── README.md                            ← You are here
+├── TROUBLESHOOTING.md                   ← Common issues & solutions
 │
-├── user/                      ← End-user guides
+├── user/                                ← End-user guides
 │   ├── QUICK_START.md
-│   ├── USER_GUIDE.md
-│   └── FAQ.md
+│   └── USER_GUIDE.md
 │
-├── dev/                       ← Contributor guidelines
+├── dev/                                 ← Contributor guidelines
 │   ├── CONTRIBUTING.md
 │   ├── SECURITY.md
 │   └── INSTALLER.md
 │
-├── developer/                 ← Technical documentation
-│   ├── architecture.md        ← System design, DI, CDN
-│   ├── development.md         ← Setup & building
+├── developer/                           ← Technical documentation
+│   ├── architecture.md                  ← System design, DI, CDN
+│   ├── development.md                   ← Setup & building
 │   └── api/
-│       ├── services.md        ← Service reference
-│       ├── models.md          ← Data models
-│       ├── ui-components.md   ← Forms & presenters
-│       ├── helpers.md         ← Utilities
-│       ├── exceptions.md      ← Error codes
-│       ├── active-mods.md     ← Query installed mods
-│       ├── misc-mods.md       ← Misc mod control
-│       ├── auto-patching.md   ← Auto re-patching
-│       └── mod-file-structure.md ← File/folder specs
+│       ├── services.md                  ← Service reference
+│       ├── models.md                    ← Data models
+│       ├── ui-components.md             ← Forms & presenters
+│       ├── helpers.md                   ← Utilities
+│       ├── exceptions.md                ← Error codes
+│       ├── active-mods.md               ← Query installed mods
+│       ├── misc-mods.md                 ← Misc mod control
+│       ├── auto-patching.md             ← Auto re-patching
+│       └── mod-file-structure.md        ← File/folder specs
 │
-├── adr/                       ← Architecture Decision Records
+├── adr/                                 ← Architecture Decision Records
+│   ├── README.md                        ← ADR index
+│   ├── TEMPLATE.md                      ← ADR template
 │   ├── 0001-refactor-mainform-mvp.md
 │   ├── 0002-complete-di-migration-factory-pattern.md
 │   ├── 0003-multi-cdn-strategy-r2-primary.md
 │   ├── 0004-presenter-decomposition-srp.md
 │   ├── 0005-webview2-hybrid-ui.md
 │   ├── 0006-automated-patch-watcher.md
-│   └── 0007-security-anti-tamper-architecture.md
+│   ├── 0007-security-anti-tamper-architecture.md
+│   ├── 0008-hero-cosmetic-priority-merge.md
+│   ├── 0009-cdn-download-resilience-layer.md
+│   ├── 0010-asset-hash-verification.md
+│   └── 0012-incremental-delta-updates.md
 │
-└── samples/                   ← Example JSON configs
-    ├── feature_access.json
-    └── support_goals.json
+└── samples/                             ← Example JSON configs (empty)
 ```
 
 ### 🆘 Need Help?

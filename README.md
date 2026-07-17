@@ -12,7 +12,7 @@ Install, customize, and safely revert client-side skins, terrains, HUDs, and mor
 ---
 
 [Features](#-features) · [Safety](#-safety--reliability) · [Install](#-installation) · [Quick Start](#-quick-start) · [How It Works](#-how-it-works) · [Docs](#-documentation) · [FAQ](
-docs/user/FAQ.md) · [Website](https://ardysamods.my.id)
+docs/user/USER_GUIDE.md#faq) · [Website](https://ardysamods.my.id)
 
 </div>
 
@@ -136,7 +136,7 @@ AMT is built as a maintainable, file-safe desktop app rather than a game hook no
 | :--- | :--- |
 | [User Guide](docs/user/USER_GUIDE.md) | Full walkthrough of every feature |
 | [Quick Start](docs/user/QUICK_START.md) | Get running in minutes |
-| [FAQ](docs/user/FAQ.md) | Common questions answered |
+| [FAQ](docs/user/USER_GUIDE.md#faq) | Common questions answered |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Fix common issues |
 | [Contributing](docs/dev/CONTRIBUTING.md) | Branching, workflow, and code style |
 | [Security Policy](docs/dev/SECURITY.md) | Reporting vulnerabilities |
