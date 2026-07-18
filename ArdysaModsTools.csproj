@@ -93,7 +93,7 @@
     <EmbeddedResource Remove="Updater\**" />
     <None Remove="Updater\**" />
     <!-- Exclude public-mirror clone (regenerable, gitignored full source copy produced by
-         scripts/publish-github.ps1). It lives inside the project cone with its own copy of
+         scripts/release/publish-github.ps1). It lives inside the project cone with its own copy of
          every .cs/.resx/.html, so the SDK default globs would pull it into THIS build and
          every file would collide with its original (MSB3577). Detach the whole subtree. -->
     <Compile Remove="publish\**" />
@@ -345,7 +345,7 @@
   <!-- INSTALLER BUILD (Custom WPF Installer)         -->
   <!-- ============================================== -->
   <!-- The installer is now built from Installer/ArdysaModsTools.Installer.csproj -->
-  <!-- Use: python scripts/build/build_installer.py -->
+  <!-- Use: python scripts/release/build_installer.py -->
   <!-- Legacy Inno Setup targets removed — see Installer/ project -->
 
 </Project>
