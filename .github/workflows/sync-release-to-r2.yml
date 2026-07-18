@@ -321,7 +321,7 @@ jobs:
 
               echo "📝 Generating What's New feed (config/whatsnew.json)..."
 
-              # Mirrors scripts/generate-whatsnew.ps1 (which is gitignored, so it can't run on the
+              # Mirrors scripts/release/generate-whatsnew.ps1 (which is gitignored, so it can't run on the
               # runner). Snapshots the releases list into the exact shape WhatsNewService.Parse reads
               # (tag_name, name, body, html_url, draft, published_at), newest-first, drafts excluded.
               gh api "repos/${{ github.repository }}/releases?per_page=30" \

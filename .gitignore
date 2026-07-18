@@ -52,17 +52,18 @@ packages/
 !AppIcon.ico
 *.dmp
 
-# SCRIPTS & TOOLS
-scripts/*
-scripts/*/*
+# SCRIPTS & TOOLS — all local tooling ignored; a few pipeline scripts are force-tracked below.
+scripts/**
+# Re-include directories so git descends into them to reach the whitelisted files.
+!scripts/**/
 !scripts/**/*.iss
 # Delta-update release pipeline — must be tracked: release.yml runs the manifest generator on the
 # CI runner, and without the pair no release can publish an incremental update at all.
-!scripts/generate-files-manifest.ps1
-!scripts/publish-delta-to-r2.ps1
+!scripts/release/generate-files-manifest.ps1
+!scripts/release/publish-delta-to-r2.ps1
 # Public-mirror engine — must be tracked so the GitLab CI mirror job can run it (kept out of the
 # public mirror itself via .mirrorignore). publish.py / publish_gui.py stay ignored (local only).
-!scripts/publish-github.ps1
+!scripts/release/publish-github.ps1
 tools/confuserex/
 config/feature_access.json
 
@@ -75,7 +76,7 @@ docs/dev/DISTRIBUTION.md
 *.secrets.json
 
 # QA BOT — local question database (.env token already covered above)
-scripts/qa_bot/qa.db*
+scripts/community/qa_bot/qa.db*
 appsettings.json
 appsettings.*.json
 !appsettings.template.json

@@ -5,6 +5,12 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.18-beta] (Build 2250)
+
+### 🔧 Build (build 2250)
+
+- **Script path references fixed after the `scripts/` feature-folder reorg** (2250): CI workflows (`release.yml`, `sync-release-to-r2.yml`, `.gitlab-ci.yml`), the `.gitignore`/`.gitleaksignore` tracked-script whitelist, ADRs, dev docs, and in-script repo-root resolution updated to the new `scripts/release/`, `scripts/assets/`, `scripts/dataset/index/`, `scripts/sync/`, `scripts/community/qa_bot/` paths. No behavior change outside path strings.
+
 ## [2.2.17-beta] (Builds 2243–2244)
 
 > Build 2243 was committed under the `2.2.16-beta` label but landed after the v2.2.16-beta release
