@@ -5,7 +5,17 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.18-beta] (Build 2250)
+## [2.2.18-beta] (Builds 2250–2251)
+
+### 🔒 Security (build 2251)
+
+- **Asset packaging hardened** (2251): internal change to how generated assets are packaged and deployed. Details intentionally omitted.
+  - Deployment keeps the existing rename-aside/rollback contract (`[AMT:OPUS]`), now shared by both outputs; `IVpkReplacer` is otherwise unchanged.
+  - The patched game config changed with it — `ModConstants.ModPatchSHA1`/`ModPatchLine` are re-pinned, so **the matching `gameinfo_branchspecific.gi` must be live on R2 `remote/` before this build ships** and every install re-runs Patch Update once (the integrity gate in `DownloadGameInfoAsync` fails closed otherwise).
+
+### 🎨 UI/UX (build 2251)
+
+- **The main mod package is no longer marked hidden** (2251): `hideOutput` is gone from `IVpkReplacer.ReplaceAsync` (and with it `MiscGenerationService`'s `wasHidden` probe), so `_ArdysaMods/pak01_dir.vpk` stays visible in the game folder after a generation. No migration step: the deploy copies a fresh file after the rename-aside and `CopyOperation` already resets destination attributes, so an install hidden by an earlier build comes back visible on its next generation or install (pinned by `ReplaceAsync_OverLegacyHiddenVpk_LeavesVpkVisible`).
 
 ### 🔧 Build (build 2250)
 

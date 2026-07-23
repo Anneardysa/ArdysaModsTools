@@ -198,7 +198,7 @@ namespace ArdysaModsTools.Tests.Services
         {
             BuildDotaTree(signaturesContent:
                 "SIGNATURES V2\nDIGEST:ABCDEF0123456789;\n" +
-                $"gameinfo_branchspecific.gi~SHA1:{ModConstants.ModPatchSHA1};CRC:043F604A\n");
+                ModConstants.ModPatchLine.Substring(ModConstants.ModPatchLine.IndexOf("gameinfo_", StringComparison.Ordinal)) + "\n");
 
             var result = await _service.GetDetailedStatusAsync(_root);
 

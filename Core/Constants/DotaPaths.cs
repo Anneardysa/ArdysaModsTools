@@ -25,6 +25,7 @@ namespace ArdysaModsTools.Core.Constants
         public const string ModsVpk = "game/_ArdysaMods/pak01_dir.vpk";
         public const string ModsVersion = "game/_ArdysaMods/version.txt";
 
+
         public const string TempFolder = "game/_ArdysaMods/_temp";
 
         public const string VersionCache = "game/_ArdysaMods/_temp/version_cache.txt";

@@ -148,6 +148,8 @@ namespace ArdysaModsTools.Core.Services
                     if (!replaceSuccess)
                         return Fail("VPK replacement failed.", log);
 
+                    ProtectedVpkStore.Clear(targetPath);
+
                     log("Finalizing...");
                     var extractionLog = new MiscExtractionLog
                     {
@@ -302,6 +304,8 @@ namespace ArdysaModsTools.Core.Services
                     File.Replace(tmpGi, gameInfoPath, null);
                 else
                     File.Move(tmpGi, gameInfoPath, true);
+
+                ProtectedVpkStore.Ensure(targetPath);
 
                 _logger?.Log("Game files patched successfully.");
                 return true;
