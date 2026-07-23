@@ -5,7 +5,7 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.18-beta] (Builds 2250–2251)
+## [2.2.18-beta] (Builds 2246–2251)
 
 ### 🔒 Security (build 2251)
 
@@ -17,9 +17,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The main mod package is no longer marked hidden** (2251): `hideOutput` is gone from `IVpkReplacer.ReplaceAsync` (and with it `MiscGenerationService`'s `wasHidden` probe), so `_ArdysaMods/pak01_dir.vpk` stays visible in the game folder after a generation. No migration step: the deploy copies a fresh file after the rename-aside and `CopyOperation` already resets destination attributes, so an install hidden by an earlier build comes back visible on its next generation or install (pinned by `ReplaceAsync_OverLegacyHiddenVpk_LeavesVpkVisible`).
 
-### 🔧 Build (build 2250)
+### 🔧 Build (builds 2249–2250)
 
 - **Script path references fixed after the `scripts/` feature-folder reorg** (2250): CI workflows (`release.yml`, `sync-release-to-r2.yml`, `.gitlab-ci.yml`), the `.gitignore`/`.gitleaksignore` tracked-script whitelist, ADRs, dev docs, and in-script repo-root resolution updated to the new `scripts/release/`, `scripts/assets/`, `scripts/dataset/index/`, `scripts/sync/`, `scripts/community/qa_bot/` paths. No behavior change outside path strings.
+- **`.mcp.json` and `.gitleaksignore` kept out of the public mirror** (2249): both added to `.mirrorignore` — local agent tooling config, not project source.
+
+### 🎨 UI/UX (build 2247)
+
+- **Light mode reworked into a layered palette; window corners squared** (2247): `theme.css`'s light tokens restructured into layered surfaces with black strokes on frames, modals, and cards. `--canvas` is now `#f3f3f3`, matched by `Theme.Canvas` so the WinForms host behind a WebView2 page no longer flashes white before first paint. The per-form rounded-corner region plumbing came out of `UIHelpers` and every WebView2 dialog (`AboutDialogWebView`, `InstallMethodDialogWebView`, `StyledMessageDialog`, `WhatsNewDialogWebView`, …) — square corners are the shipped look, so ~175 lines of duplicated region code went with it.
+
+### 📚 Documentation (builds 2246, 2248)
+
+- **FAQ merged into the User Guide** (2248): `docs/user/FAQ.md` (407 lines) folded into `docs/user/USER_GUIDE.md`, with `docs/README.md` and `QUICK_START.md` links repointed and the stale `docs/dev/README.md` dropped. `CLAUDE.md` documents the Linux agent rig (gitleaks edit hook, `scripts/dev/gate-linux.sh`, Understory MCP) and now correctly states the Tests project is NUnit, not xUnit.
+- **README preview and badges tidied** (2246).
 
 ## [2.2.17-beta] (Builds 2243–2244)
 
