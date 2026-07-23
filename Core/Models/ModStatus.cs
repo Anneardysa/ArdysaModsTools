@@ -68,9 +68,9 @@ namespace ArdysaModsTools.Core.Models
 
     public static class ModConstants
     {
-        public const string ModPatchSHA1 = "1A9B91FB43FE89AD104B8001282D292EED94584D";
-        
-        public const string ModPatchLine = @"...\..\..\dota\gameinfo_branchspecific.gi~SHA1:1A9B91FB43FE89AD104B8001282D292EED94584D;CRC:043F604A";
+        public const string ModPatchSHA1 = "162F5CF09FECCB510A3E13097F8045E5BC0B38F4";
+
+        public const string ModPatchLine = @"...\..\..\dota\gameinfo_branchspecific.gi~SHA1:162F5CF09FECCB510A3E13097F8045E5BC0B38F4;CRC:41EFBC8A";
         
         public const string GameInfoMarker = "_Ardysa";
     }

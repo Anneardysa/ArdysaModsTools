@@ -669,6 +669,8 @@ namespace ArdysaModsTools.Core.Services
 
                 snapshot.Commit();
 
+                ProtectedVpkStore.Clear(targetPath);
+
                 _logger?.Log("Mod installation completed successfully.");
                 InstallReport.Ok("Installation completed successfully.");
                 return (true, false);
@@ -905,7 +907,10 @@ namespace ArdysaModsTools.Core.Services
                         _logger?.Log("[PATCH] All file operations completed successfully.");
 
                         transaction.Commit();
-                        
+
+                        ProtectedVpkStore.Ensure(targetPath);
+
+
                         try
                         {
                             var versionService = new DotaVersionService(_logger);
@@ -1122,6 +1127,8 @@ namespace ArdysaModsTools.Core.Services
 
                         await patchTx.ExecuteAsync(cancellationToken).ConfigureAwait(false);
                         patchTx.Commit();
+
+                        ProtectedVpkStore.Ensure(targetPath);
                     }
                     catch (OperationCanceledException)
                     {
@@ -1140,6 +1147,9 @@ namespace ArdysaModsTools.Core.Services
 
                 progress?.Report(100);
                 snapshot.Commit();
+
+                ProtectedVpkStore.Clear(targetPath);
+
                 _logger?.Log("Installation complete!");
                 InstallReport.Ok("Installation completed successfully.");
                 return true;

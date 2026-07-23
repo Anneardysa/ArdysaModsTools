@@ -179,7 +179,7 @@ namespace ArdysaModsTools.Core.Services
 
                     var mergedBlocks = new Dictionary<string, (string block, string heroId)>();
 
-                    bool anyEncrypted = false;
+                    var protectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                     stageProgress?.Report((20, "Processing"));
 
@@ -193,7 +193,7 @@ namespace ArdysaModsTools.Core.Services
                         var firstItem = group.First();
                         var hero = firstItem.hero;
 
-                        var extractedList = new List<(HeroModel hero, string setName, HeroModelMapper.SkinCategory category, string folderPath, string zipUrl)>();
+                        var extractedList = new List<(HeroModel hero, string setName, HeroModelMapper.SkinCategory category, string folderPath, string zipUrl, bool encrypted)>();
 
                         foreach (var item in group)
                         {
@@ -238,12 +238,13 @@ namespace ArdysaModsTools.Core.Services
                             }
 
                             string setFolder;
+                            bool selEncrypted = false;
                             try
                             {
                                 var fastZipUrl = Core.Services.Config.EnvironmentConfig.ConvertToFastUrl(zipUrl);
                                 setFolder = await _downloader.DownloadAndExtractAsync(
                                     item.hero.Id, item.setName, fastZipUrl, log, ct, speedProgress,
-                                    onEncryptedDetected: () => anyEncrypted = true).ConfigureAwait(false);
+                                    onEncryptedDetected: () => selEncrypted = true).ConfigureAwait(false);
 
                                 speedProgress?.Report(new ArdysaModsTools.Core.Models.SpeedMetrics 
                                 { 
@@ -258,7 +259,7 @@ namespace ArdysaModsTools.Core.Services
                             }
 
                             var category = HeroModelMapper.ClassifySet(item.hero.Sets, item.setName);
-                            extractedList.Add((item.hero, item.setName, category, setFolder, zipUrl));
+                            extractedList.Add((item.hero, item.setName, category, setFolder, zipUrl, selEncrypted));
                         }
 
                         if (extractedList.Count == 0)
@@ -308,6 +309,14 @@ namespace ArdysaModsTools.Core.Services
                                 var (_, copiedFiles) = await MergeSetAssetsAsync(selection.folderPath, extractDir, ct).ConfigureAwait(false);
                                 System.Diagnostics.Debug.WriteLine(
                                     $"[DEBUG] {hero.DisplayName}: '{selection.setName}' ({selection.category}) merged {copiedFiles.Count} asset file(s).");
+
+                                foreach (var rel in copiedFiles)
+                                {
+                                    if (selection.encrypted && ProtectedVpkStore.IsProtectable(rel))
+                                        protectedPaths.Add(rel);
+                                    else
+                                        protectedPaths.Remove(rel);
+                                }
 
                                 if (selection.category == HeroModelMapper.SkinCategory.Prismatic)
                                 {
@@ -417,11 +426,22 @@ namespace ArdysaModsTools.Core.Services
                         TotalBytes = 0 
                     });
 
+                    string protectedDir = Path.Combine(tempRoot, "protected");
+                    int protectedMoved = 0;
+                    if (protectedPaths.Count > 0 && ProtectedVpkStore.IsMounted(targetPath))
+                        protectedMoved = ProtectedVpkStore.MoveProtected(
+                            extractDir, protectedDir, protectedPaths, _logger, ct);
+                    else if (protectedPaths.Count > 0)
+                        _logger?.Log("Protected split skipped: the installed game config does not mount the second package yet.");
+
+                    if (protectedMoved > 0)
+                        _logger?.Log($"Protected split: {protectedMoved} file(s) moved out of the main package.");
+
                     stageProgress?.Report((65, "Building"));
                     log("Building VPK...");
-                    
+
                     var newVpkPath = await _recompiler.RecompileAsync(
-                        vpkToolPath, extractDir, buildDir, tempRoot, 
+                        vpkToolPath, extractDir, buildDir, tempRoot,
                         vpkLog => log($"[VPK] {vpkLog}"),
                         ct).ConfigureAwait(false);
 
@@ -433,12 +453,34 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
+                    string? newProtectedVpkPath = null;
+                    if (protectedMoved > 0)
+                    {
+                        newProtectedVpkPath = await _recompiler.RecompileAsync(
+                            vpkToolPath, protectedDir, buildDir, tempRoot,
+                            vpkLog => log($"[VPK] {vpkLog}"),
+                            ct).ConfigureAwait(false);
+
+                        if (string.IsNullOrWhiteSpace(newProtectedVpkPath) ||
+                            string.Equals(newProtectedVpkPath, newVpkPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            log("[VPK] Protected package build returned null - check logs above for details");
+                            return Fail("VPK recompilation failed.", report, targetPath);
+                        }
+                    }
+
+                    ct.ThrowIfCancellationRequested();
+
                     stageProgress?.Report((80, Loc.T("progress.installingShort")));
                     log("Installing...");
                     var replaceSuccess = await _replacer.ReplaceAsync(
-                        targetPath, newVpkPath, log, ct, hideOutput: anyEncrypted).ConfigureAwait(false);
+                        targetPath, newVpkPath, log, ct).ConfigureAwait(false);
 
                     if (!replaceSuccess)
+                        return Fail("VPK replacement failed.", report, targetPath);
+
+                    if (!await ProtectedVpkStore.DeployAsync(
+                            targetPath, newProtectedVpkPath, log, CancellationToken.None, _logger).ConfigureAwait(false))
                         return Fail("VPK replacement failed.", report, targetPath);
 
                     extractionLog.Save(targetPath);
