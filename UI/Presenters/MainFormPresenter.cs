@@ -459,13 +459,15 @@ namespace ArdysaModsTools.UI.Presenters
         {
             if (isUpToDate)
             {
-                var result = _view.ShowMessageBox(
-                    Loc.T("mods.upToDate.body"),
+                bool reinstall = await _view.ShowShellConfirmAsync(
                     Loc.T("mods.upToDate.title"),
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
+                    Loc.T("mods.upToDate.heading"),
+                    Loc.T("mods.upToDate.body"),
+                    "",
+                    Loc.T("mods.upToDate.confirm"),
+                    Loc.T("common.cancel"));
 
-                if (result == DialogResult.Yes)
+                if (reinstall)
                 {
                     await ReinstallAsync(appPath);
                 }
