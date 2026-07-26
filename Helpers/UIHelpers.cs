@@ -91,7 +91,7 @@ namespace ArdysaModsTools.Helpers
             }
         }
 
-        private const string DiscordInviteUrl = "https://discord.gg/ffXw265Z7e";
+        private const string DiscordInviteUrl = "https://discord.gg/5xKg4fyumv";
 
         public static async Task ShowFeatureUnavailableAsync(
             IMainFormView view,

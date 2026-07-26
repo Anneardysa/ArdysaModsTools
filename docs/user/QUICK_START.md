@@ -150,7 +150,7 @@ Patch Update → Done
 
 ## 🆘 Need Help?
 
-- 💬 Join our Discord: [discord.gg/ffXw265Z7e](https://discord.gg/ffXw265Z7e)
+- 💬 Join our Discord: [discord.gg/5xKg4fyumv](https://discord.gg/5xKg4fyumv)
 - 📺 Watch tutorials: [youtube.com/@ardysa](https://youtube.com/@ardysa)
 - 📖 Read full guide: See [USER_GUIDE.md](USER_GUIDE.md) (includes FAQ)
 
