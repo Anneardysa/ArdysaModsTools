@@ -110,7 +110,7 @@ namespace ArdysaModsTools.Core.Services
 
             if (!File.Exists(hlExtractPath))
             {
-                _logger?.Log($"HLExtract.exe not found at {hlExtractPath}");
+                _logger?.LogDebug($"HLExtract.exe not found at {hlExtractPath}");
                 return (false, $"HLExtract.exe not found at {hlExtractPath}");
             }
 
@@ -136,7 +136,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger?.Log($"VPK validation failed: {ex.Message}");
+                _logger?.LogDebug($"VPK validation failed: {ex.Message}");
                 return (false, $"Validation failed: {ex.Message}");
             }
         }
@@ -210,7 +210,7 @@ namespace ArdysaModsTools.Core.Services
                 {
                     try { if (!proc.HasExited) proc.Kill(); } catch { }
                     ct.ThrowIfCancellationRequested();
-                    FallbackLogger.Log($"HLExtract timed out after {HlExtractTimeoutMinutes} minutes.");
+                    FallbackLogger.LogFileOnly($"HLExtract timed out after {HlExtractTimeoutMinutes} minutes.");
                     return null;
                 }
 
@@ -234,7 +234,7 @@ namespace ArdysaModsTools.Core.Services
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
-                _logger?.Log($"VPK classification failed: {ex.Message}");
+                _logger?.LogDebug($"VPK classification failed: {ex.Message}");
                 return (VpkOrigin.Unreadable, false);
             }
 
@@ -287,7 +287,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger?.Log($"CheckForNewerModsPackAsync error: {ex.Message}");
+                _logger?.LogDebug($"CheckForNewerModsPackAsync error: {ex.Message}");
                 return false;
             }
         }
@@ -311,7 +311,7 @@ namespace ArdysaModsTools.Core.Services
                 try
                 {
                     if (urlIndex > 1)
-                        _logger?.Log($"Trying hash fallback source {urlIndex}/{ModsPackHashUrls.Length}...");
+                        _logger?.LogDebug($"Trying hash fallback source {urlIndex}/{ModsPackHashUrls.Length}...");
 
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     cts.CancelAfter(TimeSpan.FromSeconds(10));
@@ -320,7 +320,7 @@ namespace ArdysaModsTools.Core.Services
                     
                     if (!res.IsSuccessStatusCode)
                     {
-                        FallbackLogger.Log($"DownloadRemoteHashAsync failed for {url}: {res.StatusCode}");
+                        FallbackLogger.LogFileOnly($"DownloadRemoteHashAsync failed for {url}: {res.StatusCode}");
                         continue;
                     }
 
@@ -337,12 +337,12 @@ namespace ArdysaModsTools.Core.Services
                 catch (Exception ex)
                 {
                     lastError = ex;
-                    FallbackLogger.Log($"DownloadRemoteHashAsync exception for {url}: {ex.Message}");
+                    FallbackLogger.LogFileOnly($"DownloadRemoteHashAsync exception for {url}: {ex.Message}");
                 }
             }
             
             if (lastError != null)
-                _logger?.Log($"Failed to fetch remote ModsPack hash: {lastError.Message}");
+                _logger?.LogDebug($"Failed to fetch remote ModsPack hash: {lastError.Message}");
             return null;
         }
 
@@ -370,7 +370,7 @@ namespace ArdysaModsTools.Core.Services
                 try
                 {
                     if (urlIndex > 1)
-                        _logger?.Log($"[PATCH] Trying fallback source {urlIndex}/{urls.Length}...");
+                        _logger?.LogDebug($"[PATCH] Trying fallback source {urlIndex}/{urls.Length}...");
 
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     cts.CancelAfter(TimeSpan.FromSeconds(60));
@@ -383,11 +383,11 @@ namespace ArdysaModsTools.Core.Services
                         string actual = ComputeSHA1Hex(data);
                         if (!string.Equals(actual, expectedSha1, StringComparison.OrdinalIgnoreCase))
                         {
-                            _logger?.Log($"[PATCH] Source {urlIndex}/{urls.Length} returned an out-of-date game config; trying another source.");
-                            FallbackLogger.Log($"DownloadGameInfoAsync hash mismatch for {url}: expected {expectedSha1}, got {actual}");
+                            _logger?.LogDebug($"[PATCH] Source {urlIndex}/{urls.Length} returned an out-of-date game config; trying another source.");
+                            FallbackLogger.LogFileOnly($"DownloadGameInfoAsync hash mismatch for {url}: expected {expectedSha1}, got {actual}");
                             continue;
                         }
-                        _logger?.Log("[PATCH] Game config verified.");
+                        _logger?.LogDebug("[PATCH] Game config verified.");
                     }
 
                     return data;
@@ -399,12 +399,12 @@ namespace ArdysaModsTools.Core.Services
                 catch (Exception ex)
                 {
                     lastError = ex;
-                    FallbackLogger.Log($"DownloadGameInfoAsync failed for {url}: {ex.Message}");
+                    FallbackLogger.LogFileOnly($"DownloadGameInfoAsync failed for {url}: {ex.Message}");
                 }
             }
 
             if (lastError != null)
-                _logger?.Log($"Failed to download gameinfo: {lastError.Message}");
+                _logger?.LogDebug($"Failed to download gameinfo: {lastError.Message}");
             else if (expectedSha1 != null)
                 _logger?.Log("Failed to download game config: every source returned an out-of-date file.");
             return null;
@@ -465,7 +465,7 @@ namespace ArdysaModsTools.Core.Services
             try
             {
                 statusCallback?.Invoke("Checking version...");
-                _logger?.Log("Checking ModsPack version...");
+                _logger?.LogDebug("Checking ModsPack version...");
 
                 string modsDir = Path.Combine(targetPath, "game", "_ArdysaMods");
                 Directory.CreateDirectory(modsDir);
@@ -500,7 +500,7 @@ namespace ArdysaModsTools.Core.Services
                 cancellationToken.ThrowIfCancellationRequested();
 
                 statusCallback?.Invoke(Loc.T("progress.downloading"));
-                _logger?.Log("Downloading ModsPack...");
+                _logger?.LogDebug("Downloading ModsPack...");
 
                 if (Path.IsPathRooted(url) && File.Exists(url))
                 {
@@ -537,7 +537,7 @@ namespace ArdysaModsTools.Core.Services
                     {
                         void logMsg(string msg)
                         {
-                            _logger?.Log(msg);
+                            _logger?.LogDebug(msg);
                             statusCallback?.Invoke(msg);
                         }
 
@@ -561,7 +561,7 @@ namespace ArdysaModsTools.Core.Services
                     catch (Exception ex)
                     {
                         _logger?.Log($"ModsPack download failed: {ex.Message}");
-                        FallbackLogger.Log($"ModsPack download exception: {ex.Message}");
+                        FallbackLogger.LogFileOnly($"ModsPack download exception: {ex.Message}");
                         InstallReport.Fail("Download failed — check your internet connection and try again.");
                         return (false, false);
                     }
@@ -582,7 +582,7 @@ namespace ArdysaModsTools.Core.Services
                         if (!string.Equals(downloadedSha, remoteHash, StringComparison.OrdinalIgnoreCase))
                         {
                             _logger?.Log("Downloaded ModsPack hash mismatch.");
-                            FallbackLogger.Log($"ModsPack hash mismatch. expected={remoteHash} got={downloadedSha}");
+                            FallbackLogger.LogFileOnly($"ModsPack hash mismatch. expected={remoteHash} got={downloadedSha}");
                             InstallReport.Fail("The downloaded package was corrupted — please try again.");
                             return (false, false);
                         }
@@ -607,7 +607,7 @@ namespace ArdysaModsTools.Core.Services
                 catch (Exception ex)
                 {
                     _logger?.Log($"ERROR: Failed to extract ModsPack: {ex.Message}");
-                    FallbackLogger.Log($"Zip extraction error: {ex.Message}");
+                    FallbackLogger.LogFileOnly($"Zip extraction error: {ex.Message}");
                     InstallReport.Fail("Could not unpack the download — check free disk space and antivirus.");
                     return (false, false);
                 }
@@ -664,7 +664,7 @@ namespace ArdysaModsTools.Core.Services
                 if (!string.IsNullOrWhiteSpace(remoteHash))
                 {
                     try { await File.WriteAllTextAsync(localHashFile, remoteHash.Trim(), cancellationToken).ConfigureAwait(false); }
-                    catch (Exception ex) { FallbackLogger.Log($"Failed writing local ModsPack.hash: {ex.Message}"); }
+                    catch (Exception ex) { FallbackLogger.LogFileOnly($"Failed writing local ModsPack.hash: {ex.Message}"); }
                 }
 
                 snapshot.Commit();
@@ -684,13 +684,13 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 _logger?.Log($"Installation failed: {ex.Message}");
-                FallbackLogger.Log($"InstallModsAsync unexpected exception: {ex.Message}");
+                FallbackLogger.LogFileOnly($"InstallModsAsync unexpected exception: {ex.Message}");
                 InstallReport.Fail("Unexpected error — please try again.");
                 return (false, false);
             }
             finally
             {
-                try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true); } catch (Exception ex) { FallbackLogger.Log($"Temp cleanup failed: {ex.Message}"); }
+                try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true); } catch (Exception ex) { FallbackLogger.LogFileOnly($"Temp cleanup failed: {ex.Message}"); }
             }
         }
 
@@ -745,7 +745,7 @@ namespace ArdysaModsTools.Core.Services
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         _logger?.Log($"Failed to write game config: {ex.Message}");
-                        FallbackLogger.Log($"DisableModsAsync write config failed: {ex.Message}");
+                        FallbackLogger.LogFileOnly($"DisableModsAsync write config failed: {ex.Message}");
                     }
                 }
 
@@ -759,7 +759,7 @@ namespace ArdysaModsTools.Core.Services
                     catch (Exception ex)
                     {
                         _logger?.Log($"Failed to remove game config: {ex.Message}");
-                        FallbackLogger.Log($"DisableModsAsync delete config failed: {ex.Message}");
+                        FallbackLogger.LogFileOnly($"DisableModsAsync delete config failed: {ex.Message}");
                         return false;
                     }
                 }
@@ -775,7 +775,7 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 _logger?.Log($"DisableModsAsync failed: {ex.Message}");
-                FallbackLogger.Log($"DisableModsAsync exception: {ex.Message}");
+                FallbackLogger.LogFileOnly($"DisableModsAsync exception: {ex.Message}");
                 return false;
             }
         }
@@ -800,7 +800,7 @@ namespace ArdysaModsTools.Core.Services
             finally
             {
                 try { if (File.Exists(tmp)) File.Delete(tmp); }
-                catch (Exception ex) { FallbackLogger.Log($"ReplaceAtomicAsync temp cleanup failed for {tmp}: {ex.Message}"); }
+                catch (Exception ex) { FallbackLogger.LogFileOnly($"ReplaceAtomicAsync temp cleanup failed for {tmp}: {ex.Message}"); }
             }
         }
 
@@ -895,7 +895,7 @@ namespace ArdysaModsTools.Core.Services
 
                         transaction.AddOperation(new MoveOperation(tmpSig, signaturesPath));
 
-                        _logger?.Log("[PATCH] Core files prepared for patching.");
+                        _logger?.LogDebug("[PATCH] Core files prepared for patching.");
 
                         string tmpGi = gameInfoPath + ".tmp";
                         await File.WriteAllBytesAsync(tmpGi, fileBytes, ct).ConfigureAwait(false);
@@ -904,7 +904,7 @@ namespace ArdysaModsTools.Core.Services
 
                         await transaction.ExecuteAsync(ct).ConfigureAwait(false);
 
-                        _logger?.Log("[PATCH] All file operations completed successfully.");
+                        _logger?.LogDebug("[PATCH] All file operations completed successfully.");
 
                         transaction.Commit();
 
@@ -915,7 +915,7 @@ namespace ArdysaModsTools.Core.Services
                         {
                             var versionService = new DotaVersionService(_logger);
                             await versionService.SavePatchedVersionJsonAsync(targetPath).ConfigureAwait(false);
-                            _logger?.Log("[PATCH] Version info saved.");
+                            _logger?.LogDebug("[PATCH] Version info saved.");
                         }
                         catch (Exception ex)
                         {
@@ -941,7 +941,7 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 _logger?.Log($"[PATCH] Unexpected error: {ex.Message}");
-                FallbackLogger.Log($"UpdatePatcherAsync exception: {ex.Message}");
+                FallbackLogger.LogFileOnly($"UpdatePatcherAsync exception: {ex.Message}");
                 return PatchResult.Failed;
             }
         }
@@ -1066,7 +1066,7 @@ namespace ArdysaModsTools.Core.Services
                 }
                 else
                 {
-                    _logger?.Log("VPK is self-contained or third-party: installing as-is (no package rebuild).");
+                    _logger?.LogDebug("VPK is self-contained or third-party: installing as-is (no package rebuild).");
                     InstallReport.Step("Third-party package — installed as-is (no rebuild).");
                 }
 
@@ -1138,7 +1138,7 @@ namespace ArdysaModsTools.Core.Services
                     catch (Exception ex)
                     {
                         _logger?.Log("Error: Failed to apply game patch. Rolling back...");
-                        FallbackLogger.Log($"Manual patch (gameinfo/signatures) error: {ex.Message}");
+                        FallbackLogger.LogFileOnly($"Manual patch (gameinfo/signatures) error: {ex.Message}");
                         await patchTx.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
                         InstallReport.Fail("Could not apply the game patch — your previous game files were restored.");
                         return false;
@@ -1162,7 +1162,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"ManualInstallModsAsync unexpected exception: {ex.Message}");
+                FallbackLogger.LogFileOnly($"ManualInstallModsAsync unexpected exception: {ex.Message}");
                 InstallReport.Fail("Unexpected error — please try again.");
                 return false;
             }
@@ -1200,7 +1200,7 @@ namespace ArdysaModsTools.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    FallbackLogger.Log($"InstallSnapshot.Capture failed: {ex.Message}");
+                    FallbackLogger.LogFileOnly($"InstallSnapshot.Capture failed: {ex.Message}");
                 }
                 return s;
             }
@@ -1225,7 +1225,7 @@ namespace ArdysaModsTools.Core.Services
                 }
                 catch (Exception ex)
                 {
-                    FallbackLogger.Log($"InstallSnapshot rollback failed: {ex.Message}");
+                    FallbackLogger.LogFileOnly($"InstallSnapshot rollback failed: {ex.Message}");
                 }
             }
 
@@ -1245,7 +1245,7 @@ namespace ArdysaModsTools.Core.Services
                 using var response = await _httpClient.GetAsync(api, cts.Token).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                 {
-                    FallbackLogger.Log($"TryGetModsPackAssetUrlAsync: GitHub API returned {response.StatusCode}");
+                    FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync: GitHub API returned {response.StatusCode}");
                     return (false, string.Empty);
                 }
 
@@ -1276,7 +1276,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"TryGetModsPackAssetUrlAsync exception: {ex.Message}");
+                FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync exception: {ex.Message}");
                 return (false, string.Empty);
             }
         }

@@ -130,7 +130,7 @@ namespace ArdysaModsTools.Core.Services
                     log("Building VPK...");
                     var newVpkPath = await _recompiler.RecompileAsync(
                         vpkToolPath, extractDir, buildDir, tempRoot, 
-                        vpkLog => _logger?.Log($"[VPK] {vpkLog}"),
+                        vpkLog => _logger?.LogDebug($"[VPK] {vpkLog}"),
                         ct, speedProgress).ConfigureAwait(false);
 
                     if (string.IsNullOrWhiteSpace(newVpkPath))

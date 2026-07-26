@@ -47,7 +47,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"ProtectedVpkStore.IsMounted failed: {ex.Message}");
+                FallbackLogger.LogFileOnly($"ProtectedVpkStore.IsMounted failed: {ex.Message}");
                 return false;
             }
         }
@@ -64,7 +64,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"ProtectedVpkStore.Ensure failed: {ex.Message}");
+                FallbackLogger.LogFileOnly($"ProtectedVpkStore.Ensure failed: {ex.Message}");
             }
         }
 
@@ -81,7 +81,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"ProtectedVpkStore.Clear failed: {ex.Message}");
+                FallbackLogger.LogFileOnly($"ProtectedVpkStore.Clear failed: {ex.Message}");
             }
         }
 
