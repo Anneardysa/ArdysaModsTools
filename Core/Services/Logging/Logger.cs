@@ -187,9 +187,14 @@ namespace ArdysaModsTools.Core.Services
 
         public void Log(string message, LogLevel level = LogLevel.Info)
         {
+            if (level == LogLevel.Debug)
+            {
+                FallbackLogger.LogFileOnly($"[Debug] {message}");
+                return;
+            }
+
             string prefixedMessage = level switch
             {
-                LogLevel.Debug => $"[DEBUG] {message}",
                 LogLevel.Warning => $"Warning: {message}",
                 LogLevel.Error => $"Error: {message}",
                 _ => message
