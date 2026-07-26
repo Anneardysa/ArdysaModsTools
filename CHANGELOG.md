@@ -5,6 +5,26 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.19-beta] (Builds 2253–2257)
+
+### 🚀 Added (build 2254)
+
+- **All 28 R2 localization files are now downloaded, over the real CDN fallback chain** (2254): `LocalizationPatcherService` shipped a hardcoded 13-entry language list while `ModsPack/remote/localization/` hosts 28 — players on czech, polish, thai, turkish, vietnamese, latam, dutch, greek, bulgarian, danish, finnish, hungarian, norwegian, romanian or swedish silently got untranslated mod item names. List extended to all 28 (`FileCount` exposed for callers); first install now pulls ~115 MB instead of ~55 MB, cached in `%AppData%` across runs.
+  - **The "fallback" CDN was the same host.** Both entries of the old `BaseUrls` resolved to `https://cdn.ardysamods.my.id` (`CdnConfig.R2BaseUrl` and `EnvironmentConfig.BuildRawUrl` → `ContentBase` → `R2CdnBase` are the identical string), so an R2 outage or a GFW block failed every file with jsDelivr/GitHub Raw/the two proxies never tried — contrary to ADR-0003. The hand-rolled loop is replaced by `CdnFallbackService.DownloadWithFallbackAsync`, the same service `ModsPackDataService.DownloadIndexAsync` already uses for `modspack_index.txt`, bringing `SmartCdnSelector` ordering, the circuit breaker, per-CDN retry and the Content-Length truncation check.
+  - Deliberately the **byte[]** overload, not `DownloadStringWithFallbackAsync`: the files are UTF-8 **with BOM** (`EF BB BF "lang"`) and the string overload strips it — they must land byte-exact or Dota may not parse them.
+  - **Content gate** (`LooksLikeLocalization`): after an optional BOM and leading whitespace the payload must start with the KV root key `"lang"`. Guards the DL_006 failure mode where a CDN answers a `text/*` request with an HTML bot-challenge page (ADR-0012 amendment).
+  - **Cache key bug fixed**: a SHA-1 of the content was stored where a later HEAD sends an ETag, so that file could never hit cache again. Only server-issued validators are stored now, `"R"`-formatted to match `CdnFallbackService`.
+  - Success threshold was `successCount >= totalFiles / 2` — integer division, so 6 of 13 silently counted as success. Now all-or-warn, with the missing filenames logged. `hashManifest` moved to `ConcurrentDictionary` (`TryGetValue` ran unlocked while writes held a `lock`, across 3 tasks). User cancellation propagates instead of degrading into "files failed". New `LocalizationPatcherServiceTests` pins the content gate and the 28-language invariant.
+
+### 🎨 UI/UX (builds 2255–2256)
+
+- **Generating and install diagnostics no longer reach the main shell console** (2255): the console now carries only the start and complete/error lines for Skin Selector, Miscellaneous and Install ModsPack. Two service-level channels were bypassing the presenter layer, which already did the right thing (`LogGenerationOutcome` — "writes ONE final line"): `FallbackLogger.Log` forwards to `UserLogger`, wired to the shell logger in `MainFormWebView.cs:198`, and `Logger.LogDebug` only prefixed `[DEBUG]` before printing to the console anyway. `LogLevel.Debug` now routes to `FallbackLogger.LogFileOnly` and returns — one place, so every existing `LogDebug` caller benefits — and the verbose call sites in `ModInstallerService` (22 + 17), `ModsPackDataService` (10), `ProtectedVpkStore` (3), `HeroGenerationService` (8) and `MiscCleanGenerationService` moved onto the file-only channel. Nothing is lost: it all still lands in `ardysa_fallback.log`, the progress overlay still shows live progress, and install failure cards are unaffected because they read `InstallReport` (the console is only their fallback).
+- **The "already up to date" prompt is an in-shell card, not a native MessageBox** (2256): `HandleInstallResultAsync` used `ShowMessageBox(..., MessageBoxButtons.YesNo, MessageBoxIcon.Question)`, the last Windows-chrome dialog on the install path. Now `ShowShellConfirmAsync` — the same component the install-confirm and unofficial-pack prompts use, whose own contract is "replaces the native Yes/No MessageBox" — following the sibling key convention (`title` → eyebrow, `heading`, `body`, `confirm`, `common.cancel`). Buttons read **Reinstall Anyway** / **Cancel** instead of Yes/No. New `mods.upToDate.heading` and `mods.upToDate.confirm` in all 8 locale catalogs (731 keys each, parity verified); `mods.upToDate.body` reworded since a MessageBox had only one text field.
+
+### 🔧 Other (build 2253)
+
+- **Discord invite rotated** (2253): `ffXw265Z7e` → `5xKg4fyumv` across `main_shell.html`, `UIHelpers.DiscordInviteUrl` and the user docs. `QUICK_START.md` and `USER_GUIDE.md` had only their hrefs updated, leaving the visible link text pointing at the dead invite — fixed.
+
 ## [2.2.18-beta] (Builds 2246–2251)
 
 ### 🔒 Security (build 2251)
