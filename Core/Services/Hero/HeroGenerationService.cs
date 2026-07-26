@@ -359,7 +359,7 @@ namespace ArdysaModsTools.Core.Services
                         catch (Exception ex)
                         {
                             failedHeroes.Add((hero.DisplayName, ex.Message));
-                            _logger?.Log($"Error merging assets for {hero.DisplayName}: {ex}");
+                            _logger?.LogDebug($"Error merging assets for {hero.DisplayName}: {ex}");
                         }
                         finally
                         {
@@ -411,7 +411,11 @@ namespace ArdysaModsTools.Core.Services
                     stageProgress?.Report((60, Loc.T("progress.downloadingAssets")));
                     log("Downloading assets...");
                     var locSuccess = await _localizationPatcher.PatchLocalizationAsync(
-                        extractDir, s => { }, ct).ConfigureAwait(false);
+                        extractDir, log, ct,
+                        onFileDone: (done, total) =>
+                            stageProgress?.Report((60 + done * 5 / Math.Max(total, 1),
+                                Loc.T("progress.downloadingAssets"))))
+                        .ConfigureAwait(false);
                     if (!locSuccess)
                     {
                         report.Warn("Some localization files failed to download — some text labels may be missing.");
@@ -432,10 +436,10 @@ namespace ArdysaModsTools.Core.Services
                         protectedMoved = ProtectedVpkStore.MoveProtected(
                             extractDir, protectedDir, protectedPaths, _logger, ct);
                     else if (protectedPaths.Count > 0)
-                        _logger?.Log("Protected split skipped: the installed game config does not mount the second package yet.");
+                        _logger?.LogDebug("Protected split skipped: the installed game config does not mount the second package yet.");
 
                     if (protectedMoved > 0)
-                        _logger?.Log($"Protected split: {protectedMoved} file(s) moved out of the main package.");
+                        _logger?.LogDebug($"Protected split: {protectedMoved} file(s) moved out of the main package.");
 
                     stageProgress?.Report((65, "Building"));
                     log("Building VPK...");
@@ -520,7 +524,7 @@ namespace ArdysaModsTools.Core.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Log($"Cleanup failed: {ex.Message}");
+                        _logger?.LogDebug($"Cleanup failed: {ex.Message}");
                     }
 
                     System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
@@ -537,7 +541,7 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 log($"Error: {ex.Message}");
-                _logger?.Log($"HeroGenerationService batch error: {ex}");
+                _logger?.LogDebug($"HeroGenerationService batch error: {ex}");
                 return new OperationResult { Success = false, Message = ex.Message, Exception = ex };
             }
         }
@@ -570,7 +574,7 @@ namespace ArdysaModsTools.Core.Services
             var contentRoot = FindContentRoot(setFolder);
             if (string.IsNullOrEmpty(contentRoot))
             {
-                _logger?.Log($"No content found in {setFolder}");
+                _logger?.LogDebug($"No content found in {setFolder}");
                 return (setFolder, copiedFiles);
             }
 
@@ -600,7 +604,7 @@ namespace ArdysaModsTools.Core.Services
 #if DEBUG
             System.Diagnostics.Debug.WriteLine($"[DEBUG] Copied {copiedFiles.Count} files");
 #endif
-            _logger?.Log($"Merged {copiedFiles.Count} files");
+            _logger?.LogDebug($"Merged {copiedFiles.Count} files");
 
             await Task.CompletedTask;
             return (contentRoot, copiedFiles);
@@ -657,7 +661,7 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger?.Log($"Bundled index read failed for {setFolder}: {ex.Message}");
+                _logger?.LogDebug($"Bundled index read failed for {setFolder}: {ex.Message}");
                 return null;
             }
         }
