@@ -5,7 +5,14 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.19-beta] (Builds 2253–2257)
+## [2.2.19-beta] (Builds 2253–2259)
+
+### 🎨 UI/UX (build 2258)
+
+- **The UI renders correctly without a network connection** (2258): the interface no longer fetches its font or stylesheet at runtime. Offline, on slow DNS, or on a restricted network, text previously fell back to Consolas and the Performance Tweak page rendered unstyled.
+  - JetBrains Mono is bundled with the app instead of loaded from Google Fonts, and rides in on the same head-injection the theme already uses. The variable face is used so every weight in the UI renders exactly as before — verified pixel-identical to the previous rendering.
+  - Tailwind is vendored locally (v3.4.17, MIT) for the Performance Tweak page instead of loaded from its CDN, with that page's existing config unchanged.
+  - A test now fails if any shipped page reintroduces an external font or stylesheet reference — a regression that looks fine on a dev machine and only affects users offline.
 
 ### 🚀 Added (build 2254)
 
@@ -20,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Generating and install diagnostics no longer reach the main shell console** (2255): the console now carries only the start and complete/error lines for Skin Selector, Miscellaneous and Install ModsPack. Two service-level channels were bypassing the presenter layer, which already did the right thing (`LogGenerationOutcome` — "writes ONE final line"): `FallbackLogger.Log` forwards to `UserLogger`, wired to the shell logger in `MainFormWebView.cs:198`, and `Logger.LogDebug` only prefixed `[DEBUG]` before printing to the console anyway. `LogLevel.Debug` now routes to `FallbackLogger.LogFileOnly` and returns — one place, so every existing `LogDebug` caller benefits — and the verbose call sites in `ModInstallerService` (22 + 17), `ModsPackDataService` (10), `ProtectedVpkStore` (3), `HeroGenerationService` (8) and `MiscCleanGenerationService` moved onto the file-only channel. Nothing is lost: it all still lands in `ardysa_fallback.log`, the progress overlay still shows live progress, and install failure cards are unaffected because they read `InstallReport` (the console is only their fallback).
 - **The "already up to date" prompt is an in-shell card, not a native MessageBox** (2256): `HandleInstallResultAsync` used `ShowMessageBox(..., MessageBoxButtons.YesNo, MessageBoxIcon.Question)`, the last Windows-chrome dialog on the install path. Now `ShowShellConfirmAsync` — the same component the install-confirm and unofficial-pack prompts use, whose own contract is "replaces the native Yes/No MessageBox" — following the sibling key convention (`title` → eyebrow, `heading`, `body`, `confirm`, `common.cancel`). Buttons read **Reinstall Anyway** / **Cancel** instead of Yes/No. New `mods.upToDate.heading` and `mods.upToDate.confirm` in all 8 locale catalogs (731 keys each, parity verified); `mods.upToDate.body` reworded since a MessageBox had only one text field.
+
+### 📚 Documentation (build 2259)
+
+- **Platform support scope recorded** (2259): an internal decision record now states that AMT targets Windows 10/11 x64 only. No user-facing change — supported platforms are the same as they have always been.
 
 ### 🔧 Other (build 2253)
 
