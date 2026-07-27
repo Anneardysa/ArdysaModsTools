@@ -295,6 +295,16 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
 
+    <!-- Bundled JetBrains Mono @font-face (replaces the Google Fonts CDN link) -->
+    <Content Include="Assets\Html\fonts.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
+    <!-- Vendored web assets (Tailwind Play CDN build — see Assets\Html\vendor\README.md) -->
+    <Content Include="Assets\Html\vendor\*.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
     <!-- Localization catalog (unified JSON, shared by C# + WebView) -->
     <Content Include="Assets\Locales\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
