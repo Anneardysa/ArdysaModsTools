@@ -1,0 +1,5 @@
+# Keep generated/vendored web assets byte-identical across platforms. Both carry a documented
+# SHA-256 (Assets/Html/vendor/README.md, Assets/Fonts/variable/README.md); EOL conversion would
+# change their content hash on checkout and make those records wrong.
+Assets/Html/vendor/tailwind.min.js -text
+Assets/Html/fonts.css              -text
