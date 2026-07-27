@@ -32,3 +32,7 @@ is smaller than two static faces (396 KB of base64 vs 720 KB).
 `Assets/Html/fonts.css` is generated, not hand-edited. If this font is updated, rebuild it as a
 single `@font-face` with `font-weight: 100 800` and the TTF as a base64 `data:` URI — no `local()`
 source (see the comment at the top of `fonts.css` for why).
+
+**Keep the OFL attribution in the generated header.** The repo is public via the GitHub mirror, and
+the SIL Open Font License requires the copyright notice travel with the font. It is also embedded in
+the font's own `name` table (ID 13), but the CSS header states it in readable form.
