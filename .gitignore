@@ -113,3 +113,6 @@ docs/samples/
 .claude/
 .CLAUDE.md
 /.train
+
+# AMT 3.0 (next/) - ignored on main branch (2.0)
+next/
