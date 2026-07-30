@@ -104,12 +104,33 @@ namespace ArdysaModsTools.Core.Services
         }
 
         public static int MoveProtected(string extractDir, string protectedDir,
-            IEnumerable<string> relativePaths, IAppLogger? logger = null, CancellationToken ct = default)
+            IEnumerable<string>? relativePaths = null, IAppLogger? logger = null, CancellationToken ct = default)
         {
             int moved = 0;
-            foreach (var rel in relativePaths)
+            IEnumerable<string> pathsToProcess;
+            if (relativePaths != null)
+            {
+                pathsToProcess = relativePaths;
+            }
+            else if (Directory.Exists(extractDir))
+            {
+                var files = Directory.EnumerateFiles(extractDir, "*", SearchOption.AllDirectories);
+                pathsToProcess = System.Linq.Enumerable.ToList(
+                    System.Linq.Enumerable.Where(
+                        System.Linq.Enumerable.Select(files, f => Path.GetRelativePath(extractDir, f).Replace('\\', '/')),
+                        rel => IsProtectable(rel)));
+            }
+            else
+            {
+                pathsToProcess = Array.Empty<string>();
+            }
+
+            foreach (var rel in pathsToProcess)
             {
                 ct.ThrowIfCancellationRequested();
+
+                if (!IsProtectable(rel))
+                    continue;
 
                 string source = Path.Combine(extractDir, rel.Replace('/', Path.DirectorySeparatorChar));
                 if (!File.Exists(source))

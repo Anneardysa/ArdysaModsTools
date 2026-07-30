@@ -312,7 +312,7 @@ namespace ArdysaModsTools.Core.Services
 
                                 foreach (var rel in copiedFiles)
                                 {
-                                    if (selection.encrypted && ProtectedVpkStore.IsProtectable(rel))
+                                    if (ProtectedVpkStore.IsProtectable(rel))
                                         protectedPaths.Add(rel);
                                     else
                                         protectedPaths.Remove(rel);
@@ -432,14 +432,12 @@ namespace ArdysaModsTools.Core.Services
 
                     string protectedDir = Path.Combine(tempRoot, "protected");
                     int protectedMoved = 0;
-                    if (protectedPaths.Count > 0 && ProtectedVpkStore.IsMounted(targetPath))
-                        protectedMoved = ProtectedVpkStore.MoveProtected(
-                            extractDir, protectedDir, protectedPaths, _logger, ct);
-                    else if (protectedPaths.Count > 0)
-                        _logger?.LogDebug("Protected split skipped: the installed game config does not mount the second package yet.");
+                    ProtectedVpkStore.Ensure(targetPath);
+                    protectedMoved = ProtectedVpkStore.MoveProtected(
+                        extractDir, protectedDir, relativePaths: null, _logger, ct);
 
                     if (protectedMoved > 0)
-                        _logger?.LogDebug($"Protected split: {protectedMoved} file(s) moved out of the main package.");
+                        _logger?.LogDebug($"Protected split: {protectedMoved} file(s) moved out of the main package into game/mod.");
 
                     stageProgress?.Report((65, "Building"));
                     log("Building VPK...");
