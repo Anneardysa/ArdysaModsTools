@@ -432,9 +432,12 @@ namespace ArdysaModsTools.Core.Services
 
                     string protectedDir = Path.Combine(tempRoot, "protected");
                     int protectedMoved = 0;
-                    ProtectedVpkStore.Ensure(targetPath);
-                    protectedMoved = ProtectedVpkStore.MoveProtected(
-                        extractDir, protectedDir, relativePaths: null, _logger, ct);
+                    if (protectedPaths.Count > 0)
+                    {
+                        ProtectedVpkStore.Ensure(targetPath);
+                        protectedMoved = ProtectedVpkStore.MoveProtected(
+                            extractDir, protectedDir, protectedPaths, _logger, ct);
+                    }
 
                     if (protectedMoved > 0)
                         _logger?.LogDebug($"Protected split: {protectedMoved} file(s) moved out of the main package into game/mod.");
