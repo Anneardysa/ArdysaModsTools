@@ -312,7 +312,7 @@ namespace ArdysaModsTools.Core.Services
 
                                 foreach (var rel in copiedFiles)
                                 {
-                                    if (ProtectedVpkStore.IsProtectable(rel))
+                                    if (selection.encrypted && ProtectedVpkStore.IsProtectable(rel))
                                         protectedPaths.Add(rel);
                                     else
                                         protectedPaths.Remove(rel);
