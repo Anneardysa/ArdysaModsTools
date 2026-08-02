@@ -719,7 +719,8 @@ namespace ArdysaModsTools.UI.Forms
 
                     var detail = (result.Message ?? "Unknown error")
                         + (string.IsNullOrEmpty(result.ErrorCode) ? "" : $"\n\nError code: {result.ErrorCode}")
-                        + "\n\nClick Show Log to review the step that failed. Full details were saved to ardysa_fallback.log.";
+                        + "\n\nClick Show Log to review the step that failed. Full details were saved to"
+                        + " %LocalAppData%\\ArdysaModsTools\\ardysa_fallback.log.";
                     var errorMsg = detail.Replace("'", "\\'").Replace("\n", "\\n");
                     await ExecuteScriptAsync($"showAlert('Generation Failed', '{errorMsg}', 'error')");
                 }

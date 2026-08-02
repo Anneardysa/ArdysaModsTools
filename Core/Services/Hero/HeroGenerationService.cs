@@ -432,11 +432,15 @@ namespace ArdysaModsTools.Core.Services
 
                     string protectedDir = Path.Combine(tempRoot, "protected");
                     int protectedMoved = 0;
-                    if (protectedPaths.Count > 0)
+                    if (protectedPaths.Count > 0 && ProtectedVpkStore.IsMounted(targetPath))
                     {
                         ProtectedVpkStore.Ensure(targetPath);
                         protectedMoved = ProtectedVpkStore.MoveProtected(
                             extractDir, protectedDir, protectedPaths, _logger, ct);
+                    }
+                    else if (protectedPaths.Count > 0)
+                    {
+                        _logger?.LogDebug("Protected split skipped: the installed game config does not mount the second package yet.");
                     }
 
                     if (protectedMoved > 0)
