@@ -15,6 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading;
@@ -92,12 +93,52 @@ namespace ArdysaModsTools.Core.Services.Security
             var ciphertext = new byte[ctLen];
             Buffer.BlockCopy(container, ctOffset, ciphertext, 0, ctLen);
 
-            var plaintext = new byte[ctLen];
-            byte[] key = EmbeddedAssetKey.DeriveKey(assetPath);
-            using var gcm = new AesGcm(key, TagLen);
-            gcm.Decrypt(nonce, ciphertext, tag, plaintext);
-            return plaintext;
+            return DecryptWithEpochs(nonce, tag, ciphertext, assetPath, EmbeddedAssetKey.SupportedEpochs);
         }
+
+        internal static byte[] DecryptWithEpochs(
+            byte[] nonce, byte[] tag, byte[] ciphertext, string assetPath, int[] epochs)
+        {
+            if (epochs == null || epochs.Length == 0)
+                throw new CryptographicException("No asset key epochs are configured.");
+
+            int hint = _lastGoodEpoch;
+            AuthenticationTagMismatchException? lastMismatch = null;
+
+            foreach (int epoch in Order(epochs, hint))
+            {
+                var plaintext = new byte[ciphertext.Length];
+                byte[] key = EmbeddedAssetKey.DeriveKey(assetPath, epoch);
+                try
+                {
+                    using var gcm = new AesGcm(key, TagLen);
+                    gcm.Decrypt(nonce, ciphertext, tag, plaintext);
+                    _lastGoodEpoch = epoch;
+                    return plaintext;
+                }
+                catch (AuthenticationTagMismatchException ex)
+                {
+                    lastMismatch = ex;
+                }
+            }
+
+            throw lastMismatch!;
+        }
+
+        private static IEnumerable<int> Order(int[] epochs, int hint)
+        {
+            if (hint != 0 && Array.IndexOf(epochs, hint) >= 0)
+            {
+                yield return hint;
+                foreach (int e in epochs)
+                    if (e != hint) yield return e;
+                yield break;
+            }
+
+            foreach (int e in epochs) yield return e;
+        }
+
+        private static volatile int _lastGoodEpoch;
 
         public static byte[] Encrypt(byte[] plaintext, string assetPath)
         {

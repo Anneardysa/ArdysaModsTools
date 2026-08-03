@@ -22,7 +22,9 @@ namespace ArdysaModsTools.Core.Services.Security
 {
     internal static class EmbeddedAssetKey
     {
-        internal const int AssetEpoch = 1;
+        internal static readonly int[] SupportedEpochs = { 1 };
+
+        internal static int AssetEpoch => SupportedEpochs[0];
 
         private const int LegacyEpoch = 1;
 

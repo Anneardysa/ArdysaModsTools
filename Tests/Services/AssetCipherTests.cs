@@ -100,6 +100,76 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(ex!.ContainerVersion, Is.EqualTo(99));
         }
 
+
+        [TestCase(1)]
+        [TestCase(2)]
+        public void DecryptWithEpochs_ReadsAnySupportedEpoch(int assetEpoch)
+        {
+            byte[] plain = SampleZip();
+            var (nonce, tag, ct) = PartsUnderEpoch(plain, AssetPath, assetEpoch);
+
+            byte[] result = AssetCipher.DecryptWithEpochs(nonce, tag, ct, AssetPath, new[] { 2, 1 });
+
+            Assert.That(result, Is.EqualTo(plain));
+        }
+
+        [Test]
+        public void DecryptWithEpochs_RejectsEpochOutsideTheWindow()
+        {
+            var (nonce, tag, ct) = PartsUnderEpoch(SampleZip(), AssetPath, epoch: 3);
+
+            Assert.Throws<AuthenticationTagMismatchException>(
+                () => AssetCipher.DecryptWithEpochs(nonce, tag, ct, AssetPath, new[] { 2, 1 }));
+        }
+
+        [Test]
+        public void DecryptWithEpochs_SingleEpochBuild_CannotReadRotatedTree()
+        {
+            var (nonce, tag, ct) = PartsUnderEpoch(SampleZip(), AssetPath, epoch: 2);
+
+            Assert.Throws<AuthenticationTagMismatchException>(
+                () => AssetCipher.DecryptWithEpochs(nonce, tag, ct, AssetPath, new[] { 1 }));
+        }
+
+        [Test]
+        public void DecryptWithEpochs_WrongAssetPath_Fails()
+        {
+            var (nonce, tag, ct) = PartsUnderEpoch(SampleZip(), AssetPath, epoch: 1);
+
+            Assert.Throws<AuthenticationTagMismatchException>(
+                () => AssetCipher.DecryptWithEpochs(nonce, tag, ct, "Assets/models/Axe/other.zip", new[] { 2, 1 }));
+        }
+
+        [Test]
+        public void DecryptWithEpochs_EmptyWindow_Throws()
+        {
+            var (nonce, tag, ct) = PartsUnderEpoch(SampleZip(), AssetPath, epoch: 1);
+
+            Assert.Throws<CryptographicException>(
+                () => AssetCipher.DecryptWithEpochs(nonce, tag, ct, AssetPath, Array.Empty<int>()));
+        }
+
+        [Test]
+        public void ShippedEpochWindow_RoundTripsItsOwnOutput()
+        {
+            byte[] plain = SampleZip();
+            byte[] container = AssetCipher.Encrypt(plain, AssetPath);
+
+            Assert.That(AssetCipher.Decrypt(container, AssetPath), Is.EqualTo(plain));
+        }
+
+        private static (byte[] nonce, byte[] tag, byte[] ciphertext) PartsUnderEpoch(
+            byte[] plaintext, string assetPath, int epoch)
+        {
+            byte[] key = EmbeddedAssetKey.DeriveKey(assetPath, epoch);
+            var nonce = RandomNumberGenerator.GetBytes(12);
+            var ciphertext = new byte[plaintext.Length];
+            var tag = new byte[16];
+            using (var gcm = new AesGcm(key, 16))
+                gcm.Encrypt(nonce, plaintext, ciphertext, tag);
+            return (nonce, tag, ciphertext);
+        }
+
         private static byte[] EncryptUnderEpoch(byte[] plaintext, string assetPath, int epoch)
         {
             byte[] key = EmbeddedAssetKey.DeriveKey(assetPath, epoch);
