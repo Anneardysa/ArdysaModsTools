@@ -158,6 +158,69 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(AssetCipher.Decrypt(container, AssetPath), Is.EqualTo(plain));
         }
 
+
+        [TestCase(0)]
+        [TestCase(1)]
+        public void DecryptWithKeys_ReadsEitherSecretInTheWindow(int keyedWith)
+        {
+            byte[] plain = SampleZip();
+            byte[] newSecret = RandomNumberGenerator.GetBytes(32);
+            byte[] oldSecret = RandomNumberGenerator.GetBytes(32);
+            byte[][] window = { KeyFrom(newSecret), KeyFrom(oldSecret) };
+
+            var (nonce, tag, ct) = PartsUnderKey(plain, window[keyedWith]);
+
+            Assert.That(AssetCipher.DecryptWithKeys(nonce, tag, ct, window), Is.EqualTo(plain));
+        }
+
+        [Test]
+        public void DecryptWithKeys_RejectsSecretOutsideTheWindow()
+        {
+            var (nonce, tag, ct) = PartsUnderKey(SampleZip(), KeyFrom(RandomNumberGenerator.GetBytes(32)));
+            byte[][] window = { KeyFrom(RandomNumberGenerator.GetBytes(32)) };
+
+            Assert.Throws<AuthenticationTagMismatchException>(
+                () => AssetCipher.DecryptWithKeys(nonce, tag, ct, window));
+        }
+
+        [Test]
+        public void DecryptWithKeys_EmptyWindow_Throws()
+        {
+            var (nonce, tag, ct) = PartsUnderKey(SampleZip(), KeyFrom(RandomNumberGenerator.GetBytes(32)));
+
+            Assert.Throws<CryptographicException>(
+                () => AssetCipher.DecryptWithKeys(nonce, tag, ct, Array.Empty<byte[]>()));
+        }
+
+        [Test]
+        public void CandidateKeys_WithNoRotationInFlight_OffersExactlyOneKey()
+        {
+            Assert.That(EmbeddedAssetKey.SupportedSecrets, Has.Length.EqualTo(1),
+                "An unconfigured (all-zero) previous secret must not be listed.");
+            Assert.That(EmbeddedAssetKey.CandidateKeys(AssetPath), Has.Length.EqualTo(1));
+        }
+
+        [Test]
+        public void CandidateKeys_DifferPerAsset()
+        {
+            Assert.That(EmbeddedAssetKey.CandidateKeys(AssetPath)[0],
+                Is.Not.EqualTo(EmbeddedAssetKey.CandidateKeys("Assets/models/Axe/blade.zip")[0]));
+        }
+
+        private static byte[] KeyFrom(byte[] secret) =>
+            EmbeddedAssetKey.DeriveKey(AssetPath, 1, secret);
+
+        private static (byte[] nonce, byte[] tag, byte[] ciphertext) PartsUnderKey(
+            byte[] plaintext, byte[] key)
+        {
+            var nonce = RandomNumberGenerator.GetBytes(12);
+            var ciphertext = new byte[plaintext.Length];
+            var tag = new byte[16];
+            using (var gcm = new AesGcm(key, 16))
+                gcm.Encrypt(nonce, plaintext, ciphertext, tag);
+            return (nonce, tag, ciphertext);
+        }
+
         private static (byte[] nonce, byte[] tag, byte[] ciphertext) PartsUnderEpoch(
             byte[] plaintext, string assetPath, int epoch)
         {
