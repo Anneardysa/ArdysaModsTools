@@ -31,6 +31,8 @@ namespace ArdysaModsTools.UI.Interfaces
 
         void SetModsStatusDetailed(ModStatusInfo statusInfo);
 
+        void SetSetupChecks(SetupVerificationResult result);
+
         void ShowCheckingState();
 
         void SetVersion(string version);

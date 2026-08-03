@@ -5,7 +5,58 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.19-beta] (Builds 2253–2265)
+## [2.2.19-beta] (Builds 2253–2266)
+
+### 🚀 Added (build 2266)
+
+- **Setup verification: the status pill now checks what Dota 2 checks** (2266): users kept hitting
+  the in-game `DOTA_VAC_Verification_Header_*` notice ("Please do Patch Update in App…") while AMT
+  reported **Ready**. `CheckSignaturesPatched` only asked whether `dota.signatures` *contained* the
+  pinned patch line — it never hashed the gameinfo on disk. Once a game update, antivirus restore or
+  manual edit replaced `gameinfo_branchspecific.gi`, the signature line still matched the constant,
+  so AMT said Ready while Dota compared signature-vs-file, failed, and refused to load mods.
+  New `SetupVerificationService` (`Core/Services/Setup/`) runs the three conditions Dota validates:
+  - **Patch Integrity** — the SHA-1 `dota.signatures` records for `gameinfo_branchspecific.gi` must
+    equal the SHA-1 of the file actually on disk. Compared against the *recorded* hash, not
+    `ModConstants.ModPatchSHA1`: the constant only says what AMT last wrote.
+  - **Search Paths** — the gameinfo must mount `_ArdysaMods` **and** `mod`. The legacy `"_Ardysa"`
+    substring test passes a gameinfo missing `mod`, which silently drops every protected asset.
+  - **Process Elevation** — no `RUNASADMIN` compatibility layer on `dota2.exe` or Steam in either
+    hive. An elevated game does not see the folder view AMT wrote to.
+  - A failed check now **blocks Ready**. File-level failures map to `NeedUpdate` + Patch Update;
+    an elevation flag maps to `Error` + a one-click **Fix Setup** that clears the layer from HKCU
+    only, preserving any other layer (`HIGHDPIAWARE` etc.) and deleting the value only when nothing
+    meaningful remains. HKLM needs elevation, so it is reported with manual steps instead.
+  - `Pass`/`Fail`/**`Unknown`** is deliberate: an unreadable file or a denied registry hive never
+    downgrades the pill — a false failure is as damaging as a false Ready.
+  - A live dota.signatures names `gameinfo_branchspecific.gi` **twice** — Valve's vanilla entry near
+    the top and AMT's line appended after `DIGEST:`. Reading the first (an `IndexOf` parser) compares
+    the vanilla hash against a patched gameinfo and reports every healthy install as broken; the
+    parser reads the post-`DIGEST:` entry, with a fallback to Valve's for unpatched installs. Pinned
+    by a regression test using the real two-entry file shape.
+  - UI: a **Setup Verification** panel above the status card, one row per check with the verdict
+    spelled out beside the dot (never colour alone), opening the existing Status Details dialog whose
+    Diagnostics rows are now *measured* rather than inferred from status. 23 keys × 8 locales.
+
+### 🐛 Bugfix (build 2266)
+
+- **Light theme rendered the new verdict text at 2:1 contrast** (2266): `--on-primary` flips to white
+  in the light theme, which would have put white text on the amber Fix button (1.78:1); the pass and
+  fail colours reach only 1.97:1 and 2.98:1 on the light panel at 9px. The verdict colours are now
+  tokens darkened by `theme.css` to ~5:1, and the button's ink is pinned dark (9.8:1) since its amber
+  fill is identical in both themes. A test fails if the light override is ever dropped.
+- **The verification panel went stale on a language switch** (2266): its rows are built from
+  C#-resolved strings and carry no `data-i18n`, so `BuildApplyScript` re-translated the whole shell
+  except them. The culture-changed handler now re-pushes the cached sweep.
+- **A failing panel painted passing rows red** (2266): `.verify-panel.fail .vdot` was a descendant
+  selector and repainted every row's dot. Scoped to the header pip with a child selector.
+- **Fix Setup could stick disabled** (2266): the click disables the button until the next push, but
+  the error path returned without re-checking status. The re-check moved to a `finally`.
+- **Two status checks could disagree with each other** (2266): the sweep was exposed as a mutable
+  property the UI read back after the call, so overlapping checks (one is fire-and-forget on Dota
+  state change) could pair one sweep's rows with another's verdict. It now rides on
+  `ModStatusInfo.Verification`; the property is gone and `SetupFailure` derives from it rather than
+  being a second field that could drift.
 
 ### 🛠 Refactor (build 2265)
 

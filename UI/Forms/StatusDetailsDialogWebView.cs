@@ -38,6 +38,7 @@ namespace ArdysaModsTools.UI.Forms
         private readonly ModStatusInfo _statusInfo;
         private readonly DotaVersionInfo _versionInfo;
         private readonly Action? _onPatchRequested;
+        private readonly SetupVerificationResult _verification;
 
         #endregion
 
@@ -59,11 +60,13 @@ namespace ArdysaModsTools.UI.Forms
         public StatusDetailsDialogWebView(
             ModStatusInfo statusInfo,
             DotaVersionInfo versionInfo,
-            Action? onPatchRequested = null)
+            Action? onPatchRequested = null,
+            SetupVerificationResult? verification = null)
         {
             _statusInfo = statusInfo ?? throw new ArgumentNullException(nameof(statusInfo));
             _versionInfo = versionInfo ?? throw new ArgumentNullException(nameof(versionInfo));
             _onPatchRequested = onPatchRequested;
+            _verification = verification ?? SetupVerificationResult.Empty;
 
             InitializeComponent();
             SetupForm();
@@ -176,19 +179,28 @@ namespace ArdysaModsTools.UI.Forms
             bool showPatchBtn = _onPatchRequested != null &&
                 (status == ModStatus.NeedUpdate || status == ModStatus.Disabled);
 
-            bool? digestOk = status switch
+            bool? digestOk = VerifiedOrNull(SetupCheckId.SignatureMatchesGameInfo) ?? (status switch
             {
                 ModStatus.Ready => true,
                 ModStatus.NotInstalled => null,
                 _ => !_versionInfo.DigestChanged
-            };
+            });
 
-            bool? gameInfoOk = status switch
+            bool? gameInfoOk = VerifiedOrNull(SetupCheckId.SearchPathsMounted) ?? (status switch
             {
                 ModStatus.Ready => true,
                 ModStatus.NotInstalled => null,
                 _ => _versionInfo.GameInfoHasModEntry
-            };
+            });
+
+            bool? adminOk = VerifiedOrNull(SetupCheckId.NotForcedToRunAsAdmin);
+
+            var failure = _verification.FirstFailure;
+            string? verifyDetail = failure == null
+                ? null
+                : (failure.DetailVars != null
+                    ? Loc.T(failure.DetailKey, failure.DetailVars)
+                    : Loc.T(failure.DetailKey));
 
             bool versionMismatch = status != ModStatus.Ready &&
                 _versionInfo.LastPatchedVersion != null &&
@@ -221,14 +233,34 @@ namespace ArdysaModsTools.UI.Forms
 
                 digestOk,
                 gameInfoOk,
+                adminOk,
 
-                errorMessage = status == ModStatus.Error
+                verifyDetail,
+
+                errorMessage = status == ModStatus.Error || _statusInfo.SetupFailure != null
                     ? _statusInfo.ErrorMessage
                     : null,
             };
 
             string json = JsonSerializer.Serialize(payload);
             await _webView!.CoreWebView2.ExecuteScriptAsync($"populate({json})");
+        }
+
+        private bool? VerifiedOrNull(SetupCheckId id)
+        {
+            foreach (var check in _verification.Checks)
+            {
+                if (check.Id != id)
+                    continue;
+
+                return check.State switch
+                {
+                    SetupCheckState.Pass => true,
+                    SetupCheckState.Fail => false,
+                    _ => null
+                };
+            }
+            return null;
         }
 
         #endregion
@@ -337,11 +369,12 @@ namespace ArdysaModsTools.UI.Forms
             IWin32Window? owner,
             ModStatusInfo statusInfo,
             DotaVersionInfo versionInfo,
-            Action? onPatchRequested = null)
+            Action? onPatchRequested = null,
+            SetupVerificationResult? verification = null)
         {
             try
             {
-                using var dialog = new StatusDetailsDialogWebView(statusInfo, versionInfo, onPatchRequested);
+                using var dialog = new StatusDetailsDialogWebView(statusInfo, versionInfo, onPatchRequested, verification);
                 dialog.ShowDialog(owner);
             }
             catch (Exception ex)

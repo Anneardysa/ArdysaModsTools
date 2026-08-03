@@ -51,6 +51,18 @@
             --warn-accent: #f5c451;
             --warn-glow: rgba(245, 196, 81, 0.22);
 
+            /* setup-verification verdicts. Dark values are the exact StatusColors the status dot
+               uses (Ready 80,200,120 / Error 255,80,80 / NeedUpdate 255,180,50) so a check row and
+               the pill can never disagree. theme.css darkens the first two for light mode — at 9px
+               they sit on #f6f6f6 there and the shipped greens/reds only reach ~2:1.
+               The Fix button's ink is NOT --on-primary: that token flips to white in light mode,
+               which would put white text on the amber fill (1.8:1). The fill is the same amber in
+               both themes, so its ink is pinned dark in both. */
+            --verify-ok: #50c878;
+            --verify-bad: #ff5050;
+            --verify-fix-bg: #ffb432;
+            --verify-fix-ink: #1a1a1a;
+
             /* text */
             --ink: #ffffff;
             --ink-strong: #ffffff;
@@ -405,6 +417,138 @@
 
          .sb-spacer {
             margin-top: auto;
+         }
+
+         /* ── setup verification panel ──
+            One row per condition Dota 2 validates at launch, grouped in a container that reads as a
+            single report sitting directly above the status card — so a red row is visibly the reason
+            the pill below it is not green. Hidden entirely until a sweep has run.
+
+            Each row names its subject on the left and its verdict on the right. Colour is
+            reinforcement, never the only signal: the verdict word carries the same meaning for a
+            colour-blind user. */
+         .verify-panel {
+            display: none;
+            flex-direction: column;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            border-radius: var(--r-sm);
+            margin-bottom: var(--sp-2);
+            overflow: hidden;
+         }
+         .verify-panel.show {
+            display: flex;
+         }
+         .verify-head {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px var(--sp-3) 6px;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--mute);
+            border-bottom: 1px solid var(--hairline);
+         }
+         .verify-head .vhead-label {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .verify-item {
+            -webkit-app-region: no-drag;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 6px var(--sp-3);
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 500;
+            text-align: left;
+            color: var(--body);
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .verify-item:hover {
+            background: var(--panel-hover);
+            color: var(--ink);
+         }
+         .verify-item .vlabel {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .verify-item .vstate {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            color: var(--mute);
+         }
+         .vdot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: var(--mute);
+         }
+         .verify-head .vdot {
+            width: 6px;
+            height: 6px;
+         }
+         /* The panel-level classes colour ONLY the header pip. Written as a child selector on
+            purpose: as a plain descendant (.verify-panel.fail .vdot) they would repaint every row's
+            dot, so a passing row inside a failing panel would read red. */
+         .verify-panel.pass > .verify-head .vdot,
+         .verify-item.pass .vdot {
+            background: var(--verify-ok);
+         }
+         .verify-panel.fail > .verify-head .vdot,
+         .verify-item.fail .vdot {
+            background: var(--verify-bad);
+         }
+         .verify-item.pass .vstate {
+            color: var(--verify-ok);
+         }
+         .verify-item.fail .vlabel,
+         .verify-item.fail .vstate {
+            color: var(--verify-bad);
+         }
+         .verify-foot {
+            padding: var(--sp-2) var(--sp-3);
+            border-top: 1px solid var(--hairline);
+         }
+         .verify-fix {
+            -webkit-app-region: no-drag;
+            display: block;
+            width: 100%;
+            padding: 6px 8px;
+            font-family: inherit;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--verify-fix-ink);
+            background: var(--verify-fix-bg);
+            border: none;
+            border-radius: var(--r-sm);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .verify-fix:hover {
+            filter: brightness(1.12);
+         }
+         .verify-fix:disabled {
+            opacity: 0.55;
+            cursor: default;
+            filter: none;
          }
 
          /* ── status card ── */
@@ -2241,6 +2385,9 @@
 
             <div class="sb-spacer"></div>
 
+            <!-- Populated by setSetupChecks() from C#; empty and hidden until the first sweep. -->
+            <div id="verify-panel" class="verify-panel"></div>
+
             <div class="status-card">
                <span id="status-dot" class="status-dot"></span>
                <span id="status-text" class="status-text" data-i18n="shell.status.notChecked">Not Checked</span>
@@ -2734,6 +2881,80 @@
             text.title = "";
             dot.title = "";
             refresh.classList.add("spin");
+         }
+
+         // Setup verification panel. Every string arrives already translated from C# (same Loc
+         // catalog as the rest of the app), so this only builds nodes — textContent, never innerHTML,
+         // because the detail carries user-influenced text like registry paths and file names.
+         // Re-pushed by C# on a language change, so the panel never lags the rest of the UI.
+         function setSetupChecks(payload) {
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload;
+            const panel = document.getElementById("verify-panel");
+            if (!panel) return;
+
+            panel.innerHTML = "";
+            const checks = (p && p.checks) || [];
+
+            if (checks.length === 0) {
+               panel.classList.remove("show", "pass", "fail");
+               return;
+            }
+
+            const failed = checks.some((c) => c.state === "fail");
+
+            // Header: title on the left, summary pip on the right. The pip is the panel's own
+            // verdict, so the group reads at a glance before any individual row is scanned.
+            const head = document.createElement("div");
+            head.className = "verify-head";
+            const headLabel = document.createElement("span");
+            headLabel.className = "vhead-label";
+            headLabel.textContent = p.title || "Setup Verification";
+            const headDot = document.createElement("span");
+            headDot.className = "vdot";
+            head.appendChild(headLabel);
+            head.appendChild(headDot);
+            panel.appendChild(head);
+
+            checks.forEach((c) => {
+               const item = document.createElement("button");
+               item.className = "verify-item " + (c.state || "unknown");
+               item.title = c.detail || "";
+               // Opens the existing Status Details dialog — the full explanation lives there.
+               item.onclick = () => send("patchViewStatus");
+
+               const dot = document.createElement("span");
+               dot.className = "vdot";
+               const label = document.createElement("span");
+               label.className = "vlabel";
+               label.textContent = c.label || "";
+               const state = document.createElement("span");
+               state.className = "vstate";
+               state.textContent = c.stateText || "";
+
+               item.appendChild(dot);
+               item.appendChild(label);
+               item.appendChild(state);
+               panel.appendChild(item);
+            });
+
+            if (p.canFix) {
+               const foot = document.createElement("div");
+               foot.className = "verify-foot";
+               const fix = document.createElement("button");
+               fix.className = "verify-fix";
+               fix.textContent = p.fixLabel || "Fix Setup";
+               fix.onclick = () => {
+                  // The repair is a registry write plus a full status re-check; disabling until the
+                  // next push stops a double-click queueing a second one.
+                  fix.disabled = true;
+                  send("fixSetup");
+               };
+               foot.appendChild(fix);
+               panel.appendChild(foot);
+            }
+
+            panel.classList.remove("pass", "fail");
+            panel.classList.add("show", failed ? "fail" : "pass");
          }
 
          function setPatchButton(status, isError) {
