@@ -17,6 +17,7 @@
 using NUnit.Framework;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Services.Update.Models;
 
 namespace ArdysaModsTools.Tests.Services
 {
@@ -339,6 +340,149 @@ namespace ArdysaModsTools.Tests.Services
 
             Assert.That(result.IsAllowed, Is.False);
             Assert.That(result.BlockedMessage, Is.EqualTo(""));
+        }
+
+        [Test]
+        public void FeatureCheckResult_Outdated_IsBlockedAndFlagged()
+        {
+            var result = FeatureCheckResult.Outdated(
+                "Skin Selector", "Update to continue.", "2.2.19-beta (Build 2264)");
+
+            Assert.That(result.IsAllowed, Is.False);
+            Assert.That(result.IsOutdated, Is.True);
+            Assert.That(result.RequiredVersion, Is.EqualTo("2.2.19-beta (Build 2264)"));
+            Assert.That(result.BlockedMessage, Is.EqualTo("Update to continue."));
+        }
+
+        #endregion
+
+        #region Minimum Version Gate Tests
+
+        private static AppVersion V(string version, int build = 0) => new(version, build);
+
+        [Test]
+        public void MeetsMinimumVersion_NoRequirement_Allows()
+        {
+            var feature = new FeatureAccess();
+
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.2.18-beta", 2250), out var required), Is.True);
+            Assert.That(required, Is.Empty, "No requirement means nothing to display");
+        }
+
+        [Test]
+        public void MeetsMinimumVersion_NullFeature_Allows()
+        {
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(null, V("2.2.18-beta", 2250), out _), Is.True);
+        }
+
+        [Test]
+        public void MeetsMinimumVersion_OlderVersion_Blocks()
+        {
+            var feature = new FeatureAccess { MinVersion = "2.2.19-beta" };
+
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.2.18-beta", 2250), out var required), Is.False);
+            Assert.That(required, Is.EqualTo("2.2.19-beta"));
+        }
+
+        [Test]
+        public void MeetsMinimumVersion_SameVersion_Allows()
+        {
+            var feature = new FeatureAccess { MinVersion = "2.2.19-beta" };
+
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.2.19-beta", 2264), out _), Is.True);
+        }
+
+        [Test]
+        public void MeetsMinimumVersion_NewerVersion_Allows()
+        {
+            var feature = new FeatureAccess { MinVersion = "2.2.19-beta" };
+
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.3.0-beta", 2300), out _), Is.True);
+        }
+
+        [Test]
+        public void MeetsMinimumVersion_PreReleaseSuffix_IsIgnored()
+        {
+            var feature = new FeatureAccess { MinVersion = "2.2.19" };
+
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.2.19-beta", 2264), out _), Is.True);
+        }
+
+        [Test]
+        public void MeetsMinimumVersion_SameVersionLowerBuild_Blocks()
+        {
+            var feature = new FeatureAccess { MinVersion = "2.2.19-beta", MinBuild = 2264 };
+
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.2.19-beta", 2260), out var required), Is.False);
+            Assert.That(required, Is.EqualTo("2.2.19-beta (Build 2264)"));
+        }
+
+        [Test]
+        public void MeetsMinimumVersion_SameVersionEqualBuild_Allows()
+        {
+            var feature = new FeatureAccess { MinVersion = "2.2.19-beta", MinBuild = 2264 };
+
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.2.19-beta", 2264), out _), Is.True);
+        }
+
+        [Test]
+        public void MeetsMinimumVersion_MinBuildOnly_ComparesWithinRunningVersion()
+        {
+            var feature = new FeatureAccess { MinBuild = 2264 };
+
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.2.19-beta", 2260), out _), Is.False);
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.2.19-beta", 2270), out _), Is.True);
+        }
+
+        [Test]
+        public void MeetsMinimumVersion_UnparseableMinVersion_FailsOpen()
+        {
+            var feature = new FeatureAccess { MinVersion = "not-a-version" };
+
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.2.18-beta", 2250), out _), Is.True);
+        }
+
+        [Test]
+        public void MeetsMinimumVersion_NewerMajorThanRequired_Allows()
+        {
+            var feature = new FeatureAccess { MinVersion = "2.9.0" };
+
+            Assert.That(FeatureAccessService.MeetsMinimumVersion(feature, V("2.10.0", 2400), out _), Is.True);
+        }
+
+        [Test]
+        public void GetOutdatedMessage_CustomMessage_SubstitutesPlaceholders()
+        {
+            var feature = new FeatureAccess
+            {
+                OutdatedMessage = "Need {required}, you run {current}."
+            };
+
+            var message = feature.GetOutdatedMessage("2.2.19-beta", "2.2.18-beta", "ignored fallback");
+
+            Assert.That(message, Is.EqualTo("Need 2.2.19-beta, you run 2.2.18-beta."));
+        }
+
+        [Test]
+        public void GetOutdatedMessage_NoCustomMessage_UsesFallback()
+        {
+            var feature = new FeatureAccess();
+
+            var message = feature.GetOutdatedMessage("2.2.19-beta", "2.2.18-beta", "Update to {required}.");
+
+            Assert.That(message, Is.EqualTo("Update to 2.2.19-beta."));
+        }
+
+        [Test]
+        public void GetOutdatedMessage_NoMessageAndNoFallback_UsesBuiltInDefault()
+        {
+            var feature = new FeatureAccess();
+
+            var message = feature.GetOutdatedMessage("2.2.19-beta", "2.2.18-beta");
+
+            Assert.That(message, Does.Contain("2.2.19-beta"));
+            Assert.That(message, Does.Contain("2.2.18-beta"));
+            Assert.That(message, Does.Not.Contain("{required}"));
         }
 
         #endregion

@@ -22,6 +22,8 @@ using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Cdn;
+using ArdysaModsTools.Core.Services.Localization;
+using ArdysaModsTools.Core.Services.Update.Models;
 
 namespace ArdysaModsTools.Core.Services.Config
 {
@@ -34,6 +36,10 @@ namespace ArdysaModsTools.Core.Services.Config
         public string FeatureDisplayName { get; init; } = "";
 
         public string? BlockedMessage { get; init; }
+
+        public bool IsOutdated { get; init; }
+
+        public string RequiredVersion { get; init; } = "";
 
         public static FeatureCheckResult Allowed(
             string displayName, bool devModeBypass = false) => new()
@@ -50,6 +56,16 @@ namespace ArdysaModsTools.Core.Services.Config
             FeatureDisplayName = displayName,
             BlockedMessage = message
         };
+
+        public static FeatureCheckResult Outdated(
+            string displayName, string message, string requiredVersion) => new()
+        {
+            IsAllowed = false,
+            IsOutdated = true,
+            FeatureDisplayName = displayName,
+            BlockedMessage = message,
+            RequiredVersion = requiredVersion
+        };
     }
 
     public static class FeatureAccessService
@@ -57,6 +73,8 @@ namespace ArdysaModsTools.Core.Services.Config
         #region Constants
 
         private const string ConfigPath = "config/feature_access.json";
+
+        private const string OutdatedMessageKey = "update.required.default";
 
         private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
 
@@ -176,12 +194,41 @@ namespace ArdysaModsTools.Core.Services.Config
                         displayName, feature.GetDisplayMessage());
                 }
 
+                var current = AppVersion.Current;
+                if (!MeetsMinimumVersion(feature, current, out string required))
+                {
+                    string fallback = Loc.T(OutdatedMessageKey);
+                    if (string.Equals(fallback, OutdatedMessageKey, StringComparison.Ordinal))
+                        fallback = "";
+
+                    return FeatureCheckResult.Outdated(
+                        displayName,
+                        feature.GetOutdatedMessage(required, current.ToString(), fallback),
+                        required);
+                }
+
                 return FeatureCheckResult.Allowed(displayName);
             }
             catch
             {
                 return FeatureCheckResult.Allowed(displayName);
             }
+        }
+
+        public static bool MeetsMinimumVersion(
+            FeatureAccess? feature, AppVersion current, out string required)
+        {
+            required = "";
+
+            if (feature == null || !feature.HasVersionRequirement)
+                return true;
+
+            var minimum = new AppVersion(
+                string.IsNullOrWhiteSpace(feature.MinVersion) ? current.Version : feature.MinVersion!,
+                feature.MinBuild);
+
+            required = minimum.ToString();
+            return !current.ShouldUpdateTo(minimum);
         }
 
         public static bool IsDevMode => EnvironmentConfig.IsDevMode;

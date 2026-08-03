@@ -5,7 +5,17 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.19-beta] (Builds 2253–2264)
+## [2.2.19-beta] (Builds 2253–2265)
+
+### 🛠 Refactor (build 2265)
+
+- **Blocked features offer the update that unblocks them** (2265): the three feature gates (Install
+  ModsPack, Miscellaneous, Skin Selector) called `UIHelpers.ShowFeatureUnavailableAsync`, which only
+  states that a feature is unavailable. When the block is because the installed app is out of date,
+  that leaves the user with no way forward. New `UIHelpers.ShowFeatureBlockedAsync` branches on
+  `FeatureCheckResult.IsOutdated` and routes the outdated case through the updater instead, falling
+  back to the previous dialog otherwise. `NavigationPresenter` now takes the `UpdaterService` so it
+  can do the same.
 
 ### 🐛 Bugfix (build 2264)
 
