@@ -35,7 +35,9 @@ namespace ArdysaModsTools.Core.Models
 
         Fail,
 
-        Unknown
+        Unknown,
+
+        Advisory
     }
 
     public record SetupCheck
@@ -52,6 +54,8 @@ namespace ArdysaModsTools.Core.Models
 
         public bool CanAutoFix { get; init; }
 
+        public bool HasOwnDialog { get; init; }
+
         public ModStatus FailStatus { get; init; } = ModStatus.NeedUpdate;
     }
 
@@ -62,6 +66,9 @@ namespace ArdysaModsTools.Core.Models
         public bool AllPassed => !Checks.Any(c => c.State == SetupCheckState.Fail);
 
         public SetupCheck? FirstFailure => Checks.FirstOrDefault(c => c.State == SetupCheckState.Fail);
+
+        public IEnumerable<SetupCheck> Advisories =>
+            Checks.Where(c => c.State == SetupCheckState.Advisory);
 
         public static SetupVerificationResult Empty { get; } = new();
     }

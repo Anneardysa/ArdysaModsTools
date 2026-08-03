@@ -1018,10 +1018,12 @@ namespace ArdysaModsTools
                     label = Loc.T(ChipLabelKey(c.Id)),
                     stateText = Loc.T(StateLabelKey(c.State)),
                     detail = c.DetailVars != null ? Loc.T(c.DetailKey, c.DetailVars) : Loc.T(c.DetailKey),
-                    canFix = c.CanAutoFix
+                    canFix = c.CanAutoFix,
+                    hasOwnDialog = c.HasOwnDialog,
+                    detected = c.DetailVars != null
                 }).ToArray(),
                 fixLabel = Loc.T("verify.fix.button"),
-                canFix = result.Checks.Any(c => c.State == SetupCheckState.Fail && c.CanAutoFix)
+                canFix = result.Checks.Any(c => c.CanAutoFix)
             }, _jsonOptions);
 
             Js("verify", $"setSetupChecks({payload})");
@@ -1039,6 +1041,7 @@ namespace ArdysaModsTools
         {
             SetupCheckState.Pass => "verify.state.pass",
             SetupCheckState.Fail => "verify.state.fail",
+            SetupCheckState.Advisory => "verify.state.advisory",
             _ => "verify.state.unknown"
         };
 

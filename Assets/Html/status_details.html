@@ -532,7 +532,17 @@
             // "not determined" and renders gray.
             setCheck("dotDigest", "labelDigest", data.digestOk);
             setCheck("dotGameInfo", "labelGameInfo", data.gameInfoOk);
+            // Elevation is an advisory, not a verdict: adminOk stays null (gray dot) and the note
+            // beside it says what was found. Rendering it as OK is exactly what let a genuinely
+            // elevated Steam read "OK" on this dialog.
             setCheck("dotAdmin", "labelAdmin", data.adminOk);
+            const adminLabel = document.getElementById("labelAdmin");
+            if (adminLabel && data.adminStateText) {
+               adminLabel.textContent = data.adminStateText;   // short word; the row is 9px
+               adminLabel.title = data.adminNote || "";        // full sentence on hover
+               adminLabel.classList.remove("pass", "fail", "none");
+               adminLabel.classList.add("warn");               // existing theme-managed amber
+            }
             // Overall is an AND over the checks that actually reported: a gray (null) check must not
             // drag the summary to red, only a real false does.
             const decided = [data.digestOk, data.gameInfoOk, data.adminOk].filter((v) => v !== null && v !== undefined);

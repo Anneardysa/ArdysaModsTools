@@ -16,8 +16,10 @@
  */
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -196,35 +198,130 @@ namespace ArdysaModsTools.Core.Services
         {
             const SetupCheckId id = SetupCheckId.NotForcedToRunAsAdmin;
 
+            var diagnostics = new List<string>();
+            var elevatedApps = new List<string>();
+            bool canAutoFix = false;
+
             try
             {
                 var targets = GetElevationTargets(targetPath);
-                if (targets.Count == 0)
-                    return Unknown(id, "verify.admin.unknown", "neither dota2.exe nor steam.exe could be located");
-
                 var flagged = FindForcedAdminEntries(targets);
-                if (flagged.Count == 0)
-                    return Pass(id, "verify.admin.pass");
 
-                bool allInCurrentUser = flagged.All(e => e.PerUser);
-                var names = flagged.Select(e => Path.GetFileName(e.ExePath)).Distinct(StringComparer.OrdinalIgnoreCase);
-
-                return new SetupCheck
+                if (flagged.Count > 0)
                 {
-                    Id = id,
-                    State = SetupCheckState.Fail,
-                    DetailKey = allInCurrentUser ? "verify.admin.fail" : "verify.admin.failMachineWide",
-                    DetailVars = new { apps = string.Join(", ", names) },
-                    Diagnostic = string.Join("; ", flagged.Select(e =>
-                        $"{(e.PerUser ? "HKCU" : "HKLM")}\\…\\Layers [{e.ExePath}] = {e.Data}")),
-                    CanAutoFix = allInCurrentUser,
-                    FailStatus = ModStatus.Error
-                };
+                    canAutoFix = flagged.All(e => e.PerUser);
+                    elevatedApps.AddRange(flagged.Select(e => Path.GetFileName(e.ExePath)));
+                    diagnostics.AddRange(flagged.Select(e =>
+                        $"{(e.PerUser ? "HKCU" : "HKLM")}\\…\\Layers [{e.ExePath}] = {e.Data}"));
+                }
             }
             catch (Exception ex)
             {
-                return Unknown(id, "verify.admin.unknown", ex.Message);
+                diagnostics.Add($"compatibility-flag probe failed: {ex.Message}");
             }
+
+            try
+            {
+                foreach (var (process, pid) in FindElevatedGameProcesses())
+                {
+                    elevatedApps.Add(process + ".exe");
+                    diagnostics.Add($"{process}.exe (pid {pid}) is running elevated");
+                }
+            }
+            catch (Exception ex)
+            {
+                diagnostics.Add($"running-process probe failed: {ex.Message}");
+            }
+
+            var apps = elevatedApps.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+            return new SetupCheck
+            {
+                Id = id,
+                State = SetupCheckState.Advisory,
+                DetailKey = apps.Count > 0 ? "verify.admin.detected" : "verify.admin.clean",
+                DetailVars = apps.Count > 0 ? new { apps = string.Join(", ", apps) } : null,
+                Diagnostic = diagnostics.Count > 0 ? string.Join("; ", diagnostics) : null,
+                CanAutoFix = canAutoFix,
+                HasOwnDialog = true
+            };
+        }
+
+        private static IEnumerable<(string process, int pid)> FindElevatedGameProcesses()
+        {
+            foreach (var name in new[] { "steam", "dota2" })
+            {
+                Process[] running;
+                try { running = Process.GetProcessesByName(name); }
+                catch { continue; }
+
+                foreach (var proc in running)
+                {
+                    try
+                    {
+                        if (IsProcessElevated(proc.Id))
+                            yield return (name, proc.Id);
+                    }
+                    finally
+                    {
+                        proc.Dispose();
+                    }
+                }
+            }
+        }
+
+        private static bool IsProcessElevated(int pid)
+        {
+            IntPtr process = NativeMethods.OpenProcess(
+                NativeMethods.ProcessQueryLimitedInformation, false, pid);
+            if (process == IntPtr.Zero)
+                return false;
+
+            try
+            {
+                if (!NativeMethods.OpenProcessToken(process, NativeMethods.TokenQuery, out IntPtr token))
+                    return false;
+
+                try
+                {
+                    return NativeMethods.GetTokenInformation(
+                               token, NativeMethods.TokenElevation, out uint elevated,
+                               sizeof(uint), out _)
+                           && elevated != 0;
+                }
+                finally
+                {
+                    NativeMethods.CloseHandle(token);
+                }
+            }
+            finally
+            {
+                NativeMethods.CloseHandle(process);
+            }
+        }
+
+        private static class NativeMethods
+        {
+            internal const uint ProcessQueryLimitedInformation = 0x1000;
+            internal const uint TokenQuery = 0x0008;
+
+            internal const int TokenElevation = 20;
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            internal static extern IntPtr OpenProcess(uint desiredAccess, bool inheritHandle, int processId);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            internal static extern bool CloseHandle(IntPtr handle);
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            internal static extern bool OpenProcessToken(IntPtr process, uint desiredAccess, out IntPtr token);
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            internal static extern bool GetTokenInformation(
+                IntPtr token, int informationClass, out uint information, uint length, out uint returnLength);
         }
 
         private readonly record struct ForcedAdminEntry(string ExePath, string Data, bool PerUser);

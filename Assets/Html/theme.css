@@ -78,6 +78,9 @@
       shell in both themes — see the --verify-fix-ink note there. */
    --verify-ok: #157a3a;
    --verify-bad: #c62828;
+   /* Not --warn-accent (#a8730a): that reaches only 3.79:1 on --panel-2, fine for the dialog accent
+      it was picked for but under AA for the 9px verdict label. This one is 5.3:1. */
+   --verify-warn: #8a5d00;
 
    /* ── settings / progress / status / verify / preview vocabulary ────────────────── */
    --bg-primary: #f3f3f3;    /* chrome base */
