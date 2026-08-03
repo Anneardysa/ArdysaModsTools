@@ -194,6 +194,16 @@ namespace ArdysaModsTools.UI.Forms
             });
 
             bool? adminOk = VerifiedOrNull(SetupCheckId.NotForcedToRunAsAdmin);
+            var elevation = _verification.Checks
+                .FirstOrDefault(c => c.Id == SetupCheckId.NotForcedToRunAsAdmin);
+            bool isAdvisory = elevation is { State: SetupCheckState.Advisory };
+
+            string? adminStateText = isAdvisory ? Loc.T("verify.state.advisory") : null;
+            string? adminNote = isAdvisory
+                ? (elevation!.DetailVars != null
+                    ? Loc.T(elevation.DetailKey, elevation.DetailVars)
+                    : Loc.T(elevation.DetailKey))
+                : null;
 
             var failure = _verification.FirstFailure;
             string? verifyDetail = failure == null
@@ -234,6 +244,8 @@ namespace ArdysaModsTools.UI.Forms
                 digestOk,
                 gameInfoOk,
                 adminOk,
+                adminNote,
+                adminStateText,
 
                 verifyDetail,
 

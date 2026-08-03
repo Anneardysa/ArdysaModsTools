@@ -208,12 +208,48 @@ namespace ArdysaModsTools.Tests.Services
         #region Forced elevation
 
         [Test]
-        public async Task VerifyAsync_NoCompatibilityFlag_Passes()
+        public async Task VerifyAsync_Elevation_IsAlwaysAdvisoryAndNeverBlocks()
         {
             BuildTree();
 
-            Assert.That(Check(await _service.VerifyAsync(_root), SetupCheckId.NotForcedToRunAsAdmin).State,
-                Is.EqualTo(SetupCheckState.Pass));
+            var result = await _service.VerifyAsync(_root);
+            var check = Check(result, SetupCheckId.NotForcedToRunAsAdmin);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(check.State, Is.EqualTo(SetupCheckState.Advisory));
+                Assert.That(check.HasOwnDialog, Is.True, "it opens its own explanation, not the diagnostics list");
+                Assert.That(result.AllPassed, Is.True, "an advisory must never block the status pill");
+                Assert.That(result.FirstFailure, Is.Null);
+                Assert.That(result.Advisories.Select(a => a.Id),
+                    Does.Contain(SetupCheckId.NotForcedToRunAsAdmin));
+            });
+        }
+
+        [Test]
+        public async Task VerifyAsync_Elevation_ReportsWhetherAnythingWasFound()
+        {
+            BuildTree();
+
+            var check = Check(await _service.VerifyAsync(_root), SetupCheckId.NotForcedToRunAsAdmin);
+
+            Assert.That(check.DetailKey, Is.AnyOf("verify.admin.detected", "verify.admin.clean"));
+            Assert.That(check.DetailVars != null,
+                Is.EqualTo(check.DetailKey == "verify.admin.detected"));
+        }
+
+        [Test]
+        public async Task VerifyAsync_AdvisoryDoesNotMakeOtherFailuresDisappear()
+        {
+            BuildTree(gameInfo: "\t\tSearchPaths\r\n\t\t{\r\n\t\t\tGame\t\tdota\r\n\t\t}\r\n");
+
+            var result = await _service.VerifyAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.AllPassed, Is.False);
+                Assert.That(result.FirstFailure!.Id, Is.EqualTo(SetupCheckId.SearchPathsMounted));
+            });
         }
 
         [TestCase("~ RUNASADMIN", true)]

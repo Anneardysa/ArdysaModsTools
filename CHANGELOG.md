@@ -5,7 +5,42 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.19-beta] (Builds 2253–2266)
+## [2.2.19-beta] (Builds 2253–2267)
+
+### 🐛 Bugfix (build 2267)
+
+- **An elevated Steam reported "OK"** (2267): the elevation check only read the persistent
+  `RUNASADMIN` compatibility layer, so a Steam started with right-click → **Run as administrator** —
+  which writes nothing to the registry — reported a clean machine. Reproduced on a real install:
+  Steam was elevated while the row showed OK. A second, independent signal now detects a process
+  that is elevated *right now*: `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION)` →
+  `OpenProcessToken(TOKEN_QUERY)` → `GetTokenInformation(TokenElevation)`. That access mask is
+  grantable across integrity levels for a same-user process, so an unelevated AMT can still read an
+  elevated Steam's token — verified live (`explorer` → 0, elevated `steam` → 1) before being built
+  on. Anything that cannot be opened is skipped rather than assumed elevated.
+  - Note: a `~ REGISTERAPPRESTART` layer on dota2.exe is NOT elevation and is correctly ignored.
+
+### 🎨 UI/UX (build 2267)
+
+- **Process Elevation is an advisory, not a verdict** (2267): new `SetupCheckState.Advisory` — amber,
+  counts as passing, never blocks Ready. Elevation is a property of how the user launched Steam, not
+  of the install AMT produced, and AMT cannot observe every route to it (an elevated launcher, a
+  scheduled task, an elevated parent process). Failing hard would block Ready on a guess; passing
+  silently is what produced the bug above. `AllPassed` and `FirstFailure` both exclude advisories.
+- **The row opens its own explanation** (2267): a dedicated in-shell modal — "Do not run Steam or
+  Dota 2 as administrator" — covering the consequence users actually feel (Dota 2 stops finding
+  matches) plus the fact that the elevated game no longer reads the files AMT patched, what was
+  detected, and four fix steps. Static markup with `data-i18n`, so it re-translates on a language
+  switch by construction rather than needing a re-push.
+- **The Fix Setup button moved into that modal** (2267): it required a `Fail` to appear, and the one
+  repairable condition (the compatibility flag) is now an Advisory — the panel button had become
+  unreachable. It now sits beside the explanation of what it clears, and the dead panel footer is
+  gone. A bare "Fix Setup" on the panel never said which row it acted on.
+- **Status Details no longer shows elevation as a green OK** (2267): the row renders a neutral dot
+  with an amber "Check" and the full note on hover, reusing the existing `.check-status.warn` token.
+  The light theme gets `--verify-warn: #8a5d00` (5.3:1 on the light panel) rather than the existing
+  `--warn-accent`, which is 3.79:1 — fine for the dialog accent it was chosen for, under AA for the
+  9px verdict label.
 
 ### 🚀 Added (build 2266)
 

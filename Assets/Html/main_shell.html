@@ -60,6 +60,8 @@
                both themes, so its ink is pinned dark in both. */
             --verify-ok: #50c878;
             --verify-bad: #ff5050;
+            /* advisory (Process Elevation): amber, never red — it is information, not a failure */
+            --verify-warn: #f5c451;
             --verify-fix-bg: #ffb432;
             --verify-fix-ink: #1a1a1a;
 
@@ -521,15 +523,70 @@
          .verify-item.fail .vstate {
             color: var(--verify-bad);
          }
-         .verify-foot {
-            padding: var(--sp-2) var(--sp-3);
-            border-top: 1px solid var(--hairline);
+         /* Advisory: amber, and the label stays in normal ink — it is not an error, so it must not
+            shout like one. A failing panel's header pip still wins, since a real Fail outranks it. */
+         .verify-item.advisory .vdot,
+         .verify-item.advisory .vstate {
+            color: var(--verify-warn);
+            background: var(--verify-warn);
+         }
+         .verify-item.advisory .vstate {
+            background: none;
+         }
+         /* Amber header pip when nothing failed but something is worth reading. */
+         .verify-panel.advisory > .verify-head .vdot {
+            background: var(--verify-warn);
+         }
+         /* ── process elevation modal ── */
+         .elev-ico {
+            color: var(--verify-warn);
+         }
+         .elev-detected {
+            margin-top: var(--sp-3);
+            padding: 8px 10px;
+            font-size: 11px;
+            line-height: 1.5;
+            text-align: left;
+            color: var(--body);
+            background: var(--panel-2);
+            border-left: 2px solid var(--mute);
+         }
+         .elev-detected.found {
+            color: var(--verify-warn);
+            border-left-color: var(--verify-warn);
+         }
+         .elev-steps {
+            margin-top: var(--sp-3);
+            text-align: left;
+         }
+         .elev-steps-title {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--mute);
+            margin-bottom: 6px;
+         }
+         .elev-steps ol {
+            margin: 0;
+            padding-left: 18px;
+            font-size: 11px;
+            line-height: 1.6;
+            color: var(--body);
+         }
+         .elev-steps li {
+            margin-bottom: 4px;
+         }
+         /* The repair action, shown inside the elevation modal beside what it actually does.
+            Matches the sibling .ob-btn's flex so the two share the row evenly; when it is hidden
+            (nothing repairable) Close simply takes the full width. */
+         .confirm-actions .verify-fix {
+            flex: 1;
+            text-align: center;
          }
          .verify-fix {
             -webkit-app-region: no-drag;
-            display: block;
-            width: 100%;
-            padding: 6px 8px;
+            padding: 6px 14px;
             font-family: inherit;
             font-size: 10px;
             font-weight: 600;
@@ -2718,6 +2775,69 @@
          </div>
       </div>
 
+      <!-- ═══════════════════ PROCESS ELEVATION MODAL ═══════════════════
+           Opened from the Process Elevation row. Static markup with data-i18n so it re-translates
+           on a language switch like the rest of the shell; only the detected-state line is filled
+           in from C#. Information only — no action, because the fix is outside AMT. -->
+      <div id="elevation-modal" class="modal-overlay" onclick="onElevationBackdrop(event)">
+         <div class="modal confirm" role="alertdialog" aria-modal="true" aria-labelledby="elevation-heading">
+            <div class="modal-head">
+               <div class="modal-title">
+                  <span class="led"></span>
+                  <span data-i18n="verify.chip.admin">Process Elevation</span>
+               </div>
+               <button class="modal-x" title="Close" data-i18n-title="shell.titlebar.close" onclick="closeElevationModal()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                     <line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+               </button>
+            </div>
+            <div class="confirm-body">
+               <span class="confirm-ico elev-ico">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                     <path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z" />
+                     <line x1="12" y1="9" x2="12" y2="13" />
+                     <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+               </span>
+               <div id="elevation-heading" class="confirm-heading" data-i18n="verify.elevation.heading">
+                  Do not run Steam or Dota 2 as administrator
+               </div>
+               <div class="confirm-text" data-i18n="verify.elevation.body">
+                  Running the game with administrator rights stops Dota 2 from finding matches, and the
+                  game no longer reads the files AMT patched — so your mods stop working.
+               </div>
+
+               <!-- What AMT found. Amber when something was detected, muted when nothing was. -->
+               <div id="elevation-detected" class="elev-detected"></div>
+
+               <div class="elev-steps">
+                  <div class="elev-steps-title" data-i18n="verify.elevation.stepsTitle">How to fix it</div>
+                  <ol>
+                     <li data-i18n="verify.elevation.step1">Close Dota 2 and fully exit Steam from the tray.</li>
+                     <li data-i18n="verify.elevation.step2">
+                        Right-click steam.exe and dota2.exe, open Properties › Compatibility, and untick
+                        “Run this program as an administrator”.
+                     </li>
+                     <li data-i18n="verify.elevation.step3">
+                        Start Steam normally — do not use “Run as administrator”.
+                     </li>
+                     <li data-i18n="verify.elevation.step4">
+                        Back in AMT, refresh the status to confirm.
+                     </li>
+                  </ol>
+               </div>
+            </div>
+            <div class="confirm-actions">
+               <button id="elevation-fix" class="verify-fix" style="display: none" onclick="elevationFix()">
+                  Fix Setup
+               </button>
+               <button class="ob-btn primary" data-i18n="common.close" onclick="closeElevationModal()">Close</button>
+            </div>
+         </div>
+      </div>
+
       <!-- ═══════════════════ INSTALL FAILURE MODAL ═══════════════════ -->
       <div id="failure-modal" class="modal-overlay" onclick="onFailureBackdrop(event)">
          <div class="modal confirm failure" role="alertdialog" aria-modal="true" aria-labelledby="failure-heading">
@@ -2901,6 +3021,12 @@
             }
 
             const failed = checks.some((c) => c.state === "fail");
+            const advisory = !failed && checks.some((c) => c.state === "advisory");
+
+            // Cached so the modal can be reopened without another sweep.
+            _elevationDetail = (checks.find((c) => c.hasOwnDialog) || {}).detail || "";
+            _elevationFound = (checks.find((c) => c.hasOwnDialog) || {}).state === "advisory"
+               && !!(checks.find((c) => c.hasOwnDialog) || {}).detected;
 
             // Header: title on the left, summary pip on the right. The pip is the panel's own
             // verdict, so the group reads at a glance before any individual row is scanned.
@@ -2919,8 +3045,11 @@
                const item = document.createElement("button");
                item.className = "verify-item " + (c.state || "unknown");
                item.title = c.detail || "";
-               // Opens the existing Status Details dialog — the full explanation lives there.
-               item.onclick = () => send("patchViewStatus");
+               // Rows that carry their own explanation open it; the rest fall through to the
+               // Status Details dialog, where the file-level diagnostics live.
+               item.onclick = c.hasOwnDialog
+                  ? () => openElevationModal()
+                  : () => send("patchViewStatus");
 
                const dot = document.createElement("span");
                dot.className = "vdot";
@@ -2937,24 +3066,59 @@
                panel.appendChild(item);
             });
 
-            if (p.canFix) {
-               const foot = document.createElement("div");
-               foot.className = "verify-foot";
-               const fix = document.createElement("button");
-               fix.className = "verify-fix";
-               fix.textContent = p.fixLabel || "Fix Setup";
-               fix.onclick = () => {
-                  // The repair is a registry write plus a full status re-check; disabling until the
-                  // next push stops a double-click queueing a second one.
-                  fix.disabled = true;
-                  send("fixSetup");
-               };
-               foot.appendChild(fix);
-               panel.appendChild(foot);
+            // The one repairable condition is the elevation compatibility flag, and its button lives
+            // in the elevation modal next to the explanation of what it does — a bare "Fix Setup" on
+            // the panel gave no clue which row it acted on.
+            _elevationCanFix = p.canFix === true;
+            _elevationFixLabel = p.fixLabel || "Fix Setup";
+
+            panel.classList.remove("pass", "fail", "advisory");
+            panel.classList.add("show", failed ? "fail" : advisory ? "advisory" : "pass");
+         }
+
+         // ── Process Elevation modal ──
+         // Information only: the fix lives in Windows, not in AMT. Kept as its own dialog because
+         // the consequence (Dota 2 stops finding matches) is the part users need told, and a
+         // diagnostics list cannot carry it.
+         let _elevationDetail = "";
+         let _elevationFound = false;
+         let _elevationCanFix = false;
+         let _elevationFixLabel = "Fix Setup";
+
+         function openElevationModal() {
+            const box = document.getElementById("elevation-detected");
+            if (box) {
+               box.textContent = _elevationDetail || "";
+               box.classList.toggle("found", _elevationFound === true);
+               box.style.display = _elevationDetail ? "block" : "none";
             }
 
-            panel.classList.remove("pass", "fail");
-            panel.classList.add("show", failed ? "fail" : "pass");
+            // Offered only for the persistent compatibility flag, which AMT can clear from HKCU.
+            // A one-off "Run as administrator" launch has nothing to clear — the steps below are
+            // the whole fix there.
+            const fix = document.getElementById("elevation-fix");
+            if (fix) {
+               fix.textContent = _elevationFixLabel;
+               fix.disabled = false;
+               fix.style.display = _elevationCanFix ? "block" : "none";
+            }
+
+            document.getElementById("elevation-modal").classList.add("show");
+         }
+
+         function elevationFix() {
+            const fix = document.getElementById("elevation-fix");
+            if (fix) fix.disabled = true;   // the repair re-checks status, which re-pushes the panel
+            send("fixSetup");
+            closeElevationModal();
+         }
+
+         function closeElevationModal() {
+            document.getElementById("elevation-modal").classList.remove("show");
+         }
+
+         function onElevationBackdrop(ev) {
+            if (ev.target && ev.target.id === "elevation-modal") closeElevationModal();
          }
 
          function setPatchButton(status, isError) {
