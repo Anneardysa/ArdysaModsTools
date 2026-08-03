@@ -395,6 +395,7 @@
   "update.required.note": "Required: {required}  •  You have: {current}",
   "update.required.action.installer": "Update Now",
   "update.required.action.portable": "Download Latest",
+  "feature.blocked.offline": "This feature checks that your version can handle the current assets before it runs, and that check couldn't reach the server.\n\nConnect to the internet and try again.",
   "form.misc.applyConflictFailed": "Failed to apply conflict resolutions: {error}",
   "form.misc.completeTitle": "Miscellaneous - Generation Complete",
   "form.misc.genFailed": "Generation failed: {error}",

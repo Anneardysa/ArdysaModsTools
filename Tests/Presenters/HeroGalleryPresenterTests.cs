@@ -17,11 +17,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Models;
 using ArdysaModsTools.UI;
 using ArdysaModsTools.UI.Interfaces;
@@ -36,6 +38,7 @@ namespace ArdysaModsTools.Tests.Presenters
         private Mock<IConfigService> _config = null!;
         private Mock<IHeroGalleryView> _view = null!;
         private HeroGalleryPresenter _presenter = null!;
+        private Func<Task<FeatureCheckResult>> _featureCheck = null!;
 
         [SetUp]
         public void Setup()
@@ -54,7 +57,10 @@ namespace ArdysaModsTools.Tests.Presenters
             _view.Setup(v => v.ShowGenerationPreview(It.IsAny<IReadOnlyList<(HeroModel, string, string?)>>()))
                  .Returns(true);
 
-            _presenter = new HeroGalleryPresenter(_generation.Object, _config.Object);
+            _featureCheck = () => Task.FromResult(FeatureCheckResult.Allowed("Skin Selector"));
+
+            _presenter = new HeroGalleryPresenter(
+                _generation.Object, _config.Object, null, () => _featureCheck());
             _presenter.SetView(_view.Object);
         }
 
@@ -405,6 +411,40 @@ namespace ArdysaModsTools.Tests.Presenters
 
             Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await presenter.GenerateAsync(new[] { Hero("h1", "SetA") }, Sel("h1", set: 0)));
+        }
+
+        [Test]
+        public async Task GenerateAsync_WhenFeatureBlocked_DoesNotGenerate()
+        {
+            _featureCheck = () => Task.FromResult(
+                FeatureCheckResult.Blocked("Skin Selector", "Offline."));
+
+            await _presenter.GenerateAsync(new[] { Hero("h1", "SetA") }, Sel("h1", set: 0));
+
+            _generation.Verify(g => g.GenerateBatchAsync(
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<(HeroModel, string)>>(),
+                It.IsAny<Action<string>>(),
+                It.IsAny<IProgress<(int, int, string)>>(),
+                It.IsAny<IProgress<(int, string)>>(),
+                It.IsAny<IProgress<SpeedMetrics>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            _view.Verify(v => v.ShowGenerationPreview(
+                It.IsAny<IReadOnlyList<(HeroModel, string, string?)>>()), Times.Never);
+            _view.Verify(v => v.ShowAlertAsync(It.IsAny<string>(), "Offline."), Times.Once);
+        }
+
+        [Test]
+        public async Task GenerateAsync_WhenOutdated_BlocksWithUpdateNotice()
+        {
+            _featureCheck = () => Task.FromResult(
+                FeatureCheckResult.Outdated("Skin Selector", "Update to 2.3.0.", "2.3.0"));
+
+            await _presenter.GenerateAsync(new[] { Hero("h1", "SetA") }, Sel("h1", set: 0));
+
+            _view.Verify(v => v.ShowGenerationPreview(
+                It.IsAny<IReadOnlyList<(HeroModel, string, string?)>>()), Times.Never);
+            _view.Verify(v => v.ShowAlertAsync(It.IsAny<string>(), "Update to 2.3.0."), Times.Once);
         }
 
         #endregion

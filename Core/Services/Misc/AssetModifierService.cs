@@ -24,6 +24,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Data;
+using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Security;
@@ -808,6 +809,9 @@ namespace ArdysaModsTools.Core.Services
                 await progressStream.CopyToAsync(memoryStream, 81920, ct).ConfigureAwait(false);
             memoryStream.Position = 0;
 
+            if (!await VerifyBufferedAssetAsync(url, memoryStream, modName, log, ct).ConfigureAwait(false))
+                return content;
+
             var txtBuffer = new System.Text.StringBuilder();
             int copied = 0;
 
@@ -888,6 +892,43 @@ namespace ArdysaModsTools.Core.Services
             return content;
         }
 
+        private async Task<bool> VerifyBufferedAssetAsync(
+            string? url, MemoryStream buffer, string modName, Action<string> log, CancellationToken ct)
+        {
+            try
+            {
+                var assetPath = Constants.CdnConfig.ExtractAssetPath(url ?? string.Empty);
+                var expected = await AssetHashManifestService.Instance
+                    .GetExpectedAsync(assetPath, ct).ConfigureAwait(false);
+
+                if (expected == null) return true;
+
+                if (VerifyBuffer(buffer, expected)) return true;
+
+                var warning = $"{modName}: integrity check failed — skipped.";
+                log($"Warning: {warning}");
+                _warnings.Add(warning);
+                _logger?.Log($"[{ErrorCodes.DL_HASH_MISMATCH}] Misc asset failed verification: {assetPath}");
+                return false;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"Misc integrity check skipped for {modName}: {ex.Message}");
+                return true;
+            }
+            finally
+            {
+                buffer.Position = 0;
+            }
+        }
+
+        private static bool VerifyBuffer(MemoryStream buffer, AssetHashEntry expected) =>
+            AssetHashVerifier.Verify(buffer.GetBuffer().AsSpan(0, (int)buffer.Length), expected);
+
         private static bool TryOpenArchive(MemoryStream ms, out IArchive archive)
         {
             long pos = ms.Position;
@@ -927,6 +968,9 @@ namespace ArdysaModsTools.Core.Services
                 await progressStream.CopyToAsync(memoryStream, 81920, ct).ConfigureAwait(false);
             }
             memoryStream.Position = 0;
+
+            if (!await VerifyBufferedAssetAsync(url, memoryStream, modName, log, ct).ConfigureAwait(false))
+                return;
 
             var extractedFiles = new List<string>();
             var readerOptions = new SharpCompress.Readers.ReaderOptions();

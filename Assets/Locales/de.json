@@ -392,6 +392,7 @@
   "update.required.note": "Erforderlich: {required}  •  Installiert: {current}",
   "update.required.action.installer": "Jetzt aktualisieren",
   "update.required.action.portable": "Neueste Version laden",
+  "feature.blocked.offline": "Diese Funktion prüft vor dem Start, ob deine Version mit den aktuellen Assets umgehen kann — diese Prüfung hat den Server nicht erreicht.\n\nStelle eine Internetverbindung her und versuche es erneut.",
   "form.misc.applyConflictFailed": "Konfliktlösungen konnten nicht angewendet werden: {error}",
   "form.misc.completeTitle": "Miscellaneous – Generierung abgeschlossen",
   "form.misc.genFailed": "Generierung fehlgeschlagen: {error}",

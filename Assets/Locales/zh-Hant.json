@@ -392,6 +392,7 @@
   "update.required.note": "需要：{required}  •  目前：{current}",
   "update.required.action.installer": "立即更新",
   "update.required.action.portable": "下載最新版",
+  "feature.blocked.offline": "此功能在執行前會檢查你的版本能否處理目前的 assets，而該檢查無法連線到伺服器。\n\n請連上網路後再試一次。",
   "form.misc.applyConflictFailed": "無法套用衝突解決方案：{error}",
   "form.misc.completeTitle": "Miscellaneous — 生成完成",
   "form.misc.genFailed": "生成失敗：{error}",

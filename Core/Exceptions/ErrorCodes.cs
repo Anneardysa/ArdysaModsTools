@@ -56,6 +56,8 @@ namespace ArdysaModsTools.Core.Exceptions
 
         public const string DL_INVALID_FILE = "DL_008";
 
+        public const string DL_ASSET_INCOMPATIBLE = "DL_009";
+
         #endregion
 
         #region Patch Errors (PATCH_XXX) - File patching operations

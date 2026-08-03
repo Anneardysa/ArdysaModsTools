@@ -487,6 +487,77 @@ namespace ArdysaModsTools.Tests.Services
 
         #endregion
 
+        #region Evaluate — fail-closed gating (ADR-0014)
+
+        [TestCase(FeatureAccessService.SkinSelectorFeature)]
+        [TestCase(FeatureAccessService.MiscellaneousFeature)]
+        [TestCase(FeatureAccessService.InstallModsPackFeature)]
+        public void Evaluate_WithNoPolicy_Blocks(string feature)
+        {
+            var result = FeatureAccessService.Evaluate(null, feature, new AppVersion("2.2.19-beta", 2267));
+
+            Assert.That(result.IsAllowed, Is.False);
+            Assert.That(result.IsOutdated, Is.False, "Offline is not an outdated-app problem.");
+            Assert.That(result.BlockedMessage, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void Evaluate_WithEnabledPolicy_Allows()
+        {
+            var config = FeatureAccessConfig.CreateDefault();
+
+            var result = FeatureAccessService.Evaluate(
+                config, FeatureAccessService.SkinSelectorFeature, new AppVersion("2.2.19-beta", 2267));
+
+            Assert.That(result.IsAllowed, Is.True);
+            Assert.That(result.FeatureDisplayName, Is.EqualTo("Skin Selector"));
+        }
+
+        [Test]
+        public void Evaluate_WithDisabledFeature_BlocksWithoutUpdatePrompt()
+        {
+            var config = FeatureAccessConfig.CreateDefault();
+            config.SkinSelector.Enabled = false;
+            config.SkinSelector.DisabledMessage = "Down for maintenance.";
+
+            var result = FeatureAccessService.Evaluate(
+                config, FeatureAccessService.SkinSelectorFeature, new AppVersion("2.2.19-beta", 2267));
+
+            Assert.That(result.IsAllowed, Is.False);
+            Assert.That(result.IsOutdated, Is.False);
+            Assert.That(result.BlockedMessage, Is.EqualTo("Down for maintenance."));
+        }
+
+        [Test]
+        public void Evaluate_WhenBelowMinBuild_ReportsOutdatedSoTheUiOffersAnUpdate()
+        {
+            var config = FeatureAccessConfig.CreateDefault();
+            config.SkinSelector.MinVersion = "2.2.19-beta";
+            config.SkinSelector.MinBuild = 2300;
+
+            var result = FeatureAccessService.Evaluate(
+                config, FeatureAccessService.SkinSelectorFeature, new AppVersion("2.2.19-beta", 2267));
+
+            Assert.That(result.IsAllowed, Is.False);
+            Assert.That(result.IsOutdated, Is.True);
+            Assert.That(result.RequiredVersion, Does.Contain("2300"));
+        }
+
+        [Test]
+        public void Evaluate_WhenAtMinBuild_Allows()
+        {
+            var config = FeatureAccessConfig.CreateDefault();
+            config.SkinSelector.MinVersion = "2.2.19-beta";
+            config.SkinSelector.MinBuild = 2267;
+
+            var result = FeatureAccessService.Evaluate(
+                config, FeatureAccessService.SkinSelectorFeature, new AppVersion("2.2.19-beta", 2267));
+
+            Assert.That(result.IsAllowed, Is.True);
+        }
+
+        #endregion
+
         #region IsDevMode Tests
 
         [Test]

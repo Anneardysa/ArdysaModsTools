@@ -392,6 +392,7 @@
   "update.required.note": "Requise : {required}  •  Installée : {current}",
   "update.required.action.installer": "Mettre à jour",
   "update.required.action.portable": "Télécharger la dernière",
+  "feature.blocked.offline": "Cette fonctionnalité vérifie que ta version peut gérer les assets actuels avant de s'exécuter, et cette vérification n'a pas pu joindre le serveur.\n\nConnecte-toi à internet et réessaie.",
   "form.misc.applyConflictFailed": "Impossible d'appliquer les résolutions de conflits : {error}",
   "form.misc.completeTitle": "Miscellaneous — Génération terminée",
   "form.misc.genFailed": "Échec de la génération : {error}",
