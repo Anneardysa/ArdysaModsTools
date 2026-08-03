@@ -93,27 +93,25 @@ namespace ArdysaModsTools.Core.Services.Security
             var ciphertext = new byte[ctLen];
             Buffer.BlockCopy(container, ctOffset, ciphertext, 0, ctLen);
 
-            return DecryptWithEpochs(nonce, tag, ciphertext, assetPath, EmbeddedAssetKey.SupportedEpochs);
+            return DecryptWithKeys(nonce, tag, ciphertext, EmbeddedAssetKey.CandidateKeys(assetPath));
         }
 
-        internal static byte[] DecryptWithEpochs(
-            byte[] nonce, byte[] tag, byte[] ciphertext, string assetPath, int[] epochs)
+        internal static byte[] DecryptWithKeys(
+            byte[] nonce, byte[] tag, byte[] ciphertext, byte[][] keys)
         {
-            if (epochs == null || epochs.Length == 0)
-                throw new CryptographicException("No asset key epochs are configured.");
+            if (keys == null || keys.Length == 0)
+                throw new CryptographicException("No asset keys are configured.");
 
-            int hint = _lastGoodEpoch;
             AuthenticationTagMismatchException? lastMismatch = null;
 
-            foreach (int epoch in Order(epochs, hint))
+            foreach (int index in Order(keys.Length, _lastGoodKey))
             {
                 var plaintext = new byte[ciphertext.Length];
-                byte[] key = EmbeddedAssetKey.DeriveKey(assetPath, epoch);
                 try
                 {
-                    using var gcm = new AesGcm(key, TagLen);
+                    using var gcm = new AesGcm(keys[index], TagLen);
                     gcm.Decrypt(nonce, ciphertext, tag, plaintext);
-                    _lastGoodEpoch = epoch;
+                    _lastGoodKey = index;
                     return plaintext;
                 }
                 catch (AuthenticationTagMismatchException ex)
@@ -125,20 +123,33 @@ namespace ArdysaModsTools.Core.Services.Security
             throw lastMismatch!;
         }
 
-        private static IEnumerable<int> Order(int[] epochs, int hint)
+        internal static byte[] DecryptWithEpochs(
+            byte[] nonce, byte[] tag, byte[] ciphertext, string assetPath, int[] epochs)
         {
-            if (hint != 0 && Array.IndexOf(epochs, hint) >= 0)
+            if (epochs == null || epochs.Length == 0)
+                throw new CryptographicException("No asset key epochs are configured.");
+
+            var keys = new byte[epochs.Length][];
+            for (int i = 0; i < epochs.Length; i++)
+                keys[i] = EmbeddedAssetKey.DeriveKey(assetPath, epochs[i]);
+
+            return DecryptWithKeys(nonce, tag, ciphertext, keys);
+        }
+
+        private static IEnumerable<int> Order(int count, int hint)
+        {
+            if (hint >= 0 && hint < count)
             {
                 yield return hint;
-                foreach (int e in epochs)
-                    if (e != hint) yield return e;
+                for (int i = 0; i < count; i++)
+                    if (i != hint) yield return i;
                 yield break;
             }
 
-            foreach (int e in epochs) yield return e;
+            for (int i = 0; i < count; i++) yield return i;
         }
 
-        private static volatile int _lastGoodEpoch;
+        private static volatile int _lastGoodKey;
 
         public static byte[] Encrypt(byte[] plaintext, string assetPath)
         {
