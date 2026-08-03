@@ -54,7 +54,22 @@ namespace ArdysaModsTools.Core.Services.Cdn
             if (manifest == null)
                 return null;
 
-            return manifest.TryGetValue(assetPath, out var entry) ? entry : null;
+            if (manifest.TryGetValue(assetPath, out var entry))
+                return entry;
+
+            string decoded = TryUnescape(assetPath!);
+            if (!string.Equals(decoded, assetPath, StringComparison.Ordinal) &&
+                manifest.TryGetValue(decoded, out entry))
+                return entry;
+
+            return null;
+        }
+
+        private static string TryUnescape(string path)
+        {
+            if (path.IndexOf('%') < 0) return path;
+            try { return Uri.UnescapeDataString(path); }
+            catch (UriFormatException) { return path; }
         }
 
         private async Task<Dictionary<string, AssetHashEntry>?> GetManifestAsync(CancellationToken ct)
