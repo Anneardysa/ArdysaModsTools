@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System.Text.Json;
 using NUnit.Framework;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Config;
@@ -541,6 +542,20 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(result.IsAllowed, Is.False);
             Assert.That(result.IsOutdated, Is.True);
             Assert.That(result.RequiredVersion, Does.Contain("2300"));
+        }
+
+        [Test]
+        public void Evaluate_WithNullFeatureEntry_DoesNotThrow()
+        {
+            var config = JsonSerializer.Deserialize<FeatureAccessConfig>(
+                "{\"skinSelector\": null}", new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+            Assert.That(config.SkinSelector, Is.Null, "Precondition: JSON null wins over the initializer.");
+
+            FeatureCheckResult result = null!;
+            Assert.DoesNotThrow(() => result = FeatureAccessService.Evaluate(
+                config, FeatureAccessService.SkinSelectorFeature, new AppVersion("2.2.19-beta", 2267)));
+            Assert.That(result.IsAllowed, Is.True, "An unspecified entry means the publisher said nothing.");
         }
 
         [Test]

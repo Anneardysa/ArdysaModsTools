@@ -87,14 +87,11 @@ namespace ArdysaModsTools.Core.Services.Config
 
         private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
+        private static readonly TimeSpan FailureBackoff = TimeSpan.FromSeconds(60);
+
         #endregion
 
         #region Private Fields
-
-        private static readonly HttpClient _httpClient = new()
-        {
-            Timeout = RequestTimeout
-        };
 
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -105,6 +102,7 @@ namespace ArdysaModsTools.Core.Services.Config
 
         private static FeatureAccessConfig? _cachedConfig;
         private static DateTime _cacheTime = DateTime.MinValue;
+        private static DateTime _lastFailedFetch = DateTime.MinValue;
 
         #endregion
 
@@ -118,6 +116,11 @@ namespace ArdysaModsTools.Core.Services.Config
             if (IsCacheValid())
             {
                 return _cachedConfig!;
+            }
+
+            if (IsInFailureBackoff())
+            {
+                return GetCachedOrDefault();
             }
 
             try
@@ -268,6 +271,7 @@ namespace ArdysaModsTools.Core.Services.Config
             {
                 _cachedConfig = null;
                 _cacheTime = DateTime.MinValue;
+                _lastFailedFetch = DateTime.MinValue;
             }
         }
 
@@ -318,6 +322,8 @@ namespace ArdysaModsTools.Core.Services.Config
         {
             lock (_lock)
             {
+                _lastFailedFetch = DateTime.UtcNow;
+
                 if (_cachedConfig != null)
                 {
                     System.Diagnostics.Debug.WriteLine("[FeatureAccess] Using stale cache");
@@ -337,6 +343,15 @@ namespace ArdysaModsTools.Core.Services.Config
             return null;
         }
 
+        private static bool IsInFailureBackoff()
+        {
+            lock (_lock)
+            {
+                return _lastFailedFetch != DateTime.MinValue &&
+                       DateTime.UtcNow - _lastFailedFetch < FailureBackoff;
+            }
+        }
+
         private static FeatureAccessConfig? LoadDiskCache()
         {
             try
@@ -354,17 +369,20 @@ namespace ArdysaModsTools.Core.Services.Config
 
         private static async Task SaveCacheAsync(string json)
         {
+            string tempPath = CacheFilePath + ".tmp";
             try
             {
                 var dir = Path.GetDirectoryName(CacheFilePath);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
 
-                await File.WriteAllTextAsync(CacheFilePath, json).ConfigureAwait(false);
+                await File.WriteAllTextAsync(tempPath, json).ConfigureAwait(false);
+                File.Move(tempPath, CacheFilePath, overwrite: true);
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[FeatureAccess] Failed to save cache: {ex.Message}");
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
             }
         }
 
@@ -375,8 +393,8 @@ namespace ArdysaModsTools.Core.Services.Config
                 SkinSelectorFeature => config.SkinSelector,
                 MiscellaneousFeature => config.Miscellaneous,
                 InstallModsPackFeature => config.InstallModsPack,
-                _ => new FeatureAccess()
-            };
+                _ => null
+            } ?? new FeatureAccess();
         }
 
         #endregion
