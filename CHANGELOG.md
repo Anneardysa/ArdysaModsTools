@@ -5,7 +5,110 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.19-beta] (Builds 2253–2267)
+## [2.2.19-beta] (Builds 2253–2273)
+
+### 🔒 Security (builds 2268, 2273)
+
+- **Skin Selector and Miscellaneous are version-locked to the assets they were built for** (2268):
+  remote content moves forward as sets are rebuilt and the index format evolves; shipped binaries do
+  not. An old build patching current assets did not fail loudly — it wrote a VPK the game then
+  rendered wrong, which reaches support as "AMT broke my Dota", not "my AMT is old". Nothing enforced
+  a floor. Three independent layers now do, deliberately with *different* bypasses so defeating one
+  does not defeat the others (ADR-0014):
+  - **Version identity on the wire** — `HttpClientProvider.UserAgent` is built from
+    `AppVersion.Current` (`ArdysaModsTools/2.2.19-beta (build 2273; Windows NT)`) and is now the
+    single UA for every component; the four versionless strings and `ModInstallerService`'s
+    duplicate header are gone. No client-side enforcement — it exists so the CDN edge *can*
+    distinguish builds.
+  - **The minimum-version gate fails closed** — `FeatureAccessService` persisted an all-enabled
+    default whenever the policy fetch failed, so blocking the CDN in `hosts` unlocked every gated
+    feature. Last-known-good policy is now persisted to
+    `%LocalAppData%\ArdysaModsTools\feature_access_cache.json`, and `CheckFeatureAsync` blocks when
+    no policy is available from network, memory, *or* disk. The decision is factored into a pure
+    `Evaluate(...)` so every branch is unit-tested without network. Costs nothing real: the gated
+    features exist to download assets, which needs the same connection.
+  - **An asset key epoch** — `EmbeddedAssetKey` folds an epoch into the HMAC key material. Epoch 1
+    is byte-identical to the previous derivation, so nothing already published changes. `KeyMaterial`
+    rejects `':'` in an asset path: without that guard an asset named `e2:X` at epoch 1 would derive
+    the same key as `X` at epoch 2, silently defeating a rotation.
+- **The client reads a window of key epochs so a rotation has no broken window** (2273): a build
+  understood exactly one epoch, which made rotation unshippable in either order — ship first and the
+  new build cannot read the live tree, rotate first and everyone who has not updated breaks. The
+  client now reads `{ N, N-1 }` while packaging writes only `N`, so both the pre- and post-rotation
+  trees stay readable by the new build and only builds that predate it lose access. That loss is the
+  intended cut, on the publisher's schedule instead of during a window where somebody is always
+  broken. `AssetCipher.DecryptWithEpochs` advances **only** on `AuthenticationTagMismatchException` —
+  the exact wrong-key signal — so any other fault propagates instead of being retried under a
+  different key, and a learned `_lastGoodEpoch` hint keeps the steady state at one decrypt per asset.
+
+### 🚀 Added (build 2268)
+
+- **Downloaded Miscellaneous archives are verified before they are extracted** (2268): hero sets and
+  `Original.zip` were checked against `Assets/asset_hashes.json`; Miscellaneous was not — both of its
+  download paths streamed straight into the extractor, so a corrupted or truncated archive was
+  unpacked into the package unnoticed. Both now verify. They already buffer the whole archive, so
+  this is a hash over that buffer via a new `AssetHashVerifier.Verify(ReadOnlySpan<byte>, …)`
+  overload rather than a rewrite onto `ResumableDownloadService`. Fail-open for assets the manifest
+  does not list, matching `AssetHashManifestService`'s documented contract, so nothing that worked
+  before stops working. A failed check skips that one category with a warning rather than aborting —
+  Miscellaneous categories are independent files, unlike hero sets which compose into a single VPK.
+- **The access check runs again at the write boundary** (2268): the gate only ran when the feature
+  window opened, which can be minutes stale on a form left open. `HeroGalleryPresenter.GenerateAsync`
+  and `MiscFormWebView.HandleGenerateAsync` re-check immediately before the Dota 2 folder is
+  rewritten — the only point where being wrong costs the user anything. The presenter takes the
+  check as an injectable delegate so tests exercise it without the CDN.
+
+### 🐛 Bugfix (builds 2268, 2270–2272)
+
+- **An asset newer than the app no longer retries forever** (2268): every decrypt failure deleted the
+  cached zip and reported "it will be re-downloaded on retry" — so a build meeting content it cannot
+  read would loop indefinitely instead of saying what is wrong. `AssetCipher` now raises
+  `AssetVersionException` for an unknown container version, distinct from .NET's
+  `AuthenticationTagMismatchException` on a wrong key. Both mean *the asset is newer than this app*
+  and map to the new terminal **`DL_009 DL_ASSET_INCOMPATIBLE`**, which deliberately **keeps** the
+  cached file: it passed the SHA-256 gate, so it is exactly what the CDN published and re-downloading
+  fetches identical bytes. Any other `CryptographicException` keeps the existing delete-and-retry
+  behaviour. `GenerateBatchAsync` aborts the whole batch on `DL_009` rather than adding to
+  `failedHeroes` and continuing — skipping would ship a VPK built from whichever sets happened to be
+  old enough, which is silently wrong in-game and worse than a clean stop.
+- **Offline no longer costs a five-second stall per action** (2270): every failed policy fetch
+  returned without marking the cache, so an offline user paid the full request timeout on *every*
+  gated action — twice per generation attempt now that the gate also runs at the write boundary. A
+  60-second failure backoff skips the re-probe while keeping policy fresh well inside the five-minute
+  cache; `InvalidateCache()` clears it, since that is the explicit "check now" hatch.
+- **A malformed remote config could NullReference out of the fail-open path** (2270):
+  `FeatureAccessConfig`'s property initialisers do not survive deserialization, so
+  `{"skinSelector": null}` in the CDN file overwrote them with null. `Evaluate` masked it behind its
+  catch, but `IsFeatureEnabledAsync` has none — a one-word edit to a published file could throw into
+  callers. `GetFeatureAccess` is now null-coalesced.
+- **The policy cache could be read while half-written** (2270): `WriteAllTextAsync` opens with
+  `FileShare.Read`, so a concurrent read could parse a truncated file, fail, and report "no policy" —
+  blocking a user who had a perfectly good cache. Now written to a temp file and moved into place.
+- **Percent-encoded asset paths missed their manifest entry** (2271): `CdnConfig.ExtractAssetPath` is
+  a pure substring of the URL and never decodes, while `Assets/asset_hashes.json` is keyed by the
+  real filename. Ten published assets whose names contain spaces therefore looked "not published" and
+  skipped the integrity gate entirely — precisely the hand-authored files most worth checking.
+  `GetExpectedAsync` now retries once percent-decoded. Fallback-only, so an exact key is never
+  shadowed, and the manifest contains no encoded keys so it cannot resolve to the wrong entry.
+- **Running the test suite wrote into the installed app's directory** (2272): several existing tests
+  call the live-fetching policy API, which began persisting last-known-good in 2268 — on a machine
+  with AMT installed, `%LocalAppData%\ArdysaModsTools` *is* the install directory. CI never noticed
+  because its profile is disposable. `CacheFilePath` gained a test seam and the fixture redirects it
+  to a temp directory.
+
+### 📚 Documentation (build 2269)
+
+- **ADR-0014 and a one-command asset epoch rotation** (2269): `encrypt-assets.ps1` gained
+  `-RotateFrom`, replacing a two-step dance with two sharp edges — a plain run at a new epoch skipped
+  every already-encrypted file on the `AME1` magic and reported success having re-keyed nothing, and
+  the documented workaround left the whole tree as plaintext on disk in between. The new mode
+  preflights and test-decrypts every file **before** writing anything (a wrong source epoch aborts
+  having changed nothing, which matters because a half-rotated tree is readable by no single build),
+  round-trip verifies each container against the key the client will derive, writes atomically per
+  file, and is idempotent and resumable. Plaintext archives are left alone unless `-IncludePlaintext`
+  is passed — encryption is opt-in, so quietly encrypting the rest of the library during a
+  "rotation" would rewrite every hash and force a full re-download. Covered by
+  `scripts/assets/test-rotate.ps1`.
 
 ### 🐛 Bugfix (build 2267)
 
