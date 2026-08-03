@@ -5,9 +5,9 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.19-beta] (Builds 2253–2273)
+## [2.2.19-beta] (Builds 2253–2275)
 
-### 🔒 Security (builds 2268, 2273)
+### 🔒 Security (builds 2268, 2273, 2275)
 
 - **Skin Selector and Miscellaneous are version-locked to the assets they were built for** (2268):
   remote content moves forward as sets are rebuilt and the index format evolves; shipped binaries do
@@ -39,7 +39,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   intended cut, on the publisher's schedule instead of during a window where somebody is always
   broken. `AssetCipher.DecryptWithEpochs` advances **only** on `AuthenticationTagMismatchException` —
   the exact wrong-key signal — so any other fault propagates instead of being retried under a
-  different key, and a learned `_lastGoodEpoch` hint keeps the steady state at one decrypt per asset.
+  different key, and a learned last-good hint keeps the steady state at one decrypt per asset.
+- **The same window now covers the master secret, not just the epoch** (2275): `SupportedEpochs`
+  varies the epoch label in the key material — it does nothing when the **master secret** itself has
+  to change, which has the identical no-safe-window problem. `SupportedSecrets` lists the secrets a
+  build can read, newest first, with `PrevFragmentA/B` carrying the outgoing one for the length of a
+  rotation. An all-zero previous pair means "none" and is **omitted rather than derived**, so the
+  steady state stays at exactly one candidate key and one decrypt attempt per asset — a test pins
+  that, since a stray second candidate would make every download pay a guaranteed-failing decrypt.
+  `EmbeddedAssetKey.CandidateKeys` is now the single place enumerating what a build accepts (secrets
+  outer, epochs inner, newest first) and the epoch-walk generalised into
+  `AssetCipher.DecryptWithKeys`, keeping the tag-mismatch-only advance and the learned-index hint.
+  `GetMasterSecret` no longer computes its own fragment XOR — one source of truth. Packaging mirrors
+  this with `encrypt-assets.ps1 -PrevSecretFile`, which composes with `-RotateFrom` to move both
+  dimensions in one pass; a wrong previous secret aborts in preflight having written nothing.
+  Without this the only safe way to change a secret is publishing the whole tree as plaintext in
+  between — workable for a handful of files, a confidentiality gap that scales badly.
 
 ### 🚀 Added (build 2268)
 
