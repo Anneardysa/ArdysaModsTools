@@ -70,6 +70,15 @@
    --warn-accent: #a8730a;
    --warn-glow: rgba(168, 115, 10, 0.22);
 
+   /* Setup-verification verdicts. The only place this theme keeps hue rather than inverting to
+      black: the check rows sit beside a status dot that is itself green/red in both themes, and a
+      monochrome row would break that pairing. The dark theme's #50c878 / #ff5050 reach only
+      ~2.0:1 and ~3.0:1 on the light --panel-2 (#f6f6f6), far under AA for the 9px verdict label,
+      so both are darkened here to ~5:1. The Fix button keeps its amber fill and dark ink from the
+      shell in both themes — see the --verify-fix-ink note there. */
+   --verify-ok: #157a3a;
+   --verify-bad: #c62828;
+
    /* ── settings / progress / status / verify / preview vocabulary ────────────────── */
    --bg-primary: #f3f3f3;    /* chrome base */
    --bg-secondary: #f6f6f6;  /* nested */

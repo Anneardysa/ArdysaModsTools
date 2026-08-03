@@ -155,6 +155,26 @@ namespace ArdysaModsTools.Tests.Helpers
                 "the vendored Tailwind must ship — without it the Performance page renders unstyled");
         }
 
+        [Test]
+        public void LightTheme_DarkensTheVerificationVerdictColours()
+        {
+            var htmlDir = LocateHtmlDir();
+            var theme = File.ReadAllText(Path.Combine(htmlDir, "theme.css"));
+            var shell = File.ReadAllText(Path.Combine(htmlDir, "main_shell.html"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(shell, Does.Contain("--verify-ok:"), "the shell must define the dark default");
+                Assert.That(shell, Does.Contain("--verify-bad:"), "the shell must define the dark default");
+                Assert.That(theme, Does.Contain("--verify-ok:"), "light theme must darken the pass colour");
+                Assert.That(theme, Does.Contain("--verify-bad:"), "light theme must darken the fail colour");
+
+                Assert.That(shell, Does.Contain("--verify-fix-ink:"));
+                Assert.That(shell, Does.Not.Contain("background: #ffb432"),
+                    "the amber fill must come from --verify-fix-bg so both themes stay in step");
+            });
+        }
+
         private static string LocateHtmlDir()
         {
             var dir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);

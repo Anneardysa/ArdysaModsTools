@@ -33,10 +33,15 @@ namespace ArdysaModsTools.Core.Services
         public static string Dir(string targetPath)
             => Path.Combine(targetPath, "game", "mod");
 
-        internal static bool IsMountedBy(string? gameInfoText)
+        internal static bool MountsSearchPath(string? gameInfoText, string searchPath)
             => !string.IsNullOrEmpty(gameInfoText)
-               && Regex.IsMatch(gameInfoText, "^[ \t]*(?:Game|Mod)[ \t]+\"?mod\"?[ \t\r]*$",
+               && !string.IsNullOrEmpty(searchPath)
+               && Regex.IsMatch(gameInfoText,
+                   $"^[ \t]*(?:Game|Mod)[ \t]+\"?{Regex.Escape(searchPath)}\"?[ \t\r]*$",
                    RegexOptions.Multiline | RegexOptions.IgnoreCase);
+
+        internal static bool IsMountedBy(string? gameInfoText)
+            => MountsSearchPath(gameInfoText, "mod");
 
         public static bool IsMounted(string targetPath)
         {

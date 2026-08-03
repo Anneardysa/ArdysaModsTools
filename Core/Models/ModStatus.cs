@@ -62,6 +62,10 @@ namespace ArdysaModsTools.Core.Models
         public DateTime? LastModified { get; init; }
         
         public string? ErrorMessage { get; init; }
+
+        public SetupVerificationResult Verification { get; init; } = SetupVerificationResult.Empty;
+
+        public SetupCheckId? SetupFailure => Verification.FirstFailure?.Id;
         
         public Color StatusColor { get; init; } = Color.Gray;
     }

@@ -34,16 +34,18 @@ namespace ArdysaModsTools.Core.Services
 
         private readonly IAppLogger? _logger;
         private readonly DotaVersionService _versionService;
+        private readonly ISetupVerificationService _verification;
         private string? _lastLoggedBuildChange;
 
         #endregion
 
         #region Constructor
 
-        public StatusService(IAppLogger? logger = null)
+        public StatusService(IAppLogger? logger = null, ISetupVerificationService? verification = null)
         {
             _logger = logger;
             _versionService = new DotaVersionService(logger ?? NullLogger.Instance);
+            _verification = verification ?? new SetupVerificationService(logger);
         }
 
         #endregion
@@ -60,28 +62,42 @@ namespace ArdysaModsTools.Core.Services
                     "status.pathNotSet.desc");
             }
 
+            var verification = SetupVerificationResult.Empty;
+
             try
             {
                 var dotaCheck = await ValidateDotaInstallation(targetPath, ct);
                 if (dotaCheck != null) return dotaCheck;
 
+                verification = await _verification.VerifyAsync(targetPath, ct).ConfigureAwait(false);
+
                 var modsResult = await CheckModsInstalled(targetPath, ct);
                 if (!modsResult.IsInstalled)
-                    return modsResult.NotInstalledStatus!;
-                
+                    return modsResult.NotInstalledStatus! with { Verification = verification };
+
                 var (version, lastModified) = (modsResult.Version, modsResult.LastModified);
 
                 var gameInfoCheck = await CheckGameInfoPatched(targetPath, ct);
-                if (gameInfoCheck != null) 
-                    return gameInfoCheck with { Version = version, LastModified = lastModified };
+                if (gameInfoCheck != null)
+                    return gameInfoCheck with
+                    {
+                        Version = version,
+                        LastModified = lastModified,
+                        Verification = verification
+                    };
 
-                var sigCheck = await CheckSignaturesPatched(targetPath, version, lastModified, ct);
+                var sigCheck = (await CheckSignaturesPatched(targetPath, version, lastModified, ct))
+                    with { Verification = verification };
                 if (sigCheck.Status != ModStatus.Ready)
                     return sigCheck;
 
                 var buildCheck = await CheckBuildVersionAsync(targetPath, version, lastModified, ct);
                 if (buildCheck != null)
-                    return buildCheck;
+                    return buildCheck with { Verification = verification };
+
+                var setupGate = BuildSetupFailureStatus(verification, version, lastModified);
+                if (setupGate != null)
+                    return setupGate;
 
                 return sigCheck;
             }
@@ -289,6 +305,32 @@ namespace ArdysaModsTools.Core.Services
                 _logger?.Log($"[STATUS] Build version check failed: {ex.Message}");
                 return null;
             }
+        }
+
+        private ModStatusInfo? BuildSetupFailureStatus(
+            SetupVerificationResult verification, string? version, DateTime? lastModified)
+        {
+            var failure = verification.FirstFailure;
+            if (failure == null)
+                return null;
+
+            _logger?.LogDebug($"[STATUS] Setup verification blocked Ready: {failure.Id} — {failure.Diagnostic}");
+
+            bool needsUpdate = failure.FailStatus == ModStatus.NeedUpdate;
+
+            return CreateStatus(
+                failure.FailStatus,
+                needsUpdate ? "status.updateRequired.text" : "status.setupProblem.text",
+                failure.DetailKey,
+                action: needsUpdate ? RecommendedAction.Update : RecommendedAction.Fix,
+                actionText: Loc.T(needsUpdate ? "status.action.patchUpdate" : "status.action.fixSetup"),
+                version: version,
+                lastModified: lastModified,
+                errorMessage: failure.Diagnostic,
+                descVars: failure.DetailVars) with
+            {
+                Verification = verification
+            };
         }
 
         #endregion

@@ -455,11 +455,20 @@
             </div>
 
             <div class="check-row">
+               <div class="check-dot gray" id="dotAdmin"></div>
+               <span class="check-label" data-i18n="statusDetails.runAsAdmin">Run as Administrator</span>
+               <span class="check-status none" id="labelAdmin">--</span>
+            </div>
+
+            <div class="check-row">
                <div class="check-dot gray" id="dotOverall"></div>
                <span class="check-label" data-i18n="statusDetails.overallStatus">Overall Status</span>
                <span class="check-status none" id="labelOverall">--</span>
             </div>
          </div>
+
+         <!-- Plain-language reason for a failed setup check (hidden when everything passes) -->
+         <div class="error-block fade-in delay-3 hidden" id="verifyDetail"></div>
 
          <!-- Error Block (hidden by default) -->
          <div class="error-block fade-in delay-3 hidden" id="errorBlock"></div>
@@ -518,9 +527,31 @@
             setVal("valPatchDate", data.patchDate || "Never");
 
             // ── Diagnostics ──
+            // These three now come from the setup verification sweep — the same conditions Dota 2
+            // checks at launch — instead of being inferred from the overall status. null still means
+            // "not determined" and renders gray.
             setCheck("dotDigest", "labelDigest", data.digestOk);
             setCheck("dotGameInfo", "labelGameInfo", data.gameInfoOk);
-            setCheck("dotOverall", "labelOverall", data.digestOk && data.gameInfoOk);
+            setCheck("dotAdmin", "labelAdmin", data.adminOk);
+            // Overall is an AND over the checks that actually reported: a gray (null) check must not
+            // drag the summary to red, only a real false does.
+            const decided = [data.digestOk, data.gameInfoOk, data.adminOk].filter((v) => v !== null && v !== undefined);
+            setCheck(
+               "dotOverall",
+               "labelOverall",
+               decided.length === 0 ? null : decided.every((v) => v === true)
+            );
+
+            // Explanation for whichever check failed (already translated by C#).
+            const verifyDetail = document.getElementById("verifyDetail");
+            if (verifyDetail) {
+               if (data.verifyDetail) {
+                  verifyDetail.textContent = data.verifyDetail;
+                  verifyDetail.classList.remove("hidden");
+               } else {
+                  verifyDetail.classList.add("hidden");
+               }
+            }
 
             // ── Error block ──
             const errorBlock = document.getElementById("errorBlock");
