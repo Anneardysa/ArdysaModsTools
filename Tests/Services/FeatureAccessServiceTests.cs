@@ -14,6 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System;
+using System.IO;
 using System.Text.Json;
 using NUnit.Framework;
 using ArdysaModsTools.Core.Models;
@@ -25,10 +27,24 @@ namespace ArdysaModsTools.Tests.Services
     [TestFixture]
     public class FeatureAccessServiceTests
     {
+        private string _cacheDir = null!;
+
         [SetUp]
         public void Setup()
         {
+            _cacheDir = Path.Combine(Path.GetTempPath(), "amt_fa_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_cacheDir);
+            FeatureAccessService.CacheFilePath = Path.Combine(_cacheDir, "feature_access_cache.json");
+
             FeatureAccessService.InvalidateCache();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            FeatureAccessService.CacheFilePath = FeatureAccessService.DefaultCacheFilePath;
+            FeatureAccessService.InvalidateCache();
+            try { Directory.Delete(_cacheDir, true); } catch { }
         }
 
         #region FeatureAccessConfig Model Tests

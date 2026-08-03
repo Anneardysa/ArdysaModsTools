@@ -79,9 +79,11 @@ namespace ArdysaModsTools.Core.Services.Config
 
         private const string OfflineMessageKey = "feature.blocked.offline";
 
-        public static readonly string CacheFilePath = Path.Combine(
+        internal static readonly string DefaultCacheFilePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ArdysaModsTools", "feature_access_cache.json");
+
+        public static string CacheFilePath { get; internal set; } = DefaultCacheFilePath;
 
         private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
 
