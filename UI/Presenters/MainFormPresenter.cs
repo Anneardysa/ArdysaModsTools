@@ -102,7 +102,7 @@ namespace ArdysaModsTools.UI.Presenters
             _dotaMonitor.OnDota2StateChanged += OnDotaStateChanged;
             _dotaMonitor.Start();
 
-            _navigationPresenter = new NavigationPresenter(_view, _logger, _status);
+            _navigationPresenter = new NavigationPresenter(_view, _logger, _status, _updater);
             
             WireUpPresenterEvents();
 
@@ -355,8 +355,7 @@ namespace ArdysaModsTools.UI.Presenters
                 FeatureAccessService.InstallModsPackFeature);
             if (!installAccess.IsAllowed)
             {
-                await UIHelpers.ShowFeatureUnavailableAsync(
-                    _view, installAccess.FeatureDisplayName, installAccess.BlockedMessage!, _logger.Log);
+                await UIHelpers.ShowFeatureBlockedAsync(_view, installAccess, _updater, _logger.Log);
                 return false;
             }
             if (installAccess.IsDevModeBypass)
@@ -1317,8 +1316,7 @@ namespace ArdysaModsTools.UI.Presenters
                 FeatureAccessService.MiscellaneousFeature);
             if (!miscAccess.IsAllowed)
             {
-                await UIHelpers.ShowFeatureUnavailableAsync(
-                    _view, miscAccess.FeatureDisplayName, miscAccess.BlockedMessage!, _logger.Log);
+                await UIHelpers.ShowFeatureBlockedAsync(_view, miscAccess, _updater, _logger.Log);
                 return;
             }
             if (miscAccess.IsDevModeBypass)
@@ -1354,8 +1352,7 @@ namespace ArdysaModsTools.UI.Presenters
                 FeatureAccessService.SkinSelectorFeature);
             if (!skinAccess.IsAllowed)
             {
-                await UIHelpers.ShowFeatureUnavailableAsync(
-                    _view, skinAccess.FeatureDisplayName, skinAccess.BlockedMessage!, _logger.Log);
+                await UIHelpers.ShowFeatureBlockedAsync(_view, skinAccess, _updater, _logger.Log);
                 return;
             }
             if (skinAccess.IsDevModeBypass)

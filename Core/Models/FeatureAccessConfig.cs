@@ -40,9 +40,35 @@ namespace ArdysaModsTools.Core.Models
         [JsonPropertyName("disabledMessage")]
         public string? DisabledMessage { get; set; }
 
+        [JsonPropertyName("minVersion")]
+        public string? MinVersion { get; set; }
+
+        [JsonPropertyName("minBuild")]
+        public int MinBuild { get; set; }
+
+        [JsonPropertyName("outdatedMessage")]
+        public string? OutdatedMessage { get; set; }
+
+        public bool HasVersionRequirement =>
+            !string.IsNullOrWhiteSpace(MinVersion) || MinBuild > 0;
+
         public string GetDisplayMessage() =>
             !string.IsNullOrWhiteSpace(DisabledMessage)
                 ? DisabledMessage
                 : "This feature is temporarily unavailable. Please try again later.";
+
+        public string GetOutdatedMessage(string required, string current, string? fallback = null)
+        {
+            string template = !string.IsNullOrWhiteSpace(OutdatedMessage)
+                ? OutdatedMessage!
+                : (!string.IsNullOrWhiteSpace(fallback)
+                    ? fallback!
+                    : "This feature now requires a newer version of the app. " +
+                      "Update to {required} to continue — you are on {current}.");
+
+            return template
+                .Replace("{required}", required)
+                .Replace("{current}", current);
+        }
     }
 }

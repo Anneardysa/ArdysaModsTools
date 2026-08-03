@@ -19,7 +19,11 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Localization;
+using ArdysaModsTools.Core.Services.Update;
+using ArdysaModsTools.Core.Services.Update.Models;
+using ArdysaModsTools.UI.Forms;
 using ArdysaModsTools.UI.Interfaces;
 
 namespace ArdysaModsTools.Helpers
@@ -109,6 +113,73 @@ namespace ArdysaModsTools.Helpers
 
             if (joinDiscord)
                 OpenUrlWithErrorDialog(DiscordInviteUrl, "Discord", log);
+        }
+
+        public static async Task ShowFeatureBlockedAsync(
+            IMainFormView view,
+            FeatureCheckResult result,
+            UpdaterService? updater = null,
+            Action<string>? log = null)
+        {
+            if (!result.IsOutdated)
+            {
+                await ShowFeatureUnavailableAsync(
+                    view, result.FeatureDisplayName, result.BlockedMessage ?? "", log);
+                return;
+            }
+
+            await ShowUpdateRequiredAsync(view, result, updater, log);
+        }
+
+        private static string DownloadPageUrl => $"{EnvironmentConfig.WebsiteBase}/#download";
+
+        private static async Task ShowUpdateRequiredAsync(
+            IMainFormView view,
+            FeatureCheckResult result,
+            UpdaterService? updater,
+            Action<string>? log)
+        {
+            bool canUpdateInPlace = updater?.InstallationType == InstallationType.Installer;
+            string current = AppVersion.Current.ToString();
+
+            log?.Invoke(
+                $"Feature '{result.FeatureDisplayName}' requires {result.RequiredVersion}; " +
+                $"running {current}. Prompting to update.");
+
+            bool proceed = await view.ShowShellConfirmAsync(
+                eyebrow: Loc.T("update.required.title"),
+                heading: result.FeatureDisplayName,
+                body: result.BlockedMessage ?? "",
+                note: Loc.T("update.required.note",
+                    new { required = result.RequiredVersion, current }),
+                confirmText: Loc.T(canUpdateInPlace
+                    ? "update.required.action.installer"
+                    : "update.required.action.portable"),
+                cancelText: Loc.T("common.close"),
+                accent: "warn");
+
+            if (!proceed)
+                return;
+
+            try
+            {
+                var info = updater != null ? await updater.GetUpdateInfoAsync() : null;
+
+                if (info?.IsUpdateAvailable == true && updater != null)
+                {
+                    var owner = view as IWin32Window ?? Form.ActiveForm;
+
+                    UpdateAvailableDialogWebView.Show(
+                        owner, info, updater.InstallationType, updater.Delta);
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"Could not open the update dialog: {ex.Message}");
+            }
+
+            OpenUrlWithErrorDialog(DownloadPageUrl, "Download", log);
         }
 
         #endregion

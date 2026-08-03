@@ -54,19 +54,8 @@ namespace ArdysaModsTools.Core.Services.Update
             _httpClient = HttpClientProvider.Client;
             _delta = new DeltaUpdateService(logger);
 
-            var version = Application.ProductVersion;
-            CurrentVersion = string.IsNullOrEmpty(version) ? "1.0.0.0" : version;
-
-            try
-            {
-                var fvi = FileVersionInfo.GetVersionInfo(Application.ExecutablePath);
-                CurrentBuildNumber = fvi.FilePrivatePart;
-            }
-            catch (Exception ex)
-            {
-                _logger.Log($"Could not read build number from FileVersion: {ex.Message}");
-                CurrentBuildNumber = 0;
-            }
+            CurrentVersion = AppVersion.Current.Version;
+            CurrentBuildNumber = AppVersion.Current.BuildNumber;
 
             _installationType = InstallationDetector.Detect();
 
