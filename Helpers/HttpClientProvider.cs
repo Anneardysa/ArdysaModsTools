@@ -19,6 +19,7 @@ using System.Net;
 using System.Net.Http;
 using System.Security.Authentication;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Services.Update.Models;
 
 namespace ArdysaModsTools.Helpers
 {
@@ -82,6 +83,14 @@ namespace ArdysaModsTools.Helpers
 
     public static class HttpClientProvider
     {
+        public static string UserAgent { get; } = BuildUserAgent();
+
+        private static string BuildUserAgent()
+        {
+            var v = AppVersion.Current;
+            return $"ArdysaModsTools/{v.Version} (build {v.BuildNumber}; Windows NT)";
+        }
+
         private static readonly Lazy<HttpClient> _clientLazy = new(() =>
         {
             var handler = new HttpClientHandler
@@ -102,8 +111,8 @@ namespace ArdysaModsTools.Helpers
                 Timeout = TimeSpan.FromMinutes(5)
             };
 
-            c.DefaultRequestHeaders.Add("User-Agent", "ArdysaModsTools/1.0");
-            
+            c.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", UserAgent);
+
             return c;
         });
 

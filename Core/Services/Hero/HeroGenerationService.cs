@@ -21,6 +21,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
@@ -251,6 +252,11 @@ namespace ArdysaModsTools.Core.Services
                                     CurrentFile = processedSelectionsCount,
                                     TotalFiles = totalSelections
                                 });
+                            }
+                            catch (DownloadException dex) when (dex.ErrorCode == ErrorCodes.DL_ASSET_INCOMPATIBLE)
+                            {
+                                _logger?.LogDebug($"[{dex.ErrorCode}] Aborting batch: {dex.Message}");
+                                return Fail(dex.Message, report, targetPath, dex.ErrorCode);
                             }
                             catch (Exception ex)
                             {
@@ -695,7 +701,8 @@ namespace ArdysaModsTools.Core.Services
             return new OperationResult { Success = false, Message = message };
         }
 
-        private static OperationResult Fail(string message, GenerationReport report, string targetPath)
+        private static OperationResult Fail(
+            string message, GenerationReport report, string targetPath, string? errorCode = null)
         {
             report.Log($"Error: {message}");
             report.Save(targetPath);
@@ -703,6 +710,7 @@ namespace ArdysaModsTools.Core.Services
             {
                 Success = false,
                 Message = message,
+                ErrorCode = errorCode,
                 Warnings = report.Warnings.Count > 0 ? report.Warnings.ToList() : null,
                 LogLines = report.Lines.ToList()
             };

@@ -15,6 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -76,6 +77,12 @@ namespace ArdysaModsTools.Core.Services.Config
 
         private const string OutdatedMessageKey = "update.required.default";
 
+        private const string OfflineMessageKey = "feature.blocked.offline";
+
+        public static readonly string CacheFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ArdysaModsTools", "feature_access_cache.json");
+
         private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
 
         private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
@@ -104,6 +111,9 @@ namespace ArdysaModsTools.Core.Services.Config
         #region Public API
 
         public static async Task<FeatureAccessConfig> GetConfigAsync()
+            => await TryGetConfigAsync().ConfigureAwait(false) ?? FeatureAccessConfig.CreateDefault();
+
+        private static async Task<FeatureAccessConfig?> TryGetConfigAsync()
         {
             if (IsCacheValid())
             {
@@ -127,6 +137,7 @@ namespace ArdysaModsTools.Core.Services.Config
                 if (config != null)
                 {
                     UpdateCache(config);
+                    await SaveCacheAsync(json).ConfigureAwait(false);
                     System.Diagnostics.Debug.WriteLine(
                         $"[FeatureAccess] Loaded: SkinSelector={config.SkinSelector.Enabled}, " +
                         $"Miscellaneous={config.Miscellaneous.Enabled}, " +
@@ -168,51 +179,69 @@ namespace ArdysaModsTools.Core.Services.Config
 
         public static async Task<FeatureCheckResult> CheckFeatureAsync(string featureName)
         {
-            var displayName = featureName switch
-            {
-                SkinSelectorFeature => "Skin Selector",
-                MiscellaneousFeature => "Miscellaneous",
-                InstallModsPackFeature => "Install ModsPack",
-                _ => featureName
-            };
-
             if (IsDevMode)
             {
                 System.Diagnostics.Debug.WriteLine(
-                    $"[DEV] Bypassing feature gate for {displayName}");
-                return FeatureCheckResult.Allowed(displayName, devModeBypass: true);
+                    $"[DEV] Bypassing feature gate for {DisplayNameOf(featureName)}");
+                return FeatureCheckResult.Allowed(DisplayNameOf(featureName), devModeBypass: true);
             }
 
             try
             {
-                var config = await GetConfigAsync().ConfigureAwait(false);
-                var feature = GetFeatureAccess(config, featureName);
-
-                if (!feature.Enabled)
-                {
-                    return FeatureCheckResult.Blocked(
-                        displayName, feature.GetDisplayMessage());
-                }
-
-                var current = AppVersion.Current;
-                if (!MeetsMinimumVersion(feature, current, out string required))
-                {
-                    string fallback = Loc.T(OutdatedMessageKey);
-                    if (string.Equals(fallback, OutdatedMessageKey, StringComparison.Ordinal))
-                        fallback = "";
-
-                    return FeatureCheckResult.Outdated(
-                        displayName,
-                        feature.GetOutdatedMessage(required, current.ToString(), fallback),
-                        required);
-                }
-
-                return FeatureCheckResult.Allowed(displayName);
+                var config = await TryGetConfigAsync().ConfigureAwait(false);
+                return Evaluate(config, featureName, AppVersion.Current);
             }
-            catch
+            catch (Exception ex)
             {
-                return FeatureCheckResult.Allowed(displayName);
+                System.Diagnostics.Debug.WriteLine(
+                    $"[FeatureAccess] Check failed for {DisplayNameOf(featureName)}: {ex.Message}");
+                return FeatureCheckResult.Blocked(DisplayNameOf(featureName), OfflineMessage());
             }
+        }
+
+        internal static FeatureCheckResult Evaluate(
+            FeatureAccessConfig? config, string featureName, AppVersion current)
+        {
+            var displayName = DisplayNameOf(featureName);
+
+            if (config == null)
+                return FeatureCheckResult.Blocked(displayName, OfflineMessage());
+
+            var feature = GetFeatureAccess(config, featureName);
+
+            if (!feature.Enabled)
+                return FeatureCheckResult.Blocked(displayName, feature.GetDisplayMessage());
+
+            if (!MeetsMinimumVersion(feature, current, out string required))
+            {
+                string fallback = Loc.T(OutdatedMessageKey);
+                if (string.Equals(fallback, OutdatedMessageKey, StringComparison.Ordinal))
+                    fallback = "";
+
+                return FeatureCheckResult.Outdated(
+                    displayName,
+                    feature.GetOutdatedMessage(required, current.ToString(), fallback),
+                    required);
+            }
+
+            return FeatureCheckResult.Allowed(displayName);
+        }
+
+        private static string DisplayNameOf(string featureName) => featureName switch
+        {
+            SkinSelectorFeature => "Skin Selector",
+            MiscellaneousFeature => "Miscellaneous",
+            InstallModsPackFeature => "Install ModsPack",
+            _ => featureName
+        };
+
+        private static string OfflineMessage()
+        {
+            string text = Loc.T(OfflineMessageKey);
+            if (string.Equals(text, OfflineMessageKey, StringComparison.Ordinal))
+                text = "This feature needs to check for updates before it can run. " +
+                       "Connect to the internet and try again.";
+            return text;
         }
 
         public static bool MeetsMinimumVersion(
@@ -285,7 +314,7 @@ namespace ArdysaModsTools.Core.Services.Config
             }
         }
 
-        private static FeatureAccessConfig GetCachedOrDefault()
+        private static FeatureAccessConfig? GetCachedOrDefault()
         {
             lock (_lock)
             {
@@ -296,8 +325,47 @@ namespace ArdysaModsTools.Core.Services.Config
                 }
             }
 
-            System.Diagnostics.Debug.WriteLine("[FeatureAccess] Using fail-open defaults");
-            return FeatureAccessConfig.CreateDefault();
+            var fromDisk = LoadDiskCache();
+            if (fromDisk != null)
+            {
+                System.Diagnostics.Debug.WriteLine("[FeatureAccess] Using on-disk last-known-good");
+                lock (_lock) { _cachedConfig ??= fromDisk; }
+                return fromDisk;
+            }
+
+            System.Diagnostics.Debug.WriteLine("[FeatureAccess] No policy available from any source");
+            return null;
+        }
+
+        private static FeatureAccessConfig? LoadDiskCache()
+        {
+            try
+            {
+                if (!File.Exists(CacheFilePath)) return null;
+                return JsonSerializer.Deserialize<FeatureAccessConfig>(
+                    File.ReadAllText(CacheFilePath), _jsonOptions);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FeatureAccess] Disk cache unreadable: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static async Task SaveCacheAsync(string json)
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(CacheFilePath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                    Directory.CreateDirectory(dir);
+
+                await File.WriteAllTextAsync(CacheFilePath, json).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FeatureAccess] Failed to save cache: {ex.Message}");
+            }
         }
 
         private static FeatureAccess GetFeatureAccess(FeatureAccessConfig config, string featureName)

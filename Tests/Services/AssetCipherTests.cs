@@ -81,6 +81,44 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public void Decrypt_AcrossEpochs_FailsAuthentication()
+        {
+            byte[] container = EncryptUnderEpoch(SampleZip(), AssetPath, epoch: 2);
+
+            Assert.Throws<AuthenticationTagMismatchException>(
+                () => AssetCipher.Decrypt(container, AssetPath));
+        }
+
+        [Test]
+        public void Decrypt_UnknownContainerVersion_ThrowsAssetVersionException()
+        {
+            byte[] container = AssetCipher.Encrypt(SampleZip(), AssetPath);
+            container[4] = 99;
+
+            var ex = Assert.Throws<AssetVersionException>(
+                () => AssetCipher.Decrypt(container, AssetPath));
+            Assert.That(ex!.ContainerVersion, Is.EqualTo(99));
+        }
+
+        private static byte[] EncryptUnderEpoch(byte[] plaintext, string assetPath, int epoch)
+        {
+            byte[] key = EmbeddedAssetKey.DeriveKey(assetPath, epoch);
+            var nonce = RandomNumberGenerator.GetBytes(12);
+            var ciphertext = new byte[plaintext.Length];
+            var tag = new byte[16];
+            using (var gcm = new AesGcm(key, 16))
+                gcm.Encrypt(nonce, plaintext, ciphertext, tag);
+
+            var container = new byte[33 + ciphertext.Length];
+            Encoding.ASCII.GetBytes("AME1").CopyTo(container, 0);
+            container[4] = 1;
+            nonce.CopyTo(container, 5);
+            tag.CopyTo(container, 17);
+            ciphertext.CopyTo(container, 33);
+            return container;
+        }
+
+        [Test]
         public void Decrypt_NonContainerBytes_Throws()
         {
             byte[] notAContainer = Encoding.UTF8.GetBytes("PK\x03\x04 this is a plain zip, not a container");

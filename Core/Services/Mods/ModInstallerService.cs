@@ -84,12 +84,6 @@ namespace ArdysaModsTools.Core.Services
             _logger = logger;
             _dataService = new ModsPackDataService();
             _httpClient = HttpClientProvider.Client;
-            try
-            {
-                if (!_httpClient.DefaultRequestHeaders.UserAgent.ToString().Contains("ArdysaModsTools"))
-                    _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("ArdysaModsTools/1.0");
-            }
-            catch {  }
         }
 
         public void SetLogger(IAppLogger logger)

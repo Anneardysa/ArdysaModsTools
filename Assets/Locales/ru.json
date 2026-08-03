@@ -392,6 +392,7 @@
   "update.required.note": "Требуется: {required}  •  У тебя: {current}",
   "update.required.action.installer": "Обновить сейчас",
   "update.required.action.portable": "Скачать последнюю",
+  "feature.blocked.offline": "Перед запуском эта функция проверяет, справится ли твоя версия с текущими assets, и эта проверка не смогла связаться с сервером.\n\nПодключись к интернету и попробуй снова.",
   "form.misc.applyConflictFailed": "Не удалось применить разрешение конфликтов: {error}",
   "form.misc.completeTitle": "Miscellaneous — генерация завершена",
   "form.misc.genFailed": "Генерация не удалась: {error}",

@@ -568,6 +568,17 @@ namespace ArdysaModsTools.UI.Forms
                 return;
             }
 
+            var access = await FeatureAccessService.CheckFeatureAsync(FeatureAccessService.MiscellaneousFeature);
+            if (!access.IsAllowed)
+            {
+                _log($"Miscellaneous is unavailable: {access.BlockedMessage}");
+                var blockTitle = access.IsOutdated ? Loc.T("update.required.title") : Loc.T("common.error");
+                var blockBody = access.BlockedMessage ?? Loc.T("feature.blocked.offline");
+                await ExecuteScriptAsync(
+                    $"showAlert('{EscapeJs(blockTitle)}', '{EscapeJs(blockBody)}', 'warning')");
+                return;
+            }
+
             _modeSelected = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
             await ExecuteScriptAsync("showModeModal()");
             var modeResult = await Task.WhenAny(_modeSelected.Task, Task.Delay(60000));

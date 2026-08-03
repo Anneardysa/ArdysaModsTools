@@ -22,6 +22,10 @@ namespace ArdysaModsTools.Core.Services.Security
 {
     internal static class EmbeddedAssetKey
     {
+        internal const int AssetEpoch = 1;
+
+        private const int LegacyEpoch = 1;
+
 
         private static readonly byte[] FragmentA = new byte[32];
         private static readonly byte[] FragmentB = new byte[32];
@@ -51,7 +55,21 @@ namespace ArdysaModsTools.Core.Services.Security
             if (string.IsNullOrWhiteSpace(assetPath))
                 throw new ArgumentException("Asset path is required.", nameof(assetPath));
 
-            return HMACSHA256.HashData(GetMasterSecret(), Encoding.UTF8.GetBytes(assetPath));
+            return DeriveKey(assetPath, AssetEpoch);
+        }
+
+        internal static byte[] DeriveKey(string assetPath, int epoch)
+        {
+            return HMACSHA256.HashData(
+                GetMasterSecret(), Encoding.UTF8.GetBytes(KeyMaterial(assetPath, epoch)));
+        }
+
+        internal static string KeyMaterial(string assetPath, int epoch)
+        {
+            if (assetPath.Contains(':'))
+                throw new ArgumentException("Asset path must not contain ':'.", nameof(assetPath));
+
+            return epoch == LegacyEpoch ? assetPath : $"e{epoch}:{assetPath}";
         }
     }
 }

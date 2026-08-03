@@ -23,6 +23,20 @@ using ArdysaModsTools.Core.Helpers;
 
 namespace ArdysaModsTools.Core.Services.Security
 {
+    public sealed class AssetVersionException : CryptographicException
+    {
+        public AssetVersionException(byte containerVersion, byte supportedVersion)
+            : base($"Unsupported asset container version {containerVersion} (this build reads {supportedVersion}).")
+        {
+            ContainerVersion = containerVersion;
+            SupportedVersion = supportedVersion;
+        }
+
+        public byte ContainerVersion { get; }
+
+        public byte SupportedVersion { get; }
+    }
+
     public static class AssetCipher
     {
         private static readonly byte[] Magic = { 0x41, 0x4D, 0x45, 0x31 };
@@ -66,7 +80,7 @@ namespace ArdysaModsTools.Core.Services.Security
             if (container == null || container.Length < HeaderLen || !HasMagic(container))
                 throw new CryptographicException("Not a valid AMT asset container.");
             if (container[4] != Version)
-                throw new CryptographicException($"Unsupported asset container version {container[4]}.");
+                throw new AssetVersionException(container[4], Version);
 
             var nonce = new byte[NonceLen];
             Buffer.BlockCopy(container, 5, nonce, 0, NonceLen);
