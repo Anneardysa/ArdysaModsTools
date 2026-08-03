@@ -64,6 +64,9 @@ scripts/**
 # Public-mirror engine — must be tracked so the GitLab CI mirror job can run it (kept out of the
 # public mirror itself via .mirrorignore). publish.py / publish_gui.py stay ignored (local only).
 !scripts/release/publish-github.ps1
+# Git hooks — must be tracked so a fresh clone can install them. The pre-push guard is what stops
+# a raw push to the public GitHub mirror from publishing real key material and full comments.
+!scripts/dev/hooks/*
 tools/confuserex/
 config/feature_access.json
 
