@@ -123,6 +123,43 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public async Task GetExpectedAsync_PercentEncodedPath_MatchesDecodedManifestKey()
+        {
+            AssetHashManifestService.Instance.SetManifestForTesting(new Dictionary<string, AssetHashEntry>
+            {
+                ["Assets/misc/Attack Modifier/Aghanim/Aghanim.zip"] = new AssetHashEntry { Sha256 = "F7FF", Size = 556582 }
+            });
+
+            var entry = await AssetHashManifestService.Instance.GetExpectedAsync(
+                "Assets/misc/Attack%20Modifier/Aghanim/Aghanim.zip");
+
+            Assert.That(entry, Is.Not.Null, "Encoded path must resolve to the decoded manifest key.");
+            Assert.That(entry!.Sha256, Is.EqualTo("F7FF"));
+        }
+
+        [Test]
+        public async Task GetExpectedAsync_PrefersExactMatchOverDecoded()
+        {
+            AssetHashManifestService.Instance.SetManifestForTesting(new Dictionary<string, AssetHashEntry>
+            {
+                ["Assets/misc/a%20b.zip"] = new AssetHashEntry { Sha256 = "EXACT", Size = 1 },
+                ["Assets/misc/a b.zip"] = new AssetHashEntry { Sha256 = "DECODED", Size = 2 }
+            });
+
+            var entry = await AssetHashManifestService.Instance.GetExpectedAsync("Assets/misc/a%20b.zip");
+
+            Assert.That(entry!.Sha256, Is.EqualTo("EXACT"));
+        }
+
+        [Test]
+        public async Task GetExpectedAsync_MalformedEscape_ReturnsNullWithoutThrowing()
+        {
+            AssetHashManifestService.Instance.SetManifestForTesting(new Dictionary<string, AssetHashEntry>());
+
+            Assert.That(await AssetHashManifestService.Instance.GetExpectedAsync("Assets/misc/100%.zip"), Is.Null);
+        }
+
+        [Test]
         public async Task GetExpectedAsync_NullOrEmptyPath_ReturnsNull()
         {
             Assert.That(await AssetHashManifestService.Instance.GetExpectedAsync(null), Is.Null);
