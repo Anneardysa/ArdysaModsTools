@@ -193,11 +193,36 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public void CandidateKeys_WithNoRotationInFlight_OffersExactlyOneKey()
+        public void CandidateKeys_MatchesTheConfiguredWindowExactly()
         {
-            Assert.That(EmbeddedAssetKey.SupportedSecrets, Has.Length.EqualTo(1),
-                "An unconfigured (all-zero) previous secret must not be listed.");
-            Assert.That(EmbeddedAssetKey.CandidateKeys(AssetPath), Has.Length.EqualTo(1));
+            int expected = EmbeddedAssetKey.SupportedSecrets.Length * EmbeddedAssetKey.SupportedEpochs.Length;
+
+            Assert.That(EmbeddedAssetKey.CandidateKeys(AssetPath), Has.Length.EqualTo(expected));
+        }
+
+        [Test]
+        public void SupportedSecrets_NeverCarriesMoreThanOneRotation()
+        {
+            Assert.That(EmbeddedAssetKey.SupportedSecrets, Has.Length.InRange(1, 2));
+            Assert.That(EmbeddedAssetKey.SupportedSecrets[0],
+                Is.Not.EqualTo(EmbeddedAssetKey.SupportedSecrets[^1]).Or.Length.EqualTo(32),
+                "A duplicated secret would waste a decrypt attempt on every asset.");
+        }
+
+        [Test]
+        public void Decrypt_ReadsAssetsKeyedWithEveryShippedSecret()
+        {
+            byte[] plain = SampleZip();
+
+            for (int i = 0; i < EmbeddedAssetKey.SupportedSecrets.Length; i++)
+            {
+                byte[] key = EmbeddedAssetKey.DeriveKey(
+                    AssetPath, EmbeddedAssetKey.AssetEpoch, EmbeddedAssetKey.SupportedSecrets[i]);
+                var (nonce, tag, ct) = PartsUnderKey(plain, key);
+
+                Assert.That(AssetCipher.DecryptWithKeys(nonce, tag, ct, EmbeddedAssetKey.CandidateKeys(AssetPath)),
+                    Is.EqualTo(plain), $"Asset keyed with shipped secret #{i} did not decrypt.");
+            }
         }
 
         [Test]
