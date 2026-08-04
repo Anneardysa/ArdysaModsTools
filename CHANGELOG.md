@@ -9,10 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.20-beta] (Builds 2277–2286)
+## [2.2.20-beta] (Builds 2277–2287)
 
 ### Changed
 
+- **A launch on a new version clears the cache before anything loads** (2287): now that installer
+  builds update themselves (2284), a new binary could start on top of assets the old one had cached,
+  which is the shape of every "updated and it still misbehaves" report. `Program.Main` compares
+  `AppVersion.Current` against the recorded `lastRunVersion` and runs the same
+  `CacheCleaningService.ClearAllCacheAsync` the Settings button does — after the single-instance
+  mutex and before the main form, so nothing is preloading while the cache is deleted and WebView2's
+  folder is not yet held open. Build bumps count, not just version bumps; a first-ever launch only
+  records, having nothing stale to drop.
 - **Process Elevation reports what it found instead of a permanent amber** (2286): the row was
   `Advisory` on every machine, healthy ones included, which taught users to read the feature itself
   as the fault. State now follows the finding — `Pass` when nothing is elevated, `Advisory` only on a

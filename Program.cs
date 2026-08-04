@@ -225,6 +225,21 @@ namespace ArdysaModsTools
                         return;
                     }
 
+                    string runningVersion = Core.Services.Update.Models.AppVersion.Current.ToString();
+                    string lastRunVersion = configForLang.GetValue("lastRunVersion", "");
+                    if (CacheCleaningService.ShouldClearForVersion(lastRunVersion, runningVersion))
+                    {
+                        Log($"Version changed ({lastRunVersion} -> {runningVersion}), clearing cache...");
+                        var cleared = new CacheCleaningService().ClearAllCacheAsync().GetAwaiter().GetResult();
+                        Log($"Post-update cache clear: {cleared.FilesDeleted} files, " +
+                            $"{CacheCleaningService.FormatBytes(cleared.BytesFreed)} freed");
+                    }
+                    if (lastRunVersion != runningVersion)
+                    {
+                        configForLang.SetValue("lastRunVersion", runningVersion);
+                        configForLang.Save();
+                    }
+
                     var mainFormFactory = serviceProvider.GetRequiredService<UI.Factories.IMainFormFactory>();
                     Log("MainFormFactory resolved, launching Application.Run...");
                     Application.Run(mainFormFactory.Create(startMinimized));

@@ -85,6 +85,10 @@ namespace ArdysaModsTools.Core.Services.App
             return result;
         }
 
+        public static bool ShouldClearForVersion(string? lastRunVersion, string runningVersion)
+            => !string.IsNullOrWhiteSpace(lastRunVersion) &&
+               !string.Equals(lastRunVersion, runningVersion, StringComparison.Ordinal);
+
         private List<CacheFolder> GetCacheFolders()
         {
             var folders = new List<CacheFolder>();
