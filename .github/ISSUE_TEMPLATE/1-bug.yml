@@ -154,7 +154,6 @@ body:
 
         A screenshot of the red failure card is **not** enough — that card is deliberately
         stripped of paths and identifiers, so it cannot tell us what actually failed.
-      render: shell
     validations:
       required: true
 
@@ -166,7 +165,6 @@ body:
         Only for Skin Selector / Miscellaneous bugs. Attach the newest
         `generation_report_*.txt` from `<your Dota 2 folder>\game\_ArdysaMods\_temp\`.
         These files are already sanitized — they contain no usernames or local paths.
-      render: shell
 
   - type: textarea
     id: extra
