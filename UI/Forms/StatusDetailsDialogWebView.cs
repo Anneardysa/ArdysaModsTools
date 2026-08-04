@@ -185,6 +185,7 @@ namespace ArdysaModsTools.UI.Forms
             var status = _statusInfo.Status;
 
             bool showPatchBtn = _onPatchRequested != null &&
+                _statusInfo.Action != RecommendedAction.Fix &&
                 (status == ModStatus.NeedUpdate || status == ModStatus.Disabled);
 
             bool? digestOk = VerifiedOrNull(SetupCheckId.SignatureMatchesGameInfo) ?? (status switch
@@ -207,11 +208,11 @@ namespace ArdysaModsTools.UI.Forms
             bool isAdvisory = elevation is { State: SetupCheckState.Advisory };
 
             string? adminStateText = isAdvisory ? Loc.T("verify.state.advisory") : null;
-            string? adminNote = isAdvisory
-                ? (elevation!.DetailVars != null
+            string? adminNote = elevation == null
+                ? null
+                : (elevation.DetailVars != null
                     ? Loc.T(elevation.DetailKey, elevation.DetailVars)
-                    : Loc.T(elevation.DetailKey))
-                : null;
+                    : Loc.T(elevation.DetailKey));
 
             var failure = _verification.FirstFailure;
             string? verifyDetail = failure == null
@@ -254,6 +255,7 @@ namespace ArdysaModsTools.UI.Forms
                 adminOk,
                 adminNote,
                 adminStateText,
+                adminAdvisory = isAdvisory,
 
                 verifyDetail,
 

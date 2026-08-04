@@ -200,11 +200,14 @@ namespace ArdysaModsTools.Core.Services
             var diagnostics = new List<string>();
             var elevatedApps = new List<string>();
             bool canAutoFix = false;
+            bool flagProbeRan = false;
+            bool processProbeRan = false;
 
             try
             {
                 var targets = GetElevationTargets(targetPath);
                 var flagged = FindForcedAdminEntries(targets);
+                flagProbeRan = true;
 
                 if (flagged.Count > 0)
                 {
@@ -226,6 +229,7 @@ namespace ArdysaModsTools.Core.Services
                     elevatedApps.Add(process + ".exe");
                     diagnostics.Add($"{process}.exe (pid {pid}) is running elevated");
                 }
+                processProbeRan = true;
             }
             catch (Exception ex)
             {
@@ -234,11 +238,20 @@ namespace ArdysaModsTools.Core.Services
 
             var apps = elevatedApps.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
+            var state = apps.Count > 0
+                ? SetupCheckState.Advisory
+                : (flagProbeRan || processProbeRan) ? SetupCheckState.Pass : SetupCheckState.Unknown;
+
             return new SetupCheck
             {
                 Id = id,
-                State = SetupCheckState.Advisory,
-                DetailKey = apps.Count > 0 ? "verify.admin.detected" : "verify.admin.clean",
+                State = state,
+                DetailKey = state switch
+                {
+                    SetupCheckState.Advisory => "verify.admin.detected",
+                    SetupCheckState.Pass => "verify.admin.clean",
+                    _ => "verify.admin.unknown"
+                },
                 DetailVars = apps.Count > 0 ? new { apps = string.Join(", ", apps) } : null,
                 Diagnostic = diagnostics.Count > 0 ? string.Join("; ", diagnostics) : null,
                 CanAutoFix = canAutoFix,

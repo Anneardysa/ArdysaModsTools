@@ -225,7 +225,7 @@ namespace ArdysaModsTools.Tests.Services
         #region Forced elevation
 
         [Test]
-        public async Task VerifyAsync_Elevation_IsAlwaysAdvisoryAndNeverBlocks()
+        public async Task VerifyAsync_Elevation_IsNeverFailAndNeverBlocks()
         {
             BuildTree();
 
@@ -234,25 +234,34 @@ namespace ArdysaModsTools.Tests.Services
 
             Assert.Multiple(() =>
             {
-                Assert.That(check.State, Is.EqualTo(SetupCheckState.Advisory));
+                Assert.That(check.State, Is.Not.EqualTo(SetupCheckState.Fail));
                 Assert.That(check.HasOwnDialog, Is.True, "it opens its own explanation, not the diagnostics list");
-                Assert.That(result.AllPassed, Is.True, "an advisory must never block the status pill");
+                Assert.That(result.AllPassed, Is.True, "elevation must never make the sweep report a failure");
                 Assert.That(result.FirstFailure, Is.Null);
-                Assert.That(result.Advisories.Select(a => a.Id),
-                    Does.Contain(SetupCheckId.NotForcedToRunAsAdmin));
             });
         }
 
         [Test]
-        public async Task VerifyAsync_Elevation_ReportsWhetherAnythingWasFound()
+        public async Task VerifyAsync_Elevation_StateFollowsTheFindingNotTheCategory()
         {
             BuildTree();
 
             var check = Check(await _service.VerifyAsync(_root), SetupCheckId.NotForcedToRunAsAdmin);
 
-            Assert.That(check.DetailKey, Is.AnyOf("verify.admin.detected", "verify.admin.clean"));
-            Assert.That(check.DetailVars != null,
-                Is.EqualTo(check.DetailKey == "verify.admin.detected"));
+            Assert.Multiple(() =>
+            {
+                Assert.That(check.State, Is.AnyOf(
+                    SetupCheckState.Advisory, SetupCheckState.Pass, SetupCheckState.Unknown));
+                Assert.That(check.DetailKey, Is.EqualTo(check.State switch
+                {
+                    SetupCheckState.Advisory => "verify.admin.detected",
+                    SetupCheckState.Pass => "verify.admin.clean",
+                    _ => "verify.admin.unknown"
+                }));
+                Assert.That(check.DetailVars != null,
+                    Is.EqualTo(check.State == SetupCheckState.Advisory),
+                    "only a detection names the elevated apps");
+            });
         }
 
         [Test]

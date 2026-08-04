@@ -17,6 +17,7 @@
 using System;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
@@ -98,6 +99,10 @@ namespace ArdysaModsTools.Core.Services
                 var setupGate = BuildSetupFailureStatus(verification, version, lastModified);
                 if (setupGate != null)
                     return setupGate;
+
+                var elevationGate = BuildElevationStatus(verification, version, lastModified);
+                if (elevationGate != null)
+                    return elevationGate;
 
                 return sigCheck;
             }
@@ -328,6 +333,31 @@ namespace ArdysaModsTools.Core.Services
                 lastModified: lastModified,
                 errorMessage: failure.Diagnostic,
                 descVars: failure.DetailVars) with
+            {
+                Verification = verification
+            };
+        }
+
+        private ModStatusInfo? BuildElevationStatus(
+            SetupVerificationResult verification, string? version, DateTime? lastModified)
+        {
+            var elevation = verification.Advisories
+                .FirstOrDefault(c => c.Id == SetupCheckId.NotForcedToRunAsAdmin);
+            if (elevation == null)
+                return null;
+
+            _logger?.LogDebug($"[STATUS] Elevation held back Ready: {elevation.Diagnostic}");
+
+            return CreateStatus(
+                ModStatus.NeedUpdate,
+                "verify.chip.admin",
+                "status.elevation.desc",
+                action: RecommendedAction.Fix,
+                actionText: Loc.T("status.action.fixSetup"),
+                version: version,
+                lastModified: lastModified,
+                errorMessage: elevation.Diagnostic,
+                descVars: elevation.DetailVars) with
             {
                 Verification = verification
             };

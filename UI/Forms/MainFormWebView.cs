@@ -1020,7 +1020,7 @@ namespace ArdysaModsTools
                     detail = c.DetailVars != null ? Loc.T(c.DetailKey, c.DetailVars) : Loc.T(c.DetailKey),
                     canFix = c.CanAutoFix,
                     hasOwnDialog = c.HasOwnDialog,
-                    detected = c.DetailVars != null
+                    detected = c.State == SetupCheckState.Advisory
                 }).ToArray(),
                 fixLabel = Loc.T("verify.fix.button"),
                 canFix = result.Checks.Any(c => c.CanAutoFix)

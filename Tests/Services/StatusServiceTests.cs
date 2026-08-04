@@ -247,6 +247,84 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public async Task GetDetailedStatusAsync_ElevationDetected_NamesItselfInsteadOfReportingReady()
+        {
+            BuildDotaTree(signaturesContent: PatchedSignatures);
+            var service = new StatusService(_logger, new StubVerification(ElevationDetectedSweep()));
+
+            var result = await service.GetDetailedStatusAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(ModStatus.NeedUpdate), "amber, not the red of a broken install");
+                Assert.That(result.StatusTextKey, Is.EqualTo("verify.chip.admin"));
+                Assert.That(result.DescriptionKey, Is.EqualTo("status.elevation.desc"));
+                Assert.That(result.Action, Is.EqualTo(RecommendedAction.Fix),
+                    "Patch Update rewrites correct files and changes nothing here");
+                Assert.That(result.SetupFailure, Is.Null, "an advisory is not a failed check");
+            });
+        }
+
+        [Test]
+        public async Task GetDetailedStatusAsync_ElevationClean_StillReportsReady()
+        {
+            BuildDotaTree(signaturesContent: PatchedSignatures);
+            var sweep = new SetupVerificationResult
+            {
+                Checks = new[]
+                {
+                    new SetupCheck
+                    {
+                        Id = SetupCheckId.NotForcedToRunAsAdmin,
+                        State = SetupCheckState.Pass,
+                        DetailKey = "verify.admin.clean",
+                        HasOwnDialog = true
+                    }
+                }
+            };
+            var service = new StatusService(_logger, new StubVerification(sweep));
+
+            var result = await service.GetDetailedStatusAsync(_root);
+
+            Assert.That(result.Status, Is.EqualTo(ModStatus.Ready));
+        }
+
+        [Test]
+        public async Task GetDetailedStatusAsync_RealFailureOutranksTheElevationAdvisory()
+        {
+            BuildDotaTree(signaturesContent: PatchedSignatures);
+            var sweep = new SetupVerificationResult
+            {
+                Checks = ElevationDetectedSweep().Checks
+                    .Concat(SweepWith(SetupCheckId.SearchPathsMounted, ModStatus.NeedUpdate).Checks)
+                    .ToArray()
+            };
+            var service = new StatusService(_logger, new StubVerification(sweep));
+
+            var result = await service.GetDetailedStatusAsync(_root);
+
+            Assert.That(result.SetupFailure, Is.EqualTo(SetupCheckId.SearchPathsMounted));
+            Assert.That(result.Action, Is.EqualTo(RecommendedAction.Update));
+        }
+
+        private static SetupVerificationResult ElevationDetectedSweep() =>
+            new()
+            {
+                Checks = new[]
+                {
+                    new SetupCheck
+                    {
+                        Id = SetupCheckId.NotForcedToRunAsAdmin,
+                        State = SetupCheckState.Advisory,
+                        DetailKey = "verify.admin.detected",
+                        DetailVars = new { apps = "steam.exe" },
+                        Diagnostic = "steam.exe (pid 1) is running elevated",
+                        HasOwnDialog = true
+                    }
+                }
+            };
+
+        [Test]
         public async Task GetDetailedStatusAsync_SweepIsExposedForTheUi()
         {
             BuildDotaTree(signaturesContent: PatchedSignatures);

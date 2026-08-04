@@ -9,10 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.20-beta] (Builds 2277–2284)
+## [2.2.20-beta] (Builds 2277–2286)
 
 ### Changed
 
+- **Process Elevation reports what it found instead of a permanent amber** (2286): the row was
+  `Advisory` on every machine, healthy ones included, which taught users to read the feature itself
+  as the fault. State now follows the finding — `Pass` when nothing is elevated, `Advisory` only on a
+  detection, `Unknown` when both probes failed, because a probe that could not run must never claim
+  an all-clear. Opening the row re-runs the sweep and repaints the open dialog, so confirming a fix
+  no longer needs a status refresh first.
+- **A detected elevation holds back Ready and names itself in the pill** (2286): every file Dota
+  validates can be correct while the elevated game loads none of it, and Ready beside an amber row
+  left that contradiction for the user to resolve. `StatusService.BuildElevationStatus` runs after
+  the failure gate — a real file failure still wins — and reports `NeedUpdate` (amber; nothing is
+  broken) with `RecommendedAction.Fix`, which is what suppresses "Apply Patches" where patching
+  changes nothing. Positive detection is a measurement so it may hold back Ready; absence still may
+  not claim it.
+- **The Status Details dialog was rebuilt on the shell's design language** (2285).
 - **Installer builds now update themselves, with no way to skip it** (2284): the dialog offered
   *Update Now* / *Not Now*, so users could stay on a build whose mods no longer match the live Dota 2
   patch — and the resulting reports are indistinguishable from real bugs. The update window is now

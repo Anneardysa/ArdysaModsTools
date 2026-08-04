@@ -642,21 +642,22 @@
             // "not determined" and renders gray.
             setCheck("dotDigest", "labelDigest", data.digestOk);
             setCheck("dotGameInfo", "labelGameInfo", data.gameInfoOk);
-            // Elevation is an advisory, not a verdict: adminOk stays null (gray dot) and the note
-            // beside it says what was found. Rendering it as OK is exactly what let a genuinely
-            // elevated Steam read "OK" on this dialog.
+            // Elevation only claims a verdict when the sweep reached one: nothing found reads as a
+            // plain green OK like any other check, and adminOk is null only when the probes could not
+            // run. A detection is neither — it is amber, applied over the dot below.
             setCheck("dotAdmin", "labelAdmin", data.adminOk);
-            const adminLabel = document.getElementById("labelAdmin");
-            if (adminLabel && data.adminStateText) {
-               adminLabel.textContent = data.adminStateText; // short word; the row is 9px
-               adminLabel.title = data.adminNote || ""; // full sentence on hover
-               adminLabel.className = "check-status warn";
-               document.getElementById("dotAdmin").className = "check-dot orange";
-            }
+            if (data.adminAdvisory) markAdvisory("dotAdmin", "labelAdmin", data.adminStateText, data.adminNote);
+            document.getElementById("labelAdmin").title = data.adminNote || "";
+
             // Overall is an AND over the checks that actually reported: a gray (null) check must not
             // drag the summary to red, only a real false does.
             const decided = [data.digestOk, data.gameInfoOk, data.adminOk].filter((v) => v !== null && v !== undefined);
-            setCheck("dotOverall", "labelOverall", decided.length === 0 ? null : decided.every((v) => v === true));
+            const allOk = decided.length > 0 && decided.every((v) => v === true);
+            setCheck("dotOverall", "labelOverall", decided.length === 0 ? null : allOk);
+            // An amber advisory holds back Ready, so the summary must not read a clean OK above it —
+            // that contradiction is the whole reason the pill now names the elevation itself.
+            if (data.adminAdvisory && allOk)
+               markAdvisory("dotOverall", "labelOverall", data.adminStateText, data.adminNote);
 
             // Explanation for whichever check failed (already translated by C#).
             setNote("verifyDetail", "verifyDetailText", data.verifyDetail);
@@ -707,6 +708,19 @@
                label.textContent = "--";
                label.className = "check-status none";
             }
+         }
+
+         /** Helper: repaint a check row as an amber advisory — neither the green of a verified pass
+          *  nor the red of a failure. The state column is 9px, so the short word goes in the cell and
+          *  the full sentence in its tooltip. */
+         function markAdvisory(dotId, labelId, stateText, note) {
+            const dot = document.getElementById(dotId);
+            const label = document.getElementById(labelId);
+            if (!dot || !label || !stateText) return;
+            dot.className = "check-dot orange";
+            label.textContent = stateText;
+            label.title = note || "";
+            label.className = "check-status warn";
          }
 
          /** Helper: fill a note block, or hide it when there is nothing to say. The text is clamped

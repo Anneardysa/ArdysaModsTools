@@ -538,7 +538,13 @@
             background: var(--verify-warn);
          }
          /* ── process elevation modal ── */
+         /* Amber only when something WAS found. Opened on a clean machine this dialog is a
+            "how it works" explainer, and a permanent warning glyph is what made the whole feature
+            read as a fault. */
          .elev-ico {
+            color: var(--mute);
+         }
+         #elevation-modal.found .elev-ico {
             color: var(--verify-warn);
          }
          .elev-detected {
@@ -554,6 +560,10 @@
          .elev-detected.found {
             color: var(--verify-warn);
             border-left-color: var(--verify-warn);
+         }
+         /* The previous reading, while the re-check triggered on open is still running. */
+         .elev-detected.rechecking {
+            opacity: 0.45;
          }
          .elev-steps {
             margin-top: var(--sp-3);
@@ -3016,7 +3026,14 @@
             const checks = (p && p.checks) || [];
 
             if (checks.length === 0) {
-               panel.classList.remove("show", "pass", "fail");
+               panel.classList.remove("show", "pass", "fail", "advisory");
+               // Nothing to verify any more (folder detached, install removed). Drop the cache so an
+               // open modal falls back to its static explanation instead of sitting on "Checking…".
+               _elevationDetail = "";
+               _elevationFound = false;
+               _elevationCanFix = false;
+               if (document.getElementById("elevation-modal").classList.contains("show"))
+                  renderElevationModal();
                return;
             }
 
@@ -3024,9 +3041,9 @@
             const advisory = !failed && checks.some((c) => c.state === "advisory");
 
             // Cached so the modal can be reopened without another sweep.
-            _elevationDetail = (checks.find((c) => c.hasOwnDialog) || {}).detail || "";
-            _elevationFound = (checks.find((c) => c.hasOwnDialog) || {}).state === "advisory"
-               && !!(checks.find((c) => c.hasOwnDialog) || {}).detected;
+            const elevation = checks.find((c) => c.hasOwnDialog) || {};
+            _elevationDetail = elevation.detail || "";
+            _elevationFound = !!elevation.detected;
 
             // Header: title on the left, summary pip on the right. The pip is the panel's own
             // verdict, so the group reads at a glance before any individual row is scanned.
@@ -3074,6 +3091,11 @@
 
             panel.classList.remove("pass", "fail", "advisory");
             panel.classList.add("show", failed ? "fail" : advisory ? "advisory" : "pass");
+
+            // An open modal is looking at the same data: this push IS the answer to the re-check it
+            // asked for on open, so it must repaint rather than keep showing the stale reading.
+            if (document.getElementById("elevation-modal").classList.contains("show"))
+               renderElevationModal();
          }
 
          // ── Process Elevation modal ──
@@ -3085,13 +3107,19 @@
          let _elevationCanFix = false;
          let _elevationFixLabel = "Fix Setup";
 
-         function openElevationModal() {
+         // Paints the modal from the cached sweep. Split out of openElevationModal so the incoming
+         // re-check can repaint an already-open dialog through the exact same code path.
+         function renderElevationModal() {
             const box = document.getElementById("elevation-detected");
             if (box) {
                box.textContent = _elevationDetail || "";
                box.classList.toggle("found", _elevationFound === true);
+               box.classList.remove("rechecking");
                box.style.display = _elevationDetail ? "block" : "none";
             }
+
+            // Amber icon only when something was actually found — see .elev-ico.
+            document.getElementById("elevation-modal").classList.toggle("found", _elevationFound === true);
 
             // Offered only for the persistent compatibility flag, which AMT can clear from HKCU.
             // A one-off "Run as administrator" launch has nothing to clear — the steps below are
@@ -3102,8 +3130,23 @@
                fix.disabled = false;
                fix.style.display = _elevationCanFix ? "block" : "none";
             }
+         }
 
+         function openElevationModal() {
+            renderElevationModal();
             document.getElementById("elevation-modal").classList.add("show");
+
+            // Elevation is the one check whose answer changes WITHOUT AMT doing anything — the user
+            // just restarts Steam differently. Opening the dialog therefore re-runs the sweep instead
+            // of showing whatever the last status refresh happened to see; setSetupChecks repaints
+            // this dialog when the answer lands.
+            //
+            // The last reading stays on screen (dimmed) while that runs rather than being replaced by
+            // a "checking…" placeholder: if the push never arrives — folder detached, refresh threw —
+            // the user is left looking at a real previous answer instead of a stuck spinner.
+            const box = document.getElementById("elevation-detected");
+            if (box && _elevationDetail) box.classList.add("rechecking");
+            send("refreshStatus");
          }
 
          function elevationFix() {
