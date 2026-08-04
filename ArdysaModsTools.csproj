@@ -124,7 +124,10 @@
   <!-- ============================================== -->
   <!-- NATIVE LIBRARIES (VPK Tools)                   -->
   <!-- ============================================== -->
-  <ItemGroup>
+  <!-- Condition: the public GitHub mirror excludes tools/ (.mirrorignore), and an explicit
+       Content Include of a missing file fails the copy step with MSB3030. Guarding the group
+       lets the mirror compile and run its tests; a tree WITH tools/ is unaffected. -->
+  <ItemGroup Condition="Exists('tools')">
     <!-- VPK Extraction Tool -->
     <Content Include="tools\hllib\HLExtract.exe">
       <Link>HLExtract.exe</Link>
@@ -163,7 +166,7 @@
   <!-- ============================================== -->
   <!-- EMBEDDED RESOURCES (DLLs)                      -->
   <!-- ============================================== -->
-  <ItemGroup>
+  <ItemGroup Condition="Exists('tools')">
     <!-- native libraries as Content (not embedded) for HLExtract/vpk -->
     <Content Include="tools\hllib\HLLib.dll">
       <Link>HLLib.dll</Link>
