@@ -1,0 +1,17 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🩹 Troubleshooting guide — try this first
+    url: https://github.com/Anneardysa/ArdysaModsTools/blob/main/docs/TROUBLESHOOTING.md
+    about: Most reported problems are already solved here. Check before opening an issue.
+
+  - name: 📖 User guide
+    url: https://github.com/Anneardysa/ArdysaModsTools/blob/main/docs/user/USER_GUIDE.md
+    about: How to install, generate sets, and use each feature.
+
+  - name: 💬 Discord — questions and help
+    url: https://discord.gg/5xKg4fyumv
+    about: For "how do I…" questions and quick help. Issues are for bugs and requests.
+
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/Anneardysa/ArdysaModsTools/security/advisories/new
+    about: Never open a public issue for a vulnerability. Report it privately here.

@@ -1,0 +1,64 @@
+name: 🎁 Mod / set request
+description: Ask for a hero set, courier, ward, HUD, terrain or other cosmetic to be added.
+title: "[Mod]: "
+labels: ["type: mod-request", "status: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Requests are collected and worked through in batches — please open **one issue per
+        request** so each can be tracked and closed on its own.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of mod
+      options:
+        - Hero set / skin
+        - Courier
+        - Ward
+        - HUD
+        - Terrain
+        - Loading screen / music / announcer
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: hero
+    attributes:
+      label: Hero
+      description: Only for hero sets. Use the in-game name.
+      placeholder: Phantom Assassin
+
+  - type: input
+    id: item-name
+    attributes:
+      label: Exact set / item name
+      description: The name as it appears in the Dota 2 store or on the wiki. Exact names save a lot of guesswork.
+      placeholder: Fractal Horns of Inner Abysm
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Reference link
+      description: Dota 2 store page, dota2.fandom wiki page, or a Steam Market listing.
+      placeholder: https://dota2.fandom.com/wiki/…
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Confirmations
+      options:
+        - label: I checked that this is not already available in AMT.
+          required: true
+        - label: I searched existing issues for the same request.
+          required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Style variants you want, screenshots, or anything else worth knowing.

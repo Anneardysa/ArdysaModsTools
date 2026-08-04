@@ -1,0 +1,215 @@
+# Auto-triage for newly filed issues.
+#
+# Reads the issue-form answers and applies the area/needs labels, so a human only has to make
+# the judgement calls. Two cases are fully self-serve and get answered without a maintainer:
+#   DL_009 — the asset container moved past this build; retrying cannot fix it (ADR-0014).
+#   an app build older than the latest release — retest before we spend time on it.
+#
+# Uses only the built-in GITHUB_TOKEN. No secrets.
+
+name: Issue triage
+
+on:
+   issues:
+      types: [opened, edited]
+
+permissions:
+   issues: write
+   contents: read
+
+concurrency:
+   group: triage-${{ github.event.issue.number }}
+   cancel-in-progress: true
+
+jobs:
+   triage:
+      runs-on: ubuntu-latest
+      if: ${{ !github.event.issue.pull_request }}
+      steps:
+         - uses: actions/github-script@v7
+           with:
+              script: |
+                 const issue = context.payload.issue;
+                 const body  = issue.body || '';
+                 const has   = n => issue.labels.some(l => (l.name || l) === n);
+
+                 // Issue forms render as "### Question\n\nAnswer". Index them by heading.
+                 const sections = {};
+                 for (const chunk of body.split(/^###[ \t]+/m).slice(1)) {
+                    const nl    = chunk.indexOf('\n');
+                    const title = (nl < 0 ? chunk : chunk.slice(0, nl)).trim().toLowerCase();
+                    const value = (nl < 0 ? '' : chunk.slice(nl + 1))
+                       .replace(/```[a-z]*\n?/gi, '').trim();
+                    sections[title] = value;
+                 }
+                 const section = t => sections[t.toLowerCase()] || '';
+                 const isBlank = v => !v || /^_no response_$/i.test(v);
+
+                 const labels = new Set();
+                 const notes  = [];
+
+                 // --- area, from the dropdown -------------------------------------------------
+                 const AREA_BY_ANSWER = [
+                    [/^install/i,               'area: install'],
+                    [/^skin selector/i,         'area: hero-gen'],
+                    [/^miscellaneous/i,         'area: misc-mods'],
+                    [/^patch update/i,          'area: patch'],
+                    [/^downloading assets/i,    'area: cdn'],
+                    [/^app update/i,            'area: update'],
+                    [/^dota 2 performance/i,    'area: perf'],
+                    [/^user interface/i,        'area: ui'],
+                    [/^translation/i,           'area: i18n'],
+                 ];
+                 const areaAnswer = section('Which part of AMT');
+                 for (const [re, label] of AREA_BY_ANSWER) {
+                    if (re.test(areaAnswer)) { labels.add(label); break; }
+                 }
+
+                 // --- error codes ---------------------------------------------------------------
+                 const AREA_BY_PREFIX = {
+                    DL: 'area: cdn',     VPK: 'area: vpk',      PATCH: 'area: patch',
+                    GEN: 'area: hero-gen', CFG: 'area: install', MISC: 'area: misc-mods',
+                    UPD: 'area: update', SEC: 'area: security',
+                 };
+                 const CODE_RE = /\b(VPK|DL|PATCH|CFG|GEN|MISC|SEC|UPD)_(\d{3})\b/g;
+                 const findCodes = t => [...String(t).matchAll(CODE_RE)];
+
+                 // What the reporter actually declared. Decisions (auto-close, "this is our CDN")
+                 // hang off this ONLY: ardysa_fallback.log is append-only and never rotated, so a
+                 // pasted log routinely carries codes from unrelated sessions weeks ago. Closing a
+                 // GEN_ report because an old DL_009 line sits in the log would be wrong.
+                 const declared = new Set(
+                    findCodes(section('Full error code')).map(m => `${m[1]}_${m[2]}`)
+                 );
+
+                 // Weak signal, whole body — only ever used to guess an area when the dropdown
+                 // gave us nothing.
+                 if (labels.size === 0) {
+                    const prefix = (section('Error code category').match(/^(VPK|DL|PATCH|CFG|GEN|MISC|SEC|UPD)_/i) || [])[1]
+                       || (findCodes(body)[0] || [])[1];
+                    const label = prefix && AREA_BY_PREFIX[prefix.toUpperCase()];
+                    if (label) labels.add(label);
+                 }
+
+                 // --- missing diagnostics ------------------------------------------------------
+                 if (has('type: bug')) {
+                    const log = section('Log file');
+                    if (isBlank(log) || log.length < 40) {
+                       labels.add('needs: log');
+                       notes.push(
+                          "**We need the log file.** Without it we can only guess at what failed.\n\n" +
+                          "- Installer builds: `%LOCALAPPDATA%\\ArdysaModsTools\\ardysa_fallback.log`\n" +
+                          "- Portable builds: `ardysa_fallback.log`, next to `ArdysaModsTools.exe`\n" +
+                          "- App won't start at all: `startup_log.txt`, next to `ArdysaModsTools.exe`\n\n" +
+                          "Paste that path into File Explorer's address bar to get there, then drag the " +
+                          "file into a comment here."
+                       );
+                    }
+                    if (!declared.size && /no error code/i.test(section('Error code category'))) {
+                       labels.add('needs: repro');
+                    }
+                 }
+
+                 // --- how old is their build? ---------------------------------------------------
+                 // Needed before we can decide anything about DL_009, so it runs first.
+                 let reported = null, latest = null;
+                 if (has('type: bug')) {
+                    reported = (section('AMT version and build').match(/\b(\d{4})\b/) || [])[1] || null;
+                    try {
+                       const rel = await github.rest.repos.getLatestRelease({ ...context.repo });
+                       latest = (((rel.data.name || '') + ' ' + (rel.data.tag_name || ''))
+                          .match(/\b(\d{4})\b/) || [])[1] || null;
+                    } catch (e) {
+                       core.info(`No latest release to compare against: ${e.message}`);
+                    }
+                 }
+                 // true / false / null when we genuinely can't tell.
+                 const outdated = (reported && latest) ? Number(reported) < Number(latest) : null;
+
+                 // --- DL_009 ---------------------------------------------------------------------
+                 let close = false;
+                 if (declared.has('DL_009')) {
+                    if (outdated === false) {
+                       // Already on the newest build. DL_009 here is NOT the reporter's problem — it
+                       // means the asset pipeline published a container the shipped app can't read.
+                       // That's an incident, and auto-closing it would bury the one report that
+                       // actually matters.
+                       labels.add('area: cdn');
+                       notes.push(
+                          "You're on the latest build, so `DL_009` here is on our side, not yours — " +
+                          "it means the published assets don't match what the current release can " +
+                          "read. Nothing for you to do; we'll take it from here. Thanks for the report, " +
+                          "this is a useful one."
+                       );
+                    } else if (outdated === true || latest === null) {
+                       labels.add('resolution: update-app');
+                       close = true;
+                       notes.length = 0;   // the update instruction supersedes any other note
+                       notes.push(
+                          "`DL_009` means the assets have moved past the version of AMT you're running. " +
+                          "This one is terminal by design — retrying or re-downloading cannot fix it, " +
+                          "because your build can't read the current asset format.\n\n" +
+                          "**Update to the [latest release](https://github.com/" +
+                          context.repo.owner + "/" + context.repo.repo + "/releases/latest) and it will " +
+                          "resolve.** If it still happens on the newest version, comment here and we'll " +
+                          "reopen straight away.\n\n" +
+                          "Closing since there's nothing to fix on our side — but do say if this is wrong."
+                       );
+                    } else {
+                       // Latest is known, their build isn't. Don't guess — the cost of wrongly
+                       // closing a real incident is much higher than one extra round-trip.
+                       labels.add('needs: info');
+                       notes.push(
+                          "`DL_009` usually means your build is older than the assets it's trying to " +
+                          "read, which an update fixes. Could you confirm the exact version and build " +
+                          "number from **About**? If you're already on the latest, this is on our side " +
+                          "and we'll treat it as such."
+                       );
+                    }
+                 }
+
+                 // --- DL_006 is usually ours, not theirs --------------------------------------
+                 if (declared.has('DL_006')) {
+                    labels.add('area: cdn');
+                    notes.push(
+                       "`DL_006` is a hash mismatch — the file downloaded fine but didn't match the " +
+                       "expected checksum. This is nearly always a server-side manifest drift on our " +
+                       "end rather than anything wrong with your machine. We'll check the asset " +
+                       "manifest; no action needed from you yet."
+                    );
+                 }
+
+                 // --- running an old build? -----------------------------------------------------
+                 if (!close && outdated === true) {
+                    labels.add('needs: retest');
+                    notes.push(
+                       `You're on build **${reported}**, and the latest release is build **${latest}**. ` +
+                       "A lot changes between builds — please update and check whether this still " +
+                       "happens, then let us know either way. If it persists we'll dig in properly."
+                    );
+                 }
+
+                 // --- apply --------------------------------------------------------------------
+                 if (labels.size) {
+                    try {
+                       await github.rest.issues.addLabels({
+                          ...context.repo, issue_number: issue.number, labels: [...labels],
+                       });
+                    } catch (e) {
+                       core.warning(`Could not add labels (${[...labels].join(', ')}): ${e.message}`);
+                    }
+                 }
+
+                 // Only comment on 'opened' — editing an issue shouldn't re-post the same advice.
+                 if (notes.length && context.payload.action === 'opened') {
+                    await github.rest.issues.createComment({
+                       ...context.repo, issue_number: issue.number, body: notes.join('\n\n---\n\n'),
+                    });
+                 }
+
+                 if (close && issue.state === 'open') {
+                    await github.rest.issues.update({
+                       ...context.repo, issue_number: issue.number,
+                       state: 'closed', state_reason: 'not_planned',
+                    });
+                 }

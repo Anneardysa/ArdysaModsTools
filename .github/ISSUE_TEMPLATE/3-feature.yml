@@ -1,0 +1,53 @@
+name: ✨ Feature request
+description: Suggest a new capability or an improvement to how AMT works.
+title: "[Feature]: "
+labels: ["type: feature", "status: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For new cosmetics to be added, use the **Mod / set request** template instead.
+        This one is for how the app itself behaves.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve
+      description: |
+        Describe the situation you hit, not the solution you have in mind. The best
+        feature requests start with a frustration.
+      placeholder: |
+        Every time I reinstall Dota 2 I have to re-pick all 40 of my sets one by one,
+        because there is no way to save a loadout.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like to happen
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of AMT
+      options:
+        - Install / setup
+        - Skin Selector (hero sets)
+        - Miscellaneous mods
+        - Patch Update
+        - App update / updater
+        - Dota 2 Performance page
+        - User interface
+        - Translation / languages
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds you already tried
+      description: What you do today to get around this, if anything.

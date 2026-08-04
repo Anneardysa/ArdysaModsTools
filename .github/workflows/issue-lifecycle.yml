@@ -1,0 +1,176 @@
+# Issue lifecycle: fixed → shipped.
+#
+# A fix isn't real to a user until the installer is published, so a commit must NOT close an
+# issue — a closed issue would be a lie while the reporter is still on the broken build.
+# Instead:
+#
+#   commit "<version> | <category> | <message> (#N) | <build>" reaches main
+#        -> #N becomes `status: fixed-pending-release`, with the build number
+#   a GitHub Release is published
+#        -> every `status: fixed-pending-release` issue closes, with the version
+#
+# This is also why the commit convention uses "(#N)" and never "Fixes #N": GitHub auto-closes
+# on those keywords the moment the mirror pushes, which is exactly what we're avoiding.
+#
+# Uses only the built-in GITHUB_TOKEN. No secrets.
+
+name: Issue lifecycle
+
+on:
+   push:
+      branches: [main]
+   release:
+      types: [published]
+   schedule:
+      # Daily, off-peak. Only touches issues waiting on the reporter.
+      - cron: "17 3 * * *"
+   workflow_dispatch:
+
+permissions:
+   issues: write
+   contents: read
+
+jobs:
+   # ---------------------------------------------------------------------------------------
+   # Commits landed: mark the issues they reference as fixed, but pending a release.
+   # ---------------------------------------------------------------------------------------
+   mark-fixed:
+      if: github.event_name == 'push'
+      runs-on: ubuntu-latest
+      steps:
+         - uses: actions/github-script@v7
+           with:
+              script: |
+                 const PENDING = 'status: fixed-pending-release';
+                 const CLEAR   = ['status: triage', 'status: accepted', 'status: in-progress'];
+
+                 // The mirror can replay a long run of commits at once, well past the 20 the push
+                 // payload carries. Ask the compare API for the real range.
+                 let commits = context.payload.commits || [];
+                 const before = context.payload.before;
+                 if (before && !/^0+$/.test(before)) {
+                    try {
+                       const cmp = await github.rest.repos.compareCommitsWithBasehead({
+                          ...context.repo, basehead: `${before}...${context.payload.after}`,
+                       });
+                       commits = cmp.data.commits.map(c => ({ message: c.commit.message, id: c.sha }));
+                    } catch (e) {
+                       core.info(`compare failed, using push payload: ${e.message}`);
+                    }
+                 }
+
+                 // issue number -> the build that fixed it (last one wins)
+                 const fixed = new Map();
+                 for (const c of commits) {
+                    const message = c.message || '';
+                    const subject = message.split('\n')[0];
+                    // Scan the whole message, not just the subject: publish-github.ps1 -Squash folds
+                    // a run of commits into one, and the individual (#N) refs land in the body.
+                    const refs = [...message.matchAll(/\(#(\d+)\)/g)].map(m => Number(m[1]));
+                    if (!refs.length) continue;
+                    // "<version> | <category> | <message> | <build>"
+                    const parts = subject.split('|').map(s => s.trim());
+                    const build = parts.length >= 4 ? (parts[parts.length - 1].match(/^\d+$/) || [])[0] : null;
+                    for (const n of refs) fixed.set(n, { build, version: parts[0], sha: c.id });
+                 }
+                 if (!fixed.size) { core.info('No (#N) references in this push.'); return; }
+
+                 for (const [number, info] of fixed) {
+                    let issue;
+                    try {
+                       issue = (await github.rest.issues.get({ ...context.repo, issue_number: number })).data;
+                    } catch (e) {
+                       core.info(`#${number} is not an issue here: ${e.message}`);
+                       continue;
+                    }
+                    if (issue.pull_request) continue;
+
+                    const names = issue.labels.map(l => l.name || l);
+                    if (names.includes(PENDING) || names.includes('status: shipped')) continue;
+
+                    for (const stale of CLEAR.filter(l => names.includes(l))) {
+                       await github.rest.issues.removeLabel({
+                          ...context.repo, issue_number: number, name: stale,
+                       }).catch(e => core.info(`could not remove ${stale}: ${e.message}`));
+                    }
+                    await github.rest.issues.addLabels({
+                       ...context.repo, issue_number: number, labels: [PENDING],
+                    }).catch(e => core.warning(`could not label #${number}: ${e.message}`));
+
+                    const build = info.build ? ` in build **${info.build}**` : '';
+                    await github.rest.issues.createComment({
+                       ...context.repo, issue_number: number,
+                       body:
+                          `Fixed${build} (${info.sha.substring(0, 8)}).\n\n` +
+                          `This issue stays open until the fix is in a release you can actually ` +
+                          `download — it'll close automatically when that release publishes.`,
+                    });
+                    core.info(`#${number} -> ${PENDING}`);
+                 }
+
+   # ---------------------------------------------------------------------------------------
+   # Release published: everything that was waiting on it is now genuinely shipped.
+   # ---------------------------------------------------------------------------------------
+   close-shipped:
+      if: github.event_name == 'release'
+      runs-on: ubuntu-latest
+      steps:
+         - uses: actions/github-script@v7
+           with:
+              script: |
+                 const PENDING = 'status: fixed-pending-release';
+                 const rel = context.payload.release;
+                 const tag = rel.tag_name;
+
+                 const issues = await github.paginate(github.rest.issues.listForRepo, {
+                    ...context.repo, state: 'open', labels: PENDING, per_page: 100,
+                 });
+                 if (!issues.length) { core.info('Nothing pending a release.'); return; }
+
+                 for (const issue of issues) {
+                    if (issue.pull_request) continue;
+                    await github.rest.issues.createComment({
+                       ...context.repo, issue_number: issue.number,
+                       body:
+                          `Shipped in [${rel.name || tag}](${rel.html_url}).\n\n` +
+                          `Update AMT and this should be resolved for you. If it isn't, comment ` +
+                          `here and we'll reopen — no need to file a new issue.`,
+                    });
+                    await github.rest.issues.removeLabel({
+                       ...context.repo, issue_number: issue.number, name: PENDING,
+                    }).catch(() => {});
+                    await github.rest.issues.addLabels({
+                       ...context.repo, issue_number: issue.number, labels: ['status: shipped'],
+                    }).catch(e => core.warning(`could not label #${issue.number}: ${e.message}`));
+                    await github.rest.issues.update({
+                       ...context.repo, issue_number: issue.number,
+                       state: 'closed', state_reason: 'completed',
+                    });
+                    core.info(`#${issue.number} closed as shipped in ${tag}`);
+                 }
+
+   # ---------------------------------------------------------------------------------------
+   # Reports we can't act on without the reporter. Only these — nothing else is ever staled.
+   # ---------------------------------------------------------------------------------------
+   stale:
+      if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      runs-on: ubuntu-latest
+      steps:
+         - uses: actions/stale@v9
+           with:
+              any-of-labels: "needs: info,needs: log,needs: repro,needs: retest"
+              days-before-stale: 14
+              days-before-close: 7
+              stale-issue-label: "status: stale"
+              exempt-issue-labels: "status: accepted,blocked: dota-patch"
+              days-before-pr-stale: -1
+              days-before-pr-close: -1
+              stale-issue-message: >
+                 This one has been waiting on more information for two weeks. If you can still
+                 reproduce it, drop the missing details in a comment and it'll stay open —
+                 otherwise it'll close in 7 days. Closing isn't final; commenting reopens it.
+              close-issue-message: >
+                 Closing since we never got the information needed to reproduce this. That's not
+                 a judgement on the report — comment any time with the details and we'll pick it
+                 straight back up.
+              close-issue-reason: not_planned

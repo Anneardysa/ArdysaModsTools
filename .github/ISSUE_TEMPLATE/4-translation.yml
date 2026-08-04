@@ -1,0 +1,62 @@
+name: 🌐 Translation fix
+description: Report wrong, awkward, or missing text in one of AMT's languages.
+title: "[i18n]: "
+labels: ["type: translation", "area: i18n", "status: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        AMT ships 8 languages from a single catalog in `Assets/Locales/`. Corrections from
+        native speakers are genuinely welcome — this is the easiest way to contribute.
+
+        **House style**, so your suggestion fits the rest of the app:
+        - Informal second person where the language has one (Spanish `tú`, not `usted`).
+        - Keep feature names and Dota jargon in English — *Skin Selector*, *Patch Update*,
+          *courier*, *ward*, *VPK*. Translate the prose around them.
+        - Keep placeholders like `{count}` or `{hero}` exactly as they are.
+
+  - type: dropdown
+    id: locale
+    attributes:
+      label: Language
+      options:
+        - Russian (ru)
+        - Spanish (es)
+        - German (de)
+        - French (fr)
+        - Portuguese (pt)
+        - Chinese Simplified (zh-Hans)
+        - Chinese Traditional (zh-Hant)
+        - English (en)
+    validations:
+      required: true
+
+  - type: input
+    id: key
+    attributes:
+      label: Translation key
+      description: |
+        If you know it, from `Assets/Locales/<lang>.json`. Leave blank if you don't — a
+        screenshot works too.
+      placeholder: hero.generate.complete
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current text
+      description: What AMT shows today. Copy it exactly, or attach a screenshot.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested text
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it's wrong
+      description: Mistranslation, wrong register, doesn't fit the button, unclear in context…

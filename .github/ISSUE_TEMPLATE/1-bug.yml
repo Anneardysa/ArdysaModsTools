@@ -1,0 +1,175 @@
+name: 🐛 Bug report
+description: Something in AMT is broken or behaves incorrectly.
+title: "[Bug]: "
+labels: ["type: bug", "status: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this.
+
+        **Two things make a bug report solvable**: the exact error code, and the log file.
+        Without them most reports end up closed as `needs: info`. The steps below tell you
+        exactly where to find both.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you file
+      description: Please confirm each of these. They resolve the majority of reports on their own.
+      options:
+        - label: I am running the latest release of AMT.
+          required: true
+        - label: If Dota 2 updated recently, I clicked **Patch Update** in AMT and the problem still happens.
+          required: true
+        - label: I read [docs/TROUBLESHOOTING.md](https://github.com/Anneardysa/ArdysaModsTools/blob/main/docs/TROUBLESHOOTING.md).
+          required: true
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What went wrong, and what you expected instead.
+      placeholder: |
+        I clicked Generate on Pudge with the Feast of Abscession set.
+        Expected: the set applies in game.
+        Actual: generation stops at 40% and the failure card appears.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Number the steps, starting from a freshly opened AMT.
+      placeholder: |
+        1. Open AMT (auto-detect finds Dota 2)
+        2. Open Skin Selector
+        3. Select hero "Pudge", set "Feast of Abscession"
+        4. Click Generate
+        5. Failure card appears
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of AMT
+      description: Where the problem shows up. Pick the closest match — we will re-label if needed.
+      options:
+        - Install / setup / first launch
+        - Skin Selector (hero sets)
+        - Miscellaneous mods (couriers, wards, HUD, terrain…)
+        - Patch Update (after a Dota 2 update)
+        - Downloading assets
+        - App update / updater
+        - Dota 2 Performance page
+        - User interface / layout / theme
+        - Translation / wrong text
+        - Something else / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: error-prefix
+    attributes:
+      label: Error code category
+      description: |
+        AMT errors look like `DL_006` or `VPK_003`. You will find them in the console
+        panel of the main window, or in the log file. Pick the prefix you saw.
+      options:
+        - "DL_ — downloading assets"
+        - "VPK_ — VPK packing / extraction"
+        - "PATCH_ — patching game files"
+        - "GEN_ — hero set generation"
+        - "CFG_ — Dota 2 / Steam detection, settings"
+        - "MISC_ — miscellaneous mods"
+        - "UPD_ — app update"
+        - "SEC_ — security / integrity"
+        - "No error code shown"
+    validations:
+      required: true
+
+  - type: input
+    id: error-code
+    attributes:
+      label: Full error code
+      description: The complete code, if one was shown.
+      placeholder: DL_006
+
+  - type: input
+    id: version
+    attributes:
+      label: AMT version and build
+      description: Shown in **About**. Please give both — the build number is what we match fixes against.
+      placeholder: 2.2.19-beta (build 2280)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: How AMT is installed
+      description: This matters — the installer puts AMT in Program Files, which changes where logs are written.
+      options:
+        - Installer (Setup .exe)
+        - Portable (.zip)
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: dota-build
+    attributes:
+      label: Dota 2 build number
+      description: Optional, but essential for anything that broke right after a Dota 2 update.
+      placeholder: "8145"
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Windows version
+      options:
+        - Windows 11
+        - Windows 10
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log file
+      description: |
+        **This is the single most useful thing you can attach.** Paste the last ~50 lines, or
+        drag the whole file into this box.
+
+        - **Installer builds:** `%LOCALAPPDATA%\ArdysaModsTools\ardysa_fallback.log`
+        - **Portable builds:** `ardysa_fallback.log`, next to `ArdysaModsTools.exe`
+        - **App won't start at all:** `startup_log.txt`, next to `ArdysaModsTools.exe`
+
+        Paste the path into File Explorer's address bar to get there.
+
+        A screenshot of the red failure card is **not** enough — that card is deliberately
+        stripped of paths and identifiers, so it cannot tell us what actually failed.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: generation-report
+    attributes:
+      label: Generation report
+      description: |
+        Only for Skin Selector / Miscellaneous bugs. Attach the newest
+        `generation_report_*.txt` from `<your Dota 2 folder>\game\_ArdysaMods\_temp\`.
+        These files are already sanitized — they contain no usernames or local paths.
+      render: shell
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or anything else
+      description: In-game screenshots are very helpful for "wrong skin" or "wrong layer" bugs.

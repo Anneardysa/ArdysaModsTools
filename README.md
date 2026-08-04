@@ -138,11 +138,34 @@ AMT is built as a maintainable, file-safe desktop app rather than a game hook no
 | [Quick Start](docs/user/QUICK_START.md) | Get running in minutes |
 | [FAQ](docs/user/USER_GUIDE.md#faq) | Common questions answered |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Fix common issues |
-| [Contributing](docs/dev/CONTRIBUTING.md) | Branching, workflow, and code style |
-| [Security Policy](docs/dev/SECURITY.md) | Reporting vulnerabilities |
+| [Contributing](.github/CONTRIBUTING.md) | How to report, request, and send patches |
+| [Security Policy](.github/SECURITY.md) | Reporting vulnerabilities |
+| [Code of Conduct](.github/CODE_OF_CONDUCT.md) | How we treat each other |
 | [Changelog](CHANGELOG.md) | What changed in each release |
 
 </div>
+
+## 🐛 Report a Problem
+
+Found a bug, want a hero set added, or spotted a bad translation? Everything starts with an
+issue — pick the right template and it gets triaged automatically.
+
+<div align="center">
+
+| | |
+| :--- | :--- |
+| [🐛 Bug report](https://github.com/Anneardysa/ArdysaModsTools/issues/new?template=1-bug.yml) | Something is broken. Bring the error code and `ardysa_fallback.log`. |
+| [🎁 Mod / set request](https://github.com/Anneardysa/ArdysaModsTools/issues/new?template=2-mod-request.yml) | A hero set, courier, ward, HUD or terrain you want added |
+| [✨ Feature request](https://github.com/Anneardysa/ArdysaModsTools/issues/new?template=3-feature.yml) | An idea for how AMT itself should work |
+| [🌐 Translation fix](https://github.com/Anneardysa/ArdysaModsTools/issues/new?template=4-translation.yml) | Wrong or awkward text in your language |
+| [💬 Discord](https://discord.gg/5xKg4fyumv) | "How do I…" questions and quick help |
+| [🔒 Security advisory](https://github.com/Anneardysa/ArdysaModsTools/security/advisories/new) | Vulnerabilities — privately, never a public issue |
+
+</div>
+
+**Two things before you file:** make sure you're on the latest release, and if Dota 2 updated
+recently, click **Patch Update** in AMT first. Between them those resolve most reports. Details
+in [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 ## 📊 Project Activity
 

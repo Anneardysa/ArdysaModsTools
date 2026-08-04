@@ -21,9 +21,9 @@ Welcome to the AMT 2.0 documentation hub. Find everything you need to use or con
 | **[Development Setup](developer/development.md)** | Environment, building, testing |
 | **[Architecture](developer/architecture.md)**     | System design, DI, MVP pattern |
 | **[Services API](developer/api/services.md)**     | Core service reference         |
-| **[Contributing](dev/CONTRIBUTING.md)**           | How to contribute code         |
+| **[Contributing](../.github/CONTRIBUTING.md)**    | How to report, request, and send patches |
 | **[Installer Guide](dev/INSTALLER.md)**           | Installer build process        |
-| **[Security](dev/SECURITY.md)**                   | Security model & anti-tamper   |
+| **[Security](../.github/SECURITY.md)**            | Reporting vulnerabilities      |
 
 ---
 

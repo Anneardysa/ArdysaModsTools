@@ -67,6 +67,9 @@ scripts/**
 # Git hooks — must be tracked so a fresh clone can install them. The pre-push guard is what stops
 # a raw push to the public GitHub mirror from publishing real key material and full comments.
 !scripts/dev/hooks/*
+# Self-check for the issue auto-triage workflow — tracked because that workflow auto-closes user
+# reports, so its logic needs a check that travels with it.
+!scripts/dev/triage-selfcheck.mjs
 tools/confuserex/
 config/feature_access.json
 
