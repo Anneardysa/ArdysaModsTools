@@ -343,6 +343,30 @@
             opacity: 0.7;
          }
 
+         /* Automatic update notice — replaces the old "Update Now" card. Same panel weight, no
+            hover/cursor affordance: it is information, not an action. */
+         .auto-note {
+            width: 100%;
+            background: var(--panel);
+            border: 1px solid var(--hairline-strong);
+            padding: 12px 14px;
+            margin-bottom: 16px;
+            animation: fadeInUp 0.25s ease-out;
+         }
+         .auto-note-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--ink);
+            letter-spacing: 0.3px;
+            line-height: 1.5;
+         }
+         .auto-note-desc {
+            font-size: 10px;
+            color: var(--mute);
+            margin-top: 5px;
+            letter-spacing: 0.3px;
+         }
+
          /* Download / apply progress */
          .progress-box {
             width: 100%;
@@ -451,7 +475,7 @@
             <span class="b-name" data-i18n="update.available.title">Update Available</span>
          </div>
          <div class="win-controls">
-            <button class="win-btn close" title="Close" data-i18n-title="common.close" onclick="notNow()">
+            <button class="win-btn close" id="btnClose" title="Close" data-i18n-title="common.close" onclick="notNow()">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
                   <line x1="6" y1="6" x2="18" y2="18" />
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -489,24 +513,11 @@
             <span data-i18n="updateAvail.checking">Calculating update size…</span>
          </div>
 
-         <!-- Incremental update (revealed once the diff says one is possible) -->
-         <div class="download-section" id="deltaSection" style="display: none">
-            <div class="download-card primary" onclick="applyUpdate()" id="deltaCard">
-               <div class="card-icon">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-               </div>
-               <div class="card-info">
-                  <div class="card-title" id="deltaTitle">Update Now</div>
-                  <div class="card-desc" id="deltaDesc">Downloads only what changed</div>
-               </div>
-               <div class="card-arrow">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                  </svg>
-               </div>
-            </div>
+         <!-- Automatic update notice (shown the moment the diff answers — there is no choice to make,
+              so this explains why instead of offering a button) -->
+         <div class="auto-note" id="autoNote" style="display: none">
+            <div class="auto-note-title" id="autoNoteTitle"></div>
+            <div class="auto-note-desc" id="autoNoteDesc"></div>
          </div>
 
          <!-- Progress (replaces the cards while the update downloads) -->
@@ -584,14 +595,19 @@
                document.getElementById("githubDesc").textContent = data.githubFilename;
             }
 
-            // Delta-first (installer installs): hide the full-download links while the host diffs
-            // the install tree. Exactly one of setDeltaOffer / setDeltaUnavailable ends this state;
-            // the timer is the backstop so the user is never stranded with no action at all.
+            // Automatic update (installer installs): hide the full-download links while the host
+            // diffs the install tree. Exactly one of setAutoUpdateNote / setDeltaUnavailable ends
+            // this state; the timer is the backstop so the user is never stranded with no action.
             if (data.deltaPending) {
                document.getElementById("deltaCheck").style.display = "flex";
                document.getElementById("fullSection").style.display = "none";
                document.getElementById("downloadLabel").style.display = "none";
-               deltaTimer = setTimeout(setDeltaUnavailable, 45000);
+               // No way out while this runs either: the diff hashes the whole install tree, which is
+               // seconds of wide-open "click X and skip the update". The host refuses the close for
+               // exactly the same span.
+               document.getElementById("btnCancel").style.display = "none";
+               document.getElementById("btnClose").style.display = "none";
+               deltaTimer = setTimeout(deltaTimedOut, 45000);
             }
          }
 
@@ -602,11 +618,12 @@
             }
          }
 
-         // ── Incremental update ────────────────────────────────────────────────
-         // The host reveals this only after the diff succeeds; until then (and whenever it
-         // fails) the full-download cards below are the only offer, exactly as before.
+         // ── Automatic update ──────────────────────────────────────────────────
+         // The host applies the update itself as soon as the diff succeeds — there is no button to
+         // start it and none to skip it. Whenever it can't (no manifest for this release, portable
+         // build, or a failed apply) the full-download cards below are the only offer, exactly as
+         // before, and the window is dismissible again.
 
-         let applying = false;
          let deltaTimer = null;
 
          function endDeltaCheck() {
@@ -617,35 +634,40 @@
             document.getElementById("deltaCheck").style.display = "none";
          }
 
-         function setDeltaOffer(title, desc) {
+         function setAutoUpdateNote(title, desc) {
             endDeltaCheck();
-            document.getElementById("deltaTitle").textContent = title;
-            document.getElementById("deltaDesc").textContent = desc;
-            document.getElementById("deltaSection").style.display = "flex";
+            document.getElementById("autoNoteTitle").textContent = title;
+            document.getElementById("autoNoteDesc").textContent = desc;
+            document.getElementById("autoNote").style.display = "block";
          }
 
          function setDeltaUnavailable() {
             endDeltaCheck();
             document.getElementById("fullSection").style.display = "flex";
             document.getElementById("downloadLabel").style.display = "block";
+            // Nothing left to force — the manual links are the only route, so let the user leave.
+            document.getElementById("btnCancel").style.display = "block";
+            document.getElementById("btnClose").style.display = "flex";
          }
 
-         function applyUpdate() {
-            if (applying) return;
-            applying = true;
-            sendMessage({ type: "applyUpdate" });
+         // Backstop: the host's diff should always answer, but if it never does, the window must not
+         // stay locked with no action in it. Tell the host so it stops refusing the close as well.
+         function deltaTimedOut() {
+            sendMessage({ type: "deltaTimeout" });
+            setDeltaUnavailable();
          }
 
          function setUpdateBusy(title) {
             document.getElementById("progressTitle").textContent = title;
             document.getElementById("progressBox").style.display = "block";
-            document.getElementById("deltaSection").style.display = "none";
             document.getElementById("fullSection").style.display = "none";
             document.getElementById("downloadLabel").style.display = "none";
             document.getElementById("errorLine").style.display = "none";
-            // "Not Now" would silently cancel the download it sits under — the X (and ESC) stay as
-            // the deliberate way out.
+            // Both ways out are removed while the update downloads: cancelling here would leave the
+            // user on the stale build this update exists to replace. The host refuses the close too
+            // (Alt+F4), and every failure path restores both controls.
             document.getElementById("btnCancel").style.display = "none";
+            document.getElementById("btnClose").style.display = "none";
          }
 
          function setUpdateProgress(percent) {
@@ -657,11 +679,12 @@
          }
 
          function setUpdateFailed(message) {
-            applying = false;
             document.getElementById("progressBox").style.display = "none";
+            document.getElementById("autoNote").style.display = "none";
             document.getElementById("fullSection").style.display = "flex";
             document.getElementById("downloadLabel").style.display = "block";
             document.getElementById("btnCancel").style.display = "block";
+            document.getElementById("btnClose").style.display = "flex";
             const error = document.getElementById("errorLine");
             error.textContent = message;
             error.style.display = "block";

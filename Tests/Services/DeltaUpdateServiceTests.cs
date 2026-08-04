@@ -18,6 +18,7 @@ using System.Security.Cryptography;
 using System.Text;
 using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Services.Update;
+using ArdysaModsTools.Core.Services.Update.Models;
 using NUnit.Framework;
 
 namespace ArdysaModsTools.Tests.Services
@@ -54,12 +55,37 @@ namespace ArdysaModsTools.Tests.Services
             Size = Encoding.UTF8.GetByteCount(content)
         };
 
-        private Task<Core.Services.Update.Models.DeltaPlan> BuildAsync(
+        private Task<DeltaPlan> BuildAsync(
             Dictionary<string, AssetHashEntry> manifest,
             Dictionary<string, AssetHashEntry>? oldManifest = null)
             => DeltaUpdateService.BuildPlanAsync(
                 manifest, oldManifest, "9.9.9", _installDir, Path.Combine(_installDir, "staging"),
                 "https://example.invalid/releases/9.9.9/files/");
+
+        [Test]
+        public void CanAutoUpdate_OnlyInstallerBuildsWithAPublishedManifest()
+        {
+            static UpdateInfo Info(string? manifest) =>
+                new() { Version = "9.9.9", FilesManifestUrl = manifest };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(DeltaUpdateService.CanAutoUpdate(
+                    InstallationType.Installer, Info("https://cdn.invalid/releases/9.9.9/files.json")),
+                    Is.True, "installer + manifest is the only auto-update case");
+
+                Assert.That(DeltaUpdateService.CanAutoUpdate(
+                    InstallationType.Portable, Info("https://cdn.invalid/releases/9.9.9/files.json")),
+                    Is.False, "portable has no applier — it must keep the manual download links");
+
+                Assert.That(DeltaUpdateService.CanAutoUpdate(InstallationType.Installer, Info(null)),
+                    Is.False, "no per-file manifest published for this release");
+                Assert.That(DeltaUpdateService.CanAutoUpdate(InstallationType.Installer, Info("   ")),
+                    Is.False, "blank manifest URL is not a manifest");
+                Assert.That(DeltaUpdateService.CanAutoUpdate(InstallationType.Installer, null),
+                    Is.False, "no update info at all");
+            });
+        }
 
         [Test]
         public void FilesBaseUrl_AndSiblingManifestUrl_AreDerivedFromTheManifestUrl()

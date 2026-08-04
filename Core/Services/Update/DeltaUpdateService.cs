@@ -70,6 +70,9 @@ namespace ArdysaModsTools.Core.Services.Update
 
         #region Prepare
 
+        public static bool CanAutoUpdate(InstallationType type, UpdateInfo? info) =>
+            type == InstallationType.Installer && !string.IsNullOrWhiteSpace(info?.FilesManifestUrl);
+
         public async Task<DeltaPlan?> PrepareAsync(UpdateInfo info, CancellationToken ct = default)
         {
             if (info == null || string.IsNullOrWhiteSpace(info.FilesManifestUrl) || string.IsNullOrWhiteSpace(info.Version))

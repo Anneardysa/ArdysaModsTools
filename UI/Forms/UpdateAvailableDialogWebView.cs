@@ -47,6 +47,8 @@ namespace ArdysaModsTools.UI.Forms
         private DeltaPlan? _plan;
         private bool _applying;
 
+        private bool _locked;
+
         private readonly bool _deltaPending;
 
         public bool ApplierStarted { get; private set; }
@@ -68,15 +70,23 @@ namespace ArdysaModsTools.UI.Forms
             _updateInfo = updateInfo;
             _installationType = installationType;
             _delta = delta;
-            _deltaPending = installationType == InstallationType.Installer
-                && delta != null
-                && !string.IsNullOrEmpty(updateInfo.FilesManifestUrl);
+            _deltaPending = delta != null && DeltaUpdateService.CanAutoUpdate(installationType, updateInfo);
+            _locked = _deltaPending;
 
             InitializeComponent();
             SetupForm();
 
             this.Shown += async (s, e) => await InitializeAsync();
-            this.FormClosing += (s, e) => _cts.Cancel();
+            this.FormClosing += (s, e) =>
+            {
+                if ((_locked || _applying) && !ApplierStarted)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+
+                _cts.Cancel();
+            };
             this.Disposed += (s, e) => _cts.Dispose();
             Helpers.DpiLayout.AttachClamp(this);
         }
@@ -109,7 +119,7 @@ namespace ArdysaModsTools.UI.Forms
             this.KeyPreview = true;
             this.KeyDown += (s, e) =>
             {
-                if (e.KeyCode == Keys.Escape)
+                if (e.KeyCode == Keys.Escape && !_locked && !_applying)
                 {
                     DialogResult = DialogResult.Cancel;
                     Close();
@@ -169,6 +179,7 @@ namespace ArdysaModsTools.UI.Forms
             catch (Exception ex)
             {
                 FallbackLogger.Log($"UpdateAvailableDialog init failed, using fallback: {ex.Message}");
+                _locked = false;
                 DialogResult = DialogResult.Abort;
                 Close();
             }
@@ -222,26 +233,34 @@ namespace ArdysaModsTools.UI.Forms
             {
                 var plan = await _delta!.PrepareAsync(_updateInfo, _cts.Token).ConfigureAwait(true);
                 if (IsDisposed || _cts.IsCancellationRequested)
+                {
+                    _locked = false;
                     return;
+                }
 
                 if (plan == null)
                 {
+                    _locked = false;
                     await CallJsAsync("setDeltaUnavailable");
                     return;
                 }
 
                 _plan = plan;
 
-                await CallJsAsync("setDeltaOffer",
-                    Loc.T("updateAvail.updateNow"),
+                await CallJsAsync("setAutoUpdateNote",
+                    Loc.T("updateAvail.autoNote"),
                     Loc.T("updateAvail.updateDesc", new { size = FormatSize(plan.TotalDownloadBytes) }));
+
+                await ApplyDeltaAsync();
             }
             catch (OperationCanceledException)
             {
+                _locked = false;
             }
             catch (Exception ex)
             {
                 FallbackLogger.Log($"Delta prepare failed, offering full download only: {ex.Message}");
+                _locked = false;
                 if (!IsDisposed && !_cts.IsCancellationRequested)
                     await CallJsAsync("setDeltaUnavailable");
             }
@@ -253,6 +272,7 @@ namespace ArdysaModsTools.UI.Forms
                 return;
 
             _applying = true;
+            _locked = false;
 
             var progress = new Progress<int>(percent => _ = CallJsAsync("setUpdateProgress", percent));
             IProgress<string> status = new Progress<string>(text => _ = CallJsAsync("setUpdateStatus", text));
@@ -265,7 +285,10 @@ namespace ArdysaModsTools.UI.Forms
                     .ConfigureAwait(true);
 
                 if (IsDisposed || _cts.IsCancellationRequested)
+                {
+                    _applying = false;
                     return;
+                }
 
                 await CallJsAsync("setUpdateStatus", Loc.T("updateAvail.restarting"));
 
@@ -340,10 +363,6 @@ namespace ArdysaModsTools.UI.Forms
 
                 switch (type)
                 {
-                    case "applyUpdate":
-                        _ = ApplyDeltaAsync();
-                        break;
-
                     case "openLink":
                         if (message.TryGetProperty("url", out var urlEl) &&
                             urlEl.ValueKind == JsonValueKind.String)
@@ -357,8 +376,14 @@ namespace ArdysaModsTools.UI.Forms
                         break;
 
                     case "notNow":
+                        if (_locked || _applying)
+                            break;
                         DialogResult = DialogResult.Cancel;
                         Close();
+                        break;
+
+                    case "deltaTimeout":
+                        _locked = false;
                         break;
 
                     case "startDrag":

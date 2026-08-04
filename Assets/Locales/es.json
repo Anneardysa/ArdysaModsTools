@@ -489,6 +489,7 @@
   "updateAvail.notNow": "Ahora no",
   "updateAvail.updateNow": "Actualizar ahora",
   "updateAvail.updateDesc": "Solo {size} — descarga únicamente los archivos que cambiaron",
+  "updateAvail.autoNote": "Actualizando automáticamente — necesario para que tus mods sigan funcionando",
   "updateAvail.checking": "Calculando el tamaño de la actualización…",
   "updateAvail.downloading": "Descargando la actualización...",
   "updateAvail.restarting": "Reiniciando para aplicar la actualización...",

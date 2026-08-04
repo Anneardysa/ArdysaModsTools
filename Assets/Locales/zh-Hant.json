@@ -489,6 +489,7 @@
   "updateAvail.notNow": "暫不",
   "updateAvail.updateNow": "立即更新",
   "updateAvail.updateDesc": "僅 {size} — 只下載有變更的檔案",
+  "updateAvail.autoNote": "正在自動更新 — 保持更新才能讓 mod 繼續正常運作",
   "updateAvail.checking": "正在計算更新大小…",
   "updateAvail.downloading": "正在下載更新...",
   "updateAvail.restarting": "正在重新啟動以套用更新...",

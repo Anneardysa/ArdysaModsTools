@@ -5,6 +5,38 @@ All notable changes to ArdysaModsTools will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+**House style** (from 2.2.20-beta): one bullet per change, a **bold sentence** saying what changed,
+then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
+longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
+
+## [2.2.20-beta] (Builds 2277–2284)
+
+### Changed
+
+- **Installer builds now update themselves, with no way to skip it** (2284): the dialog offered
+  *Update Now* / *Not Now*, so users could stay on a build whose mods no longer match the live Dota 2
+  patch — and the resulting reports are indistinguishable from real bugs. The update window is now
+  non-dismissible for installer builds of any release that publishes a per-file manifest: the diff
+  runs, the delta downloads, and the app restarts into the applier. `DeltaUpdateService.CanAutoUpdate`
+  is the single predicate deciding that; everything it excludes (portable builds, releases with no
+  manifest) still gets the manual download links and a window it can close. The lock covers the diff
+  as well as the download — hashing the install tree takes seconds, which was otherwise an open
+  window to close the dialog and skip. Every exit from the locked phase clears the lock, including a
+  WebView2 that never loads, which would otherwise trap the app on a blank window.
+
+### Security
+
+- **The asset master secret was rotated, and the retired one dropped** (2279, 2280): shipped with the
+  read window added in 2275, so no build was ever unable to read the live tree during the rotation.
+- **The public mirror can no longer be pushed to directly from this repo** (2277, 2278, 2281): a
+  pre-push guard plus a content-reference check, so the stripped mirror always builds on its own.
+
+### Added
+
+- **Bug reports are intake-first on the public mirror** (2282, 2283): issue forms with lifecycle
+  automation. `render` was dropped from the log fields, which was preventing users from attaching a
+  log file at all.
+
 ## [2.2.19-beta] (Builds 2253–2275)
 
 ### 🔒 Security (builds 2268, 2273, 2275)
