@@ -19,6 +19,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Models;
@@ -173,7 +174,7 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public async Task VerifyAsync_ProtectedPathMissing_FailsAndNamesIt()
+        public async Task VerifyAsync_ProtectedPathMissing_FailsAndNamesItsRole()
         {
             BuildTree(gameInfo: "\t\tSearchPaths\r\n\t\t{\r\n\t\t\tGame\t\t_ArdysaMods\r\n\t\t\tGame\t\tdota\r\n\t\t}\r\n");
 
@@ -182,14 +183,14 @@ namespace ArdysaModsTools.Tests.Services
             Assert.Multiple(() =>
             {
                 Assert.That(check.State, Is.EqualTo(SetupCheckState.Fail));
-                Assert.That(check.Diagnostic, Does.Contain("mod"));
-                Assert.That(check.Diagnostic, Does.Not.Contain("_ArdysaMods"),
+                Assert.That(check.Diagnostic, Does.Contain("protected"));
+                Assert.That(check.Diagnostic, Does.Not.Contain("main"),
                     "only the missing path should be named");
             });
         }
 
         [Test]
-        public async Task VerifyAsync_UnpatchedGameInfo_FailsNamingBothPaths()
+        public async Task VerifyAsync_UnpatchedGameInfo_FailsNamingBothRoles()
         {
             BuildTree(gameInfo: "\t\tSearchPaths\r\n\t\t{\r\n\t\t\tGame\t\tdota\r\n\t\t}\r\n");
 
@@ -198,8 +199,24 @@ namespace ArdysaModsTools.Tests.Services
             Assert.Multiple(() =>
             {
                 Assert.That(check.State, Is.EqualTo(SetupCheckState.Fail));
-                Assert.That(check.Diagnostic, Does.Contain("_ArdysaMods"));
-                Assert.That(check.Diagnostic, Does.Contain("mod"));
+                Assert.That(check.Diagnostic, Does.Contain("main"));
+                Assert.That(check.Diagnostic, Does.Contain("protected"));
+            });
+        }
+
+        [Test]
+        public async Task VerifyAsync_SearchPathFailure_NeverNamesTheProtectedFolder()
+        {
+            BuildTree(gameInfo: "\t\tSearchPaths\r\n\t\t{\r\n\t\t\tGame\t\tdota\r\n\t\t}\r\n");
+
+            var check = Check(await _service.VerifyAsync(_root), SetupCheckId.SearchPathsMounted);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(check.Diagnostic, Does.Not.Contain("_ArdysaMods"));
+                Assert.That(check.DetailVars, Is.Null, "no folder name may be interpolated into the message");
+                Assert.That(Regex.IsMatch(check.Diagnostic!, @"\bmod\b", RegexOptions.IgnoreCase), Is.False,
+                    $"the protected folder name leaked: {check.Diagnostic}");
             });
         }
 

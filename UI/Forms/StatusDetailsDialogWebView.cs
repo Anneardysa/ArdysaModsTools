@@ -84,10 +84,18 @@ namespace ArdysaModsTools.UI.Forms
             this.SuspendLayout();
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.None;
-            this.ClientSize = new System.Drawing.Size(440, 460);
+            this.ClientSize = new System.Drawing.Size(460, 480 + (92 * OptionalNoteCount()));
             this.Name = "StatusDetailsDialogWebView";
             this.Text = "Status Details - AMT 2.0";
             this.ResumeLayout(false);
+        }
+
+        private int OptionalNoteCount()
+        {
+            int count = _verification.FirstFailure != null ? 1 : 0;
+            bool hasError = (_statusInfo.Status == ModStatus.Error || _statusInfo.SetupFailure != null)
+                && !string.IsNullOrEmpty(_statusInfo.ErrorMessage);
+            return count + (hasError ? 1 : 0);
         }
 
         private void SetupForm()

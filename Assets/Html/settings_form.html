@@ -161,9 +161,26 @@
             background: var(--border, #333);
          }
 
+         /* Two-column layout. Each column is an independent stack so sections keep their natural
+            height instead of stretching to match the taller neighbour. Column assignment (and the
+            reading order it implies) lives in the markup, not here. */
+         .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+         }
+
+         .settings-col {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            min-width: 0;
+         }
+
          /* Section */
          .section {
-            margin-bottom: 24px;
+            min-width: 0;
          }
 
          .section-header {
@@ -461,62 +478,6 @@
             border-bottom: 1px solid var(--border-light);
          }
 
-         /* Database status pill (right-aligned inside #dbInfo) */
-         #dbInfo {
-            justify-content: space-between;
-         }
-
-         .db-badge {
-            font-size: 9px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            padding: 3px 8px;
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            white-space: nowrap;
-            flex-shrink: 0;
-            opacity: 0;
-            transition: all 0.2s ease;
-         }
-
-         .db-badge.show {
-            opacity: 1;
-         }
-
-         /* Up to date: quiet outline. Update available: inverted to draw the eye (monochrome). */
-         .db-badge.current {
-            color: var(--text-secondary);
-            border-color: var(--border);
-         }
-
-         .db-badge.update {
-            background: var(--text-primary);
-            color: var(--bg-primary);
-            border-color: var(--text-primary);
-         }
-
-         /* "Update Database" button highlight when the local copy is stale */
-         .action-btn.attention {
-            border-color: var(--text-primary);
-            color: var(--text-primary);
-            animation: attentionPulse 1.8s ease-in-out infinite;
-         }
-
-         .action-btn.attention .action-btn-icon svg {
-            stroke: var(--text-primary);
-         }
-
-         @keyframes attentionPulse {
-            0%,
-            100% {
-               box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.25);
-            }
-            50% {
-               box-shadow: 0 0 0 3px rgba(255, 255, 255, 0);
-            }
-         }
-
          /* Footer */
          .footer {
             position: fixed;
@@ -646,6 +607,13 @@
       </div>
 
       <div class="main-content">
+       <!--
+          Column 1 = what the app points at and how it looks (setup, then presentation).
+          Column 2 = how it behaves and one-off actions. Dota 2 leads because nothing else
+          matters until the game path is right.
+       -->
+       <div class="settings-grid">
+        <div class="settings-col">
          <!-- Dota 2 (core) -->
          <div class="section">
             <div class="section-header">
@@ -740,7 +708,9 @@
                </div>
             </div>
          </div>
+        </div>
 
+        <div class="settings-col">
          <!-- Startup & Behavior -->
          <div class="section">
             <div class="section-header">
@@ -837,41 +807,8 @@
                >
             </div>
          </div>
-
-         <div class="section">
-            <div class="section-header">
-               <span class="section-title" data-i18n="settings.section.heroDb">Hero Database</span>
-               <div class="section-line"></div>
-            </div>
-            <div class="action-grid" style="grid-template-columns: 1fr 1fr">
-               <button class="action-btn" id="btnCheckDatabase" onclick="checkDatabase()">
-                  <span class="action-btn-icon">
-                     <svg viewBox="0 0 24 24">
-                        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.83 1.04 6.5 2.72" />
-                        <polyline points="21 3 21 9 15 9" />
-                     </svg>
-                  </span>
-                  <span class="action-btn-text" data-i18n="settings.action.checkDb">Check Database</span>
-               </button>
-               <button class="action-btn" id="btnUpdateDatabase" onclick="updateDatabase()">
-                  <span class="action-btn-icon">
-                     <svg viewBox="0 0 24 24">
-                        <path d="M12 3v13" />
-                        <polyline points="7 11 12 16 17 11" />
-                        <path d="M5 21h14" />
-                     </svg>
-                  </span>
-                  <span class="action-btn-text" data-i18n="settings.action.updateDb">Update Database</span>
-               </button>
-            </div>
-            <div class="cache-info" id="dbInfo">
-               <span class="cache-text"
-                  ><span data-i18n="settings.db.label">Database:</span>
-                  <span class="cache-value" id="dbValue" data-i18n="settings.db.checking">Checking…</span></span
-               >
-               <span class="db-badge" id="dbBadge"></span>
-            </div>
-         </div>
+        </div>
+       </div>
       </div>
 
       <div class="footer">
@@ -989,14 +926,6 @@
             sendMessage({ type: "clearCache" });
          }
 
-         function resetButton(buttonId, iconHtml, text) {
-            const btn = document.getElementById(buttonId);
-            if (btn) {
-               btn.innerHTML = `<span class="action-btn-icon">${iconHtml}</span><span class="action-btn-text">${text}</span>`;
-               btn.disabled = false;
-            }
-         }
-
          function resetClearCacheButton() {
             const btn = document.getElementById("btnClearCache");
             if (btn) {
@@ -1034,91 +963,6 @@
             setTimeout(() => {
                toast.classList.remove("show");
             }, 3000);
-         }
-
-         // Hero Database (heroes.json) — paired with SettingsFormWebView checkDatabase/updateDatabase.
-         function checkDatabase() {
-            const btn = document.getElementById("btnCheckDatabase");
-            btn.innerHTML = '<span class="spinner"></span>';
-            disableDatabaseButtons();
-            sendMessage({ type: "checkDatabase" });
-         }
-
-         function updateDatabase() {
-            const btn = document.getElementById("btnUpdateDatabase");
-            btn.innerHTML = '<span class="spinner"></span>';
-            disableDatabaseButtons();
-            sendMessage({ type: "updateDatabase" });
-         }
-
-         function disableDatabaseButtons() {
-            const c = document.getElementById("btnCheckDatabase");
-            const u = document.getElementById("btnUpdateDatabase");
-            if (c) c.disabled = true;
-            if (u) u.disabled = true;
-         }
-
-         function resetDatabaseButton() {
-            resetButton(
-               "btnCheckDatabase",
-               '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.83 1.04 6.5 2.72"/><polyline points="21 3 21 9 15 9"/></svg>',
-               "Check Database"
-            );
-            resetButton(
-               "btnUpdateDatabase",
-               '<svg viewBox="0 0 24 24"><path d="M12 3v13"/><polyline points="7 11 12 16 17 11"/><path d="M5 21h14"/></svg>',
-               "Update Database"
-            );
-         }
-
-         function initDatabaseStatus(data) {
-            const el = document.getElementById("dbValue");
-            if (!el || !data) return;
-            const count = data.setCount || 0;
-            const parts = [tp("settings.db.sets", count)];
-            if (data.updated) parts.push(t("settings.db.updated", { date: data.updated }));
-            if (data.source) parts.push(t("settings.db.source." + data.source));
-            el.textContent = parts.join(" • ");
-         }
-
-         // Apply a check result (manual click or the silent auto-check on open): optional toast plus the
-         // "update available / up to date" affordance on the badge and the Update Database button.
-         function applyCheckResult(data) {
-            if (!data) return;
-            if (!data.silent && data.message) {
-               showToast(data.message, data.success ? "success" : "error");
-            }
-            if (!data.success) return;
-            data.updateAvailable ? markDbUpdateAvailable(data) : markDbUpToDate();
-         }
-
-         function markDbUpdateAvailable(data) {
-            const btn = document.getElementById("btnUpdateDatabase");
-            if (btn) btn.classList.add("attention");
-            const badge = document.getElementById("dbBadge");
-            if (badge) {
-               const delta = (data.remoteSetCount || 0) - (data.localSetCount || 0);
-               badge.textContent =
-                  delta > 0
-                     ? t("settings.db.badge.updateDelta", { delta: delta })
-                     : t("settings.db.badge.update");
-               badge.className = "db-badge update show";
-            }
-         }
-
-         function markDbUpToDate() {
-            const btn = document.getElementById("btnUpdateDatabase");
-            if (btn) btn.classList.remove("attention");
-            const badge = document.getElementById("dbBadge");
-            if (badge) {
-               badge.textContent = t("settings.db.badge.current");
-               badge.className = "db-badge current show";
-            }
-         }
-
-         // Called after a successful manual update: the local copy now matches the remote.
-         function clearDbAttention() {
-            markDbUpToDate();
          }
 
          function showGuide() {

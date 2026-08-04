@@ -20,15 +20,13 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
-using ArdysaModsTools.Core.Models;
-using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.App;
 using ArdysaModsTools.Core.Services.Localization;
 using ArdysaModsTools.Core.Services.Update;
 using ArdysaModsTools.UI.Services;
 using Microsoft.Web.WebView2.Core;
-using ArdysaModsTools.Core.Helpers;
 using Microsoft.Web.WebView2.WinForms;
 
 namespace ArdysaModsTools.UI.Forms
@@ -44,7 +42,6 @@ namespace ArdysaModsTools.UI.Forms
         private readonly UpdaterService _updaterService;
         private readonly TrayService? _trayService;
         private readonly IAssetPreloadService? _assetPreloadService;
-        private readonly IHeroDatabaseService _heroDatabaseService;
 
         private readonly ILocalizationService? _loc = Loc.Service;
 
@@ -67,8 +64,7 @@ namespace ArdysaModsTools.UI.Forms
             CacheCleaningService cacheService,
             UpdaterService updaterService,
             TrayService? trayService,
-            IAssetPreloadService? assetPreloadService = null,
-            IHeroDatabaseService? heroDatabaseService = null)
+            IAssetPreloadService? assetPreloadService = null)
         {
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _lifecycleService = lifecycleService ?? throw new ArgumentNullException(nameof(lifecycleService));
@@ -76,7 +72,6 @@ namespace ArdysaModsTools.UI.Forms
             _updaterService = updaterService ?? throw new ArgumentNullException(nameof(updaterService));
             _trayService = trayService;
             _assetPreloadService = assetPreloadService;
-            _heroDatabaseService = heroDatabaseService ?? new HeroDatabaseService(AppDomain.CurrentDomain.BaseDirectory);
 
             InitializeComponent();
             SetupForm();
@@ -90,7 +85,7 @@ namespace ArdysaModsTools.UI.Forms
             this.SuspendLayout();
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.None;
-            this.ClientSize = new System.Drawing.Size(540, 760);
+            this.ClientSize = new System.Drawing.Size(960, 650);
             this.Name = "SettingsFormWebView";
             this.Text = "Settings - AMT 2.0";
             this.ResumeLayout(false);
@@ -169,10 +164,6 @@ namespace ArdysaModsTools.UI.Forms
                 await LoadSettingsAsync();
 
                 await LoadCacheSizeAsync();
-
-                await LoadDatabaseStatusAsync();
-
-                _ = AutoCheckDatabaseAsync();
             }
             catch (Exception ex)
             {
@@ -266,14 +257,6 @@ namespace ArdysaModsTools.UI.Forms
                         await HandleClearCacheAsync();
                         break;
 
-                    case "checkDatabase":
-                        await HandleCheckDatabaseAsync();
-                        break;
-
-                    case "updateDatabase":
-                        await HandleUpdateDatabaseAsync();
-                        break;
-
                     case "close":
                         SafeClose();
                         break;
@@ -359,7 +342,6 @@ namespace ArdysaModsTools.UI.Forms
                 _loc.SetCulture(code);
 
                 await ExecuteScriptAsync(WebViewLocalizer.BuildApplyScript(_loc));
-                await LoadDatabaseStatusAsync();
                 await ToastAsync("toast.language.changed", "success");
             }
             catch (Exception ex)
@@ -493,99 +475,6 @@ namespace ArdysaModsTools.UI.Forms
             finally
             {
                 await ExecuteScriptAsync("resetClearCacheButton()");
-            }
-        }
-
-        private async Task LoadDatabaseStatusAsync()
-        {
-            try
-            {
-                var status = await _heroDatabaseService.GetStatusAsync();
-                var payload = new
-                {
-                    source = status.Source,
-                    setCount = status.SetCount,
-                    updated = status.UpdatedUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "",
-                    sha = string.IsNullOrEmpty(status.Sha256)
-                        ? ""
-                        : status.Sha256!.Substring(0, Math.Min(8, status.Sha256!.Length))
-                };
-                var json = JsonSerializer.Serialize(payload);
-                await ExecuteScriptAsync($"initDatabaseStatus({json})");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[Settings] LoadDatabaseStatus failed: {ex.Message}");
-            }
-        }
-
-        private async Task HandleCheckDatabaseAsync()
-        {
-            try
-            {
-                var result = await _heroDatabaseService.CheckForUpdateAsync();
-                await ApplyCheckResultAsync(result, silent: false);
-            }
-            catch (Exception ex)
-            {
-                await ToastAsync("toast.db.checkFailed", "error", new { error = ex.Message });
-            }
-            finally
-            {
-                await ExecuteScriptAsync("resetDatabaseButton()");
-            }
-        }
-
-        private async Task HandleUpdateDatabaseAsync()
-        {
-            try
-            {
-                var result = await _heroDatabaseService.UpdateAsync();
-                await ExecuteScriptAsync(
-                    $"showToast('{EscapeJs(result.Message)}', '{(result.Success ? "success" : "error")}')");
-                if (result.Success)
-                {
-                    await LoadDatabaseStatusAsync();
-                    await ExecuteScriptAsync("clearDbAttention()");
-                }
-            }
-            catch (Exception ex)
-            {
-                await ToastAsync("toast.db.updateFailed", "error", new { error = ex.Message });
-            }
-            finally
-            {
-                await ExecuteScriptAsync("resetDatabaseButton()");
-            }
-        }
-
-        private Task ApplyCheckResultAsync(HeroDatabaseCheckResult result, bool silent)
-        {
-            var payload = new
-            {
-                success = result.Success,
-                upToDate = result.UpToDate,
-                updateAvailable = result.Success && !result.UpToDate,
-                localSetCount = result.LocalSetCount,
-                remoteSetCount = result.RemoteSetCount ?? 0,
-                message = result.Message,
-                silent
-            };
-            var json = JsonSerializer.Serialize(payload);
-            return ExecuteScriptAsync($"applyCheckResult({json})");
-        }
-
-        private async Task AutoCheckDatabaseAsync()
-        {
-            try
-            {
-                var result = await _heroDatabaseService.CheckForUpdateAsync();
-                if (result.Success)
-                    await ApplyCheckResultAsync(result, silent: true);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[Settings] AutoCheckDatabase failed: {ex.Message}");
             }
         }
 

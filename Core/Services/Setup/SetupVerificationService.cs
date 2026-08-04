@@ -170,15 +170,14 @@ namespace ArdysaModsTools.Core.Services
                     return Pass(id, "verify.paths.pass");
 
                 var missing = new List<string>();
-                if (!main) missing.Add("_ArdysaMods");
-                if (!protectedPath) missing.Add("mod");
+                if (!main) missing.Add("main");
+                if (!protectedPath) missing.Add("protected");
 
                 return new SetupCheck
                 {
                     Id = id,
                     State = SetupCheckState.Fail,
                     DetailKey = "verify.paths.fail",
-                    DetailVars = new { paths = string.Join(", ", missing) },
                     Diagnostic = $"gameinfo_branchspecific.gi does not mount: {string.Join(", ", missing)}",
                     FailStatus = ModStatus.NeedUpdate
                 };

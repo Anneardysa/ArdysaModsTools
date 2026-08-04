@@ -21,67 +21,99 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>Status Details</title>
       <style>
-         :root {
-            --bg-primary: #000000;
-            --text-primary: #ffffff;
-            --text-secondary: #888888;
-            --text-muted: #444444;
-            --border: #333333;
-            --border-light: #222222;
-            --accent-dim: rgba(255, 255, 255, 0.06);
-            --color-green: #66dd66;
-            --color-orange: #ffb464;
-            --color-red: #ff6464;
-            --color-gray: #555555;
-            --color-blue: #6699ff;
-         }
-
          * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
          }
 
+         /* ══════════ tokens — the main_shell vocabulary, so this dialog inherits the shell's
+               look and theme.css's light-mode ramp without a second palette to maintain ══════════ */
+         :root {
+            --canvas: #000000;
+            --panel: rgba(10, 10, 10, 0.9);
+            --panel-2: #050505;
+            --panel-hover: rgba(20, 20, 20, 0.95);
+            --hairline: #222222;
+            --hairline-strong: #333333;
+
+            --primary: #ffffff;
+            --on-primary: #000000;
+            --accent-dim: rgba(255, 255, 255, 0.1);
+
+            --ink: #ffffff;
+            --ink-strong: #ffffff;
+            --body: #888888;
+            --mute: #444444;
+
+            /* verdict hues — same values as the shell's verify panel and the status pill, so a row
+               here can never disagree with the row the user just saw on the main window. */
+            --verify-ok: #50c878;
+            --verify-bad: #ff5050;
+            --verify-warn: #f5c451;
+            /* legacy names kept because theme.css darkens these for light mode */
+            --color-green: #50c878;
+            --color-orange: #f5c451;
+            --color-red: #ff5050;
+            --color-gray: #555555;
+            --color-blue: #6699ff;
+
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+            --sp-1: 4px;
+            --sp-2: 8px;
+            --sp-3: 12px;
+            --sp-4: 16px;
+            --transition: all 0.18s ease;
+         }
+
+         /* Chinese UI: Latin still resolves to JetBrains Mono, CJK falls through (mirrors main_shell). */
+         html[data-cjk] {
+            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Microsoft YaHei", "Microsoft JhengHei",
+               "PingFang SC", "PingFang TC", "Noto Sans CJK SC", sans-serif;
+         }
+
+         html,
          body {
-            background: var(--bg-primary);
-            height: 100vh;
+            height: 100%;
+         }
+
+         body {
+            font-family: var(--sans);
+            font-size: 13px;
+            background: var(--canvas);
+            background-image:
+               linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+               linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            color: var(--ink);
             display: flex;
             flex-direction: column;
-            align-items: center;
-            /* safe center keeps the card centered when it fits, but falls back to top-aligned
-               (not clipped) when it's taller than the viewport at high DPI — so the bottom
-               action buttons stay reachable by scrolling. */
-            justify-content: safe center;
-            font-family: "JetBrains Mono", monospace;
-            color: var(--text-primary);
-            overflow-y: auto;
-            position: relative;
+            overflow: hidden;
             user-select: none;
+            border: 1px solid var(--hairline);
          }
 
-         /* ── Animated Wave Background ── */
-         .animated-bg {
+         /* ── animated wave backdrop (shell signature) ── */
+         .bgfx {
             position: fixed;
             inset: 0;
-            z-index: -1;
+            z-index: 0;
+            pointer-events: none;
             overflow: hidden;
-            background: var(--bg-primary);
          }
-
-         .animated-bg::before {
+         .bgfx::before {
             content: "";
             position: absolute;
+            inset: 0 auto 0 0;
             width: 200%;
             height: 100%;
-            left: 0;
-            top: 0;
-            opacity: 0.08;
+            opacity: 0.05;
             background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 800' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='white' stroke-width='1.5' d='M0,400 C200,200 400,600 600,400 C800,200 1000,600 1200,400'/%3E%3C/svg%3E")
                repeat-x;
             background-size: 50% 100%;
-            animation: infiniteWave 20s linear infinite;
+            animation: infiniteWave 28s linear infinite;
          }
-
          @keyframes infiniteWave {
             0% {
                transform: translateX(0);
@@ -91,312 +123,375 @@
             }
          }
 
-         /* ── Corner Decorations ── */
-         .corner-decoration {
-            position: fixed;
-            width: 14px;
-            height: 14px;
-            border-color: var(--border);
-         }
-         .corner-decoration.top-left {
-            top: 10px;
-            left: 10px;
-            border-top: 1px solid;
-            border-left: 1px solid;
-         }
-         .corner-decoration.top-right {
-            top: 10px;
-            right: 10px;
-            border-top: 1px solid;
-            border-right: 1px solid;
-         }
-         .corner-decoration.bottom-left {
-            bottom: 10px;
-            left: 10px;
-            border-bottom: 1px solid;
-            border-left: 1px solid;
-         }
-         .corner-decoration.bottom-right {
-            bottom: 10px;
-            right: 10px;
-            border-bottom: 1px solid;
-            border-right: 1px solid;
-         }
-
-         /* ── Drag Area ── */
-         .drag-area {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 32px;
-            cursor: move;
-            -webkit-app-region: drag;
-            z-index: 10;
-         }
-
-         /* ── Animations ── */
          @keyframes fadeSlideIn {
             from {
                opacity: 0;
-               transform: translateY(10px);
+               transform: translateY(8px);
             }
             to {
                opacity: 1;
                transform: translateY(0);
             }
          }
-
-         @keyframes pulse {
-            0%,
-            100% {
-               opacity: 1;
-            }
-            50% {
-               opacity: 0.5;
-            }
-         }
-
          .fade-in {
-            animation: fadeSlideIn 0.4s ease-out both;
+            animation: fadeSlideIn 0.32s ease-out both;
          }
          .delay-1 {
-            animation-delay: 0.08s;
+            animation-delay: 0.06s;
          }
          .delay-2 {
-            animation-delay: 0.16s;
+            animation-delay: 0.12s;
          }
          .delay-3 {
-            animation-delay: 0.24s;
+            animation-delay: 0.18s;
          }
-         .delay-4 {
-            animation-delay: 0.32s;
+         @media (prefers-reduced-motion: reduce) {
+            .bgfx::before,
+            .fade-in {
+               animation: none;
+            }
          }
 
-         /* ── Container ── */
-         .container {
-            text-align: center;
-            padding: 20px 32px;
+         /* ════════════ title bar (id matches the shell so theme.css restyles it in light mode) ═══ */
+         #titlebar {
             position: relative;
             z-index: 1;
-            width: 100%;
-            max-width: 440px;
+            height: 38px;
+            min-height: 38px;
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            padding: 0 var(--sp-1) 0 var(--sp-4);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--hairline);
+            cursor: move;
          }
-
-         /* ── Status Icon ── */
-         .icon-container {
-            margin-bottom: 10px;
-            transition: transform 0.3s ease;
-         }
-         .icon-container svg {
-            width: 36px;
-            height: 36px;
-         }
-
-         /* ── Status Badge & Description ── */
-         .status {
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            transition: color 0.3s;
-         }
-         .status::before {
-            content: "[ ";
-            color: var(--text-muted);
-         }
-         .status::after {
-            content: " ]";
-            color: var(--text-muted);
-         }
-
-         .description {
-            font-size: 10px;
-            color: var(--text-muted);
+         .tb-title {
+            flex: 1;
+            font-size: 11px;
+            font-weight: 700;
             letter-spacing: 2px;
             text-transform: uppercase;
-            margin-bottom: 20px;
+            color: var(--ink-strong);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
          }
-         .description::before {
+         .tb-title::before {
             content: "// ";
+            color: var(--mute);
+         }
+         .tb-close {
+            width: 34px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            color: var(--body);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .tb-close:hover {
+            background: var(--panel-hover);
+            color: var(--ink);
+         }
+         .tb-close svg {
+            width: 12px;
+            height: 12px;
          }
 
-         /* ── Info Sections ── */
-         .info-section {
-            background: var(--accent-dim);
-            border: 1px solid var(--border-light);
-            padding: 14px 18px;
-            margin-bottom: 10px;
-            text-align: left;
-            transition: border-color 0.3s;
+         /* ════════════════════════════════ CONTENT ════════════════════════════════ */
+         .content {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-3);
+            padding: var(--sp-4);
+            /* The window is sized to its content in C#, so this never scrolls in practice; when a
+               translation runs long it stays reachable without painting a scrollbar over the design. */
+            overflow-y: auto;
+            scrollbar-width: none;
          }
-         .info-section:hover {
-            border-color: var(--border);
+         .content::-webkit-scrollbar {
+            display: none;
          }
 
+         /* ── level 1: the verdict ──
+            The element also carries the shell's `status-card` class: it is inert here (this page
+            styles it below) but theme.css frames .status-card in solid black for light mode, the
+            same treatment the two .info-section cards get, so the primary card is not the only one
+            left on a grey hairline. */
+         .hero {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-3);
+            padding: var(--sp-3);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+         }
+         .hero-ico {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--hairline-strong);
+            background: var(--canvas);
+         }
+         .hero-ico svg {
+            width: 22px;
+            height: 22px;
+         }
+         .hero-text {
+            min-width: 0;
+         }
+         .hero-status {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--ink-strong);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .hero-desc {
+            margin-top: 3px;
+            font-size: 10px;
+            line-height: 1.45;
+            letter-spacing: 0.5px;
+            color: var(--body);
+         }
+         .hero-desc::before {
+            content: "// ";
+            color: var(--mute);
+         }
+         /* Status tints the icon chip only — the headline stays in plain ink so the colour is
+            reinforcement, never the sole signal. */
+         .hero.ready .hero-ico {
+            border-color: var(--verify-ok);
+         }
+         .hero.needUpdate .hero-ico {
+            border-color: var(--verify-warn);
+         }
+         .hero.error .hero-ico {
+            border-color: var(--verify-bad);
+         }
+         .hero.disabled .hero-ico {
+            border-color: var(--color-blue);
+         }
+
+         /* ── level 2: sections ── */
          .section-label {
             font-size: 9px;
-            color: var(--text-muted);
-            letter-spacing: 3px;
+            font-weight: 600;
+            letter-spacing: 0.16em;
             text-transform: uppercase;
-            margin-bottom: 10px;
+            color: var(--mute);
+            margin-bottom: 6px;
          }
          .section-label::before {
             content: "// ";
          }
-
-         /* ── Version Info ── */
-         .version-grid {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            gap: 4px 12px;
-            font-size: 10px;
+         /* class kept from the previous markup: theme.css frames .info-section in black for light mode */
+         .info-section {
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
          }
 
-         .version-key {
-            color: var(--text-muted);
-            letter-spacing: 1px;
-            text-transform: uppercase;
+         /* ── version rows ── */
+         .kv {
+            display: flex;
+            align-items: baseline;
+            gap: var(--sp-3);
+            padding: 6px var(--sp-3);
+            font-size: 11px;
          }
-
-         .version-val {
-            color: var(--text-secondary);
+         .kv + .kv {
+            border-top: 1px solid var(--hairline);
+         }
+         .kv-key {
+            flex: 1;
+            color: var(--body);
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .kv-val {
+            color: var(--ink);
             letter-spacing: 0.5px;
             text-align: right;
+            white-space: nowrap;
+         }
+         .kv-val.highlight {
+            font-weight: 700;
+         }
+         .kv-val.mismatch {
+            color: var(--verify-warn);
          }
 
-         .version-val.highlight {
-            color: var(--text-primary);
-            font-weight: bold;
-         }
-
-         .version-val.mismatch {
-            color: var(--color-orange);
-         }
-
-         /* ── Status Checks ── */
+         /* ── diagnostic rows ── */
          .check-row {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
+            gap: var(--sp-2);
+            padding: 7px var(--sp-3);
             font-size: 11px;
-            color: var(--text-secondary);
+            color: var(--body);
+         }
+         .check-row + .check-row {
+            border-top: 1px solid var(--hairline);
+         }
+         /* The summary is a conclusion, not another input — a heavier rule and bolder label set it
+            apart from the three measurements above it. */
+         .check-row.summary {
+            border-top: 1px solid var(--hairline-strong);
+            background: var(--accent-dim);
+            color: var(--ink);
+            font-weight: 700;
             letter-spacing: 0.5px;
          }
-         .check-row:last-child {
-            margin-bottom: 0;
-         }
-
          .check-dot {
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
             flex-shrink: 0;
-            transition:
-               background 0.3s,
-               box-shadow 0.3s;
+            background: var(--mute);
+            transition: background 0.3s;
+         }
+         .check-row.summary .check-dot {
+            width: 8px;
+            height: 8px;
          }
          .check-dot.green {
-            background: var(--color-green);
-            box-shadow: 0 0 6px rgba(102, 221, 102, 0.4);
+            background: var(--verify-ok);
          }
          .check-dot.orange {
-            background: var(--color-orange);
-            box-shadow: 0 0 6px rgba(255, 180, 100, 0.4);
+            background: var(--verify-warn);
          }
          .check-dot.red {
-            background: var(--color-red);
-            box-shadow: 0 0 6px rgba(255, 100, 100, 0.4);
+            background: var(--verify-bad);
          }
          .check-dot.gray {
-            background: var(--color-gray);
+            background: var(--mute);
          }
-
          .check-label {
             flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
          }
-
          .check-status {
             font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            white-space: nowrap;
+            color: var(--mute);
          }
          .check-status.pass {
-            color: var(--color-green);
+            color: var(--verify-ok);
          }
          .check-status.warn {
-            color: var(--color-orange);
+            color: var(--verify-warn);
          }
          .check-status.fail {
-            color: var(--color-red);
+            color: var(--verify-bad);
          }
          .check-status.none {
-            color: var(--color-gray);
+            color: var(--mute);
          }
 
-         /* ── Error Block ── */
-         .error-block {
-            background: rgba(255, 100, 100, 0.08);
-            border: 1px solid rgba(255, 100, 100, 0.2);
-            padding: 10px 14px;
-            margin-bottom: 10px;
-            text-align: left;
+         /* ── notes: the reason a check failed, and the raw error ── */
+         .note {
+            padding: 8px 10px;
+            border-left: 2px solid var(--mute);
+            background: var(--panel-2);
             font-size: 10px;
-            color: var(--color-red);
-            letter-spacing: 0.5px;
-            line-height: 1.5;
+            line-height: 1.55;
+            letter-spacing: 0.3px;
+            color: var(--body);
+         }
+         /* Clamped so a long diagnostic can never push the buttons out of the window; the full text
+            stays available as the block's tooltip. The clamp lives on the text span, not on .note —
+            a block-level label inside a -webkit-box breaks its line counting and leaks a 4th line. */
+         .note-text {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            overflow: hidden;
             word-break: break-word;
          }
-         .error-block::before {
-            content: "// error";
+         .note-label {
             display: block;
+            margin-bottom: 4px;
             font-size: 9px;
-            color: rgba(255, 100, 100, 0.5);
-            letter-spacing: 3px;
+            font-weight: 600;
+            letter-spacing: 0.16em;
             text-transform: uppercase;
-            margin-bottom: 6px;
+         }
+         .note.warn {
+            border-left-color: var(--verify-warn);
+         }
+         .note.warn .note-label {
+            color: var(--verify-warn);
+         }
+         .note.bad {
+            border-left-color: var(--verify-bad);
+            color: var(--verify-bad);
+         }
+         .note.bad .note-label {
+            color: var(--verify-bad);
          }
 
-         /* ── Buttons ── */
-         .btn-container {
+         /* ════════════════════════════════ FOOTER ════════════════════════════════ */
+         .footer {
+            position: relative;
+            z-index: 1;
             display: flex;
-            justify-content: center;
-            gap: 12px;
-            margin-top: 18px;
+            justify-content: flex-end;
+            gap: var(--sp-2);
+            padding: 10px var(--sp-4);
+            background: rgba(0, 0, 0, 0.6);
+            border-top: 1px solid var(--hairline);
          }
-
          .btn {
-            padding: 8px 28px;
-            font-family: "JetBrains Mono", monospace;
+            padding: 8px 20px;
+            font-family: inherit;
             font-size: 10px;
-            font-weight: bold;
-            letter-spacing: 2px;
+            font-weight: 600;
+            letter-spacing: 0.12em;
             text-transform: uppercase;
             cursor: pointer;
-            transition: all 0.2s;
-            border: 1px solid var(--border);
+            border: 1px solid var(--hairline-strong);
             background: transparent;
-            color: var(--text-secondary);
+            color: var(--body);
+            transition: var(--transition);
          }
          .btn:hover {
-            background: var(--text-primary);
-            border-color: var(--text-primary);
-            color: var(--bg-primary);
+            border-color: var(--primary);
+            color: var(--ink);
+            background: var(--accent-dim);
          }
          .btn:active {
-            transform: scale(0.97);
+            transform: scale(0.98);
          }
-
          .btn-primary {
-            background: var(--text-primary);
-            border-color: var(--text-primary);
-            color: var(--bg-primary);
+            background: var(--primary);
+            border-color: var(--primary);
+            color: var(--on-primary);
          }
          .btn-primary:hover {
             background: transparent;
-            color: var(--text-primary);
+            color: var(--ink);
          }
 
          .hidden {
@@ -406,91 +501,107 @@
    </head>
 
    <body>
-      <div class="animated-bg"></div>
-      <div class="drag-area" onmousedown="startDrag()"></div>
+      <div class="bgfx"></div>
 
-      <div class="corner-decoration top-left"></div>
-      <div class="corner-decoration top-right"></div>
-      <div class="corner-decoration bottom-left"></div>
-      <div class="corner-decoration bottom-right"></div>
+      <div id="titlebar" onmousedown="startDrag(event)">
+         <span class="tb-title" data-i18n="statusDetails.title">Status Details</span>
+         <button class="tb-close" onclick="closeDialog()" data-i18n-aria-label="common.close" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+               <line x1="6" y1="6" x2="18" y2="18" />
+               <line x1="18" y1="6" x2="6" y2="18" />
+            </svg>
+         </button>
+      </div>
 
-      <div class="container">
-         <!-- Status Header -->
-         <div class="icon-container fade-in" id="statusIcon"></div>
-         <div class="status fade-in delay-1" id="statusText">Checking</div>
-         <div class="description fade-in delay-1" id="statusDescription">loading status</div>
-
-         <!-- Version Info -->
-         <div class="info-section fade-in delay-2" id="sectionVersion">
-            <div class="section-label" data-i18n="statusDetails.versionInfo">Version Info</div>
-            <div class="version-grid">
-               <span class="version-key" data-i18n="statusDetails.dota">Dota</span>
-               <span class="version-val highlight" id="valDotaVersion">--</span>
-
-               <span class="version-key" data-i18n="statusDetails.build">Build</span>
-               <span class="version-val" id="valBuildNumber">--</span>
-
-               <span class="version-key" data-i18n="statusDetails.patched">Patched</span>
-               <span class="version-val" id="valPatchedVersion">--</span>
-
-               <span class="version-key" id="keyPatchDate" data-i18n="statusDetails.lastPatch">Last Patch</span>
-               <span class="version-val" id="valPatchDate">--</span>
+      <div class="content">
+         <!-- ── Verdict ── -->
+         <div class="hero status-card fade-in" id="hero">
+            <div class="hero-ico" id="statusIcon"></div>
+            <div class="hero-text">
+               <div class="hero-status" id="statusText">Checking</div>
+               <div class="hero-desc" id="statusDescription">loading status</div>
             </div>
          </div>
 
-         <!-- Status Checks -->
-         <div class="info-section fade-in delay-3" id="sectionChecks">
+         <!-- ── Version info ── -->
+         <div class="fade-in delay-1">
+            <div class="section-label" data-i18n="statusDetails.versionInfo">Version Info</div>
+            <div class="info-section" id="sectionVersion">
+               <div class="kv">
+                  <span class="kv-key" data-i18n="statusDetails.dota">Dota</span>
+                  <span class="kv-val highlight" id="valDotaVersion">--</span>
+               </div>
+               <div class="kv">
+                  <span class="kv-key" data-i18n="statusDetails.build">Build</span>
+                  <span class="kv-val" id="valBuildNumber">--</span>
+               </div>
+               <div class="kv">
+                  <span class="kv-key" data-i18n="statusDetails.patched">Patched</span>
+                  <span class="kv-val" id="valPatchedVersion">--</span>
+               </div>
+               <div class="kv">
+                  <span class="kv-key" id="keyPatchDate" data-i18n="statusDetails.lastPatch">Last Patch</span>
+                  <span class="kv-val" id="valPatchDate">--</span>
+               </div>
+            </div>
+         </div>
+
+         <!-- ── Diagnostics: three measurements, then the conclusion they add up to ── -->
+         <div class="fade-in delay-2">
             <div class="section-label" data-i18n="statusDetails.diagnostics">Diagnostics</div>
-
-            <div class="check-row">
-               <div class="check-dot gray" id="dotDigest"></div>
-               <span class="check-label" data-i18n="statusDetails.gamePatch">Game Patch</span>
-               <span class="check-status none" id="labelDigest">--</span>
-            </div>
-
-            <div class="check-row">
-               <div class="check-dot gray" id="dotGameInfo"></div>
-               <span class="check-label" data-i18n="statusDetails.modIntegration">Mod Integration</span>
-               <span class="check-status none" id="labelGameInfo">--</span>
-            </div>
-
-            <div class="check-row">
-               <div class="check-dot gray" id="dotAdmin"></div>
-               <span class="check-label" data-i18n="statusDetails.runAsAdmin">Run as Administrator</span>
-               <span class="check-status none" id="labelAdmin">--</span>
-            </div>
-
-            <div class="check-row">
-               <div class="check-dot gray" id="dotOverall"></div>
-               <span class="check-label" data-i18n="statusDetails.overallStatus">Overall Status</span>
-               <span class="check-status none" id="labelOverall">--</span>
+            <div class="info-section" id="sectionChecks">
+               <div class="check-row">
+                  <div class="check-dot gray" id="dotDigest"></div>
+                  <span class="check-label" data-i18n="statusDetails.gamePatch">Patch Integrity</span>
+                  <span class="check-status none" id="labelDigest">--</span>
+               </div>
+               <div class="check-row">
+                  <div class="check-dot gray" id="dotGameInfo"></div>
+                  <span class="check-label" data-i18n="statusDetails.modIntegration">Search Paths</span>
+                  <span class="check-status none" id="labelGameInfo">--</span>
+               </div>
+               <div class="check-row">
+                  <div class="check-dot gray" id="dotAdmin"></div>
+                  <span class="check-label" data-i18n="statusDetails.runAsAdmin">Process Elevation</span>
+                  <span class="check-status none" id="labelAdmin">--</span>
+               </div>
+               <div class="check-row summary">
+                  <div class="check-dot gray" id="dotOverall"></div>
+                  <span class="check-label" data-i18n="statusDetails.overallStatus">Overall Status</span>
+                  <span class="check-status none" id="labelOverall">--</span>
+               </div>
             </div>
          </div>
 
          <!-- Plain-language reason for a failed setup check (hidden when everything passes) -->
-         <div class="error-block fade-in delay-3 hidden" id="verifyDetail"></div>
-
-         <!-- Error Block (hidden by default) -->
-         <div class="error-block fade-in delay-3 hidden" id="errorBlock"></div>
-
-         <!-- Buttons -->
-         <div class="btn-container fade-in delay-4">
-            <button class="btn btn-primary hidden" id="patchBtn" onclick="patchNow()" data-i18n="statusDetails.applyPatches">
-               Apply Patches
-            </button>
-            <button class="btn" onclick="closeDialog()" data-i18n="common.close">Close</button>
+         <div class="note warn fade-in delay-3 hidden" id="verifyDetail">
+            <span class="note-label" data-i18n="common.warning">Warning</span>
+            <span class="note-text" id="verifyDetailText"></span>
          </div>
+
+         <!-- Raw diagnostic (hashes / registry entry) — the line support actually needs -->
+         <div class="note bad fade-in delay-3 hidden" id="errorBlock">
+            <span class="note-label" data-i18n="common.error">Error</span>
+            <span class="note-text" id="errorBlockText"></span>
+         </div>
+      </div>
+
+      <div class="footer">
+         <button class="btn btn-primary hidden" id="patchBtn" onclick="patchNow()" data-i18n="statusDetails.applyPatches">
+            Apply Patches
+         </button>
+         <button class="btn" onclick="closeDialog()" data-i18n="common.close">Close</button>
       </div>
 
       <script>
          /* ── SVG Icons (no emoji) ── */
          const ICONS = {
-            ready: '<svg viewBox="0 0 24 24" fill="none" stroke="#66dd66" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+            ready: '<svg viewBox="0 0 24 24" fill="none" stroke="#50c878" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
             needUpdate:
-               '<svg viewBox="0 0 24 24" fill="none" stroke="#ffb464" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+               '<svg viewBox="0 0 24 24" fill="none" stroke="#f5c451" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
             disabled:
                '<svg viewBox="0 0 24 24" fill="none" stroke="#6699ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
-            error: '<svg viewBox="0 0 24 24" fill="none" stroke="#ff6464" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+            error: '<svg viewBox="0 0 24 24" fill="none" stroke="#ff5050" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
             notInstalled:
                '<svg viewBox="0 0 24 24" fill="none" stroke="#555555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
          };
@@ -503,13 +614,12 @@
          function populate(data) {
             // ── Status header ──
             const status = data.status || "NotInstalled";
-            const iconEl = document.getElementById("statusIcon");
-            const statusEl = document.getElementById("statusText");
-            const descEl = document.getElementById("statusDescription");
+            const iconKey = mapStatusToIcon(status);
 
-            statusEl.textContent = data.statusText || "Unknown";
-            descEl.textContent = data.description || "status unknown";
-            iconEl.innerHTML = ICONS[mapStatusToIcon(status)] || ICONS.notInstalled;
+            document.getElementById("hero").className = "hero status-card fade-in " + iconKey;
+            document.getElementById("statusIcon").innerHTML = ICONS[iconKey] || ICONS.notInstalled;
+            document.getElementById("statusText").textContent = data.statusText || "Unknown";
+            document.getElementById("statusDescription").textContent = data.description || "status unknown";
 
             // ── Patch button visibility ──
             const patchBtn = document.getElementById("patchBtn");
@@ -527,7 +637,7 @@
             setVal("valPatchDate", data.patchDate || "Never");
 
             // ── Diagnostics ──
-            // These three now come from the setup verification sweep — the same conditions Dota 2
+            // These three come from the setup verification sweep — the same conditions Dota 2
             // checks at launch — instead of being inferred from the overall status. null still means
             // "not determined" and renders gray.
             setCheck("dotDigest", "labelDigest", data.digestOk);
@@ -538,42 +648,22 @@
             setCheck("dotAdmin", "labelAdmin", data.adminOk);
             const adminLabel = document.getElementById("labelAdmin");
             if (adminLabel && data.adminStateText) {
-               adminLabel.textContent = data.adminStateText;   // short word; the row is 9px
-               adminLabel.title = data.adminNote || "";        // full sentence on hover
-               adminLabel.classList.remove("pass", "fail", "none");
-               adminLabel.classList.add("warn");               // existing theme-managed amber
+               adminLabel.textContent = data.adminStateText; // short word; the row is 9px
+               adminLabel.title = data.adminNote || ""; // full sentence on hover
+               adminLabel.className = "check-status warn";
+               document.getElementById("dotAdmin").className = "check-dot orange";
             }
             // Overall is an AND over the checks that actually reported: a gray (null) check must not
             // drag the summary to red, only a real false does.
             const decided = [data.digestOk, data.gameInfoOk, data.adminOk].filter((v) => v !== null && v !== undefined);
-            setCheck(
-               "dotOverall",
-               "labelOverall",
-               decided.length === 0 ? null : decided.every((v) => v === true)
-            );
+            setCheck("dotOverall", "labelOverall", decided.length === 0 ? null : decided.every((v) => v === true));
 
             // Explanation for whichever check failed (already translated by C#).
-            const verifyDetail = document.getElementById("verifyDetail");
-            if (verifyDetail) {
-               if (data.verifyDetail) {
-                  verifyDetail.textContent = data.verifyDetail;
-                  verifyDetail.classList.remove("hidden");
-               } else {
-                  verifyDetail.classList.add("hidden");
-               }
-            }
-
-            // ── Error block ──
-            const errorBlock = document.getElementById("errorBlock");
-            if (data.errorMessage) {
-               errorBlock.textContent = data.errorMessage;
-               errorBlock.classList.remove("hidden");
-            } else {
-               errorBlock.classList.add("hidden");
-            }
+            setNote("verifyDetail", "verifyDetailText", data.verifyDetail);
+            setNote("errorBlock", "errorBlockText", data.errorMessage);
          }
 
-         /** Map status enum string to icon key */
+         /** Map status enum string to icon key (also the hero's accent class) */
          function mapStatusToIcon(status) {
             switch (status) {
                case "Ready":
@@ -584,14 +674,12 @@
                   return "disabled";
                case "Error":
                   return "error";
-               case "NotInstalled":
-                  return "notInstalled";
                default:
                   return "notInstalled";
             }
          }
 
-         /** Helper: set a version-val element */
+         /** Helper: set a version value cell */
          function setVal(id, value, isHighlight, isMismatch) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -621,6 +709,20 @@
             }
          }
 
+         /** Helper: fill a note block, or hide it when there is nothing to say. The text is clamped
+          *  to 3 lines in CSS, so the full string is mirrored into the tooltip. */
+         function setNote(blockId, textId, text) {
+            const block = document.getElementById(blockId);
+            if (!block) return;
+            if (text) {
+               document.getElementById(textId).textContent = text;
+               block.title = text;
+               block.classList.remove("hidden");
+            } else {
+               block.classList.add("hidden");
+            }
+         }
+
          /* ── Actions ── */
          function patchNow() {
             sendMessage({ type: "patchNow" });
@@ -628,7 +730,9 @@
          function closeDialog() {
             sendMessage({ type: "close" });
          }
-         function startDrag() {
+         function startDrag(e) {
+            // Only the bar itself drags — the close button must stay clickable.
+            if (e && e.target.closest(".tb-close")) return;
             sendMessage({ type: "startDrag" });
          }
 
