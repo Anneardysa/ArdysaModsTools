@@ -949,7 +949,7 @@
             overflow-y: auto;
          }
          .sm-cart {
-            flex: 0 0 248px;
+            flex: 0 0 232px;
             display: flex;
             flex-direction: column;
             min-height: 0;
@@ -983,16 +983,20 @@
             min-width: 22px;
             text-align: center;
          }
+         /* Thumbnails only — the tray answers "what have I picked", not "what is it called".
+            Names/slots live on the tile's own tooltip so the rail stays pure art. */
          .sm-cart-list {
             flex: 1;
             min-height: 0;
             overflow-y: auto;
             padding: var(--sp-3);
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--sp-2);
+            align-content: start;
          }
          .sm-cart-empty {
+            grid-column: 1 / -1;
             margin: auto 0;
             padding: var(--sp-4) var(--sp-2);
             text-align: center;
@@ -1000,58 +1004,55 @@
             line-height: 1.6;
             color: var(--mute);
          }
-         .cart-row {
-            display: flex;
-            align-items: center;
-            gap: var(--sp-2);
-            padding: 6px;
-            background: var(--panel-2);
-            border: 1px solid var(--hairline);
-            animation: cartIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-         }
-         @keyframes cartIn {
-            from { opacity: 0; transform: translateX(10px); }
-            to { opacity: 1; transform: translateX(0); }
-         }
-         .cart-row-thumb {
-            width: 34px;
-            height: 34px;
-            flex-shrink: 0;
-            object-fit: cover;
+         .cart-chip {
+            position: relative;
+            aspect-ratio: 1;
+            overflow: hidden;
             background: var(--panel);
             border: 1px solid var(--hairline-strong);
+            cursor: pointer;
+            animation: cartIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: var(--transition);
          }
-         .cart-row-info { flex: 1; min-width: 0; }
-         .cart-row-name {
-            font-size: var(--fs-overline);
-            font-weight: 600;
-            color: var(--ink);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+         @keyframes cartIn {
+            from { opacity: 0; transform: scale(0.94); }
+            to { opacity: 1; transform: scale(1); }
          }
-         .cart-row-kind {
-            margin-top: 2px;
-            font-size: 9px;
-            letter-spacing: 0.6px;
-            text-transform: uppercase;
-            color: var(--mute);
+         .cart-chip img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: top;
          }
-         .cart-row-x {
-            flex-shrink: 0;
-            width: 20px;
-            height: 20px;
+         /* Remove affordance: the whole chip is the target, revealed on hover/focus so the
+            resting state is nothing but artwork. */
+         .cart-chip::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.62);
+            opacity: 0;
+            transition: var(--transition);
+         }
+         .cart-chip-x {
+            position: absolute;
+            inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
             background: none;
-            border: 1px solid transparent;
-            color: var(--mute);
+            border: 0;
+            color: var(--ink);
+            opacity: 0;
             cursor: pointer;
+            z-index: 2;
             transition: var(--transition);
          }
-         .cart-row-x svg { width: 11px; height: 11px; }
-         .cart-row-x:hover { color: var(--ink); border-color: var(--hairline-strong); }
+         .cart-chip-x svg { width: 16px; height: 16px; }
+         .cart-chip:hover { border-color: var(--primary); }
+         .cart-chip:hover::after,
+         .cart-chip:hover .cart-chip-x,
+         .cart-chip-x:focus-visible { opacity: 1; }
          .sm-foot {
             display: flex;
             align-items: center;
@@ -2974,17 +2975,19 @@
                return;
             }
 
+            // Thumbnail-only chips. The name and slot ride along as the chip's tooltip, so the rail
+            // shows art at rest and the label is there for anyone who needs to disambiguate. The
+            // remove button carries no title of its own — it covers the whole chip, and a title
+            // there would mask the name on every hover.
+            const removeLabel = window.t ? window.t("heroGallery.cartRemove") : "Remove from selection";
             list.innerHTML = rows
                .map(
                   (r) => `
-               <div class="cart-row">
-                  <img class="cart-row-thumb" src="${escapeAttr(r.thumb)}" alt=""
+               <div class="cart-chip" title="${escapeAttr(r.name)} · ${escapeAttr(r.kind)}">
+                  <img src="${escapeAttr(r.thumb)}" alt="${escapeAttr(r.name)}"
                        onerror="this.style.visibility='hidden'" />
-                  <div class="cart-row-info">
-                     <div class="cart-row-name" title="${escapeAttr(r.name)}">${escapeAttr(r.name)}</div>
-                     <div class="cart-row-kind">${escapeAttr(r.kind)}</div>
-                  </div>
-                  <button class="cart-row-x" onclick="${r.onRemove}" title="Remove" data-i18n-title="heroGallery.cartRemove">
+                  <button class="cart-chip-x" onclick="${r.onRemove}"
+                          aria-label="${escapeAttr(removeLabel)} — ${escapeAttr(r.name)}">
                      <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                      </svg>
@@ -3010,7 +3013,7 @@
          function fitPanelToCatalog(setsGrid) {
             const panel = setsGrid.closest(".sm-panel");
             if (!panel) return;
-            const TILE = 133, GAP = 12, CHROME = 42, TRAY = 249; // tile, gap, panel padding+borders, tray
+            const TILE = 133, GAP = 12, CHROME = 42, TRAY = 233; // tile, gap, panel padding+borders, tray
             const counts = [...setsGrid.querySelectorAll(".set-category-grid")].map((g) => g.children.length);
             const cols = Math.min(5, Math.max(3, ...counts, 3));
             panel.style.maxWidth = cols * TILE + (cols - 1) * GAP + CHROME + TRAY + "px";
