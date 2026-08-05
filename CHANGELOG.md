@@ -9,10 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.20-beta] (Builds 2277–2287)
+## [2.2.20-beta] (Builds 2277–2294)
 
 ### Changed
 
+- **The Skin Selector opens wider and its grid gets denser, not chunkier** (2290): the window went
+  from 1200×800 to 1440×900, and the hero track from 118px to 112px, so extra width buys columns
+  instead of inflating each card — 8 columns became 11 at a stable ~116px card, which puts the whole
+  roster on screen without scrolling. Safe on small panels: `DpiLayout.AttachClamp` still shrinks the
+  window to the monitor's working area and the page layout is fluid; verified down to the 800×600
+  `MinimumSize` floor.
+- **The Skin Selector header now reads as a hierarchy** (2290): the selection count moved out of the
+  middle of the bar to sit directly beside **Generate ModsPack** — it is the number that action acts
+  on — behind a hairline divider that separates it and Clear All from the Save/Load preset controls.
+  The announcement marquee dropped from a solid amber block with a glow to an 8% wash with amber ink:
+  it is a permanent passive disclaimer and was the loudest element on the page, outranking both the
+  title and the primary action. `theme.css` carries the light-mode counterpart, without which the
+  demoted marquee would be amber on near-white.
+- **The set modal is a catalog sized to its contents** (2290, 2291): tiles hold a uniform ~133px
+  (`auto-fill` + `1fr`) whether a hero ships 2 sets or 20, and the panel width is computed from the
+  widest rendered section rather than fixed — a 4-set hero no longer gets the same 900px dialog as a
+  20-set one. The style preview modal shares the same track so variants read at the same scale.
+- **The generation confirm dialog shows the run instead of a slice of it** (2290): 480×520 with 80px
+  single-column rows showed four of nine selections before scrolling. Two columns of compact rows at
+  660×560 show all nine, and roughly fourteen at a time on a 50-hero run.
+- **Process Elevation states its finding instead of prompting a click** (2288): the three status
+  lines ended in "Click for…", which reads as an instruction on a row that is already the fix. They
+  now say what was found, across all 8 locales.
 - **A launch on a new version clears the cache before anything loads** (2287): now that installer
   builds update themselves (2284), a new binary could start on top of assets the old one had cached,
   which is the shape of every "updated and it still misbehaves" report. `Program.Main` compares
@@ -55,9 +78,35 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 
 ### Added
 
+- **The set modal carries a per-hero selection tray** (2291, 2292, 2293): a rail down the right of
+  the catalog showing every asset picked for the open hero — set or persona, items, base, prismatic —
+  in the order the generator layers them. It holds no state of its own: rows are derived from the
+  existing `{ set, items[], base, prismatic }` selection, and removal calls the same idempotent
+  toggles the tiles call, so the exclusivity rules (a persona clears items, dropping a base drops its
+  prismatic) apply identically from either side. Thumbnails only, one 1:1 square per row; the name
+  and slot ride along as the tooltip. The square is held by `flex: 0 0 auto` on a column flex — as a
+  grid item the row sized shorter than the tile and the squares collapsed.
 - **Bug reports are intake-first on the public mirror** (2282, 2283): issue forms with lifecycle
   automation. `render` was dropped from the log fields, which was preventing users from attaching a
   log file at all.
+
+### Fixed
+
+- **The Copy buttons on the generation log copied nothing** (2290): both log modals called
+  `navigator.clipboard.writeText` inside an empty `catch`. These pages are loaded with
+  `NavigateToString`, so they run at `about:blank` with `isSecureContext` false and
+  `navigator.clipboard` undefined — every click threw and was swallowed. They now post `copyConsole`
+  to the host, which owns the clipboard (the handler already existed in `MiscFormWebView` and was
+  dead code; `HeroGalleryForm` needed the case). The button flashes "Copied" for 1.2s, because a
+  silent success reads exactly like the broken state it replaced. The Miscellaneous log also lost its
+  line breaks — `innerText` collapses to `textContent` when the modal is not laid out — so it now
+  maps `.log-line` nodes like the shell does.
+
+### Removed
+
+- **The session console no longer mirrors "Dota 2 is still running"** (2289): the warning line read
+  as an error to users who had simply left the game open. The banner and the tray notification
+  already carry the state, and the disabled buttons are self-evident.
 
 ## [2.2.19-beta] (Builds 2253–2275)
 
