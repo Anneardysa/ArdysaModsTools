@@ -445,7 +445,7 @@
             display: flex;
             align-items: center;
             gap: 6px;
-            padding: 7px var(--sp-3) 6px;
+            padding: 5px var(--sp-3);
             font-size: 9px;
             font-weight: 600;
             letter-spacing: 0.1em;
@@ -465,7 +465,7 @@
             align-items: center;
             gap: 8px;
             width: 100%;
-            padding: 6px var(--sp-3);
+            padding: 5px var(--sp-3);
             font-family: inherit;
             font-size: 11px;
             font-weight: 500;
@@ -482,60 +482,19 @@
          }
          .verify-item .vlabel {
             flex: 1;
+            min-width: 0;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
          }
-         .verify-item .vstate {
-            font-size: 9px;
-            font-weight: 600;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            white-space: nowrap;
-            color: var(--mute);
-         }
-         .vdot {
-            width: 7px;
-            height: 7px;
-            border-radius: 50%;
-            flex-shrink: 0;
-            background: var(--mute);
-         }
-         .verify-head .vdot {
-            width: 6px;
-            height: 6px;
-         }
-         /* The panel-level classes colour ONLY the header pip. Written as a child selector on
-            purpose: as a plain descendant (.verify-panel.fail .vdot) they would repaint every row's
-            dot, so a passing row inside a failing panel would read red. */
-         .verify-panel.pass > .verify-head .vdot,
-         .verify-item.pass .vdot {
-            background: var(--verify-ok);
-         }
-         .verify-panel.fail > .verify-head .vdot,
-         .verify-item.fail .vdot {
-            background: var(--verify-bad);
-         }
-         .verify-item.pass .vstate {
-            color: var(--verify-ok);
-         }
-         .verify-item.fail .vlabel,
-         .verify-item.fail .vstate {
-            color: var(--verify-bad);
-         }
-         /* Advisory: amber, and the label stays in normal ink — it is not an error, so it must not
-            shout like one. A failing panel's header pip still wins, since a real Fail outranks it. */
-         .verify-item.advisory .vdot,
-         .verify-item.advisory .vstate {
-            color: var(--verify-warn);
-            background: var(--verify-warn);
-         }
-         .verify-item.advisory .vstate {
-            background: none;
-         }
-         /* Amber header pip when nothing failed but something is worth reading. */
-         .verify-panel.advisory > .verify-head .vdot {
-            background: var(--verify-warn);
+         /* The verdict is the SAME chip component as the status badge below (.status-badge.sb-sm):
+            one icon + one word, tinted per state. It replaced a dot + a bare caps word, so a row's
+            verdict now reads exactly like the pill's — and a verdict that changes between sweeps
+            rolls over instead of silently substituting itself. The row label stays in normal ink
+            even on a failure: two red things in one row is shouting, and the chip already says it.
+            Colour is still never the only signal — the word rides inside the chip. */
+         .verify-head .status-badge {
+            padding: 0 4px;
          }
          /* ── process elevation modal ── */
          /* Amber only when something WAS found. Opened on a clean machine this dialog is a
@@ -622,32 +581,222 @@
          .status-card {
             display: flex;
             align-items: center;
-            gap: var(--sp-2);
-            padding: 9px var(--sp-3);
+            gap: var(--sp-1);
+            padding: 6px;
             background: var(--panel-2);
             border: 1px solid var(--hairline);
             border-radius: var(--r-sm);
          }
-         .status-dot {
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            background: var(--mute);
-            flex-shrink: 0;
-            box-shadow: 0 0 8px transparent;
-            transition:
-               background 0.2s,
-               box-shadow 0.2s;
-         }
-         .status-text {
-            font-size: 12px;
+
+         /* ── status badge ──────────────────────────────────────────────────────────────
+            The mod-status verdict as one chip. Icon and label sit in clipping slots and ROLL
+            over on every change (blur through the swap), so a transition is felt rather than
+            silently substituted — the old dot changed colour with nothing to notice.
+
+            The tint reads from the SAME --verify-* tokens the check rows use, so the chip and
+            the rows below it can never disagree, and theme.css's light-mode darkening of those
+            tokens applies here for free. The icon carries the verdict too: never colour alone.
+            --sb-ink/line/fill are the per-kind knobs; [data-kind] is pushed from C# off the
+            culture-invariant enum. */
+         .status-badge {
+            /* neutral is also the fallback: an unrecognised kind renders as a plain chip
+               rather than an unstyled one. */
+            --sb-ink: var(--body);
+            --sb-line: var(--hairline-strong);
+            --sb-fill: transparent;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            height: 26px;
+            padding: 0 9px;
+            overflow: hidden;
+            font-size: 11px;
             font-weight: 500;
-            color: var(--body);
+            letter-spacing: 0.04em;
+            color: var(--sb-ink);
+            background: var(--sb-fill);
+            border: 1px solid var(--sb-line);
+            border-radius: var(--r-sm);
+            transition:
+               color 0.3s ease,
+               background-color 0.3s ease,
+               border-color 0.3s ease;
+         }
+         /* The footer chip is the only one that stretches; the verdict chips in the verification
+            rows above size to their content. */
+         .status-card > .status-badge {
+            flex: 1;
+            min-width: 0;
+         }
+         /* Compact modifier: same component, row-sized, verdict word in the panel's small caps. */
+         .status-badge.sb-sm {
+            gap: 5px;
+            height: 20px;
+            padding: 0 6px;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+         }
+         .status-badge.sb-sm .sb-icon,
+         .status-badge.sb-sm .sb-icon svg {
+            width: 11px;
+            height: 11px;
+         }
+         .status-badge[data-kind="info"],
+         .status-badge[data-kind="loading"] {
+            --sb-ink: var(--ink);
+            --sb-fill: var(--wash);
+         }
+         .status-badge[data-kind="success"] {
+            --sb-ink: var(--verify-ok);
+         }
+         .status-badge[data-kind="warning"] {
+            --sb-ink: var(--verify-warn);
+         }
+         .status-badge[data-kind="danger"] {
+            --sb-ink: var(--verify-bad);
+         }
+         .status-badge[data-kind="success"],
+         .status-badge[data-kind="warning"],
+         .status-badge[data-kind="danger"] {
+            --sb-line: color-mix(in srgb, var(--sb-ink) 42%, transparent);
+            --sb-fill: color-mix(in srgb, var(--sb-ink) 10%, transparent);
+         }
+
+         /* Breathing wash while a check is in flight — behind the content, tinted by
+            currentColor so it follows the kind without a second token. */
+         .sb-pulse {
+            position: absolute;
+            inset: 0;
+            background: currentColor;
+            opacity: 0;
+            pointer-events: none;
+         }
+         .status-badge[data-kind="loading"] .sb-pulse {
+            animation: sb-pulse 1.6s cubic-bezier(0.77, 0, 0.175, 1) infinite;
+         }
+         .status-badge[data-kind="loading"] .sb-icon svg {
+            animation: spin 1s linear infinite;
+         }
+
+         /* Roll slots. The EXITING node is pulled out of flow (absolute) so the outgoing and
+            incoming content never sit side by side mid-swap. */
+         .sb-roll {
+            position: relative;
+            display: flex;
+            overflow: hidden;
+         }
+         .sb-roll > * {
+            display: block;
+         }
+         .sb-icon,
+         .sb-icon svg {
+            width: 14px;
+            height: 14px;
+            flex: none;
+         }
+         .sb-label {
+            flex: 1;
+            min-width: 0;
+         }
+         .sb-label > span {
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            flex: 1;
          }
+         /* will-change lives on the animating classes only, and sbSwap drops .sb-in when the roll
+            finishes — otherwise every settled chip would hold a compositing layer for the life of
+            the window, and there are up to four of them on screen. */
+         .sb-in,
+         .sb-out {
+            will-change: transform, filter;
+         }
+         .sb-in {
+            animation: sb-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+         }
+         .sb-out {
+            position: absolute;
+            inset: 0;
+            animation: sb-out 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+         }
+         .sb-icon .sb-in {
+            animation-name: sb-icon-in;
+         }
+         .sb-icon .sb-out {
+            animation-name: sb-icon-out;
+         }
+         @keyframes sb-in {
+            from {
+               opacity: 0.72;
+               transform: translateY(85%);
+               filter: blur(6px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0);
+               filter: blur(0);
+            }
+         }
+         @keyframes sb-out {
+            from {
+               opacity: 0.5;
+               transform: translateY(0);
+               filter: blur(0);
+            }
+            to {
+               opacity: 0;
+               transform: translateY(-85%);
+               filter: blur(6px);
+            }
+         }
+         @keyframes sb-icon-in {
+            from {
+               opacity: 0.72;
+               transform: translateY(80%) scale(0.92) rotate(-8deg);
+               filter: blur(6px);
+            }
+            to {
+               opacity: 1;
+               transform: translateY(0) scale(1) rotate(0deg);
+               filter: blur(0);
+            }
+         }
+         @keyframes sb-icon-out {
+            from {
+               opacity: 0.5;
+               transform: translateY(0) scale(1) rotate(0deg);
+               filter: blur(0);
+            }
+            to {
+               opacity: 0;
+               transform: translateY(-80%) scale(0.96) rotate(8deg);
+               filter: blur(6px);
+            }
+         }
+         /* Deliberately shallow: the wash underneath is already 5-6% ink, and a peak much past
+            this turned the chip into a solid grey block in BOTH themes rather than a breath. */
+         @keyframes sb-pulse {
+            0%,
+            100% {
+               opacity: 0.03;
+               transform: scale(0.96);
+            }
+            50% {
+               opacity: 0.09;
+               transform: scale(1.04);
+            }
+         }
+         /* The roll itself is skipped in JS (the swap becomes instant); this covers the two
+            looping decorations, which no script gates. */
+         @media (prefers-reduced-motion: reduce) {
+            .status-badge .sb-pulse,
+            .status-badge .sb-icon svg {
+               animation: none;
+            }
+         }
+
          .status-refresh {
             -webkit-app-region: no-drag;
             width: 22px;
@@ -667,9 +816,8 @@
             color: var(--ink);
             background: var(--panel-hover);
          }
-         .status-refresh.spin svg {
-            animation: spin 0.8s linear infinite;
-         }
+         /* No spinner on the refresh button any more — the badge itself reports "checking",
+            and two spinners 8px apart read as two separate operations. */
          @keyframes spin {
             to {
                transform: rotate(360deg);
@@ -2456,8 +2604,26 @@
             <div id="verify-panel" class="verify-panel"></div>
 
             <div class="status-card">
-               <span id="status-dot" class="status-dot"></span>
-               <span id="status-text" class="status-text" data-i18n="shell.status.notChecked">Not Checked</span>
+               <!-- Icon and label are swapped by renderStatus(); the seeded neutral icon keeps the
+                    chip balanced before the first sweep, and data-key stops it re-animating. -->
+               <span id="status-badge" class="status-badge" data-kind="neutral" role="status" aria-live="polite">
+                  <span class="sb-pulse" aria-hidden="true"></span>
+                  <span id="status-icon" class="sb-roll sb-icon" data-key="neutral" aria-hidden="true">
+                     <span>
+                        <svg
+                           viewBox="0 0 24 24"
+                           fill="none"
+                           stroke="currentColor"
+                           stroke-width="2"
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                        >
+                           <circle cx="12" cy="12" r="9" />
+                        </svg>
+                     </span>
+                  </span>
+                  <span id="status-label" class="sb-roll sb-label" data-i18n="shell.status.notChecked">Not Checked</span>
+               </span>
                <button
                   id="status-refresh"
                   class="status-refresh"
@@ -2985,48 +3151,140 @@
             }
          }
 
+         /* ── status badge ──────────────────────────────────────────────────────────────────
+            The status chip: two slots (icon, label) whose contents roll over on every change.
+            Each swap animates the incoming node in and the outgoing one out — the outgoing node
+            is dropped on animationend, so nothing accumulates however often status is pushed.
+            Under prefers-reduced-motion the swap is instant instead (the exiting node is removed
+            immediately, since no animationend would ever fire to clean it up).
+
+            Lucide glyph paths, inlined: this shell has no runtime CDN dependency and must render
+            offline (see the bundled-assets test). */
+         const SB_ICONS = {
+            neutral: '<circle cx="12" cy="12" r="9" />',
+            info: '<circle cx="12" cy="12" r="9" /><path d="M12 16v-4" /><path d="M12 8h.01" />',
+            success: '<path d="M20 6 9 17l-5-5" />',
+            warning:
+               '<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3" /><path d="M12 9v4" /><path d="M12 17h.01" />',
+            danger: '<path d="M18 6 6 18" /><path d="m6 6 12 12" />',
+            loading: '<path d="M21 12a9 9 0 1 1-6.2-8.6" />'
+         };
+         const SB_REDUCE =
+            !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+         function sbSwap(slot, node, key) {
+            // Guarded on an ELEMENT child, not the key alone: the seeded markup is a bare text
+            // node, so the very first push must always replace it and claim the slot.
+            const prev = slot.lastElementChild;
+            if (prev && slot.dataset.key === key) return;
+            slot.dataset.key = key;
+
+            if (!prev) {
+               slot.textContent = "";
+            } else if (SB_REDUCE) {
+               prev.remove();
+            } else {
+               prev.classList.remove("sb-in");
+               prev.classList.add("sb-out");
+               prev.addEventListener("animationend", () => prev.remove(), { once: true });
+            }
+
+            if (!SB_REDUCE) {
+               node.classList.add("sb-in");
+               node.addEventListener("animationend", () => node.classList.remove("sb-in"), { once: true });
+            }
+            slot.appendChild(node);
+         }
+
+         function sbNode(html, text) {
+            const span = document.createElement("span");
+            // Icons are literals from SB_ICONS above; the label is host/user-influenced text and
+            // therefore only ever goes in via textContent.
+            if (html) span.innerHTML = html;
+            else span.textContent = text;
+            return span;
+         }
+
+         /* Paints any badge: the footer status chip and the verification rows' verdict chips are
+            the same component. Pass text = null for an icon-only chip (the panel header's summary).
+            A badge with no label slot simply skips that swap. */
+         function paintBadge(badge, kind, text, tooltip) {
+            if (!badge) return;
+            badge.dataset.kind = kind;
+            if (tooltip != null) badge.title = tooltip;
+            sbSwap(
+               badge.querySelector(".sb-icon"),
+               sbNode(
+                  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
+                     'stroke-linecap="round" stroke-linejoin="round">' +
+                     (SB_ICONS[kind] || SB_ICONS.neutral) +
+                     "</svg>"
+               ),
+               kind
+            );
+            const label = badge.querySelector(".sb-label");
+            if (label && text != null) sbSwap(label, sbNode(null, text), text);
+         }
+
+         /* Badge skeleton for the chips this script creates (the seeded footer one is in markup). */
+         function sbCreate(withLabel, extraClass) {
+            const badge = document.createElement("span");
+            badge.className = "status-badge sb-sm" + (extraClass ? " " + extraClass : "");
+            badge.dataset.kind = "neutral";
+            const pulse = document.createElement("span");
+            pulse.className = "sb-pulse";
+            pulse.setAttribute("aria-hidden", "true");
+            const icon = document.createElement("span");
+            icon.className = "sb-roll sb-icon";
+            icon.setAttribute("aria-hidden", "true");
+            badge.appendChild(pulse);
+            badge.appendChild(icon);
+            if (withLabel) {
+               const label = document.createElement("span");
+               label.className = "sb-roll sb-label";
+               badge.appendChild(label);
+            }
+            return badge;
+         }
+
+         function renderStatus(kind, text, tooltip) {
+            // Claimed before the swap so a language switch can no longer stomp the pushed value.
+            claimFromI18n(document.getElementById("status-label"));
+            paintBadge(document.getElementById("status-badge"), kind, text, tooltip || "");
+         }
+
          function setStatus(payload) {
             const p = typeof payload === "string" ? JSON.parse(payload) : payload;
-            const dot = document.getElementById("status-dot");
-            const text = claimFromI18n(document.getElementById("status-text"));
-            const refresh = document.getElementById("status-refresh");
-            refresh.classList.remove("spin");
-            dot.style.background = p.color;
-            dot.style.boxShadow = "0 0 8px " + p.color;
-            text.textContent = p.text || "";
-            text.style.color = p.color;
-            text.title = p.tooltip || "";
-            dot.title = p.tooltip || "";
+            renderStatus(p.kind || "neutral", p.text || "", p.tooltip);
          }
 
          function showChecking() {
-            const dot = document.getElementById("status-dot");
-            const text = claimFromI18n(document.getElementById("status-text"));
-            const refresh = document.getElementById("status-refresh");
-            dot.style.background = "var(--primary)";
-            dot.style.boxShadow = "0 0 8px var(--primary)";
-            text.textContent = window.t ? window.t("status.checking.text") : "Checking…";
-            text.style.color = "var(--primary)";
             // The previous status' tooltip must not linger over "Checking…".
-            text.title = "";
-            dot.title = "";
-            refresh.classList.add("spin");
+            renderStatus("loading", window.t ? window.t("status.checking.text") : "Checking…", "");
          }
 
          // Setup verification panel. Every string arrives already translated from C# (same Loc
          // catalog as the rest of the app), so this only builds nodes — textContent, never innerHTML,
          // because the detail carries user-influenced text like registry paths and file names.
          // Re-pushed by C# on a language change, so the panel never lags the rest of the UI.
+         //
+         // Rows are repainted IN PLACE and rebuilt only when the set of checks changes. That is what
+         // keeps the verdict chips honest: sbSwap animates a verdict that actually changed between
+         // sweeps and leaves an unchanged one alone, where a wholesale innerHTML rebuild would make
+         // the whole panel re-animate on every routine re-check.
+         const VERIFY_KIND = { pass: "success", fail: "danger", advisory: "warning" };
+
          function setSetupChecks(payload) {
             const p = typeof payload === "string" ? JSON.parse(payload) : payload;
             const panel = document.getElementById("verify-panel");
             if (!panel) return;
 
-            panel.innerHTML = "";
             const checks = (p && p.checks) || [];
 
             if (checks.length === 0) {
-               panel.classList.remove("show", "pass", "fail", "advisory");
+               panel.innerHTML = "";
+               panel.dataset.rows = "";
+               panel.classList.remove("show");
                // Nothing to verify any more (folder detached, install removed). Drop the cache so an
                // open modal falls back to its static explanation instead of sitting on "Checking…".
                _elevationDetail = "";
@@ -3045,22 +3303,44 @@
             _elevationDetail = elevation.detail || "";
             _elevationFound = !!elevation.detected;
 
-            // Header: title on the left, summary pip on the right. The pip is the panel's own
-            // verdict, so the group reads at a glance before any individual row is scanned.
-            const head = document.createElement("div");
-            head.className = "verify-head";
-            const headLabel = document.createElement("span");
-            headLabel.className = "vhead-label";
-            headLabel.textContent = p.title || "Setup Verification";
-            const headDot = document.createElement("span");
-            headDot.className = "vdot";
-            head.appendChild(headLabel);
-            head.appendChild(headDot);
-            panel.appendChild(head);
+            // Header: title on the left, summary chip on the right — icon only, since the rows
+            // below spell out the words. It is the panel's own verdict, so the group reads at a
+            // glance before any individual row is scanned.
+            const signature = checks.map((c) => c.id).join("|");
+            if (panel.dataset.rows !== signature) {
+               panel.innerHTML = "";
+               panel.dataset.rows = signature;
 
-            checks.forEach((c) => {
-               const item = document.createElement("button");
-               item.className = "verify-item " + (c.state || "unknown");
+               const head = document.createElement("div");
+               head.className = "verify-head";
+               const headLabel = document.createElement("span");
+               headLabel.className = "vhead-label";
+               head.appendChild(headLabel);
+               head.appendChild(sbCreate(false));
+               panel.appendChild(head);
+
+               checks.forEach(() => {
+                  const item = document.createElement("button");
+                  item.className = "verify-item";
+                  const label = document.createElement("span");
+                  label.className = "vlabel";
+                  item.appendChild(label);
+                  item.appendChild(sbCreate(true));
+                  panel.appendChild(item);
+               });
+            }
+
+            panel.querySelector(".vhead-label").textContent = p.title || "Setup Verification";
+            paintBadge(
+               panel.querySelector(".verify-head .status-badge"),
+               failed ? "danger" : advisory ? "warning" : "success",
+               null,
+               null
+            );
+
+            const rows = panel.querySelectorAll(".verify-item");
+            checks.forEach((c, i) => {
+               const item = rows[i];
                item.title = c.detail || "";
                // Rows that carry their own explanation open it; the rest fall through to the
                // Status Details dialog, where the file-level diagnostics live.
@@ -3068,19 +3348,13 @@
                   ? () => openElevationModal()
                   : () => send("patchViewStatus");
 
-               const dot = document.createElement("span");
-               dot.className = "vdot";
-               const label = document.createElement("span");
-               label.className = "vlabel";
-               label.textContent = c.label || "";
-               const state = document.createElement("span");
-               state.className = "vstate";
-               state.textContent = c.stateText || "";
-
-               item.appendChild(dot);
-               item.appendChild(label);
-               item.appendChild(state);
-               panel.appendChild(item);
+               item.querySelector(".vlabel").textContent = c.label || "";
+               paintBadge(
+                  item.querySelector(".status-badge"),
+                  VERIFY_KIND[c.state] || "neutral",
+                  c.stateText || "",
+                  c.detail || ""
+               );
             });
 
             // The one repairable condition is the elevation compatibility flag, and its button lives
@@ -3089,8 +3363,7 @@
             _elevationCanFix = p.canFix === true;
             _elevationFixLabel = p.fixLabel || "Fix Setup";
 
-            panel.classList.remove("pass", "fail", "advisory");
-            panel.classList.add("show", failed ? "fail" : advisory ? "advisory" : "pass");
+            panel.classList.add("show");
 
             // An open modal is looking at the same data: this push IS the answer to the re-check it
             // asked for on open, so it must repaint rather than keep showing the stale reading.

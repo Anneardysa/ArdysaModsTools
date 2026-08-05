@@ -9,10 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.20-beta] (Builds 2277–2294)
+## [2.2.20-beta] (Builds 2277–2295)
 
 ### Changed
 
+- **The mod status is a badge that rolls between verdicts** (2295): a dot plus text changed colour
+  with nothing to notice, so a transition to "Update Required" looked the same as a repaint. The chip
+  carries a status icon beside the word — colour is never the only signal — and swaps both with a
+  blurred roll, breathing while a check is in flight. `PushStatus` now sends a culture-invariant
+  `kind` derived from `ModStatus` rather than a hex colour, the rule the console category already
+  follows: keyword-sniffing translated wording is what used to mis-colour a Ready install after a
+  language switch.
+- **Setup verification rows carry the same chip** (2295): each row's dot and bare caps word collapsed
+  into one tinted verdict chip, with an icon-only summary chip in the panel header. Rows repaint in
+  place and rebuild only when the set of checks changes, so a verdict that genuinely changed rolls
+  over while a routine re-check of the same sweep animates nothing — a wholesale rebuild would have
+  made the panel twitch on every status refresh. Tints read from the existing `--verify-*` tokens, so
+  the chips and the pill cannot drift apart and light mode is inherited rather than re-specified.
 - **The Skin Selector opens wider and its grid gets denser, not chunkier** (2290): the window went
   from 1200×800 to 1440×900, and the hero track from 118px to 112px, so extra width buys columns
   instead of inflating each card — 8 columns became 11 at a stable ~116px card, which puts the whole

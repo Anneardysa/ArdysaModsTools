@@ -950,11 +950,19 @@ namespace ArdysaModsTools
             PostExec(call);
         }
 
-        private static string ColorHex(Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
-
-        private void PushStatus(Color color, string text, string tooltip)
+        private static string StatusKind(ModStatus status) => status switch
         {
-            var json = JsonSerializer.Serialize(new { color = ColorHex(color), text, tooltip }, _jsonOptions);
+            ModStatus.Ready => "success",
+            ModStatus.NeedUpdate => "warning",
+            ModStatus.Disabled => "info",
+            ModStatus.Error => "danger",
+            ModStatus.Checking => "loading",
+            _ => "neutral"
+        };
+
+        private void PushStatus(string kind, string text, string tooltip)
+        {
+            var json = JsonSerializer.Serialize(new { kind, text, tooltip }, _jsonOptions);
             Js("status", $"setStatus({json})");
         }
 
@@ -978,8 +986,7 @@ namespace ArdysaModsTools
 
         public void SetModsStatus(bool isActive, string statusText)
         {
-            var color = isActive ? Color.FromArgb(0, 255, 100) : Color.FromArgb(255, 80, 80);
-            PushStatus(color, statusText, string.Empty);
+            PushStatus(isActive ? "success" : "danger", statusText, string.Empty);
         }
 
         public void SetModsStatusDetailed(ModStatusInfo statusInfo)
@@ -994,7 +1001,7 @@ namespace ArdysaModsTools
             if (!string.IsNullOrEmpty(statusInfo.ActionButtonText))
                 tooltip += $"\n\n-> {statusInfo.ActionButtonText}";
 
-            PushStatus(statusInfo.StatusColor, statusInfo.StatusText, tooltip);
+            PushStatus(StatusKind(statusInfo.Status), statusInfo.StatusText, tooltip);
             UpdateButtonsForStatus(statusInfo);
         }
 
@@ -1152,7 +1159,7 @@ namespace ArdysaModsTools
 
         public void SetPatchDetectedStatus()
         {
-            PushStatus(Color.FromArgb(255, 165, 0), Loc.T("status.updateDetected.text"), string.Empty);
+            PushStatus(StatusKind(ModStatus.NeedUpdate), Loc.T("status.updateDetected.text"), string.Empty);
             UpdatePatchButtonStatus(ModStatus.NeedUpdate);
             SetButtonEnabled("patch", true);
         }
