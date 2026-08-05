@@ -49,8 +49,15 @@ namespace ArdysaModsTools.Models
         [JsonPropertyName("primary_attr")]
         public string PrimaryAttribute { get; set; } = "universal";
 
+        [JsonIgnore]
+        public BasePriorityPolicy BasePriority { get; set; } = new BasePriorityPolicy();
+
         [JsonPropertyName("method")]
-        public int? Method { get; set; }
+        public int? Method
+        {
+            get => BasePriority.Default;
+            set => BasePriority.Default = value;
+        }
 
         [JsonPropertyName("sets")]
         public Dictionary<string, List<string>> Sets { get; set; } = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);

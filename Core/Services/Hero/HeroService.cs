@@ -39,7 +39,13 @@ namespace ArdysaModsTools.Core.Services
 
         public Dictionary<string, SetStyleInfo> SetStyles { get; init; } = new();
 
-        public int? Method { get; init; }
+        public BasePriorityPolicy BasePriority { get; init; } = new BasePriorityPolicy();
+
+        public int? Method
+        {
+            get => BasePriority.Default;
+            init => BasePriority.Default = value;
+        }
     }
 
     public class HeroService
@@ -282,15 +288,13 @@ namespace ArdysaModsTools.Core.Services
                 string[] ids = Array.Empty<string>();
                 var sets = new Dictionary<string, string[]>();
                 var setStyles = new Dictionary<string, SetStyleInfo>();
-                int? method = null;
 
                 if (el.TryGetProperty("name", out var ne) && ne.ValueKind == JsonValueKind.String) name = ne.GetString();
                 if (el.TryGetProperty("used_by_heroes", out var ue) && ue.ValueKind == JsonValueKind.String) used = ue.GetString();
                 if (el.TryGetProperty("prefab", out var pe) && pe.ValueKind == JsonValueKind.String) prefab = pe.GetString();
                 if (el.TryGetProperty("primary_attr", out var pae) && pae.ValueKind == JsonValueKind.String)
                     primaryAttr = pae.GetString() ?? "universal";
-                if (el.TryGetProperty("method", out var me) && me.ValueKind == JsonValueKind.Number && me.TryGetInt32(out var m))
-                    method = m;
+                var basePriority = ParseBasePriority(el);
 
                 if (el.TryGetProperty("id", out var idEl))
                 {
@@ -349,13 +353,70 @@ namespace ArdysaModsTools.Core.Services
                     Ids = ids,
                     Sets = sets,
                     SetStyles = setStyles,
-                    Method = method
+                    BasePriority = basePriority
                 };
             }
             catch
             {
                 return null;
             }
+        }
+
+        private static BasePriorityPolicy ParseBasePriority(JsonElement el)
+        {
+            var policy = new BasePriorityPolicy();
+
+            if (!el.TryGetProperty("method", out var me))
+                return policy;
+
+            if (me.ValueKind == JsonValueKind.Number)
+            {
+                if (me.TryGetInt32(out var scalar)) policy.Default = scalar;
+                return policy;
+            }
+
+            if (me.ValueKind != JsonValueKind.Object)
+                return policy;
+
+            if (me.TryGetProperty("default", out var de) && TryReadMethod(de, out var dm))
+                policy.Default = dm;
+
+            if (me.TryGetProperty("sets", out var se) && se.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in se.EnumerateObject())
+                {
+                    if (!string.IsNullOrWhiteSpace(prop.Name) && TryReadMethod(prop.Value, out var sm))
+                        policy.Sets[prop.Name] = sm;
+                }
+            }
+
+            if (me.TryGetProperty("items", out var ie) && ie.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in ie.EnumerateObject())
+                {
+                    if (int.TryParse(prop.Name, out var itemId) && TryReadMethod(prop.Value, out var im))
+                        policy.Items[itemId] = im;
+                }
+            }
+
+            return policy;
+        }
+
+        private static bool TryReadMethod(JsonElement value, out int method)
+        {
+            method = 0;
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var n))
+            {
+                method = n;
+                return true;
+            }
+            if (value.ValueKind == JsonValueKind.String &&
+                int.TryParse(value.GetString(), out var s))
+            {
+                method = s;
+                return true;
+            }
+            return false;
         }
 
         private static void ParseStyledSet(

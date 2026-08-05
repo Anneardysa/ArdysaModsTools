@@ -196,6 +196,86 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         #endregion
+
+        #region base-priority "method" parsing
+
+        [Test]
+        public void ParseHeroesJson_LegacyScalarMethod_BecomesTheHeroDefault()
+        {
+            const string json = @"
+            [
+              { ""name"": ""abaddon"", ""method"": 2, ""sets"": { ""A"": [""https://cdn/a.zip""] } }
+            ]";
+
+            var hero = HeroService.ParseHeroesJson(json)[0];
+
+            Assert.That(hero.Method, Is.EqualTo(2));
+            Assert.That(hero.BasePriority.Default, Is.EqualTo(2));
+            Assert.That(hero.BasePriority.HasOverrides, Is.False);
+        }
+
+        [Test]
+        public void ParseHeroesJson_NoMethod_LeavesPolicyEmpty()
+        {
+            const string json = @"[ { ""name"": ""axe"" } ]";
+
+            var hero = HeroService.ParseHeroesJson(json)[0];
+
+            Assert.That(hero.Method, Is.Null);
+            Assert.That(hero.BasePriority.HasOverrides, Is.False);
+        }
+
+        [Test]
+        public void ParseHeroesJson_ScopedMethodObject_ParsesDefaultSetsAndItems()
+        {
+            const string json = @"
+            [
+              {
+                ""name"": ""juggernaut"",
+                ""method"": {
+                  ""default"": 1,
+                  ""sets"": { ""Bladeform Legacy"": 2, ""Shadowforce Gale"": ""1"" },
+                  ""items"": { ""12345"": 2, ""6789"": ""1"" }
+                },
+                ""sets"": { ""Bladeform Legacy"": [""https://cdn/b.zip""] }
+              }
+            ]";
+
+            var hero = HeroService.ParseHeroesJson(json)[0];
+
+            Assert.That(hero.BasePriority.Default, Is.EqualTo(1));
+            Assert.That(hero.BasePriority.Sets["Bladeform Legacy"], Is.EqualTo(2));
+            Assert.That(hero.BasePriority.Sets["Shadowforce Gale"], Is.EqualTo(1), "quoted numbers are accepted");
+            Assert.That(hero.BasePriority.Items[12345], Is.EqualTo(2));
+            Assert.That(hero.BasePriority.Items[6789], Is.EqualTo(1));
+
+            Assert.That(hero.Sets.Keys, Is.EquivalentTo(new[] { "Bladeform Legacy" }));
+        }
+
+        [Test]
+        public void ParseHeroesJson_MalformedMethodEntries_SkippedButHeroKept()
+        {
+            const string json = @"
+            [
+              {
+                ""name"": ""pudge"",
+                ""method"": {
+                  ""default"": ""oops"",
+                  ""sets"": { ""Good Set"": 2, ""Bad Set"": [1] },
+                  ""items"": { ""111"": 1, ""not-an-id"": 2, ""222"": {} }
+                }
+              }
+            ]";
+
+            var hero = HeroService.ParseHeroesJson(json)[0];
+
+            Assert.That(hero.Name, Is.EqualTo("pudge"), "one bad override must never drop the hero");
+            Assert.That(hero.BasePriority.Default, Is.Null);
+            Assert.That(hero.BasePriority.Sets.Keys, Is.EquivalentTo(new[] { "Good Set" }));
+            Assert.That(hero.BasePriority.Items.Keys, Is.EquivalentTo(new[] { 111 }));
+        }
+
+        #endregion
     }
 }
 

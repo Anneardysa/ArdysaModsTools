@@ -32,37 +32,54 @@ namespace ArdysaModsTools.Tests.Services
         #region GetSortWeight Tests
 
         [Test]
-        public void GetSortWeight_WhenBaseHasHeroBaseSlotIsTrue_ReturnsCorrectWeights()
+        public void GetSortWeight_WhenBaseWins_BaseIsFoundationAboveSetsAndItems()
         {
             int weightBase = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.BaseHero, true);
-            Assert.That(weightBase, Is.EqualTo(3));
+            Assert.That(weightBase, Is.EqualTo(HeroGenerationService.BaseAnchorWeight));
 
             int weightLegacy = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.LegacySet, true);
             int weightCustom = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.CustomSet, true);
             int weightPersona = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.Persona, true);
-            Assert.That(weightLegacy, Is.EqualTo(2));
-            Assert.That(weightCustom, Is.EqualTo(2));
-            Assert.That(weightPersona, Is.EqualTo(2));
+            Assert.That(weightLegacy, Is.LessThan(weightBase));
+            Assert.That(weightCustom, Is.EqualTo(weightLegacy));
+            Assert.That(weightPersona, Is.EqualTo(weightLegacy));
 
             int weightItem = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.Item, true);
-            Assert.That(weightItem, Is.EqualTo(1));
+            Assert.That(weightItem, Is.LessThan(weightLegacy));
+            Assert.That(HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.Prismatic, true),
+                Is.LessThan(weightItem));
         }
 
         [Test]
-        public void GetSortWeight_WhenBaseHasHeroBaseSlotIsFalse_ReturnsCorrectWeights()
+        public void GetSortWeight_WhenBaseLast_SetsAndItemsBecomeTheFoundation()
         {
+            int weightBase = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.BaseHero, false);
+            Assert.That(weightBase, Is.EqualTo(HeroGenerationService.BaseAnchorWeight),
+                "The Base anchor must not move — per-set overrides position the other layers around it.");
+
             int weightLegacy = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.LegacySet, false);
             int weightCustom = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.CustomSet, false);
             int weightPersona = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.Persona, false);
-            Assert.That(weightLegacy, Is.EqualTo(3));
-            Assert.That(weightCustom, Is.EqualTo(3));
-            Assert.That(weightPersona, Is.EqualTo(3));
+            Assert.That(weightLegacy, Is.GreaterThan(weightBase));
+            Assert.That(weightCustom, Is.EqualTo(weightLegacy));
+            Assert.That(weightPersona, Is.EqualTo(weightLegacy));
 
             int weightItem = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.Item, false);
-            Assert.That(weightItem, Is.EqualTo(2));
+            Assert.That(weightItem, Is.LessThan(weightLegacy));
+            Assert.That(weightItem, Is.GreaterThan(weightBase));
+        }
 
-            int weightBase = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.BaseHero, false);
-            Assert.That(weightBase, Is.EqualTo(1));
+        [Test]
+        public void GetSortWeight_MixedPerSetPriorities_StayStrictlyOrderedAroundTheBase()
+        {
+            int baseWeight = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.BaseHero, true);
+            int setOnTop = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.LegacySet, true);
+            int setUnder = HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.LegacySet, false);
+
+            Assert.That(setUnder, Is.GreaterThan(baseWeight), "base-last set must be the foundation");
+            Assert.That(setOnTop, Is.LessThan(baseWeight), "base-wins set must layer on top of the Base");
+            Assert.That(HeroGenerationService.GetSortWeight(HeroModelMapper.SkinCategory.BaseHero, false),
+                Is.EqualTo(baseWeight), "the Base anchor is the same in both resolutions");
         }
 
         #endregion

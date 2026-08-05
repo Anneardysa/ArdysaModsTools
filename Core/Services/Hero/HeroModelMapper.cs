@@ -48,7 +48,7 @@ public static class HeroModelMapper
                 PrimaryAttribute = !string.IsNullOrWhiteSpace(hs.PrimaryAttr)
                     ? hs.PrimaryAttr.ToLowerInvariant()
                     : "universal",
-                Method = hs.Method
+                BasePriority = hs.BasePriority?.Clone() ?? new BasePriorityPolicy()
             };
 
             if (hs.Sets != null && hs.Sets.Count > 0)

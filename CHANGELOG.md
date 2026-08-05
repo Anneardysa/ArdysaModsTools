@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.20-beta] (Builds 2277–2295)
+## [2.2.20-beta] (Builds 2277–2296)
 
 ### Changed
 
@@ -90,6 +90,17 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
   pre-push guard plus a content-reference check, so the stripped mirror always builds on its own.
 
 ### Added
+
+- **Base priority is resolvable per set and per asset, not just per hero** (2296): `heroes.json`
+  `"method"` now also accepts `{ "default": 1, "sets": { … }, "items": { … } }`, resolved most
+  specific first — item id → set name → hero default → `hero_base` detection — so one hero can hold
+  a set that layers over the base and another the base overrides. The scalar form is unchanged and a
+  hero without overrides generates exactly as before. The weight table is now anchored on the Base
+  (`BaseAnchorWeight`) and the flag moves the *other* layer: a moving base would tie or invert
+  against a differently-resolved set, which is the one thing a single linear order cannot express.
+  Per-asset overrides bind the `items_game.txt` block for that id only; asset files are not id-keyed
+  and still follow the per-set layer order. See
+  [ADR-0008](docs/adr/0008-hero-cosmetic-priority-merge.md) (amendment).
 
 - **The set modal carries a per-hero selection tray** (2291, 2292, 2293): a rail down the right of
   the catalog showing every asset picked for the open hero — set or persona, items, base, prismatic —

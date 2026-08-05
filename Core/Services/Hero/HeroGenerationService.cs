@@ -180,6 +180,8 @@ namespace ArdysaModsTools.Core.Services
 
                     var mergedBlocks = new Dictionary<string, (string block, string heroId)>();
 
+                    var blockWeights = new Dictionary<string, int>();
+
                     var protectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                     stageProgress?.Report((20, "Processing"));
@@ -279,22 +281,27 @@ namespace ArdysaModsTools.Core.Services
                             detectedHeroBase = baseText != null && KeyValuesBlockHelper.AnyBlockHasItemSlot(baseText, "hero_base");
                         }
 
-                        bool hasHeroBaseSlot = ResolveBaseWins(hero.Method, detectedHeroBase);
+                        var policy = hero.BasePriority ?? new BasePriorityPolicy();
+                        bool hasHeroBaseSlot = policy.BaseWins(null, null, detectedHeroBase);
+
+                        int LayerWeight(HeroModelMapper.SkinCategory category, string setName, int? itemId = null)
+                            => GetSortWeight(category, policy.BaseWins(setName, itemId, detectedHeroBase));
 
                         System.Diagnostics.Debug.WriteLine(
-                            $"[DEBUG] Priority {hero.DisplayName}: method={(hero.Method?.ToString() ?? "null")}, " +
+                            $"[DEBUG] Priority {hero.DisplayName}: method={(policy.Default?.ToString() ?? "null")}, " +
+                            $"setOverrides={policy.Sets.Count}, itemOverrides={policy.Items.Count}, " +
                             $"detectedHeroBase={detectedHeroBase}, baseWins={hasHeroBaseSlot} -> " +
                             (hasHeroBaseSlot ? "Base > Sets/Custom/Persona > Items" : "Sets/Custom/Persona > Items > Base"));
 
                         var orderedList = extractedList
-                            .OrderByDescending(x => GetSortWeight(x.category, hasHeroBaseSlot))
+                            .OrderByDescending(x => LayerWeight(x.category, x.setName))
                             .ToList();
 
                         if (orderedList.Count > 1)
                             foreach (var sel in orderedList)
                                 System.Diagnostics.Debug.WriteLine(
-                                    $"[DEBUG] Order {hero.DisplayName}: weight={GetSortWeight(sel.category, hasHeroBaseSlot)} " +
-                                    $"category={sel.category} set={sel.setName}");
+                                    $"[DEBUG] Order {hero.DisplayName}: weight={LayerWeight(sel.category, sel.setName)} " +
+                                    $"category={sel.category} set={sel.setName} scope={policy.ScopeOf(sel.setName, null)}");
 
                         bool heroSucceeded = false;
                         try
@@ -339,10 +346,25 @@ namespace ArdysaModsTools.Core.Services
                                     {
                                         foreach (var kvp in heroBlocks)
                                         {
+                                            int weight = int.TryParse(kvp.Key, out var blockItemId)
+                                                ? LayerWeight(selection.category, selection.setName, blockItemId)
+                                                : LayerWeight(selection.category, selection.setName);
+
+                                            if (blockWeights.TryGetValue(kvp.Key, out var ownerWeight) && ownerWeight < weight)
+                                            {
+                                                System.Diagnostics.Debug.WriteLine(
+                                                    $"[DEBUG] Keep {hero.DisplayName}: item {kvp.Key} stays on the lower layer " +
+                                                    $"(owner weight {ownerWeight} < {weight} from {selection.category} '{selection.setName}')");
+                                                continue;
+                                            }
+
                                             if (mergedBlocks.ContainsKey(kvp.Key))
                                                 System.Diagnostics.Debug.WriteLine(
-                                                    $"[DEBUG] Override {hero.DisplayName}: item {kvp.Key} -> {selection.category} (overrides earlier higher-layer block)");
+                                                    $"[DEBUG] Override {hero.DisplayName}: item {kvp.Key} -> {selection.category} " +
+                                                    $"weight={weight} scope={policy.ScopeOf(selection.setName, blockItemId)} (overrides earlier higher-layer block)");
+
                                             mergedBlocks[kvp.Key] = kvp.Value;
+                                            blockWeights[kvp.Key] = weight;
                                         }
                                     }
                                 }
@@ -763,22 +785,26 @@ namespace ArdysaModsTools.Core.Services
         }
 
         internal static bool ResolveBaseWins(int? method, bool detectedHeroBase)
-            => method == 1 ? true : method == 2 ? false : detectedHeroBase;
+            => BasePriorityPolicy.Resolve(method, detectedHeroBase);
 
-        internal static int GetSortWeight(HeroModelMapper.SkinCategory category, bool baseHasHeroBaseSlot)
+        internal const int BaseAnchorWeight = 100;
+
+        internal static int GetSortWeight(HeroModelMapper.SkinCategory category, bool baseWins)
         {
             switch (category)
             {
                 case HeroModelMapper.SkinCategory.Prismatic:
                     return 0;
                 case HeroModelMapper.SkinCategory.BaseHero:
-                    return baseHasHeroBaseSlot ? 3 : 1;
+                    return BaseAnchorWeight;
                 case HeroModelMapper.SkinCategory.LegacySet:
                 case HeroModelMapper.SkinCategory.CustomSet:
                 case HeroModelMapper.SkinCategory.Persona:
-                    return baseHasHeroBaseSlot ? 2 : 3;
+                    return baseWins ? BaseAnchorWeight - 10
+                                    : BaseAnchorWeight + 20;
                 case HeroModelMapper.SkinCategory.Item:
-                    return baseHasHeroBaseSlot ? 1 : 2;
+                    return baseWins ? BaseAnchorWeight - 20
+                                    : BaseAnchorWeight + 10;
                 default:
                     return -1;
             }
