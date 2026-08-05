@@ -547,6 +547,8 @@
   "heroGallery.tag": "Beta",
   "heroGallery.marquee": "并非每个英雄都有 set — sets 将陆续更新",
   "heroGallery.selected": "已选择",
+  "heroGallery.cartEmpty": "尚未选择任何内容 — 从目录中挑选 set、item 或 base。",
+  "heroGallery.cartRemove": "从选择中移除",
   "heroGallery.savePreset.title": "将选择保存到文件",
   "heroGallery.loadPreset.title": "从文件加载选择",
   "heroGallery.clearAll": "全部清除",

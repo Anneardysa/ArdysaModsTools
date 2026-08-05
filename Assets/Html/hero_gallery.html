@@ -931,14 +931,127 @@
          .sm-x svg { width: 16px; height: 16px; }
          .sm-x:hover { background: rgba(248, 81, 73, 0.85); color: #fff; }
 
+         /* ── catalog + selection tray ──
+            The tray is the hero's "cart": every asset picked for THIS hero, removable in place.
+            Both columns scroll independently under one shared height cap. */
+         .sm-body {
+            display: flex;
+            min-height: 0;
+            max-height: 62vh;
+         }
          #modalSetsGrid {
+            flex: 1;
+            min-width: 0;
             padding: var(--sp-5);
             display: flex;
             flex-direction: column;
             gap: var(--sp-5);
-            max-height: 62vh;
             overflow-y: auto;
          }
+         .sm-cart {
+            flex: 0 0 248px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border-left: 1px solid var(--hairline);
+            background: rgba(0, 0, 0, 0.35);
+         }
+         .sm-cart-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: var(--sp-2);
+            padding: var(--sp-3) var(--sp-4);
+            border-bottom: 1px solid var(--hairline);
+            flex-shrink: 0;
+         }
+         .sm-cart-title {
+            font-size: var(--fs-overline);
+            font-weight: 700;
+            letter-spacing: var(--ls-overline);
+            text-transform: uppercase;
+            color: var(--ink);
+         }
+         .sm-cart-title::before { content: "["; color: var(--mute); margin-right: 4px; }
+         .sm-cart-title::after { content: "]"; color: var(--mute); margin-left: 4px; }
+         .sm-cart-count {
+            font-size: var(--fs-overline);
+            font-weight: 700;
+            color: var(--body);
+            border: 1px solid var(--hairline-strong);
+            padding: 1px 7px;
+            min-width: 22px;
+            text-align: center;
+         }
+         .sm-cart-list {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: var(--sp-3);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+         }
+         .sm-cart-empty {
+            margin: auto 0;
+            padding: var(--sp-4) var(--sp-2);
+            text-align: center;
+            font-size: var(--fs-overline);
+            line-height: 1.6;
+            color: var(--mute);
+         }
+         .cart-row {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+            padding: 6px;
+            background: var(--panel-2);
+            border: 1px solid var(--hairline);
+            animation: cartIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+         }
+         @keyframes cartIn {
+            from { opacity: 0; transform: translateX(10px); }
+            to { opacity: 1; transform: translateX(0); }
+         }
+         .cart-row-thumb {
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+            object-fit: cover;
+            background: var(--panel);
+            border: 1px solid var(--hairline-strong);
+         }
+         .cart-row-info { flex: 1; min-width: 0; }
+         .cart-row-name {
+            font-size: var(--fs-overline);
+            font-weight: 600;
+            color: var(--ink);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+         }
+         .cart-row-kind {
+            margin-top: 2px;
+            font-size: 9px;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: var(--mute);
+         }
+         .cart-row-x {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: 1px solid transparent;
+            color: var(--mute);
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .cart-row-x svg { width: 11px; height: 11px; }
+         .cart-row-x:hover { color: var(--ink); border-color: var(--hairline-strong); }
          .sm-foot {
             display: flex;
             align-items: center;
@@ -1530,7 +1643,17 @@
                   </button>
                </div>
 
-               <div id="modalSetsGrid"></div>
+               <!-- Catalog (left) + the hero's selection tray (right). -->
+               <div class="sm-body">
+                  <div id="modalSetsGrid"></div>
+                  <aside class="sm-cart">
+                     <div class="sm-cart-head">
+                        <span class="sm-cart-title" data-i18n="heroGallery.selected">Selected</span>
+                        <span class="sm-cart-count" id="setCartCount">0</span>
+                     </div>
+                     <div class="sm-cart-list" id="setCartList"></div>
+                  </aside>
+               </div>
 
                <div class="sm-foot">
                   <button class="btn ghost" onclick="deselectHero()" data-i18n="heroGallery.removeSelection">Remove Selection</button>
@@ -2808,19 +2931,89 @@
 
             setsGrid.innerHTML = html;
             fitPanelToCatalog(setsGrid);
+            renderSetCart(hero, heroSel);
+         }
+
+         // Selection tray for the open hero — one row per asset currently picked, in the order the
+         // generator layers them (set/persona → items → base → prismatic). Rows remove through the
+         // same toggles the tiles use, so the exclusivity rules (persona clears items, dropping a
+         // base drops its prismatic) apply identically from either side.
+         function renderSetCart(hero, heroSel) {
+            const list = document.getElementById("setCartList");
+            const countEl = document.getElementById("setCartCount");
+            if (!list || !hero) return;
+
+            const rows = [];
+            const push = (idx, kind, onRemove) => {
+               const set = hero.sets[idx];
+               if (!set) return;
+               const name = set.styleGroup && set.styleLabel
+                  ? `${set.styleGroup} · ${set.styleLabel}`
+                  : set.name || `Set ${idx + 1}`;
+               rows.push({ name, kind, thumb: set.thumbnailUrl || hero.thumbnail || "", onRemove });
+            };
+
+            if (heroSel.set !== null && heroSel.set !== undefined) {
+               const isPersona = getSetCategory(hero.sets[heroSel.set]) === "persona";
+               push(heroSel.set, isPersona ? "Persona" : "Set", `selectSet('${hero.id}', ${heroSel.set})`);
+            }
+            (heroSel.items || []).forEach((idx) =>
+               push(idx, extractItemTag(hero.sets[idx]) || "Item", `toggleItem('${hero.id}', ${idx})`));
+            if (heroSel.base !== null && heroSel.base !== undefined) {
+               push(heroSel.base, "Base Hero", `toggleBase('${hero.id}', ${heroSel.base})`);
+            }
+            if (heroSel.prismatic !== null && heroSel.prismatic !== undefined) {
+               push(heroSel.prismatic, "Prismatic", `togglePrismatic('${hero.id}', ${heroSel.prismatic})`);
+            }
+
+            if (countEl) countEl.textContent = rows.length;
+
+            if (rows.length === 0) {
+               const empty = window.t ? window.t("heroGallery.cartEmpty") : "Nothing selected yet — pick a set, item or base from the catalog.";
+               list.innerHTML = `<div class="sm-cart-empty">${escapeAttr(empty)}</div>`;
+               return;
+            }
+
+            list.innerHTML = rows
+               .map(
+                  (r) => `
+               <div class="cart-row">
+                  <img class="cart-row-thumb" src="${escapeAttr(r.thumb)}" alt=""
+                       onerror="this.style.visibility='hidden'" />
+                  <div class="cart-row-info">
+                     <div class="cart-row-name" title="${escapeAttr(r.name)}">${escapeAttr(r.name)}</div>
+                     <div class="cart-row-kind">${escapeAttr(r.kind)}</div>
+                  </div>
+                  <button class="cart-row-x" onclick="${r.onRemove}" title="Remove" data-i18n-title="heroGallery.cartRemove">
+                     <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                     </svg>
+                  </button>
+               </div>`,
+               )
+               .join("");
+         }
+
+         function escapeAttr(s) {
+            return String(s ?? "")
+               .replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;")
+               .replace(/"/g, "&quot;")
+               .replace(/'/g, "&#39;");
          }
 
          // Sizes the set modal to its catalog instead of the other way round: a hero with 4 sets
          // was getting the same 900px dialog as a hero with 20, so the art sat in a mostly empty
-         // panel. Width = the widest rendered section (style groups already collapsed to one tile),
-         // capped at 6 columns and floored so the header/footer still read.
+         // panel. Width = the widest rendered section (style groups already collapsed to one tile)
+         // plus the fixed selection tray, clamped to 3-5 catalog columns.
          function fitPanelToCatalog(setsGrid) {
             const panel = setsGrid.closest(".sm-panel");
             if (!panel) return;
-            const TILE = 133, GAP = 12, CHROME = 42; // tile, grid gap, panel padding + borders
+            const TILE = 133, GAP = 12, CHROME = 42, TRAY = 249; // tile, gap, panel padding+borders, tray
             const counts = [...setsGrid.querySelectorAll(".set-category-grid")].map((g) => g.children.length);
-            const cols = Math.min(6, Math.max(1, ...counts, 1));
-            panel.style.maxWidth = Math.max(520, cols * TILE + (cols - 1) * GAP + CHROME) + "px";
+            const cols = Math.min(5, Math.max(3, ...counts, 3));
+            panel.style.maxWidth = cols * TILE + (cols - 1) * GAP + CHROME + TRAY + "px";
          }
 
          function navigateHero(direction) {

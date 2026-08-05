@@ -547,6 +547,8 @@
   "heroGallery.tag": "Beta",
   "heroGallery.marquee": "Не у всех героев есть set — sets будут добавляться постепенно",
   "heroGallery.selected": "Выбрано",
+  "heroGallery.cartEmpty": "Пока ничего не выбрано — выбери set, item или base из каталога.",
+  "heroGallery.cartRemove": "Убрать из выбора",
   "heroGallery.savePreset.title": "Сохранить выбор в файл",
   "heroGallery.loadPreset.title": "Загрузить выбор из файла",
   "heroGallery.clearAll": "Очистить всё",

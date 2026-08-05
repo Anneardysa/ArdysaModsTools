@@ -547,6 +547,8 @@
   "heroGallery.tag": "Beta",
   "heroGallery.marquee": "Nicht jeder Held hat ein Set – Sets werden nach und nach ergänzt",
   "heroGallery.selected": "Ausgewählt",
+  "heroGallery.cartEmpty": "Noch nichts ausgewählt — wähle ein Set, Item oder eine Base aus dem Katalog.",
+  "heroGallery.cartRemove": "Aus der Auswahl entfernen",
   "heroGallery.savePreset.title": "Auswahl in Datei speichern",
   "heroGallery.loadPreset.title": "Auswahl aus Datei laden",
   "heroGallery.clearAll": "Alle löschen",
