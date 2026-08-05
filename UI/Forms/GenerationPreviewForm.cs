@@ -58,7 +58,7 @@ namespace ArdysaModsTools.UI.Forms
         {
             SuspendLayout();
             AutoScaleMode = AutoScaleMode.None;
-            ClientSize = new System.Drawing.Size(480, 520);
+            ClientSize = new System.Drawing.Size(660, 560);
             FormBorderStyle = FormBorderStyle.None;
             MaximizeBox = false;
             MinimizeBox = false;

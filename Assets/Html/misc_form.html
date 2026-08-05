@@ -810,7 +810,7 @@
                </div>
             </div>
             <div class="dialog-actions">
-               <button onclick="copyLog()" class="btn ghost" data-i18n="miscForm.copyLog">Copy</button>
+               <button onclick="copyLog(this)" class="btn ghost" data-i18n="miscForm.copyLog">Copy</button>
                <button onclick="closeLogModal()" class="btn primary" data-i18n="common.close">Close</button>
             </div>
          </div>
@@ -1301,9 +1301,28 @@
             document.getElementById("logModal").classList.add("hidden");
          }
 
-         async function copyLog() {
-            const text = document.getElementById("logModalContent")?.innerText || "";
-            try { await navigator.clipboard.writeText(text); } catch (e) { /* clipboard unavailable */ }
+         // NavigateToString pages run at about:blank (isSecureContext false), so
+         // navigator.clipboard is undefined — the copy has to go through the host.
+         function copyLog(btn) {
+            // Per-node, not innerText: innerText collapses to textContent (losing the line
+            // breaks) whenever the modal is not laid out.
+            const text = [...document.querySelectorAll("#logModalContent .log-line")]
+               .map((n) => n.textContent)
+               .join("\n");
+            if (!text) return;
+            sendMessage("copyConsole", { text });
+            flashCopied(btn);
+         }
+
+         function flashCopied(btn) {
+            if (!btn || btn.dataset.flashing) return;
+            btn.dataset.flashing = "1";
+            const original = btn.textContent;
+            btn.textContent = window.t ? window.t("common.copied") : "Copied";
+            setTimeout(() => {
+               btn.textContent = original;
+               delete btn.dataset.flashing;
+            }, 1200);
          }
 
          // Rendering

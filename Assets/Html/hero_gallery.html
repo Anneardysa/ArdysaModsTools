@@ -276,10 +276,12 @@
             overflow: hidden;
             display: flex;
             align-items: center;
-            background: #e3b341;
-            color: #000000;
-            border: 1px solid #b98a1f;
-            box-shadow: 0 0 14px rgba(227, 179, 65, 0.25);
+            /* Demoted from a solid amber block: this is a passive, permanent disclaimer, so it
+               must not outrank the page title or the primary action. Amber ink on the panel
+               keeps the warning read without dominating the monochrome surface. */
+            background: rgba(227, 179, 65, 0.08);
+            color: #e3b341;
+            border: 1px solid rgba(227, 179, 65, 0.35);
          }
          /* soft fade at both edges so text enters/exits cleanly */
          .tb-marquee-inner::before,
@@ -294,11 +296,11 @@
          }
          .tb-marquee-inner::before {
             left: 0;
-            background: linear-gradient(90deg, #e3b341, rgba(227, 179, 65, 0));
+            background: linear-gradient(90deg, #0a0a0a, rgba(10, 10, 10, 0));
          }
          .tb-marquee-inner::after {
             right: 0;
-            background: linear-gradient(270deg, #e3b341, rgba(227, 179, 65, 0));
+            background: linear-gradient(270deg, #0a0a0a, rgba(10, 10, 10, 0));
          }
          .tb-marquee-track {
             display: flex;
@@ -339,12 +341,12 @@
             background: rgba(0, 0, 0, 0.82);
             backdrop-filter: blur(10px);
             border-bottom: 1px solid var(--hairline);
-            padding: var(--sp-4) var(--sp-6);
+            padding: var(--sp-3) var(--sp-5);
          }
          .gh-rows {
             display: flex;
             flex-direction: column;
-            gap: var(--sp-4);
+            gap: var(--sp-3);
          }
          .gh-top {
             display: flex;
@@ -356,7 +358,7 @@
          .search {
             position: relative;
             flex: 1;
-            max-width: 420px;
+            max-width: 560px;
          }
          .search svg {
             position: absolute;
@@ -395,7 +397,9 @@
             font-weight: 600;
             letter-spacing: 1px;
             text-transform: uppercase;
-            color: var(--mute);
+            color: var(--body);
+            white-space: nowrap;
+            padding-right: var(--sp-1);
          }
          .sel-counter #selectionCount {
             font-size: var(--fs-sub);
@@ -408,6 +412,14 @@
             align-items: center;
             gap: var(--sp-2);
             margin-left: auto;
+         }
+         /* Splits preset/destructive controls from the count + primary action. */
+         .gh-divider {
+            width: 1px;
+            align-self: stretch;
+            margin: 2px var(--sp-2);
+            background: var(--hairline-strong);
+            flex-shrink: 0;
          }
 
          /* filter pills row */
@@ -648,7 +660,9 @@
          /* ════════════════════════════════ HERO GRID ════════════════════════════════ */
          #heroGrid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+            /* Tighter track so extra window width adds COLUMNS rather than inflating each card —
+               card size then stays ~constant from 800px up to a 4K-wide window. */
+            grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
             gap: var(--sp-3);
          }
          .hero-card { position: relative; }
@@ -760,8 +774,10 @@
             z-index: 4;
          }
          .hc-name {
+            /* Stays at 10px: at the denser track a name like "Vengeful Spirit" ellipsises at
+               11px. Weight carries the hierarchy against the 9px muted sub-line instead. */
             font-size: var(--fs-overline);
-            font-weight: 600;
+            font-weight: 700;
             color: var(--ink);
             line-height: var(--lh-tight);
             white-space: nowrap;
@@ -839,7 +855,7 @@
             justify-content: center;
             gap: var(--sp-4);
             width: 100%;
-            max-width: 980px;
+            max-width: 1240px;
          }
          .nav-arrow {
             flex-shrink: 0;
@@ -860,7 +876,7 @@
 
          .sm-panel {
             flex: 1;
-            max-width: 820px;
+            max-width: 900px;
             max-height: 90vh;
             display: flex;
             flex-direction: column;
@@ -964,7 +980,10 @@
          }
          .set-category-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+            /* Catalog density: auto-FILL keeps the track count fixed by width, so a tile stays
+               ~133px whether the hero has 2 sets or 20 — the whole catalog reads at a glance
+               instead of a few oversized previews. (auto-fit stretched them to 220px.) */
+            grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
             gap: var(--sp-3);
          }
          .set-category-grid.category-locked {
@@ -1096,7 +1115,7 @@
          }
          .style-preview-panel {
             width: 100%;
-            max-width: 560px;
+            max-width: 640px;
             max-height: 82vh;
             overflow: hidden;
             background: var(--panel-2);
@@ -1146,7 +1165,8 @@
          .style-preview-close:hover { background: rgba(248, 81, 73, 0.85); color: #fff; }
          .style-preview-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            /* Same catalog track as .set-category-grid so variants read at the same scale. */
+            grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
             gap: var(--sp-3);
             padding: var(--sp-5);
             max-height: 56vh;
@@ -1388,15 +1408,16 @@
                   <input type="text" id="searchInput" placeholder="Search heroes..." data-i18n-placeholder="progress.preview.search" />
                </div>
 
-               <div class="sel-counter">
-                  <span id="selectionCount">0</span>
-                  <span data-i18n="heroGallery.selected">Selected</span>
-               </div>
-
                <div class="gh-actions">
                   <button id="savePresetBtn" class="btn ghost" title="Save selections to file" data-i18n-title="heroGallery.savePreset.title" data-i18n="common.save">Save</button>
                   <button id="loadPresetBtn" class="btn ghost" title="Load selections from file" data-i18n-title="heroGallery.loadPreset.title" data-i18n="common.load">Load</button>
                   <button id="clearAllBtn" class="btn ghost" data-i18n="heroGallery.clearAll">Clear All</button>
+                  <span class="gh-divider" aria-hidden="true"></span>
+                  <!-- The count is what the primary action acts on, so it sits with it. -->
+                  <div class="sel-counter">
+                     <span id="selectionCount">0</span>
+                     <span data-i18n="heroGallery.selected">Selected</span>
+                  </div>
                   <button id="generateBtn" class="btn primary" data-i18n="heroGallery.generate">Generate ModsPack</button>
                </div>
             </div>
@@ -1590,7 +1611,7 @@
                </div>
             </div>
             <div class="dialog-actions">
-               <button onclick="copyGenerationLog()" class="btn ghost" data-i18n="miscForm.copyLog">Copy</button>
+               <button onclick="copyGenerationLog(this)" class="btn ghost" data-i18n="miscForm.copyLog">Copy</button>
                <button onclick="closeLogModal()" class="btn primary" data-i18n="common.close">Close</button>
             </div>
          </div>
@@ -2216,8 +2237,21 @@
             document.getElementById("logModal").classList.add("hidden");
          }
 
-         async function copyGenerationLog() {
-            try { await navigator.clipboard.writeText(_generationLogText); } catch (e) { /* clipboard unavailable */ }
+         // NavigateToString pages run at about:blank (isSecureContext false), so
+         // navigator.clipboard is undefined — the copy has to go through the host.
+         function copyGenerationLog(btn) {
+            if (!_generationLogText) return;
+            if (window.chrome && window.chrome.webview) {
+               window.chrome.webview.postMessage({ type: "copyConsole", text: _generationLogText });
+            }
+            if (!btn || btn.dataset.flashing) return;
+            btn.dataset.flashing = "1";
+            const original = btn.textContent;
+            btn.textContent = window.t ? window.t("common.copied") : "Copied";
+            setTimeout(() => {
+               btn.textContent = original;
+               delete btn.dataset.flashing;
+            }, 1200);
          }
 
          function updateStatus(text) {
@@ -2773,6 +2807,20 @@
             html += buildSection(prismaticSets, 'prismatic', 'Prismatic', 'prismatic', prismaticNotice, !baseActive);
 
             setsGrid.innerHTML = html;
+            fitPanelToCatalog(setsGrid);
+         }
+
+         // Sizes the set modal to its catalog instead of the other way round: a hero with 4 sets
+         // was getting the same 900px dialog as a hero with 20, so the art sat in a mostly empty
+         // panel. Width = the widest rendered section (style groups already collapsed to one tile),
+         // capped at 6 columns and floored so the header/footer still read.
+         function fitPanelToCatalog(setsGrid) {
+            const panel = setsGrid.closest(".sm-panel");
+            if (!panel) return;
+            const TILE = 133, GAP = 12, CHROME = 42; // tile, grid gap, panel padding + borders
+            const counts = [...setsGrid.querySelectorAll(".set-category-grid")].map((g) => g.children.length);
+            const cols = Math.min(6, Math.max(1, ...counts, 1));
+            panel.style.maxWidth = Math.max(520, cols * TILE + (cols - 1) * GAP + CHROME) + "px";
          }
 
          function navigateHero(direction) {

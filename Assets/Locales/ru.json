@@ -540,6 +540,7 @@
   "common.deselect": "Снять выбор",
   "common.back": "Назад",
   "common.ok": "OK",
+  "common.copied": "Скопировано",
   "heroGallery.smHint": "↑↓ листать sets · Enter выбрать · ←→ сменить героя",
   "common.loadingAssets": "Загрузка ресурсов",
   "common.preparingThumbs": "Подготовка миниатюр...",

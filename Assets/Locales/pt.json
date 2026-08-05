@@ -540,6 +540,7 @@
   "common.deselect": "Desmarcar",
   "common.back": "Voltar",
   "common.ok": "OK",
+  "common.copied": "Copiado",
   "heroGallery.smHint": "↑↓ navegar pelos sets · Enter selecionar · ←→ trocar de herói",
   "common.loadingAssets": "Carregando assets",
   "common.preparingThumbs": "Preparando miniaturas...",

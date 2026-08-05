@@ -101,7 +101,7 @@ namespace ArdysaModsTools.UI.Forms
             this.SuspendLayout();
             this.AutoScaleDimensions = new SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.None;
-            this.ClientSize = new Size(1200, 800);
+            this.ClientSize = new Size(1440, 900);
             this.Name = "HeroGalleryForm";
             this.Text = "Select Hero Sets - AMT 2.0";
             this.ResumeLayout(false);
@@ -543,6 +543,14 @@ namespace ArdysaModsTools.UI.Forms
 
                     case "generationLogOpened":
                         _generationLogViews++;
+                        break;
+
+                    case "copyConsole":
+                        if (message.TryGetProperty("text", out var copyEl) &&
+                            copyEl.GetString() is { Length: > 0 } copyText)
+                        {
+                            try { Clipboard.SetText(copyText); } catch { }
+                        }
                         break;
 
                     case "baseNoSetConfirmed":

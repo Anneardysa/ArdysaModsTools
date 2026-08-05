@@ -540,6 +540,7 @@
   "common.deselect": "Deselect",
   "common.back": "Back",
   "common.ok": "OK",
+  "common.copied": "Copied",
   "heroGallery.smHint": "↑↓ browse sets · Enter select · ←→ change hero",
   "common.loadingAssets": "Loading Assets",
   "common.preparingThumbs": "Preparing thumbnails...",

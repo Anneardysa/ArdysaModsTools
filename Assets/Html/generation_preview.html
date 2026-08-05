@@ -189,6 +189,8 @@
          }
 
          /* ── Selection rows ── */
+         /* Two columns of compact rows: a generation run can carry 50+ heroes, and a
+            single column of 80px rows showed only four of them before scrolling. */
          .list {
             flex: 1;
             min-height: 0;
@@ -196,6 +198,10 @@
             text-align: left;
             margin-bottom: 16px;
             padding-right: 4px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 6px;
+            align-content: start;
          }
          .list::-webkit-scrollbar {
             width: 8px;
@@ -207,15 +213,14 @@
          .row {
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding: 8px 12px;
+            gap: 10px;
+            padding: 6px 10px;
             background: var(--accent-dim);
             border: 1px solid var(--border-light);
-            margin-bottom: 6px;
          }
          .row-thumb {
-            width: 56px;
-            height: 56px;
+            width: 40px;
+            height: 40px;
             flex-shrink: 0;
             object-fit: cover;
             background: var(--border-light);

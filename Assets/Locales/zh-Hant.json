@@ -540,6 +540,7 @@
   "common.deselect": "取消選擇",
   "common.back": "返回",
   "common.ok": "OK",
+  "common.copied": "已複製",
   "heroGallery.smHint": "↑↓ 瀏覽 sets · Enter 選擇 · ←→ 切換英雄",
   "common.loadingAssets": "正在載入 assets",
   "common.preparingThumbs": "正在準備縮圖...",

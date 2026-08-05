@@ -194,6 +194,21 @@
    backdrop-filter: none;
 }
 
+/* Skin Selector announcement marquee. It is a tinted wash + amber ink (demoted from a solid amber
+   block so it stops outranking the title and the primary action), which needs a darker ink over the
+   light chrome tier to stay legible. The edge fades must match the wash, not the dark canvas. */
+:root[data-theme="light"] .tb-marquee-inner {
+   background: rgba(227, 179, 65, 0.2);
+   color: #6f520d;
+   border-color: rgba(148, 110, 20, 0.55);
+}
+:root[data-theme="light"] .tb-marquee-inner::before {
+   background: linear-gradient(90deg, #f6ecd2, rgba(246, 236, 210, 0));
+}
+:root[data-theme="light"] .tb-marquee-inner::after {
+   background: linear-gradient(270deg, #f6ecd2, rgba(246, 236, 210, 0));
+}
+
 /* Main-shell sidebar (nav pane). It shares --panel with content cards, so pin it to the chrome tier
    here — a Discord/Win11 nav pane recedes below the content it sits beside. Its nav buttons stay at
    --panel-2 (#f6f6f6), lifted on the gray, and darken to --panel-hover (#f0f0f0) on hover. */

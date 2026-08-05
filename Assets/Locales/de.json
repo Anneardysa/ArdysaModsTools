@@ -540,6 +540,7 @@
   "common.deselect": "Abwählen",
   "common.back": "Zurück",
   "common.ok": "OK",
+  "common.copied": "Kopiert",
   "heroGallery.smHint": "↑↓ Sets durchblättern · Enter auswählen · ←→ Held wechseln",
   "common.loadingAssets": "Assets werden geladen",
   "common.preparingThumbs": "Vorschaubilder werden vorbereitet...",
