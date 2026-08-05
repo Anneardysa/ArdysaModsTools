@@ -1003,7 +1003,6 @@ namespace ArdysaModsTools.UI.Presenters
                 if (isRunning)
                 {
                     _view.DisableAllButtons();
-                    _logger.LogLocalized("warning", LogSegment.T("log.dota2.running"));
                     _view.ShowNotification(
                         Loc.T("notification.dota2Running.title"),
                         Loc.T("notification.dota2Running.body"),
