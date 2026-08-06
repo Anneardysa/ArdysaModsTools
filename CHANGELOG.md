@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
+## [2.2.21-beta] (Build 2297)
+
+### Fixed
+
+- **A rolled-back update no longer looks like one that never happened** (2297): `AMT.Updater.exe`
+  relaunches the app whether it applied the update or rolled it back, so a failed apply left the user
+  restarted on the old build and offered the identical update on every launch, forever, with nothing
+  anywhere naming the reason. Its log was the only record and lived in a staging folder the next
+  attempt wipes first. `DeltaUpdateService.ReportLastApplyOutcome` reads that log alongside the
+  existing `RepairInterruptedUpdate` startup sweep, puts the failure reason and the log's path in the
+  console, then renames the log aside — reported once, never deleted, because on a machine where the
+  apply keeps failing it is the entire diagnosis. Reported by a user stuck on 2.2.18-beta whose
+  in-app updates never stuck; the release payload and the diff were both verified correct, which is
+  what left the failure with no evidence at all.
+- **The applier waits long enough for antivirus to let go of a file** (2297): `ApplyEngine`'s retry
+  budget was 5 attempts of exponential backoff — about 3 seconds — which real-time scanning of a
+  freshly written multi-MB `.exe` or `.dll` routinely outlasts. One such miss aborts and rolls back
+  the whole update, all 30 files of it. Now 7 attempts, ~12.6 seconds. Hardening rather than a
+  confirmed fix: the failure is machine-specific and could not be reproduced here.
+
 ## [2.2.20-beta] (Builds 2277–2296)
 
 ### Changed

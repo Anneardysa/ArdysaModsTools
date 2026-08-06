@@ -66,7 +66,11 @@ namespace ArdysaModsTools.Core.Services.Update
         {
             try
             {
-                await Task.Run(_delta.RepairInterruptedUpdate).ConfigureAwait(true);
+                await Task.Run(() =>
+                {
+                    _delta.RepairInterruptedUpdate();
+                    _delta.ReportLastApplyOutcome();
+                }).ConfigureAwait(true);
 
                 _logger.Log("Checking for updates...");
 

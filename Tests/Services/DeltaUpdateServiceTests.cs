@@ -249,7 +249,58 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(File.ReadAllText(Path.Combine(_installDir, "app.dll")), Is.EqualTo("untouched"));
         }
 
+        [Test]
+        public void ReportLastApplyOutcome_FailedApply_LogsTheReasonOnceAndKeepsTheLog()
+        {
+            string stagingRoot = Path.Combine(_installDir, "stagingRoot");
+            string logPath = Path.Combine(stagingRoot, "9.9.9", "update.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+            File.WriteAllLines(logPath, new[]
+            {
+                "[09:10:59] Verified 30 staged file(s) for v9.9.9.",
+                "[09:11:12] Apply failed: Could not install ArdysaModsTools.dll — rolling back.",
+                "[09:11:13] FAILED: Update failed and was rolled back: Could not install ArdysaModsTools.dll",
+            });
+
+            var lines = new List<string>();
+            var service = NewService(stagingRoot, lines.Add);
+
+            service.ReportLastApplyOutcome();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(lines, Has.Exactly(1).Contains("Could not install ArdysaModsTools.dll"));
+                Assert.That(File.Exists(logPath), Is.False);
+                Assert.That(File.Exists(logPath + ".previous"), Is.True);
+            });
+
+            lines.Clear();
+            service.ReportLastApplyOutcome();
+            Assert.That(lines, Is.Empty);
+        }
+
+        [Test]
+        public void ReportLastApplyOutcome_SuccessfulApply_SaysNothing()
+        {
+            string stagingRoot = Path.Combine(_installDir, "stagingRoot");
+            string logPath = Path.Combine(stagingRoot, "9.9.9", "update.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+            File.WriteAllLines(logPath, new[]
+            {
+                "[09:10:59] OK: Updated to v9.9.9.",
+                "[09:11:00] Relaunched C:\\App\\ArdysaModsTools.exe",
+            });
+
+            var lines = new List<string>();
+            NewService(stagingRoot, lines.Add).ReportLastApplyOutcome();
+
+            Assert.That(lines, Is.Empty);
+        }
+
         private DeltaUpdateService NewService() =>
             new(new ArdysaModsTools.Core.Services.Logger((_, _) => { }), _installDir);
+
+        private DeltaUpdateService NewService(string stagingRoot, Action<string> log) =>
+            new(new ArdysaModsTools.Core.Services.Logger((message, _) => log(message)), _installDir, stagingRoot);
     }
 }

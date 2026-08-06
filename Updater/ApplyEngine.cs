@@ -31,7 +31,7 @@ namespace ArdysaModsTools.Updater
         public const string StagedOkMarker = ".staged-ok";
         public const string PlanFileName = "apply.json";
 
-        private const int MaxAttempts = 5;
+        private const int MaxAttempts = 7;
         private const int BaseDelayMs = 200;
 
         public static ApplyResult Run(

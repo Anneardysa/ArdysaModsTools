@@ -45,6 +45,10 @@ namespace ArdysaModsTools.Core.Services.Update
 
         private const string ManifestFileName = "files.json";
 
+        private const string ApplierLogFile = "update.log";
+
+        private const string ApplierFailureTag = "FAILED: ";
+
         private const int ManifestTimeoutSeconds = 15;
 
         private const int MaxParallelDownloads = 6;
@@ -381,6 +385,36 @@ namespace ArdysaModsTools.Core.Services.Update
             catch (Exception ex)
             {
                 _logger.Log($"Cleanup failed: {ex.Message}. Reinstall from the website if the app misbehaves.");
+            }
+        }
+
+        public void ReportLastApplyOutcome()
+        {
+            try
+            {
+                if (!Directory.Exists(_stagingRoot))
+                    return;
+
+                foreach (var logPath in Directory.EnumerateFiles(
+                    _stagingRoot, ApplierLogFile, SearchOption.AllDirectories))
+                {
+                    string? failure = File.ReadLines(logPath)
+                        .LastOrDefault(line => line.Contains(ApplierFailureTag, StringComparison.Ordinal));
+
+                    if (failure != null)
+                    {
+                        int reasonAt = failure.IndexOf(ApplierFailureTag, StringComparison.Ordinal)
+                                       + ApplierFailureTag.Length;
+                        _logger.Log("The last update could not be applied and the app was restarted on the " +
+                                    $"previous version — {failure[reasonAt..]} (details: {logPath})");
+                    }
+
+                    try { File.Move(logPath, logPath + ".previous", overwrite: true); } catch {  }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Could not read the last update's log: {ex.Message}");
             }
         }
 
