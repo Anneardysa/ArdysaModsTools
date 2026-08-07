@@ -34,15 +34,18 @@ namespace ArdysaModsTools.Core.Services
     {
         private readonly IAppLogger? _logger;
 
+        private readonly IItemsGameSyncService? _itemsGameSync;
+
         private const string LayersKey = @"Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers";
 
         private const string RunAsAdminToken = "RUNASADMIN";
 
         private const string GameInfoSignatureMarker = "gameinfo_branchspecific.gi~SHA1:";
 
-        public SetupVerificationService(IAppLogger? logger = null)
+        public SetupVerificationService(IAppLogger? logger = null, IItemsGameSyncService? itemsGameSync = null)
         {
             _logger = logger;
+            _itemsGameSync = itemsGameSync;
         }
 
         public async Task<SetupVerificationResult> VerifyAsync(string? targetPath, CancellationToken ct = default)
@@ -54,7 +57,8 @@ namespace ArdysaModsTools.Core.Services
             {
                 await CheckSignatureMatchesGameInfoAsync(targetPath, ct).ConfigureAwait(false),
                 await CheckSearchPathsMountedAsync(targetPath, ct).ConfigureAwait(false),
-                CheckNotForcedToRunAsAdmin(targetPath)
+                CheckNotForcedToRunAsAdmin(targetPath),
+                CheckItemsGameInSync()
             };
 
             var result = new SetupVerificationResult { Checks = checks };
@@ -425,6 +429,38 @@ namespace ArdysaModsTools.Core.Services
             {
                 return path.Trim();
             }
+        }
+
+        #endregion
+
+        #region Check 4 — package ↔ game item data
+
+        private SetupCheck CheckItemsGameInSync()
+        {
+            const SetupCheckId id = SetupCheckId.ItemsGameInSync;
+
+            var verdict = _itemsGameSync?.Current;
+            if (verdict == null)
+                return Unknown(id, "verify.sync.unknown", "package sync service not available");
+
+            return verdict.State switch
+            {
+                ItemsGameSyncState.InSync => Pass(id, verdict.DetailKey),
+
+                ItemsGameSyncState.Stale => new SetupCheck
+                {
+                    Id = id,
+                    State = SetupCheckState.Fail,
+                    DetailKey = verdict.DetailKey,
+                    DetailVars = verdict.DetailVars,
+                    Diagnostic = verdict.Diagnostic,
+                    HasOwnDialog = true,
+                    FailStatus = ModStatus.NeedUpdate,
+                    FailAction = RecommendedAction.Play
+                },
+
+                _ => Unknown(id, verdict.DetailKey, verdict.Diagnostic)
+            };
         }
 
         #endregion

@@ -36,7 +36,8 @@ namespace ArdysaModsTools.Core.Models
         Install,
         Update,
         Enable,
-        Fix
+        Fix,
+        Play
     }
 
     public record ModStatusInfo

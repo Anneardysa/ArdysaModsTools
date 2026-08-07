@@ -33,6 +33,14 @@ namespace ArdysaModsTools.UI.Interfaces
 
         void SetSetupChecks(SetupVerificationResult result);
 
+        void SetPlayState(bool enabled, string reasonKey);
+
+        void SetLaunchPanel(LaunchPanelState? state);
+
+        void ShowStickyLog(string key, string message, string category);
+
+        void ClearStickyLog(string key);
+
         void ShowCheckingState();
 
         void SetVersion(string version);

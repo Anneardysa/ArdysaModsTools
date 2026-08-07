@@ -88,6 +88,11 @@ namespace ArdysaModsTools
         private ModStatusInfo? _currentStatus;
         private SetupVerificationResult _currentVerification = SetupVerificationResult.Empty;
 
+        private bool _playEnabled;
+        private string _playReasonKey = "play.reason.notReady";
+
+        private LaunchPanelState? _currentLaunchPanel;
+
         private static readonly TimeSpan ShellLoadTimeout = TimeSpan.FromSeconds(30);
 
         private const string FallbackModspackVersion = "2.6";
@@ -116,6 +121,7 @@ namespace ArdysaModsTools
             IModInstallerService modInstallerService,
             IStatusService statusService,
             IServiceProvider serviceProvider,
+            Func<UI.Interfaces.IMainFormView, Logger, UI.Presenters.MainFormPresenter> presenterFactory,
             bool startMinimized = false)
         {
             _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
@@ -137,8 +143,8 @@ namespace ArdysaModsTools
                 ?? new ModInstallerService(_logger);
             _modInstaller.SetLogger(_logger);
 
-            _presenter = new UI.Presenters.MainFormPresenter(this, _logger, _configService,
-                statusService ?? throw new ArgumentNullException(nameof(statusService)));
+            if (statusService == null) throw new ArgumentNullException(nameof(statusService));
+            _presenter = (presenterFactory ?? throw new ArgumentNullException(nameof(presenterFactory)))(this, _logger);
 
             _versionService = new DotaVersionService(_logger);
             _lifecycleService = new AppLifecycleService();
@@ -332,6 +338,8 @@ namespace ArdysaModsTools
                     if (!_webReady) return;
                     PostExec(WebViewLocalizer.BuildApplyScript(_loc));
                     SetSetupChecks(_currentVerification);
+                    SetPlayState(_playEnabled, _playReasonKey);
+                    if (_currentLaunchPanel != null) SetLaunchPanel(_currentLaunchPanel);
                 };
                 _loc.CultureChanged += _cultureChangedHandler;
             }
@@ -761,6 +769,16 @@ namespace ArdysaModsTools
                         await _presenter.FixSetupAsync();
                         break;
 
+                    case "playDota":
+                        await _presenter.LaunchDotaAsync();
+                        break;
+                    case "cancelLaunch":
+                        _presenter.CancelLaunch();
+                        break;
+                    case "fixPackageSync":
+                        await _presenter.RepairPackageAsync();
+                        break;
+
                     case "support":
                         ShowSupportDialog();
                         break;
@@ -1036,11 +1054,72 @@ namespace ArdysaModsTools
             Js("verify", $"setSetupChecks({payload})");
         }
 
+        public void SetPlayState(bool enabled, string reasonKey)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => SetPlayState(enabled, reasonKey)));
+                return;
+            }
+
+            _playEnabled = enabled;
+            _playReasonKey = string.IsNullOrWhiteSpace(reasonKey) ? "play.reason.notReady" : reasonKey;
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                enabled,
+                label = Loc.T("play.button"),
+                reason = Loc.T(_playReasonKey)
+            }, _jsonOptions);
+
+            Js("play", $"setPlayState({payload})");
+        }
+
+        public void SetLaunchPanel(LaunchPanelState? state)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => SetLaunchPanel(state)));
+                return;
+            }
+
+            _currentLaunchPanel = state;
+
+            if (state == null)
+            {
+                Js("launch", "setLaunchPanel(null)");
+                return;
+            }
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                heading = Loc.T(state.HeadingKey),
+                detail = state.DetailVars != null ? Loc.T(state.DetailKey, state.DetailVars) : Loc.T(state.DetailKey),
+                percent = state.Percent,
+                canCancel = state.CanCancel,
+                isError = state.IsError,
+                cancelLabel = Loc.T(state.IsError ? "play.panel.dismiss" : "play.panel.cancel")
+            }, _jsonOptions);
+
+            Js("launch", $"setLaunchPanel({payload})");
+        }
+
+        public void ShowStickyLog(string key, string message, string category)
+        {
+            Js($"sticky:{key}", $"showStickyLog({J(key)},{J(message)},{J(category)})");
+        }
+
+        public void ClearStickyLog(string key)
+        {
+            Js($"sticky:{key}", $"clearStickyLog({J(key)})");
+        }
+
         private static string ChipLabelKey(SetupCheckId id) => id switch
         {
             SetupCheckId.SignatureMatchesGameInfo => "verify.chip.signature",
             SetupCheckId.SearchPathsMounted => "verify.chip.paths",
             SetupCheckId.NotForcedToRunAsAdmin => "verify.chip.admin",
+            SetupCheckId.ItemsGameInSync => "verify.chip.sync",
             _ => "verify.title"
         };
 

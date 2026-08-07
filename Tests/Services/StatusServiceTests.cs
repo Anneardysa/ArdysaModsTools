@@ -307,6 +307,82 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(result.Action, Is.EqualTo(RecommendedAction.Update));
         }
 
+        [Test]
+        public async Task GetDetailedStatusAsync_StalePackage_BlocksReady_AndRecommendsPlayNotPatchUpdate()
+        {
+            BuildDotaTree(signaturesContent: PatchedSignatures);
+            var sweep = new SetupVerificationResult
+            {
+                Checks = new[]
+                {
+                    new SetupCheck
+                    {
+                        Id = SetupCheckId.ItemsGameInSync,
+                        State = SetupCheckState.Fail,
+                        DetailKey = "verify.sync.fail",
+                        Diagnostic = "hash mismatch",
+                        FailStatus = ModStatus.NeedUpdate,
+                        FailAction = RecommendedAction.Play
+                    }
+                }
+            };
+            var service = new StatusService(_logger, new StubVerification(sweep));
+
+            var result = await service.GetDetailedStatusAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(ModStatus.NeedUpdate), "amber — the install is intact, the package is old");
+                Assert.That(result.Action, Is.EqualTo(RecommendedAction.Play));
+                Assert.That(result.SetupFailure, Is.EqualTo(SetupCheckId.ItemsGameInSync));
+                Assert.That(result.DescriptionKey, Is.EqualTo("verify.sync.fail"));
+            });
+        }
+
+        [Test]
+        public async Task GetDetailedStatusAsync_UnknownPackageSync_DoesNotBlockReady()
+        {
+            BuildDotaTree(signaturesContent: PatchedSignatures);
+            var sweep = new SetupVerificationResult
+            {
+                Checks = new[]
+                {
+                    new SetupCheck
+                    {
+                        Id = SetupCheckId.ItemsGameInSync,
+                        State = SetupCheckState.Unknown,
+                        DetailKey = "verify.sync.unknown"
+                    }
+                }
+            };
+            var service = new StatusService(_logger, new StubVerification(sweep));
+
+            var result = await service.GetDetailedStatusAsync(_root);
+
+            Assert.That(result.SetupFailure, Is.Null);
+            Assert.That(result.Status, Is.Not.EqualTo(ModStatus.Error));
+        }
+
+        [Test]
+        public async Task GetDetailedStatusAsync_NullFailAction_PreservesTheOriginalActionMapping()
+        {
+            BuildDotaTree(signaturesContent: PatchedSignatures);
+
+            var needUpdate = await new StatusService(_logger,
+                new StubVerification(SweepWith(SetupCheckId.SignatureMatchesGameInfo, ModStatus.NeedUpdate)))
+                .GetDetailedStatusAsync(_root);
+
+            var error = await new StatusService(_logger,
+                new StubVerification(SweepWith(SetupCheckId.NotForcedToRunAsAdmin, ModStatus.Error)))
+                .GetDetailedStatusAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(needUpdate.Action, Is.EqualTo(RecommendedAction.Update));
+                Assert.That(error.Action, Is.EqualTo(RecommendedAction.Fix));
+            });
+        }
+
         private static SetupVerificationResult ElevationDetectedSweep() =>
             new()
             {

@@ -42,7 +42,19 @@ namespace ArdysaModsTools.Core.DependencyInjection
             services.AddTransient<IActiveModsService, ActiveModsService>();
 
             services.AddTransient<ISetupVerificationService, SetupVerificationService>();
-            
+
+            services.AddTransient<IGameItemsGameExtractor, GameItemsGameExtractorService>();
+
+            services.AddSingleton<IItemsGameSyncService, ItemsGameSyncService>();
+
+            services.AddTransient<IVpkExtractor, VpkExtractorService>();
+            services.AddTransient<IVpkRecompiler, VpkRecompilerService>();
+            services.AddTransient<IVpkReplacer, VpkReplacerService>();
+            services.AddTransient<IItemsGameMergeService, ItemsGameMergeService>();
+
+            services.AddTransient<ISteamAppStateService, SteamAppStateService>();
+
+
             services.AddTransient<IDetectionService, DetectionService>();
             
             services.AddSingleton<IConfigService, MainConfigService>();
@@ -84,7 +96,19 @@ namespace ArdysaModsTools.Core.DependencyInjection
         public static IServiceCollection AddPresenters(this IServiceCollection services)
         {
             services.AddTransient<INavigationPresenter, UI.Presenters.NavigationPresenter>();
-            
+
+            services.AddTransient<Func<UI.Interfaces.IMainFormView, Logger, UI.Presenters.MainFormPresenter>>(
+                provider => (view, logger) => new UI.Presenters.MainFormPresenter(
+                    view,
+                    logger,
+                    provider.GetRequiredService<IConfigService>(),
+                    provider.GetRequiredService<IStatusService>(),
+                    verificationService: null,
+                    itemsGameSync: provider.GetRequiredService<IItemsGameSyncService>(),
+                    mergeService: provider.GetRequiredService<IItemsGameMergeService>(),
+                    steamAppState: provider.GetRequiredService<ISteamAppStateService>()));
+
+
             services.AddTransient<Func<UI.Interfaces.IDota2PerformanceView, string?, UI.Presenters.Dota2PerformancePresenter>>(
                 provider => (view, path) => new UI.Presenters.Dota2PerformancePresenter(
                     view,

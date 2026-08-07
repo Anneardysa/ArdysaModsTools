@@ -26,7 +26,9 @@ namespace ArdysaModsTools.Core.Models
 
         SearchPathsMounted,
 
-        NotForcedToRunAsAdmin
+        NotForcedToRunAsAdmin,
+
+        ItemsGameInSync
     }
 
     public enum SetupCheckState
@@ -57,6 +59,8 @@ namespace ArdysaModsTools.Core.Models
         public bool HasOwnDialog { get; init; }
 
         public ModStatus FailStatus { get; init; } = ModStatus.NeedUpdate;
+
+        public RecommendedAction? FailAction { get; init; }
     }
 
     public record SetupVerificationResult

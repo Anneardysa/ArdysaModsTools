@@ -32,11 +32,17 @@ namespace ArdysaModsTools.Core.Constants
 
         public const string VersionJson = "game/_ArdysaMods/_temp/version.json";
 
+        public const string ItemsGameBaseline = "game/_ArdysaMods/_temp/itemsgame_baseline.json";
+
+        public const string ItemsGameBaselinePending = "game/_ArdysaMods/_temp/itemsgame_baseline.pending.json";
+
         #endregion
 
         #region Game Files
 
         public const string SteamInf = "game/dota/steam.inf";
+
+        public const string GameVpk = "game/dota/pak01_dir.vpk";
 
         public const string Signatures = "game/bin/win64/dota.signatures";
 

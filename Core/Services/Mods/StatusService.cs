@@ -323,12 +323,20 @@ namespace ArdysaModsTools.Core.Services
 
             bool needsUpdate = failure.FailStatus == ModStatus.NeedUpdate;
 
+            var action = failure.FailAction ?? (needsUpdate ? RecommendedAction.Update : RecommendedAction.Fix);
+
             return CreateStatus(
                 failure.FailStatus,
                 needsUpdate ? "status.updateRequired.text" : "status.setupProblem.text",
                 failure.DetailKey,
-                action: needsUpdate ? RecommendedAction.Update : RecommendedAction.Fix,
-                actionText: Loc.T(needsUpdate ? "status.action.patchUpdate" : "status.action.fixSetup"),
+                action: action,
+                actionText: Loc.T(action switch
+                {
+                    RecommendedAction.Install => "status.action.install",
+                    RecommendedAction.Update => "status.action.patchUpdate",
+                    RecommendedAction.Play => "status.action.play",
+                    _ => "status.action.fixSetup"
+                }),
                 version: version,
                 lastModified: lastModified,
                 errorMessage: failure.Diagnostic,

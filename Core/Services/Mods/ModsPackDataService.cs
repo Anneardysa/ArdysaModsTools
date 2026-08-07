@@ -179,6 +179,9 @@ namespace ArdysaModsTools.Core.Services
                 percent?.Report(98);
                 status("Installing...");
                 File.Copy(newVpkPath, vpkPath, overwrite: true);
+
+                await ItemsGameBaselineStore.CommitAsync(targetPath, mergedBlocks.Keys, ct).ConfigureAwait(false);
+
                 percent?.Report(100);
 
                 return true;
@@ -198,6 +201,8 @@ namespace ArdysaModsTools.Core.Services
             {
                 try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true); }
                 catch (Exception ex) { FallbackLogger.LogFileOnly($"ModsPackData: temp cleanup failed: {ex.Message}"); }
+
+                Core.Helpers.LargeWorkMemory.Release();
             }
         }
 

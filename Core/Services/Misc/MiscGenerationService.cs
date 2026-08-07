@@ -71,6 +71,8 @@ namespace ArdysaModsTools.Core.Services
                 if (!File.Exists(vpkPath))
                     return Fail($"VPK file not found at: {vpkPath}", log, ErrorCodes.VPK_FILE_NOT_FOUND);
 
+                var packageBeforeRebuild = Core.Models.VpkStamp.Read(vpkPath);
+
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string hlExtractPath = Path.Combine(baseDir, "HLExtract.exe");
                 string vpkToolPath = Path.Combine(baseDir, "vpk.exe");
@@ -116,6 +118,8 @@ namespace ArdysaModsTools.Core.Services
                     if (!await _replacer.ReplaceAsync(targetPath, newVpk, log, ct).ConfigureAwait(false))
                         return Fail("Could not install the rebuilt mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
 
+                    await ItemsGameBaselineStore.RebindAsync(targetPath, packageBeforeRebuild, ct).ConfigureAwait(false);
+
                     log("Finalizing...");
                     var extractionLog = new MiscExtractionLog
                     {
@@ -155,10 +159,7 @@ namespace ArdysaModsTools.Core.Services
                 {
                     await CleanupAsync(tempRoot, log).ConfigureAwait(false);
                     
-                    System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
-                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect();
+                    Core.Helpers.LargeWorkMemory.Release();
                 }
             }
             catch (OperationCanceledException)

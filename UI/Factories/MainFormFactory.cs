@@ -17,6 +17,7 @@
 using System;
 using System.Windows.Forms;
 using ArdysaModsTools.Core.Interfaces;
+using ArdysaModsTools.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace ArdysaModsTools.UI.Factories
@@ -37,12 +38,16 @@ namespace ArdysaModsTools.UI.Factories
             var modInstallerService = _serviceProvider.GetRequiredService<IModInstallerService>();
             var statusService = _serviceProvider.GetRequiredService<IStatusService>();
 
+            var presenterFactory = _serviceProvider
+                .GetRequiredService<Func<UI.Interfaces.IMainFormView, Logger, UI.Presenters.MainFormPresenter>>();
+
             return new MainFormWebView(
                 configService,
                 detectionService,
                 modInstallerService,
                 statusService,
                 _serviceProvider,
+                presenterFactory,
                 startMinimized);
         }
     }

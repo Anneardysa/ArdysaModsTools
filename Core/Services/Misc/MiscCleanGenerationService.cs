@@ -148,6 +148,8 @@ namespace ArdysaModsTools.Core.Services
                     if (!replaceSuccess)
                         return Fail("VPK replacement failed.", log);
 
+                    await ItemsGameBaselineStore.CommitAsync(targetPath, null, ct).ConfigureAwait(false);
+
                     ProtectedVpkStore.Clear(targetPath);
 
                     log("Finalizing...");
@@ -192,10 +194,7 @@ namespace ArdysaModsTools.Core.Services
                 {
                     await CleanupAsync(tempRoot).ConfigureAwait(false);
 
-                    System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
-                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect();
+                    Core.Helpers.LargeWorkMemory.Release();
                 }
             }
             catch (OperationCanceledException)

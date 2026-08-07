@@ -104,8 +104,12 @@
             flag while a Chinese locale is active, so every other language is untouched. Latin glyphs still
             resolve to JetBrains Mono first; only CJK characters fall through to YaHei / JhengHei. */
          html[data-cjk] {
-            --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "PingFang TC", "Noto Sans CJK SC", sans-serif;
-            --mono: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "PingFang TC", "Noto Sans CJK SC", monospace;
+            --sans:
+               "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Microsoft YaHei",
+               "Microsoft JhengHei", "PingFang SC", "PingFang TC", "Noto Sans CJK SC", sans-serif;
+            --mono:
+               "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Microsoft YaHei",
+               "Microsoft JhengHei", "PingFang SC", "PingFang TC", "Noto Sans CJK SC", monospace;
          }
 
          html,
@@ -287,6 +291,21 @@
             display: flex;
             flex-direction: column;
             gap: var(--sp-5);
+            /* Scroll rather than crush. The window is clamped to the working area, so on a 1080p
+               screen with a taskbar the sidebar's content is taller than the space it gets. Flex
+               resolves that by shrinking children, and .verify-panel loses first because it clips
+               (overflow: hidden) — which silently ate the bottom rows of the report, including the
+               one explaining why the Play button above it is disabled. */
+            overflow-y: auto;
+            /* The vertical scrollbar eats into the content box while the children are still width:100%,
+               which otherwise produces a second, horizontal scrollbar along the sidebar's foot. */
+            overflow-x: hidden;
+            min-height: 0;
+         }
+         /* Nothing in the sidebar gives way. Shrinking any of it produces silent damage — a clipped
+            report, or squashed nav buttons — where a scrollbar is honest and recoverable. */
+         .sidebar > * {
+            flex-shrink: 0;
          }
 
          .group {
@@ -421,6 +440,59 @@
             margin-top: auto;
          }
 
+         /* ── play button ──
+            Sits above the verification report so the sidebar reads top-down as one sentence:
+            "launch the game — here is why you can (or cannot)".
+
+            Disabled it is a plain panel row, indistinguishable in weight from the report below it.
+            Enabled it INVERTS to --primary/--on-primary, which is the strongest emphasis a
+            black-and-white system has and flips correctly in both themes (white-on-black in dark,
+            black-on-white in light). Deliberately NOT the amber --verify-fix-bg: that colour means
+            "action needed" everywhere else in this panel, and using it for "ready" would read as a
+            fifth verify state. No green either — see the design tokens above; this shell is
+            monochrome apart from the verdict dots. */
+         .play-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--sp-2);
+            width: 100%;
+            padding: 10px var(--sp-3);
+            margin-bottom: var(--sp-2);
+            background: var(--panel-2);
+            border: 1px solid var(--hairline-strong);
+            border-radius: var(--r-sm);
+            color: var(--mute);
+            font-family: var(--sans);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            line-height: 15px;
+            cursor: pointer;
+            transition: var(--transition);
+         }
+         .play-btn .ico {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+         }
+         .play-btn:not(.is-disabled) {
+            background: var(--primary);
+            color: var(--on-primary);
+            border-color: transparent;
+         }
+         .play-btn:not(.is-disabled):hover {
+            filter: brightness(0.88);
+         }
+         .play-btn:not(.is-disabled):active {
+            transform: translateY(1px);
+         }
+         .play-btn.is-disabled {
+            opacity: 0.4;
+            pointer-events: none;
+         }
+
          /* ── setup verification panel ──
             One row per condition Dota 2 validates at launch, grouped in a container that reads as a
             single report sitting directly above the status card — so a red row is visibly the reason
@@ -440,6 +512,13 @@
          }
          .verify-panel.show {
             display: flex;
+         }
+         /* Dota 2 is running: the rows still report the verdict, but their panels open repairs that
+            cannot touch a package the game has open. Dimmed rather than hidden — the report is the
+            reason the user is looking at the sidebar in the first place. */
+         .verify-panel.is-locked .verify-item {
+            pointer-events: none;
+            opacity: 0.55;
          }
          .verify-head {
             display: flex;
@@ -815,6 +894,11 @@
          .status-refresh:hover {
             color: var(--ink);
             background: var(--panel-hover);
+         }
+         /* send() already refuses a click on .is-disabled; this makes the refusal visible. */
+         .status-refresh.is-disabled {
+            opacity: 0.4;
+            pointer-events: none;
          }
          /* No spinner on the refresh button any more — the badge itself reports "checking",
             and two spinners 8px apart read as two separate operations. */
@@ -1925,6 +2009,55 @@
             letter-spacing: 1.5px;
             color: var(--body);
          }
+         /* ── launch panel ──
+            Same confirm shell, but the body reports ongoing work instead of asking a question: a ring
+            while waiting on something with no measurable progress (Steam, the game starting), and a
+            bar when there genuinely is a percentage (a package rebuild). Monochrome — the ring is the
+            single --primary accent against the hairline track. */
+         .launch-spinner {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            border: 2px solid var(--hairline-strong);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: launchSpin 0.9s linear infinite;
+         }
+         .launch-spinner.is-error {
+            border-color: var(--verify-bad);
+            border-top-color: var(--verify-bad);
+            animation: none;
+         }
+         @keyframes launchSpin {
+            to {
+               transform: rotate(360deg);
+            }
+         }
+         @media (prefers-reduced-motion: reduce) {
+            .launch-spinner {
+               animation-duration: 3s;
+            }
+         }
+         .launch-bar {
+            display: none;
+            width: 100%;
+            height: 4px;
+            margin-top: var(--sp-1);
+            background: var(--hairline);
+            border-radius: var(--r-sm);
+            overflow: hidden;
+         }
+         .launch-bar.show {
+            display: block;
+         }
+         .launch-bar > span {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: var(--primary);
+            transition: width 0.25s ease;
+         }
+
          .confirm-actions {
             display: flex;
             gap: var(--sp-3);
@@ -2357,8 +2490,16 @@
       <svg width="0" height="0" style="position: absolute" aria-hidden="true">
          <defs>
             <g id="ardysaGlyph">
-               <g transform="translate(1.007913, 440.428851)"><path d="M190.79,158.66c0,12.07,2.23,23.49,6.69,34.25c4.47,10.77,10.65,20.08,18.52,27.96s17.06,14.05,27.56,18.52 c10.5,4.46,21.79,6.69,33.87,6.69H84.48c11.55-1.57,22.71-5.24,33.48-11.02c10.76-5.78,20.86-13,30.31-21.67 c9.46-8.67,17.86-18.25,25.21-28.75c7.34-10.5,13.11-21.26,17.31-32.29V158.66z M342.02,246.08c11.03,0,20.48-4.59,28.35-13.77 c7.88-9.19,11.81-19.57,11.81-31.13c0-2.09,0-4.19,0-6.29c0-2.09-0.53-4.2-1.58-6.31l-22.83-66.15l-1.58-4.73L300.27-43.75 c-3.68-8.92-10.24-13.38-19.69-13.38c-8.93,0-15.23,4.46-18.9,13.38l94.5-261.46L443.6-53.98c3.68,10.5,7.88,22.97,12.6,37.42 c4.72,14.43,8.92,26.9,12.6,37.4l64.58,184.29c3.67,10.5,10.09,19.95,19.29,28.35c9.19,8.41,19.82,12.6,31.9,12.6H342.02z" /></g>
-               <g transform="translate(407.31193, 150.568186)"><path d="M400.89,182.21c0-12.07-2.23-23.49-6.69-34.25c-4.47-10.77-10.65-20.08-18.52-27.96s-17.06-14.05-27.56-18.52 c-10.5-4.46-21.79-6.69-33.88-6.69H507.2c-11.55,1.57-22.71,5.24-33.48,11.02c-10.76,5.78-20.86,13-30.31,21.67 c-9.46,8.67-17.86,18.25-25.21,28.75c-7.34,10.5-13.11,21.26-17.31,32.29V182.21z M249.66,94.79 c-11.03,0-20.48,4.59-28.35,13.77c-7.88,9.19-11.81,19.57-11.81,31.12c0,2.09,0,4.19,0,6.29c0,2.09,0.53,4.2,1.58,6.31 l22.83,66.15l1.58,4.73l55.92,161.46c3.68,8.92,10.24,13.38,19.69,13.38c8.93,0,15.23-4.46,18.9-13.38l-94.5,261.46 l-87.42-251.23c-3.68-10.5-7.88-22.97-12.6-37.42c-4.72-14.43-8.92-26.9-12.6-37.4L58.29,135.75 c-3.67-10.5-10.09-19.95-19.29-28.35c-9.19-8.41-19.82-12.6-31.9-12.6H249.66z" /></g>
+               <g transform="translate(1.007913, 440.428851)">
+                  <path
+                     d="M190.79,158.66c0,12.07,2.23,23.49,6.69,34.25c4.47,10.77,10.65,20.08,18.52,27.96s17.06,14.05,27.56,18.52 c10.5,4.46,21.79,6.69,33.87,6.69H84.48c11.55-1.57,22.71-5.24,33.48-11.02c10.76-5.78,20.86-13,30.31-21.67 c9.46-8.67,17.86-18.25,25.21-28.75c7.34-10.5,13.11-21.26,17.31-32.29V158.66z M342.02,246.08c11.03,0,20.48-4.59,28.35-13.77 c7.88-9.19,11.81-19.57,11.81-31.13c0-2.09,0-4.19,0-6.29c0-2.09-0.53-4.2-1.58-6.31l-22.83-66.15l-1.58-4.73L300.27-43.75 c-3.68-8.92-10.24-13.38-19.69-13.38c-8.93,0-15.23,4.46-18.9,13.38l94.5-261.46L443.6-53.98c3.68,10.5,7.88,22.97,12.6,37.42 c4.72,14.43,8.92,26.9,12.6,37.4l64.58,184.29c3.67,10.5,10.09,19.95,19.29,28.35c9.19,8.41,19.82,12.6,31.9,12.6H342.02z"
+                  />
+               </g>
+               <g transform="translate(407.31193, 150.568186)">
+                  <path
+                     d="M400.89,182.21c0-12.07-2.23-23.49-6.69-34.25c-4.47-10.77-10.65-20.08-18.52-27.96s-17.06-14.05-27.56-18.52 c-10.5-4.46-21.79-6.69-33.88-6.69H507.2c-11.55,1.57-22.71,5.24-33.48,11.02c-10.76,5.78-20.86,13-30.31,21.67 c-9.46,8.67-17.86,18.25-25.21,28.75c-7.34,10.5-13.11,21.26-17.31,32.29V182.21z M249.66,94.79 c-11.03,0-20.48,4.59-28.35,13.77c-7.88,9.19-11.81,19.57-11.81,31.12c0,2.09,0,4.19,0,6.29c0,2.09,0.53,4.2,1.58,6.31 l22.83,66.15l1.58,4.73l55.92,161.46c3.68,8.92,10.24,13.38,19.69,13.38c8.93,0,15.23-4.46,18.9-13.38l-94.5,261.46 l-87.42-251.23c-3.68-10.5-7.88-22.97-12.6-37.42c-4.72-14.43-8.92-26.9-12.6-37.4L58.29,135.75 c-3.67-10.5-10.09-19.95-19.29-28.35c-9.19-8.41-19.82-12.6-31.9-12.6H249.66z"
+                  />
+               </g>
             </g>
          </defs>
       </svg>
@@ -2370,7 +2511,9 @@
       <header id="titlebar">
          <div class="brand">
             <span class="glyph">
-               <svg viewBox="0 0 1000 1000" fill="currentColor" aria-label="Ardysa"><use href="#ardysaGlyph" /></svg>
+               <svg viewBox="0 0 1000 1000" fill="currentColor" aria-label="Ardysa">
+                  <use href="#ardysaGlyph" />
+               </svg>
             </span>
             <span class="b-name">ArdysaModsTools</span>
             <span class="b-tag">Dota 2</span>
@@ -2417,7 +2560,12 @@
                   />
                </svg>
             </button>
-            <button class="win-btn min" title="Minimize" data-i18n-title="shell.titlebar.minimize" onclick="send('minimize', event)">
+            <button
+               class="win-btn min"
+               title="Minimize"
+               data-i18n-title="shell.titlebar.minimize"
+               onclick="send('minimize', event)"
+            >
                <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -2428,7 +2576,12 @@
                   <line x1="5" y1="12" x2="19" y2="12" />
                </svg>
             </button>
-            <button class="win-btn close" title="Close" data-i18n-title="shell.titlebar.close" onclick="send('close', event)">
+            <button
+               class="win-btn close"
+               title="Close"
+               data-i18n-title="shell.titlebar.close"
+               onclick="send('close', event)"
+            >
                <svg
                   viewBox="0 0 24 24"
                   fill="none"
@@ -2600,15 +2753,42 @@
 
             <div class="sb-spacer"></div>
 
+            <!-- Ships disabled: nothing has been verified yet at first paint, and a button that is
+                 clickable before the first status sweep would let the user launch an install AMT has
+                 not checked. setPlayState() enables it. -->
+            <button
+               id="btn-play"
+               class="play-btn is-disabled"
+               disabled
+               data-i18n-title="play.reason.notReady"
+               onclick="send('playDota', event)"
+            >
+               <svg class="ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <polygon points="7 4 20 12 7 20" />
+               </svg>
+               <span data-i18n="play.button">PLAY DOTA 2</span>
+            </button>
+
             <!-- Populated by setSetupChecks() from C#; empty and hidden until the first sweep. -->
             <div id="verify-panel" class="verify-panel"></div>
 
             <div class="status-card">
                <!-- Icon and label are swapped by renderStatus(); the seeded neutral icon keeps the
                     chip balanced before the first sweep, and data-key stops it re-animating. -->
-               <span id="status-badge" class="status-badge" data-kind="neutral" role="status" aria-live="polite">
+               <span
+                  id="status-badge"
+                  class="status-badge"
+                  data-kind="neutral"
+                  role="status"
+                  aria-live="polite"
+               >
                   <span class="sb-pulse" aria-hidden="true"></span>
-                  <span id="status-icon" class="sb-roll sb-icon" data-key="neutral" aria-hidden="true">
+                  <span
+                     id="status-icon"
+                     class="sb-roll sb-icon"
+                     data-key="neutral"
+                     aria-hidden="true"
+                  >
                      <span>
                         <svg
                            viewBox="0 0 24 24"
@@ -2622,7 +2802,12 @@
                         </svg>
                      </span>
                   </span>
-                  <span id="status-label" class="sb-roll sb-label" data-i18n="shell.status.notChecked">Not Checked</span>
+                  <span
+                     id="status-label"
+                     class="sb-roll sb-label"
+                     data-i18n="shell.status.notChecked"
+                     >Not Checked</span
+                  >
                </span>
                <button
                   id="status-refresh"
@@ -2679,13 +2864,37 @@
          <main class="content">
             <div id="carousel" class="carousel">
                <div id="carousel-track" class="carousel-track"></div>
-               <button class="car-arrow prev" title="Previous" data-i18n-title="shell.carousel.prev" onclick="carouselPrev(event)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+               <button
+                  class="car-arrow prev"
+                  title="Previous"
+                  data-i18n-title="shell.carousel.prev"
+                  onclick="carouselPrev(event)"
+               >
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2.5"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
                      <polyline points="15 18 9 12 15 6" />
                   </svg>
                </button>
-               <button class="car-arrow next" title="Next" data-i18n-title="shell.carousel.next" onclick="carouselNext(event)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+               <button
+                  class="car-arrow next"
+                  title="Next"
+                  data-i18n-title="shell.carousel.next"
+                  onclick="carouselNext(event)"
+               >
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2.5"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
                      <polyline points="9 6 15 12 9 18" />
                   </svg>
                </button>
@@ -2695,18 +2904,46 @@
             <!-- Latest hero-set additions (hidden until loadLatestUpdates pushes cards) -->
             <div id="updates-strip" class="updates-strip">
                <div class="updates-head">
-                  <span class="updates-title" data-i18n="heroGallery.latestUpdates">Latest Updates</span>
+                  <span class="updates-title" data-i18n="heroGallery.latestUpdates"
+                     >Latest Updates</span
+                  >
                   <span id="updates-count" class="updates-count"></span>
                </div>
                <div class="updates-wrap">
-                  <button id="updates-prev" class="updates-arrow prev" title="Previous" data-i18n-title="shell.carousel.prev" onclick="updatesScroll(-1)">
-                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <button
+                     id="updates-prev"
+                     class="updates-arrow prev"
+                     title="Previous"
+                     data-i18n-title="shell.carousel.prev"
+                     onclick="updatesScroll(-1)"
+                  >
+                     <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                     >
                         <polyline points="15 18 9 12 15 6" />
                      </svg>
                   </button>
                   <div id="updates-row" class="updates-row"></div>
-                  <button id="updates-next" class="updates-arrow next" title="Next" data-i18n-title="shell.carousel.next" onclick="updatesScroll(1)">
-                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <button
+                     id="updates-next"
+                     class="updates-arrow next"
+                     title="Next"
+                     data-i18n-title="shell.carousel.next"
+                     onclick="updatesScroll(1)"
+                  >
+                     <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                     >
                         <polyline points="9 6 15 12 9 18" />
                      </svg>
                   </button>
@@ -2720,25 +2957,44 @@
                      class="bg"
                      alt=""
                      data-src="https://cdn.ardysamods.my.id/Assets/image/banner/install_card.png"
-                     onerror="this.style.display='none'"
+                     onerror="this.style.display = 'none'"
                   />
                   <span class="veil"></span>
                   <span class="pc-body">
                      <span class="pc-top">
                         <span class="pc-ico">
-                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                           <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2.2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                           >
                               <path d="M12 3v12" />
                               <polyline points="7 11 12 16 17 11" />
                               <path d="M5 20h14" />
                            </svg>
                         </span>
-                        <svg class="pc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <svg
+                           class="pc-arrow"
+                           viewBox="0 0 24 24"
+                           fill="none"
+                           stroke="currentColor"
+                           stroke-width="2.5"
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                        >
                            <polyline points="9 6 15 12 9 18" />
                         </svg>
                      </span>
                      <span class="pc-text">
-                        <span class="pc-title" data-i18n="shell.card.install.title">Install ModsPack</span>
-                        <span class="pc-sub" data-i18n="shell.card.install.sub">Apply the latest skins &amp; mods to Dota&nbsp;2</span>
+                        <span class="pc-title" data-i18n="shell.card.install.title"
+                           >Install ModsPack</span
+                        >
+                        <span class="pc-sub" data-i18n="shell.card.install.sub"
+                           >Apply the latest skins &amp; mods to Dota&nbsp;2</span
+                        >
                      </span>
                   </span>
                </button>
@@ -2748,21 +3004,46 @@
                   <span class="pc-body">
                      <span class="pc-top">
                         <span class="pc-ico">
-                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                           <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                           >
                               <path d="M4 5h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
                               <line x1="7" y1="9" x2="14" y2="9" />
                               <line x1="7" y1="13" x2="14" y2="13" />
                               <line x1="7" y1="17" x2="11" y2="17" />
                            </svg>
                         </span>
-                        <svg class="pc-arrow chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <svg
+                           class="pc-arrow chev"
+                           viewBox="0 0 24 24"
+                           fill="none"
+                           stroke="currentColor"
+                           stroke-width="2.5"
+                           stroke-linecap="round"
+                           stroke-linejoin="round"
+                        >
                            <polyline points="6 9 12 15 18 9" />
                         </svg>
                      </span>
-                     <svg class="pc-logo" viewBox="0 0 1000 1000" fill="currentColor" role="img" aria-label="Ardysa"><use href="#ardysaGlyph" /></svg>
+                     <svg
+                        class="pc-logo"
+                        viewBox="0 0 1000 1000"
+                        fill="currentColor"
+                        role="img"
+                        aria-label="Ardysa"
+                     >
+                        <use href="#ardysaGlyph" />
+                     </svg>
                      <span class="pc-text">
                         <span class="pc-title" data-i18n="shell.card.news.title">What's New</span>
-                        <span class="pc-sub" data-i18n="shell.card.news.sub">Changelog &amp; ModsPack — latest releases</span>
+                        <span class="pc-sub" data-i18n="shell.card.news.sub"
+                           >Changelog &amp; ModsPack — latest releases</span
+                        >
                         <span class="pc-vers">
                            <span class="pc-ver" id="news-app-ver">App v—</span>
                            <span class="pc-ver mods" id="news-mods-ver">ModsPack v—</span>
@@ -2787,7 +3068,9 @@
                   <line x1="12" y1="9" x2="12" y2="13" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
                </svg>
-               <span data-i18n="shell.warning.closeDota">Dota 2 is still running — tools are unavailable until you close the game.</span>
+               <span data-i18n="shell.warning.closeDota"
+                  >Dota 2 is still running — tools are unavailable until you close the game.</span
+               >
             </div>
 
             <div id="pathFoundBanner" class="path-found">
@@ -2807,7 +3090,9 @@
 
             <section id="console-panel" class="console notch">
                <div class="console-head">
-                  <div class="c-title"><span class="led"></span> <span data-i18n="shell.console.title">Console</span></div>
+                  <div class="c-title">
+                     <span class="led"></span> <span data-i18n="shell.console.title">Console</span>
+                  </div>
                   <button class="copy-btn" onclick="copyConsole()">
                      <svg
                         viewBox="0 0 24 24"
@@ -2883,19 +3168,42 @@
       <div id="news-modal" class="modal-overlay" onclick="onNewsBackdrop(event)">
          <div class="modal" role="dialog" aria-modal="true" aria-label="What's New">
             <div class="modal-head">
-               <div class="modal-title"><span class="led"></span> <span data-i18n="shell.news.modalTitle">What's New</span></div>
-               <button class="modal-x" title="Close" data-i18n-title="shell.titlebar.close" onclick="closeNewsModal()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+               <div class="modal-title">
+                  <span class="led"></span>
+                  <span data-i18n="shell.news.modalTitle">What's New</span>
+               </div>
+               <button
+                  class="modal-x"
+                  title="Close"
+                  data-i18n-title="shell.titlebar.close"
+                  onclick="closeNewsModal()"
+               >
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                  >
                      <line x1="6" y1="6" x2="18" y2="18" />
                      <line x1="18" y1="6" x2="6" y2="18" />
                   </svg>
                </button>
             </div>
-            <div class="modal-sub" data-i18n="shell.news.modalSub">Choose what you'd like to view</div>
+            <div class="modal-sub" data-i18n="shell.news.modalSub">
+               Choose what you'd like to view
+            </div>
             <div class="choice-grid">
                <button class="choice" onclick="newsChoose('whatsnew')">
                   <span class="choice-ico">
-                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                     <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                     >
                         <path d="M4 5h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
                         <line x1="7" y1="9" x2="14" y2="9" />
                         <line x1="7" y1="13" x2="14" y2="13" />
@@ -2903,17 +3211,28 @@
                      </svg>
                   </span>
                   <span class="choice-title" data-i18n="shell.news.changelog.title">Changelog</span>
-                  <span class="choice-sub" data-i18n="shell.news.changelog.sub">App release notes, fixes &amp; new features</span>
+                  <span class="choice-sub" data-i18n="shell.news.changelog.sub"
+                     >App release notes, fixes &amp; new features</span
+                  >
                   <span class="choice-ver" id="modal-app-ver">App v—</span>
                </button>
                <button class="choice" onclick="newsChoose('modspackUpdates')">
                   <span class="choice-ico">
-                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                     <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                     >
                         <path d="M12 2l2.4 5 5.6.8-4 4 1 5.5L12 19.8 6.9 22.3l1-5.5-4-4 5.6-.8z" />
                      </svg>
                   </span>
                   <span class="choice-title" data-i18n="shell.news.modspack.title">ModsPack</span>
-                  <span class="choice-sub" data-i18n="shell.news.modspack.sub">Latest hero skins &amp; cosmetic sets</span>
+                  <span class="choice-sub" data-i18n="shell.news.modspack.sub"
+                     >Latest hero skins &amp; cosmetic sets</span
+                  >
                   <span class="choice-ver mods" id="modal-mods-ver">ModsPack v—</span>
                </button>
             </div>
@@ -2922,11 +3241,30 @@
 
       <!-- ═══════════════════ CONFIRM MODAL ═══════════════════ -->
       <div id="confirm-modal" class="modal-overlay" onclick="onConfirmBackdrop(event)">
-         <div class="modal confirm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-heading">
+         <div
+            class="modal confirm"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-heading"
+         >
             <div class="modal-head">
-               <div class="modal-title"><span class="led"></span> <span id="confirm-eyebrow" data-i18n="shell.confirm.eyebrow">Confirm</span></div>
-               <button class="modal-x" title="Close" data-i18n-title="shell.titlebar.close" onclick="resolveConfirm(false)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+               <div class="modal-title">
+                  <span class="led"></span>
+                  <span id="confirm-eyebrow" data-i18n="shell.confirm.eyebrow">Confirm</span>
+               </div>
+               <button
+                  class="modal-x"
+                  title="Close"
+                  data-i18n-title="shell.titlebar.close"
+                  onclick="resolveConfirm(false)"
+               >
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                  >
                      <line x1="6" y1="6" x2="18" y2="18" />
                      <line x1="18" y1="6" x2="6" y2="18" />
                   </svg>
@@ -2934,8 +3272,17 @@
             </div>
             <div class="confirm-body">
                <span class="confirm-ico">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                     <path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z" />
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.8"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path
+                        d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"
+                     />
                      <line x1="12" y1="9" x2="12" y2="13" />
                      <line x1="12" y1="17" x2="12.01" y2="17" />
                   </svg>
@@ -2945,8 +3292,22 @@
                <div id="confirm-note" class="confirm-note" style="display: none"></div>
             </div>
             <div class="confirm-actions">
-               <button id="confirm-cancel" class="ob-btn ghost" data-i18n="common.cancel" onclick="resolveConfirm(false)">Cancel</button>
-               <button id="confirm-ok" class="ob-btn primary" data-i18n="common.continue" onclick="resolveConfirm(true)">Continue</button>
+               <button
+                  id="confirm-cancel"
+                  class="ob-btn ghost"
+                  data-i18n="common.cancel"
+                  onclick="resolveConfirm(false)"
+               >
+                  Cancel
+               </button>
+               <button
+                  id="confirm-ok"
+                  class="ob-btn primary"
+                  data-i18n="common.continue"
+                  onclick="resolveConfirm(true)"
+               >
+                  Continue
+               </button>
             </div>
          </div>
       </div>
@@ -2955,15 +3316,35 @@
            Opened from the Process Elevation row. Static markup with data-i18n so it re-translates
            on a language switch like the rest of the shell; only the detected-state line is filled
            in from C#. Information only — no action, because the fix is outside AMT. -->
-      <div id="elevation-modal" class="modal-overlay" onclick="onElevationBackdrop(event)">
-         <div class="modal confirm" role="alertdialog" aria-modal="true" aria-labelledby="elevation-heading">
+      <!-- ═══════════════════ PACKAGE SYNC MODAL ═══════════════════
+           Opened from the Package Sync row. Explains why the game rejects the package and offers the
+           repair, because that repair rebuilds the whole package and takes minutes — long enough that
+           starting it from a row click with no warning would be a surprise, not a fix. -->
+      <div id="sync-modal" class="modal-overlay" onclick="onPackageSyncBackdrop(event)">
+         <div
+            class="modal confirm"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="sync-heading"
+         >
             <div class="modal-head">
                <div class="modal-title">
                   <span class="led"></span>
-                  <span data-i18n="verify.chip.admin">Process Elevation</span>
+                  <span data-i18n="verify.chip.sync">Package Sync</span>
                </div>
-               <button class="modal-x" title="Close" data-i18n-title="shell.titlebar.close" onclick="closeElevationModal()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+               <button
+                  class="modal-x"
+                  title="Close"
+                  data-i18n-title="shell.titlebar.close"
+                  onclick="closePackageSyncModal()"
+               >
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                  >
                      <line x1="6" y1="6" x2="18" y2="18" />
                      <line x1="18" y1="6" x2="6" y2="18" />
                   </svg>
@@ -2971,30 +3352,177 @@
             </div>
             <div class="confirm-body">
                <span class="confirm-ico elev-ico">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                     <path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z" />
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.8"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path d="M21 12a9 9 0 1 1-3-6.7L21 8" />
+                     <path d="M21 3v5h-5" />
+                  </svg>
+               </span>
+               <div id="sync-heading" class="confirm-heading" data-i18n="verify.sync.modal.heading">
+                  Your mod package is older than the game
+               </div>
+               <div class="confirm-text" data-i18n="verify.sync.modal.body">
+                  Your mod package carries its own copy of Dota 2's package. When an update changes
+                  that package, the package keeps serving the old version and the game crashes on
+                  launch.
+               </div>
+
+               <!-- The measured finding for this install, filled in from the sweep. -->
+               <div id="sync-detail" class="elev-detected found"></div>
+
+               <div class="elev-steps">
+                  <div class="elev-steps-title" data-i18n="verify.sync.modal.stepsTitle">
+                     What the repair does
+                  </div>
+                  <ol class="elev-steps">
+                     <li data-i18n="verify.sync.modal.step1">
+                        Reads the package from Dota 2 folder.
+                     </li>
+                     <li data-i18n="verify.sync.modal.step2">
+                        Rebuilds your package on top of it, keeping your mods and everything the
+                        update added.
+                     </li>
+                     <li data-i18n="verify.sync.modal.step3">
+                        Reinstalls the package. This takes a few minutes and nothing changes until
+                        it succeeds.
+                     </li>
+                  </ol>
+               </div>
+            </div>
+            <div class="confirm-actions">
+               <button
+                  id="sync-fix"
+                  class="verify-fix"
+                  data-i18n="verify.sync.modal.fix"
+                  onclick="packageSyncFix(event)"
+               >
+                  Rebuild Package
+               </button>
+               <button
+                  class="ob-btn ghost"
+                  data-i18n="common.close"
+                  onclick="closePackageSyncModal()"
+               >
+                  Close
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <!-- Launch panel. Covers the gap between pressing Play and the game appearing, which is neither
+           instant nor always successful: Steam may be updating, the package may need rebuilding first,
+           and a cold start can take minutes. No backdrop click-to-close — the flow behind it is doing
+           real work to the install, so leaving is a deliberate act via the button. -->
+      <div id="launch-modal" class="modal-overlay">
+         <div
+            class="modal confirm"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="launch-heading"
+         >
+            <div class="modal-head">
+               <div class="modal-title">
+                  <span class="led"></span>
+                  <span data-i18n="play.panel.title">Launching Dota 2</span>
+               </div>
+            </div>
+            <div class="confirm-body">
+               <span id="launch-spinner" class="launch-spinner" aria-hidden="true"></span>
+               <div id="launch-heading" class="confirm-heading">Starting Dota 2</div>
+               <div id="launch-detail" class="confirm-text"></div>
+               <div id="launch-bar" class="launch-bar"><span id="launch-bar-fill"></span></div>
+            </div>
+            <div class="confirm-actions">
+               <button
+                  id="launch-cancel"
+                  class="ob-btn ghost"
+                  onclick="send('cancelLaunch', event)"
+               >
+                  Cancel
+               </button>
+            </div>
+         </div>
+      </div>
+
+      <div id="elevation-modal" class="modal-overlay" onclick="onElevationBackdrop(event)">
+         <div
+            class="modal confirm"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="elevation-heading"
+         >
+            <div class="modal-head">
+               <div class="modal-title">
+                  <span class="led"></span>
+                  <span data-i18n="verify.chip.admin">Process Elevation</span>
+               </div>
+               <button
+                  class="modal-x"
+                  title="Close"
+                  data-i18n-title="shell.titlebar.close"
+                  onclick="closeElevationModal()"
+               >
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                  >
+                     <line x1="6" y1="6" x2="18" y2="18" />
+                     <line x1="18" y1="6" x2="6" y2="18" />
+                  </svg>
+               </button>
+            </div>
+            <div class="confirm-body">
+               <span class="confirm-ico elev-ico">
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.8"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
+                     <path
+                        d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0z"
+                     />
                      <line x1="12" y1="9" x2="12" y2="13" />
                      <line x1="12" y1="17" x2="12.01" y2="17" />
                   </svg>
                </span>
-               <div id="elevation-heading" class="confirm-heading" data-i18n="verify.elevation.heading">
+               <div
+                  id="elevation-heading"
+                  class="confirm-heading"
+                  data-i18n="verify.elevation.heading"
+               >
                   Do not run Steam or Dota 2 as administrator
                </div>
                <div class="confirm-text" data-i18n="verify.elevation.body">
-                  Running the game with administrator rights stops Dota 2 from finding matches, and the
-                  game no longer reads the files AMT patched — so your mods stop working.
+                  Running the game with administrator rights stops Dota 2 from finding matches, and
+                  the game no longer reads the files AMT patched — so your mods stop working.
                </div>
 
                <!-- What AMT found. Amber when something was detected, muted when nothing was. -->
                <div id="elevation-detected" class="elev-detected"></div>
 
                <div class="elev-steps">
-                  <div class="elev-steps-title" data-i18n="verify.elevation.stepsTitle">How to fix it</div>
+                  <div class="elev-steps-title" data-i18n="verify.elevation.stepsTitle">
+                     How to fix it
+                  </div>
                   <ol>
-                     <li data-i18n="verify.elevation.step1">Close Dota 2 and fully exit Steam from the tray.</li>
+                     <li data-i18n="verify.elevation.step1">
+                        Close Dota 2 and fully exit Steam from the tray.
+                     </li>
                      <li data-i18n="verify.elevation.step2">
-                        Right-click steam.exe and dota2.exe, open Properties › Compatibility, and untick
-                        “Run this program as an administrator”.
+                        Right-click steam.exe and dota2.exe, open Properties › Compatibility, and
+                        untick “Run this program as an administrator”.
                      </li>
                      <li data-i18n="verify.elevation.step3">
                         Start Steam normally — do not use “Run as administrator”.
@@ -3006,21 +3534,50 @@
                </div>
             </div>
             <div class="confirm-actions">
-               <button id="elevation-fix" class="verify-fix" style="display: none" onclick="elevationFix()">
+               <button
+                  id="elevation-fix"
+                  class="verify-fix"
+                  style="display: none"
+                  onclick="elevationFix()"
+               >
                   Fix Setup
                </button>
-               <button class="ob-btn primary" data-i18n="common.close" onclick="closeElevationModal()">Close</button>
+               <button
+                  class="ob-btn primary"
+                  data-i18n="common.close"
+                  onclick="closeElevationModal()"
+               >
+                  Close
+               </button>
             </div>
          </div>
       </div>
 
       <!-- ═══════════════════ INSTALL FAILURE MODAL ═══════════════════ -->
       <div id="failure-modal" class="modal-overlay" onclick="onFailureBackdrop(event)">
-         <div class="modal confirm failure" role="alertdialog" aria-modal="true" aria-labelledby="failure-heading">
+         <div
+            class="modal confirm failure"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="failure-heading"
+         >
             <div class="modal-head">
-               <div class="modal-title"><span class="led"></span> <span id="failure-eyebrow">Error</span></div>
-               <button class="modal-x" title="Close" data-i18n-title="shell.titlebar.close" onclick="closeFailureModal()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+               <div class="modal-title">
+                  <span class="led"></span> <span id="failure-eyebrow">Error</span>
+               </div>
+               <button
+                  class="modal-x"
+                  title="Close"
+                  data-i18n-title="shell.titlebar.close"
+                  onclick="closeFailureModal()"
+               >
+                  <svg
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                  >
                      <line x1="6" y1="6" x2="18" y2="18" />
                      <line x1="18" y1="6" x2="6" y2="18" />
                   </svg>
@@ -3028,12 +3585,28 @@
             </div>
             <div class="confirm-body">
                <span class="confirm-ico">
-                  <svg class="ico-err" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <svg
+                     class="ico-err"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.8"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
                      <circle cx="12" cy="12" r="10" />
                      <line x1="12" y1="8" x2="12" y2="13" />
                      <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
-                  <svg class="ico-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <svg
+                     class="ico-ok"
+                     viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="1.8"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                  >
                      <circle cx="12" cy="12" r="10" />
                      <path d="M8.5 12.2l2.4 2.4 4.6-5" />
                   </svg>
@@ -3046,9 +3619,26 @@
                </div>
             </div>
             <div class="confirm-actions">
-               <button id="failure-showlog" class="ob-btn ghost" style="display: none" data-i18n="shell.toast.showLog" onclick="revealInstallLog()">Show Log</button>
-               <button id="failure-copy" class="ob-btn ghost" data-i18n="shell.failure.copy" onclick="copyFailureLog()">Copy Log</button>
-               <button id="failure-close" class="ob-btn primary" onclick="closeFailureModal()">Close</button>
+               <button
+                  id="failure-showlog"
+                  class="ob-btn ghost"
+                  style="display: none"
+                  data-i18n="shell.toast.showLog"
+                  onclick="revealInstallLog()"
+               >
+                  Show Log
+               </button>
+               <button
+                  id="failure-copy"
+                  class="ob-btn ghost"
+                  data-i18n="shell.failure.copy"
+                  onclick="copyFailureLog()"
+               >
+                  Copy Log
+               </button>
+               <button id="failure-close" class="ob-btn primary" onclick="closeFailureModal()">
+                  Close
+               </button>
             </div>
          </div>
       </div>
@@ -3068,8 +3658,22 @@
             <div class="ob-sep"></div>
             <div id="ob-desc" class="ob-desc"></div>
             <div class="ob-actions">
-               <button id="ob-skip" class="ob-btn ghost" data-i18n="shell.onboard.skip" onclick="onboardSkip()">Skip</button>
-               <button id="ob-next" class="ob-btn primary" data-i18n="shell.onboard.next" onclick="onboardNext()">Next →</button>
+               <button
+                  id="ob-skip"
+                  class="ob-btn ghost"
+                  data-i18n="shell.onboard.skip"
+                  onclick="onboardSkip()"
+               >
+                  Skip
+               </button>
+               <button
+                  id="ob-next"
+                  class="ob-btn primary"
+                  data-i18n="shell.onboard.next"
+                  onclick="onboardNext()"
+               >
+                  Next →
+               </button>
             </div>
          </div>
       </div>
@@ -3167,10 +3771,11 @@
             warning:
                '<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3" /><path d="M12 9v4" /><path d="M12 17h.01" />',
             danger: '<path d="M18 6 6 18" /><path d="m6 6 12 12" />',
-            loading: '<path d="M21 12a9 9 0 1 1-6.2-8.6" />'
+            loading: '<path d="M21 12a9 9 0 1 1-6.2-8.6" />',
          };
-         const SB_REDUCE =
-            !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+         const SB_REDUCE = !!(
+            window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+         );
 
          function sbSwap(slot, node, key) {
             // Guarded on an ELEMENT child, not the key alone: the seeded markup is a bare text
@@ -3191,7 +3796,9 @@
 
             if (!SB_REDUCE) {
                node.classList.add("sb-in");
-               node.addEventListener("animationend", () => node.classList.remove("sb-in"), { once: true });
+               node.addEventListener("animationend", () => node.classList.remove("sb-in"), {
+                  once: true,
+               });
             }
             slot.appendChild(node);
          }
@@ -3218,9 +3825,9 @@
                   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ' +
                      'stroke-linecap="round" stroke-linejoin="round">' +
                      (SB_ICONS[kind] || SB_ICONS.neutral) +
-                     "</svg>"
+                     "</svg>",
                ),
-               kind
+               kind,
             );
             const label = badge.querySelector(".sb-label");
             if (label && text != null) sbSwap(label, sbNode(null, text), text);
@@ -3263,6 +3870,64 @@
             renderStatus("loading", window.t ? window.t("status.checking.text") : "Checking…", "");
          }
 
+         // Play button. Enabled only when C# says the install is genuinely ready to launch; the
+         // tooltip always carries the reason, so a greyed button explains itself instead of just
+         // refusing. Both strings arrive translated from C# (see MainFormWebView.SetPlayState), which
+         // is why the static data-i18n-title is dropped on the first push — leaving it would let the
+         // page's own translation pass overwrite the live reason on the next language switch.
+         function setPlayState(payload) {
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload;
+            const btn = document.getElementById("btn-play");
+            if (!btn) return;
+
+            const enabled = !!(p && p.enabled);
+            const label = btn.querySelector("span");
+            if (label && p && p.label) label.textContent = p.label;
+
+            btn.classList.toggle("is-disabled", !enabled);
+            btn.disabled = !enabled;
+            btn.removeAttribute("data-i18n-title");
+            btn.title = (p && p.reason) || "";
+         }
+
+         // Launch panel. Driven entirely by C# (LaunchPresenter) — every string arrives translated,
+         // so this only reflects state. null hides it. The panel is deliberately not dismissible by
+         // clicking the backdrop: the flow behind it rewrites the installed package.
+         function setLaunchPanel(payload) {
+            const overlay = document.getElementById("launch-modal");
+            if (!overlay) return;
+
+            const p = typeof payload === "string" ? JSON.parse(payload) : payload;
+            if (!p) {
+               overlay.classList.remove("show");
+               return;
+            }
+
+            const heading = document.getElementById("launch-heading");
+            const detail = document.getElementById("launch-detail");
+            const spinner = document.getElementById("launch-spinner");
+            const bar = document.getElementById("launch-bar");
+            const fill = document.getElementById("launch-bar-fill");
+            const cancel = document.getElementById("launch-cancel");
+
+            if (heading) heading.textContent = p.heading || "";
+            if (detail) detail.textContent = p.detail || "";
+            if (spinner) spinner.classList.toggle("is-error", !!p.isError);
+
+            // A bar only when there is a real percentage behind it; otherwise the ring alone says
+            // "working" without inventing progress the flow cannot measure.
+            const hasPercent = typeof p.percent === "number" && p.percent >= 0;
+            if (bar) bar.classList.toggle("show", hasPercent && !p.isError);
+            if (fill && hasPercent) fill.style.width = Math.min(100, Math.max(0, p.percent)) + "%";
+
+            if (cancel) {
+               cancel.textContent = p.cancelLabel || "";
+               cancel.style.display = p.canCancel ? "" : "none";
+            }
+
+            overlay.classList.add("show");
+         }
+
          // Setup verification panel. Every string arrives already translated from C# (same Loc
          // catalog as the rest of the app), so this only builds nodes — textContent, never innerHTML,
          // because the detail carries user-influenced text like registry paths and file names.
@@ -3298,10 +3963,16 @@
             const failed = checks.some((c) => c.state === "fail");
             const advisory = !failed && checks.some((c) => c.state === "advisory");
 
-            // Cached so the modal can be reopened without another sweep.
-            const elevation = checks.find((c) => c.hasOwnDialog) || {};
+            // Cached so a panel can be reopened without another sweep. Selected BY ID: more than one
+            // check now carries its own panel, so "the first one with a dialog" would silently start
+            // feeding the elevation modal whichever check happened to be declared first.
+            const elevation = checks.find((c) => c.id === "NotForcedToRunAsAdmin") || {};
             _elevationDetail = elevation.detail || "";
             _elevationFound = !!elevation.detected;
+
+            const sync = checks.find((c) => c.id === "ItemsGameInSync") || {};
+            _syncDetail = sync.detail || "";
+            _syncNeedsFix = sync.state === "fail";
 
             // Header: title on the left, summary chip on the right — icon only, since the rows
             // below spell out the words. It is the panel's own verdict, so the group reads at a
@@ -3335,7 +4006,7 @@
                panel.querySelector(".verify-head .status-badge"),
                failed ? "danger" : advisory ? "warning" : "success",
                null,
-               null
+               null,
             );
 
             const rows = panel.querySelectorAll(".verify-item");
@@ -3344,16 +4015,20 @@
                item.title = c.detail || "";
                // Rows that carry their own explanation open it; the rest fall through to the
                // Status Details dialog, where the file-level diagnostics live.
-               item.onclick = c.hasOwnDialog
-                  ? () => openElevationModal()
-                  : () => send("patchViewStatus");
+               // Rows that carry their own panel open it; which panel is decided by the check, not
+               // by the flag alone, since more than one check now has something of its own to say.
+               item.onclick = !c.hasOwnDialog
+                  ? () => send("patchViewStatus")
+                  : c.id === "ItemsGameInSync"
+                    ? () => openPackageSyncModal()
+                    : () => openElevationModal();
 
                item.querySelector(".vlabel").textContent = c.label || "";
                paintBadge(
                   item.querySelector(".status-badge"),
                   VERIFY_KIND[c.state] || "neutral",
                   c.stateText || "",
-                  c.detail || ""
+                  c.detail || "",
                );
             });
 
@@ -3380,6 +4055,48 @@
          let _elevationCanFix = false;
          let _elevationFixLabel = "Fix Setup";
 
+         // ── Package Sync panel ──
+         // Its own dialog for the same reason the elevation row has one: the repair is a package
+         // rebuild that takes minutes, and starting that from a one-line row with no warning is not
+         // a fair thing to do to someone who clicked to find out what was wrong.
+         let _syncDetail = "";
+         let _syncNeedsFix = false;
+
+         function renderPackageSyncModal() {
+            const box = document.getElementById("sync-detail");
+            if (box) box.textContent = _syncDetail || "";
+
+            // The repair is only offered while there is something to repair.
+            const fix = document.getElementById("sync-fix");
+            if (fix) {
+               fix.disabled = false;
+               fix.style.display = _syncNeedsFix ? "block" : "none";
+            }
+
+            const modal = document.getElementById("sync-modal");
+            if (modal) modal.classList.toggle("found", _syncNeedsFix);
+         }
+
+         function openPackageSyncModal() {
+            renderPackageSyncModal();
+            document.getElementById("sync-modal").classList.add("show");
+         }
+
+         function closePackageSyncModal() {
+            document.getElementById("sync-modal").classList.remove("show");
+         }
+
+         function onPackageSyncBackdrop(ev) {
+            if (ev && ev.target && ev.target.id === "sync-modal") closePackageSyncModal();
+         }
+
+         function packageSyncFix(ev) {
+            const btn = document.getElementById("sync-fix");
+            if (btn) btn.disabled = true; // the rebuild takes minutes; do not let it be started twice
+            closePackageSyncModal();
+            send("fixPackageSync", ev);
+         }
+
          // Paints the modal from the cached sweep. Split out of openElevationModal so the incoming
          // re-check can repaint an already-open dialog through the exact same code path.
          function renderElevationModal() {
@@ -3392,7 +4109,9 @@
             }
 
             // Amber icon only when something was actually found — see .elev-ico.
-            document.getElementById("elevation-modal").classList.toggle("found", _elevationFound === true);
+            document
+               .getElementById("elevation-modal")
+               .classList.toggle("found", _elevationFound === true);
 
             // Offered only for the persistent compatibility flag, which AMT can clear from HKCU.
             // A one-off "Run as administrator" launch has nothing to clear — the steps below are
@@ -3424,7 +4143,7 @@
 
          function elevationFix() {
             const fix = document.getElementById("elevation-fix");
-            if (fix) fix.disabled = true;   // the repair re-checks status, which re-pushes the panel
+            if (fix) fix.disabled = true; // the repair re-checks status, which re-pushes the panel
             send("fixSetup");
             closeElevationModal();
          }
@@ -3470,9 +4189,18 @@
          }
 
          function setDotaWarning(on) {
-            document
-               .getElementById("warning")
-               .classList.toggle("show", on === true || on === "true");
+            const running = on === true || on === "true";
+            document.getElementById("warning").classList.toggle("show", running);
+
+            // While the game holds the install open, nothing in the sidebar can act on it. The nav
+            // buttons and Play are switched off from C#; these two are not part of that set and are
+            // turned off here so the whole panel reads consistently. The social and support links
+            // stay live — they touch nothing.
+            const refresh = document.getElementById("status-refresh");
+            if (refresh) refresh.classList.toggle("is-disabled", running);
+
+            const verify = document.getElementById("verify-panel");
+            if (verify) verify.classList.toggle("is-locked", running);
          }
 
          // Transient green confirmation shown when the Dota 2 install path is attached
@@ -3486,6 +4214,44 @@
             banner.classList.add("show");
             if (_pathFoundTimer) clearTimeout(_pathFoundTimer);
             _pathFoundTimer = setTimeout(() => banner.classList.remove("show"), 4000);
+         }
+
+         /* A console line that describes a CURRENT condition rather than something that happened.
+            Written once and updated in place, so a warning the status sweep re-derives on every
+            refresh does not stack up; retracted by clearStickyLog once the condition is fixed.
+
+            Ordinary lines are history and are never touched again — these are the exception, and the
+            data-log-key attribute is what makes them findable. */
+         function showStickyLog(key, text, category) {
+            const body = document.getElementById("console-body");
+            const existing = body.querySelector('[data-log-key="' + key + '"]');
+
+            if (existing) {
+               existing.className = "log-line " + (category || "default");
+               existing.querySelector(".msg").textContent = text;
+               return;
+            }
+
+            const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+            const line = document.createElement("div");
+            line.className = "log-line " + (category || "default");
+            line.setAttribute("data-log-key", key);
+            const bar = document.createElement("div");
+            bar.className = "bar";
+            const msg = document.createElement("div");
+            msg.className = "msg";
+            msg.textContent = text;
+            line.appendChild(bar);
+            line.appendChild(msg);
+            body.appendChild(line);
+            while (body.childElementCount > MAX_LINES) body.removeChild(body.firstChild);
+            if (atBottom) body.scrollTop = body.scrollHeight;
+         }
+
+         function clearStickyLog(key) {
+            const body = document.getElementById("console-body");
+            const existing = body.querySelector('[data-log-key="' + key + '"]');
+            if (existing) existing.remove();
          }
 
          function appendLog(text, category) {
@@ -3511,7 +4277,11 @@
             const body = document.getElementById("console-body");
             const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
             let segs;
-            try { segs = JSON.parse(segJson); } catch (e) { segs = []; }
+            try {
+               segs = JSON.parse(segJson);
+            } catch (e) {
+               segs = [];
+            }
             const line = document.createElement("div");
             line.className = "log-line " + (category || "default");
             line.setAttribute("data-i18n-log", segJson);
@@ -3523,7 +4293,11 @@
                applyI18n re-translates via data-i18n-log once the localizer arrives. */
             msg.textContent = window.renderLogSegments
                ? window.renderLogSegments(segs)
-               : segs.map(function (s) { return typeof s === "string" ? s : (s && s.k) || ""; }).join("");
+               : segs
+                    .map(function (s) {
+                       return typeof s === "string" ? s : (s && s.k) || "";
+                    })
+                    .join("");
             line.appendChild(bar);
             line.appendChild(msg);
             body.appendChild(line);
@@ -3552,12 +4326,17 @@
                const card = document.createElement("button");
                card.className = "update-card";
                card.title = c.setName || "";
-               card.onclick = function (ev) { send("skinSelector", ev); };
+               card.onclick = function (ev) {
+                  send("skinSelector", ev);
+               };
                const img = document.createElement("img");
                img.src = c.setThumbnail || "";
                img.alt = "";
                img.loading = "lazy";
-               img.onerror = function () { card.remove(); updatesArrowState(); };
+               img.onerror = function () {
+                  card.remove();
+                  updatesArrowState();
+               };
                const cap = document.createElement("div");
                cap.className = "uc-cap";
                const hero = document.createElement("div");
@@ -3565,7 +4344,8 @@
                hero.textContent = c.heroName || "";
                const date = document.createElement("div");
                date.className = "uc-date";
-               date.textContent = c.daysAgo === 0 ? "Today" : c.daysAgo === 1 ? "Yesterday" : c.daysAgo + "d ago";
+               date.textContent =
+                  c.daysAgo === 0 ? "Today" : c.daysAgo === 1 ? "Yesterday" : c.daysAgo + "d ago";
                cap.appendChild(hero);
                cap.appendChild(date);
                card.appendChild(img);
@@ -3600,8 +4380,12 @@
          function updatesArrowState() {
             const row = document.getElementById("updates-row");
             const max = row.scrollWidth - row.clientWidth;
-            document.getElementById("updates-prev").classList.toggle("disabled", row.scrollLeft <= 2);
-            document.getElementById("updates-next").classList.toggle("disabled", row.scrollLeft >= max - 2);
+            document
+               .getElementById("updates-prev")
+               .classList.toggle("disabled", row.scrollLeft <= 2);
+            document
+               .getElementById("updates-next")
+               .classList.toggle("disabled", row.scrollLeft >= max - 2);
          }
 
          /* C# → JS: single bundled-banner fallback (kept for when no R2 manifest is present). */
@@ -3689,7 +4473,8 @@
          function startCarouselAuto() {
             stopCarouselAuto();
             if (_carSlides.length <= 1) return;
-            if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+            if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+               return;
             // Don't advance while the window is hidden/minimized — the user would come back to a
             // slide they never saw start.
             _carTimer = setInterval(() => {
@@ -3727,7 +4512,8 @@
          /* ════════ what's new modal ════════ */
          function openNewsModal(ev) {
             if (ev) ev.stopPropagation();
-            const btn = ev && ev.currentTarget ? ev.currentTarget : document.getElementById("btn-news");
+            const btn =
+               ev && ev.currentTarget ? ev.currentTarget : document.getElementById("btn-news");
             if (btn && btn.classList.contains("is-disabled")) return;
             hidePatchMenu();
             document.getElementById("news-modal").classList.add("show");
@@ -3877,17 +4663,23 @@
             modal.classList.toggle("logok", ok);
             document.getElementById("failure-eyebrow").textContent = window.t
                ? window.t(ok ? "shell.failure.eyebrowOk" : "shell.failure.eyebrow")
-               : ok ? "Complete" : "Error";
+               : ok
+                 ? "Complete"
+                 : "Error";
             document.getElementById("failure-heading").textContent = title || "";
             document.getElementById("failure-text").textContent = body || "";
 
             // Collapsed log (complete card) ↔ visible log (failure card / after Show Log).
-            document.querySelector("#failure-modal .failure-log").style.display = withLog ? "" : "none";
+            document.querySelector("#failure-modal .failure-log").style.display = withLog
+               ? ""
+               : "none";
             document.getElementById("failure-showlog").style.display = withLog ? "none" : "";
             document.getElementById("failure-copy").style.display = withLog ? "" : "none";
             document.getElementById("failure-close").textContent = window.t
                ? window.t(ok ? "common.done" : "common.close")
-               : ok ? "Done" : "Close";
+               : ok
+                 ? "Done"
+                 : "Close";
 
             const logBody = document.getElementById("failure-log-body");
             logBody.innerHTML = "";
@@ -3911,12 +4703,18 @@
                const all = [...document.querySelectorAll("#console-body .log-line")];
                let lines = ok
                   ? all.slice(-12)
-                  : all.filter((l) => l.classList.contains("error") || l.classList.contains("warning")).slice(-12);
+                  : all
+                       .filter(
+                          (l) => l.classList.contains("error") || l.classList.contains("warning"),
+                       )
+                       .slice(-12);
                if (lines.length === 0) lines = all.slice(-8);
                if (lines.length === 0) {
                   const empty = document.createElement("div");
                   empty.className = "failure-log-empty";
-                  empty.textContent = window.t ? window.t("shell.failure.empty") : "No log entries captured.";
+                  empty.textContent = window.t
+                     ? window.t("shell.failure.empty")
+                     : "No log entries captured.";
                   logBody.appendChild(empty);
                } else {
                   lines.forEach((l) => {
@@ -3963,12 +4761,9 @@
          /* ════════ toasts (replaces tray balloon for in-app feedback) ════════ */
          /* C# → JS. payload = { title, message, variant: "success|error|info", timeout }. */
          const TOAST_ICONS = {
-            success:
-               '<path d="M20 6 9 17l-5-5" />',
-            error:
-               '<circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="13" /><line x1="12" y1="16" x2="12.01" y2="16" />',
-            info:
-               '<circle cx="12" cy="12" r="10" /><line x1="12" y1="11" x2="12" y2="16" /><line x1="12" y1="8" x2="12.01" y2="8" />',
+            success: '<path d="M20 6 9 17l-5-5" />',
+            error: '<circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="13" /><line x1="12" y1="16" x2="12.01" y2="16" />',
+            info: '<circle cx="12" cy="12" r="10" /><line x1="12" y1="11" x2="12" y2="16" /><line x1="12" y1="8" x2="12.01" y2="8" />',
          };
 
          function showToast(payload) {
@@ -4076,8 +4871,12 @@
 
             const last = _obIndex === _obSteps.length - 1;
             document.getElementById("ob-next").textContent = last
-               ? (window.t ? window.t("shell.onboard.gotIt") : "Got it")
-               : (window.t ? window.t("shell.onboard.next") : "Next →");
+               ? window.t
+                  ? window.t("shell.onboard.gotIt")
+                  : "Got it"
+               : window.t
+                 ? window.t("shell.onboard.next")
+                 : "Next →";
             document.getElementById("ob-skip").style.visibility = last ? "hidden" : "visible";
 
             const dots = document.querySelectorAll("#ob-dots .ob-dot");

@@ -9,10 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.21-beta] (Build 2297)
+## [2.2.21-beta] (Builds 2297–2298)
+
+### Added
+
+- **A Play button that repairs the mod package before launching** (2298): the package carries its own
+  copy of the game's item data and shadows the game's, so a Dota 2 update leaves the game reading
+  definitions it no longer recognises and crashing at startup. Play rebuilds the package against the
+  current data, then launches through Steam. It reads `appmanifest_570.acf` first — handing
+  `steam://rungameid/570` to Steam while an update is queued lets Steam patch and start the game
+  itself, on data the repair never saw.
+- **Package Sync, a fourth setup-verification check** (2298): compares the item data inside the
+  installed package against the game's, using the build record each install now writes, and falling
+  back to an id-level comparison for packages built before that record existed. Nothing else caught
+  this — the build-version check reads `version.json`, which Patch Update restamps without touching
+  the package. The row opens its own panel with a Rebuild Package action, like Process Elevation.
+- **A launch panel covering the gap between pressing Play and the game appearing** (2298): Steam may
+  be mid-update, the package may need rebuilding, and a cold start takes minutes. If Steam begins an
+  update *after* the launch is accepted, the panel waits it out, rebuilds again and relaunches rather
+  than letting the game start on data the repair never saw.
 
 ### Fixed
 
+- **The main presenter was built by hand with half its dependencies** (2298): `MainFormWebView` called
+  `new MainFormPresenter(...)` with four arguments while the container knew about eight, so every
+  optional service added since arrived null — Play answered "your install is not ready" and Package
+  Sync sat on "not verified", with nothing failing anywhere to say why. It is now built through a
+  factory registered in `AddPresenters()`, the single place its dependency list lives.
+  `PresenterWiringTests` builds it the old way as well, to prove the new guards can actually fail.
+- **Repairing the package used the install-time overlay, which drops vanilla keys by design** (2298):
+  `OverlayBlockPreservingStructure` takes the authored block verbatim and carries over only four
+  essential keys — right when a modder wrote the block, wrong when repairing against a newer game,
+  where it discards everything the update added. `OverlayBlockKeepingVanillaLayout` makes the game's
+  block the skeleton and lets the package supply values only. Measured against the shipped 49.5 MB
+  `items_game.txt`: 17,270 blocks were missing a key the game defines, now zero, block order identical.
+- **The sidebar stayed live while Dota 2 was running** (2298): `DisableAllButtons` only reaches the
+  nav buttons, so Play — which carries its own state — stayed lit, as did status refresh and the
+  verification rows whose panels start repairs. All are switched off now; the social and support
+  links stay clickable. `RepairOnlyAsync` also refuses server-side rather than spending minutes to
+  fail on the final swap.
+- **Console warnings repeated on every status sweep and outlived their cause** (2298): the sweep runs
+  at startup, on every refresh, when Dota 2 exits and on every patch-watcher fire, so an appended
+  warning stacked up and stayed after the user fixed it. Sticky lines carry a key, are written once
+  and are retracted when the condition clears. `[PLAY]` logging dropped from six lines per launch to
+  at most one — the rest only mirrored what the launch panel already showed.
 - **A rolled-back update no longer looks like one that never happened** (2297): `AMT.Updater.exe`
   relaunches the app whether it applied the update or rolled it back, so a failed apply left the user
   restarted on the old build and offered the identical update on every launch, forever, with nothing
@@ -28,6 +68,30 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
   freshly written multi-MB `.exe` or `.dll` routinely outlasts. One such miss aborts and rolls back
   the whole update, all 30 files of it. Now 7 attempts, ~12.6 seconds. Hardening rather than a
   confirmed fix: the failure is machine-specific and could not be reproduced here.
+
+### Performance
+
+- **One background check left the process several hundred megabytes fatter for the session** (2298):
+  a 50 MB `items_game.txt` is a 99 MB string, far past the Large Object Heap threshold. The objects
+  were collected promptly but the pages were never handed back — measured 7 MB → 323 MB private after
+  a single check, permanent. `LargeWorkMemory.Release` compacts the LOH *and* trims the working set:
+  152 MB → 1 MB resident, verified stable across repeat runs.
+- **The generation pipelines compacted the LOH but never trimmed the working set** (2298): three
+  duplicated blocks in the hero and misc pipelines all stopped one step short of returning the
+  memory, which is why the app idled heavy after an install despite already forcing a compacting
+  collection. Consolidated into `LargeWorkMemory.Release`; `ModsPackDataService` now releases too,
+  which it never did.
+- **`NormalizeKvText` allocated over a gigabyte per call on real item data** (2298): thirteen chained
+  `Replace` calls, each copying the whole string. Rewritten as a single pass with a SIMD-accelerated
+  scan that returns the input untouched when there is nothing to rewrite. It sits under the install
+  and patch pipelines, so `KeyValuesNormalizationTests` pins the behaviour character-for-character.
+- **The block index normalized its input to compute hashes that ignore normalization** (2298): a
+  second 99 MB copy per file for nothing, since the canonical hash already drops line endings. Peak
+  for the package-sync check: 344 MB → 156 MB. Pinned by a test that CRLF and LF input hash alike.
+- **The merge copied every block out of the file just to compare it** (2298): 28,000 substrings per
+  pass plus two canonical strings per comparison. Now block offsets and a streaming comparator that
+  stops at the first difference. On the real file, 1487 MB → 455 MB allocated at the same wall time;
+  `Merge_ScalesToARealisticPackage` carries an allocation-shape guard against a regression.
 
 ## [2.2.20-beta] (Builds 2277–2296)
 

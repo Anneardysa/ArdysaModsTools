@@ -186,6 +186,7 @@ namespace ArdysaModsTools.UI.Forms
 
             bool showPatchBtn = _onPatchRequested != null &&
                 _statusInfo.Action != RecommendedAction.Fix &&
+                _statusInfo.Action != RecommendedAction.Play &&
                 (status == ModStatus.NeedUpdate || status == ModStatus.Disabled);
 
             bool? digestOk = VerifiedOrNull(SetupCheckId.SignatureMatchesGameInfo) ?? (status switch

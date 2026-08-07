@@ -89,6 +89,113 @@ namespace ArdysaModsTools.Tests.Services
 
         #endregion
 
+        #region VerifyAsync — package sync
+
+        private sealed class StubSync : ArdysaModsTools.Core.Interfaces.IItemsGameSyncService
+        {
+            public StubSync(ItemsGameSyncVerdict verdict) => Current = verdict;
+
+            public ItemsGameSyncVerdict Current { get; }
+            public int RefreshCalls { get; private set; }
+
+#pragma warning disable CS0067
+            public event Action<ItemsGameSyncVerdict>? Changed;
+#pragma warning restore CS0067
+
+            public Task<ItemsGameSyncVerdict> RefreshAsync(string? targetPath, System.Threading.CancellationToken ct = default)
+            {
+                RefreshCalls++;
+                return Task.FromResult(Current);
+            }
+        }
+
+        [Test]
+        public async Task VerifyAsync_StalePackage_FailsAndPointsAtPlay()
+        {
+            BuildTree();
+            var sync = new StubSync(new ItemsGameSyncVerdict
+            {
+                State = ItemsGameSyncState.Stale,
+                DetailKey = "verify.sync.fail",
+                Diagnostic = "hash mismatch"
+            });
+
+            var result = await new SetupVerificationService(null, sync).VerifyAsync(_root);
+            var check = Check(result, SetupCheckId.ItemsGameInSync);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(check.State, Is.EqualTo(SetupCheckState.Fail));
+                Assert.That(check.FailStatus, Is.EqualTo(ModStatus.NeedUpdate),
+                    "amber — nothing AMT wrote is damaged, the package is simply older than the game");
+                Assert.That(check.FailAction, Is.EqualTo(RecommendedAction.Play),
+                    "Play rebuilds the package against the game's current item data; Patch Update does not");
+                Assert.That(check.Diagnostic, Is.EqualTo("hash mismatch"));
+                Assert.That(result.AllPassed, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task VerifyAsync_PackageInSync_Passes()
+        {
+            BuildTree();
+            var sync = new StubSync(new ItemsGameSyncVerdict
+            {
+                State = ItemsGameSyncState.InSync,
+                DetailKey = "verify.sync.pass"
+            });
+
+            var result = await new SetupVerificationService(null, sync).VerifyAsync(_root);
+
+            Assert.That(Check(result, SetupCheckId.ItemsGameInSync).State, Is.EqualTo(SetupCheckState.Pass));
+        }
+
+        [Test]
+        public async Task VerifyAsync_UnknownPackageSync_DoesNotCountAgainstAllPassed()
+        {
+            BuildTree();
+            var sync = new StubSync(new ItemsGameSyncVerdict
+            {
+                State = ItemsGameSyncState.Unknown,
+                DetailKey = "verify.sync.unknownLegacy"
+            });
+
+            var result = await new SetupVerificationService(null, sync).VerifyAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Check(result, SetupCheckId.ItemsGameInSync).State, Is.EqualTo(SetupCheckState.Unknown));
+                Assert.That(result.AllPassed, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task VerifyAsync_WithNoSyncService_ReportsUnknownNotPass()
+        {
+            BuildTree();
+
+            var result = await new SetupVerificationService().VerifyAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Check(result, SetupCheckId.ItemsGameInSync).State, Is.EqualTo(SetupCheckState.Unknown));
+                Assert.That(result.AllPassed, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task VerifyAsync_NeverTriggersAPackageSyncRefresh()
+        {
+            BuildTree();
+            var sync = new StubSync(new ItemsGameSyncVerdict { State = ItemsGameSyncState.InSync });
+
+            await new SetupVerificationService(null, sync).VerifyAsync(_root);
+
+            Assert.That(sync.RefreshCalls, Is.Zero);
+        }
+
+        #endregion
+
         #region VerifyAsync — signature ↔ gameinfo
 
         [Test]

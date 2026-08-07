@@ -15,9 +15,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using ValveKeyValue;
 
@@ -310,21 +312,61 @@ namespace ArdysaModsTools.Core.Helpers
         {
             if (string.IsNullOrEmpty(raw)) return string.Empty;
 
-            if (raw[0] == '\uFEFF') raw = raw.Substring(1);
+            var span = raw.AsSpan();
 
-            raw = raw.Replace("\r\n", "\n").Replace('\r', '\n');
+            if (span.IndexOfAny(RewritableChars) < 0) return raw;
 
-            raw = raw.Replace('\u201C', '"').Replace('\u201D', '"');
-            raw = raw.Replace('\u2018', '\'').Replace('\u2019', '\'');
+            var sb = new StringBuilder(raw.Length);
+            int pos = 0;
 
-            raw = raw.Replace('\u00A0', ' ').Replace('\u2007', ' ').Replace('\u202F', ' ');
+            while (pos < raw.Length)
+            {
+                int offset = span.Slice(pos).IndexOfAny(RewritableChars);
+                if (offset < 0)
+                {
+                    sb.Append(raw, pos, raw.Length - pos);
+                    break;
+                }
 
-            char[] zeroWidth = { '\u200B', '\u200C', '\u200D', '\uFEFF', '\u2060' };
-            foreach (var ch in zeroWidth)
-                raw = raw.Replace(ch.ToString(), string.Empty);
+                int at = pos + offset;
 
-            return raw;
+                if (at > pos) sb.Append(raw, pos, at - pos);
+
+                pos = at + 1;
+
+                switch (raw[at])
+                {
+                    case '\r':
+                        sb.Append('\n');
+                        if (pos < raw.Length && raw[pos] == '\n') pos++;
+                        break;
+
+                    case '\u201C':
+                    case '\u201D':
+                        sb.Append('"');
+                        break;
+
+                    case '\u2018':
+                    case '\u2019':
+                        sb.Append('\'');
+                        break;
+
+                    case '\u00A0':
+                    case '\u2007':
+                    case '\u202F':
+                        sb.Append(' ');
+                        break;
+
+                    default:
+                        break;
+                }
+            }
+
+            return sb.ToString();
         }
+
+        private static readonly SearchValues<char> RewritableChars = SearchValues.Create(
+            "\r\u201C\u201D\u2018\u2019\u00A0\u2007\u202F\u200B\u200C\u200D\uFEFF\u2060");
 
         public static string PrettifyKvText(string raw)
         {
@@ -786,6 +828,69 @@ namespace ArdysaModsTools.Core.Helpers
 
             return before + appended.ToString() + after;
         }
+
+        public static string OverlayBlockKeepingVanillaLayout(string vanillaBlock, string moddedBlock)
+        {
+            if (string.IsNullOrEmpty(moddedBlock)) return vanillaBlock;
+            if (string.IsNullOrEmpty(vanillaBlock)) return moddedBlock;
+
+            string vanillaLf = vanillaBlock.Replace("\r\n", "\n").Replace('\r', '\n');
+            string moddedLf = moddedBlock.Replace("\r\n", "\n").Replace('\r', '\n');
+
+            var vanillaChildren = EnumerateTopLevelChildren(vanillaLf);
+            var moddedChildren = EnumerateTopLevelChildren(moddedLf);
+
+            if (vanillaChildren.Count == 0 || moddedChildren.Count == 0) return vanillaLf;
+
+            int braceStart = IndexOfTopLevelBrace(vanillaLf);
+            int braceEnd = ExtractBalancedBlockEnd(vanillaLf, braceStart);
+            if (braceStart < 0 || braceEnd < 0) return vanillaLf;
+
+            string childIndent = LeadingWhitespace(vanillaChildren[0].RawText);
+
+            var moddedByKey = new Dictionary<string, List<TopLevelChild>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var child in moddedChildren)
+            {
+                if (!moddedByKey.TryGetValue(child.Key, out var list))
+                    moddedByKey[child.Key] = list = new List<TopLevelChild>();
+                list.Add(child);
+            }
+
+            var sb = new System.Text.StringBuilder(vanillaLf.Length + moddedLf.Length);
+
+            sb.Append(vanillaLf, 0, braceStart + 1);
+            if (!EndsWithNewline(sb)) sb.Append('\n');
+
+            var consumed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var child in vanillaChildren)
+            {
+                if (moddedByKey.TryGetValue(child.Key, out var replacements))
+                {
+                    if (!consumed.Add(child.Key)) continue;
+                    foreach (var replacement in replacements)
+                        sb.Append(ReindentChild(replacement.RawText, childIndent)).Append('\n');
+                }
+                else
+                {
+                    sb.Append(ReindentChild(child.RawText, childIndent)).Append('\n');
+                }
+            }
+
+            foreach (var child in moddedChildren)
+            {
+                if (consumed.Contains(child.Key)) continue;
+                consumed.Add(child.Key);
+                sb.Append(ReindentChild(child.RawText, childIndent)).Append('\n');
+            }
+
+            int closeLineStart = FindLineStart(vanillaLf, braceEnd - 1);
+            sb.Append(vanillaLf, closeLineStart, vanillaLf.Length - closeLineStart);
+
+            return sb.ToString();
+        }
+
+        private static bool EndsWithNewline(System.Text.StringBuilder sb) =>
+            sb.Length > 0 && sb[sb.Length - 1] == '\n';
 
         private readonly struct TopLevelChild
         {

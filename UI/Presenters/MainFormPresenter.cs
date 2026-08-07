@@ -47,11 +47,14 @@ namespace ArdysaModsTools.UI.Presenters
         private readonly DetectionService _detection;
         private readonly IStatusService _status;
         private readonly ISetupVerificationService _verification;
+        private readonly IItemsGameSyncService? _itemsGameSync;
+        private Action<ItemsGameSyncVerdict>? _syncChangedHandler;
         private readonly IConfigService _config;
         private readonly Dota2Monitor _dotaMonitor;
         private readonly DotaVersionService _versionService;
         
         private readonly INavigationPresenter _navigationPresenter;
+        private readonly LaunchPresenter? _launchPresenter;
         
         private bool _patchDialogDismissedByUser;
         private DotaPatchWatcherService? _patchWatcher;
@@ -64,14 +67,21 @@ namespace ArdysaModsTools.UI.Presenters
         private TaskCompletionSource<bool>? _operationGate;
         private bool _disposed;
         private ModStatusInfo? _currentStatus;
+        private bool _dotaRunning;
 
         private const string RequiredModFilePath = DotaPaths.ModsVpk;
+
+        private const string SteamLaunchUrl = "steam://rungameid/570";
 
         #endregion
 
         #region Public Properties
 
         public bool IsOperationRunning => _operationCts != null;
+
+        public bool CanRepairAndLaunch => _launchPresenter != null;
+
+        public bool CanVerifyPackageSync => _itemsGameSync != null;
 
         public UpdaterService GetUpdaterService() => _updater;
 
@@ -82,13 +92,23 @@ namespace ArdysaModsTools.UI.Presenters
         #region Constructor & Initialization
 
         public MainFormPresenter(IMainFormView view, Logger logger, IConfigService configService,
-            IStatusService statusService, ISetupVerificationService? verificationService = null)
+            IStatusService statusService, ISetupVerificationService? verificationService = null,
+            IItemsGameSyncService? itemsGameSync = null,
+            IItemsGameMergeService? mergeService = null,
+            ISteamAppStateService? steamAppState = null)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _config = configService ?? throw new ArgumentNullException(nameof(configService));
             _status = statusService ?? throw new ArgumentNullException(nameof(statusService));
-            _verification = verificationService ?? new SetupVerificationService(_logger);
+            _itemsGameSync = itemsGameSync;
+            _verification = verificationService ?? new SetupVerificationService(_logger, itemsGameSync);
+
+            if (_itemsGameSync != null)
+            {
+                _syncChangedHandler = verdict => _view.InvokeOnUIThread(() => _ = CheckModsStatusAsync());
+                _itemsGameSync.Changed += _syncChangedHandler;
+            }
 
             _updater = new UpdaterService(_logger);
             _updater.OnVersionChanged += version =>
@@ -106,6 +126,15 @@ namespace ArdysaModsTools.UI.Presenters
             _dotaMonitor.Start();
 
             _navigationPresenter = new NavigationPresenter(_view, _logger, _status, _updater);
+
+            if (mergeService != null)
+            {
+                _launchPresenter = new LaunchPresenter(_view, _logger, mergeService,
+                    steamAppState ?? new SteamAppStateService(_logger));
+
+                _launchPresenter.PackageRepaired += () =>
+                    _view.InvokeOnUIThread(() => _ = CheckModsStatusAsync());
+            }
             
             WireUpPresenterEvents();
 
@@ -894,6 +923,8 @@ namespace ArdysaModsTools.UI.Presenters
                 {
                     _view.SetModsStatusDetailed(statusInfo);
                     _view.SetSetupChecks(verification);
+                    PushPlayState(statusInfo);
+                    PushPackageSyncNotice(verification);
 
                     if (!isSameStatus)
                     {
@@ -916,7 +947,89 @@ namespace ArdysaModsTools.UI.Presenters
                 _logger.Log($"[STATUS] Error checking status: {ex.Message}");
                 _view.SetModsStatus(false, Loc.T("status.error.text"));
             }
+
+            _ = _itemsGameSync?.RefreshAsync(_targetPath, _lifetimeCts.Token);
         }
+
+        private const string PackageSyncLogKey = "packageSync";
+
+        private void PushPackageSyncNotice(SetupVerificationResult verification)
+        {
+            var sync = verification.Checks.FirstOrDefault(c => c.Id == SetupCheckId.ItemsGameInSync);
+
+            if (sync?.State == SetupCheckState.Fail)
+                _view.ShowStickyLog(PackageSyncLogKey, Loc.T("play.sync.outOfDate"), "warning");
+            else
+                _view.ClearStickyLog(PackageSyncLogKey);
+        }
+
+        private void PushPlayState(ModStatusInfo statusInfo)
+        {
+            if (_dotaRunning)
+            {
+                _view.SetPlayState(false, "play.reason.running");
+                return;
+            }
+
+            if (IsOperationRunning || _launchPresenter?.IsRunning == true)
+            {
+                _view.SetPlayState(false, "play.reason.busy");
+                return;
+            }
+
+            if (!CanLaunch(statusInfo))
+            {
+                _view.SetPlayState(false, statusInfo.Status == ModStatus.NotInstalled
+                    ? "play.reason.notInstalled"
+                    : "play.reason.notReady");
+                return;
+            }
+
+            bool needsRepair = statusInfo.SetupFailure == SetupCheckId.ItemsGameInSync
+                               || statusInfo.Status == ModStatus.NeedUpdate;
+
+            _view.SetPlayState(true, needsRepair ? "play.reason.willRepair" : "play.reason.ready");
+        }
+
+        public async Task LaunchDotaAsync()
+        {
+            if (string.IsNullOrEmpty(_targetPath) || _launchPresenter == null)
+            {
+                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.blocked"), "warning");
+                return;
+            }
+
+            if (!CanLaunch(_currentStatus))
+            {
+                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.blocked"), "warning");
+                return;
+            }
+
+            if (_currentStatus?.SetupFailure is SetupCheckId.SignatureMatchesGameInfo
+                                             or SetupCheckId.SearchPathsMounted)
+            {
+                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.needsPatchFirst"), "warning");
+                return;
+            }
+
+            await _launchPresenter.LaunchAsync(_targetPath);
+        }
+
+        public void CancelLaunch() => _launchPresenter?.Cancel();
+
+        public async Task RepairPackageAsync()
+        {
+            if (string.IsNullOrEmpty(_targetPath) || _launchPresenter == null)
+            {
+                _view.ShowShellToast(Loc.T("verify.chip.sync"), Loc.T("play.blocked"), "warning");
+                return;
+            }
+
+            await _launchPresenter.RepairOnlyAsync(_targetPath);
+        }
+
+        private static bool CanLaunch(ModStatusInfo? status) =>
+            status != null && status.Status is ModStatus.Ready or ModStatus.NeedUpdate;
 
         public async Task FixSetupAsync()
         {
@@ -996,6 +1109,9 @@ namespace ArdysaModsTools.UI.Presenters
 
         private void OnDotaStateChanged(bool isRunning)
         {
+            _launchPresenter?.NotifyDotaRunning(isRunning);
+            _dotaRunning = isRunning;
+
             _view.InvokeOnUIThread(() =>
             {
                 _view.SetDotaRunningState(isRunning);
@@ -1003,6 +1119,7 @@ namespace ArdysaModsTools.UI.Presenters
                 if (isRunning)
                 {
                     _view.DisableAllButtons();
+                    _view.SetPlayState(false, "play.reason.running");
                     _view.ShowNotification(
                         Loc.T("notification.dota2Running.title"),
                         Loc.T("notification.dota2Running.body"),
@@ -1114,6 +1231,7 @@ namespace ArdysaModsTools.UI.Presenters
             _operationCts = new CancellationTokenSource();
             _operationGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             _view.DisableAllButtons();
+            _view.SetPlayState(false, "play.reason.busy");
             return _operationCts;
         }
 
@@ -1133,6 +1251,9 @@ namespace ArdysaModsTools.UI.Presenters
                 _view.EnableDetectionButtonsOnly();
             else
                 _view.EnableAllButtons();
+
+            if (_currentStatus != null)
+                PushPlayState(_currentStatus);
         }
 
         public void CancelOperation()
@@ -1561,6 +1682,12 @@ namespace ArdysaModsTools.UI.Presenters
                 return;
 
             StopPatchWatcher();
+            _launchPresenter?.Dispose();
+            if (_itemsGameSync != null && _syncChangedHandler != null)
+            {
+                _itemsGameSync.Changed -= _syncChangedHandler;
+                _syncChangedHandler = null;
+            }
             _dotaMonitor?.Stop();
             _operationCts?.Cancel();
             _operationCts?.Dispose();

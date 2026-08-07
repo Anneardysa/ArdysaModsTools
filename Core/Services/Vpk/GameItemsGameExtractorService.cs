@@ -20,6 +20,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Helpers;
@@ -30,6 +31,9 @@ namespace ArdysaModsTools.Core.Services
     {
         Task<bool> RefreshFromGameAsync(string targetPath, string extractDir,
             Action<string> log, CancellationToken ct = default);
+
+        Task<bool> ExtractItemsGameAsync(string vpkPath, string destFilePath,
+            Action<string>? log = null, CancellationToken ct = default);
     }
 
     public sealed class GameItemsGameExtractorService : IGameItemsGameExtractor
@@ -63,8 +67,7 @@ namespace ArdysaModsTools.Core.Services
             }
 
             string dotaRoot = PathUtility.NormalizeTargetPath(targetPath);
-            string gameVpkPath = Path.Combine(dotaRoot, "game", "dota", "pak01_dir.vpk");
-            string hlExtractPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HLExtract.exe");
+            string gameVpkPath = Path.Combine(dotaRoot, DotaPaths.GameVpk.Replace('/', Path.DirectorySeparatorChar));
 
             if (!File.Exists(gameVpkPath))
             {
@@ -73,9 +76,38 @@ namespace ArdysaModsTools.Core.Services
                 return false;
             }
 
+            string dest = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
+            if (!await ExtractItemsGameAsync(gameVpkPath, dest, log, ct).ConfigureAwait(false))
+            {
+                log("Could not read package from your Dota 2 installation.");
+                return false;
+            }
+
+            log("Latest package loaded.");
+
+            await ItemsGameBaselineStore.WritePendingAsync(dotaRoot, gameVpkPath, dest, ct).ConfigureAwait(false);
+
+            return true;
+        }
+
+        public async Task<bool> ExtractItemsGameAsync(string vpkPath, string destFilePath,
+            Action<string>? log = null, CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(vpkPath) || string.IsNullOrWhiteSpace(destFilePath))
+                return false;
+
+            if (!File.Exists(vpkPath))
+            {
+                _logger?.Log($"GameItemsGameExtractor: VPK missing at {vpkPath}");
+                return false;
+            }
+
+            string hlExtractPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HLExtract.exe");
             if (!File.Exists(hlExtractPath))
             {
-                log("Extraction tool not found.");
+                log?.Invoke("Extraction tool not found.");
                 _logger?.Log($"GameItemsGameExtractor: HLExtract.exe missing at {hlExtractPath}");
                 return false;
             }
@@ -85,39 +117,39 @@ namespace ArdysaModsTools.Core.Services
 
             try
             {
-                string arguments = $"-p \"{gameVpkPath}\" -d \"{tempDir}\" -e \"root/scripts/items\"";
-                if (!await RunHlExtractAsync(hlExtractPath, arguments, ct).ConfigureAwait(false))
+                string? extracted = null;
+                foreach (var entry in new[] { "root/scripts/items", "scripts/items" })
                 {
-                    log("Failed to read package from your Dota 2 installation.");
-                    return false;
+                    ct.ThrowIfCancellationRequested();
+
+                    string arguments = $"-p \"{vpkPath}\" -d \"{tempDir}\" -e \"{entry}\"";
+                    if (!await RunHlExtractAsync(hlExtractPath, arguments, ct).ConfigureAwait(false))
+                        continue;
+
+                    extracted = Directory
+                        .EnumerateFiles(tempDir, "items_game.txt", SearchOption.AllDirectories)
+                        .FirstOrDefault();
+                    if (extracted != null) break;
                 }
 
-                ct.ThrowIfCancellationRequested();
-
-                string? extracted = Directory
-                    .EnumerateFiles(tempDir, "items_game.txt", SearchOption.AllDirectories)
-                    .FirstOrDefault();
                 if (extracted is null)
                 {
-                    log("Package not found inside your Dota 2 game files.");
-                    _logger?.Log($"GameItemsGameExtractor: items_game.txt not found under {tempDir} after extraction.");
+                    _logger?.Log($"GameItemsGameExtractor: items_game.txt not found in {vpkPath}");
                     return false;
                 }
 
                 long size = new FileInfo(extracted).Length;
                 if (size < MinItemsGameBytes)
                 {
-                    log("Package from your Dota 2 installation looks incomplete.");
-                    _logger?.Log($"GameItemsGameExtractor: extracted items_game.txt too small ({size} bytes).");
+                    log?.Invoke("Package data looks incomplete.");
+                    _logger?.Log($"GameItemsGameExtractor: extracted items_game.txt too small ({size} bytes) from {vpkPath}.");
                     return false;
                 }
 
-                string dest = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                File.Copy(extracted, dest, overwrite: true);
+                Directory.CreateDirectory(Path.GetDirectoryName(destFilePath)!);
+                File.Copy(extracted, destFilePath, overwrite: true);
 
-                log("Latest package loaded.");
-                _logger?.Log($"GameItemsGameExtractor: injected items_game.txt ({size} bytes) from {gameVpkPath}");
+                _logger?.Log($"GameItemsGameExtractor: extracted items_game.txt ({size} bytes) from {vpkPath}");
                 return true;
             }
             catch (OperationCanceledException)
@@ -126,7 +158,6 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                log("Could not read package from your Dota 2 installation.");
                 _logger?.Log($"GameItemsGameExtractor error: {ex}");
                 return false;
             }

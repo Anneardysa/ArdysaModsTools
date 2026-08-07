@@ -417,6 +417,8 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
+                    string[] patchedIds = mergedBlocks.Keys.ToArray();
+
                     if (mergedBlocks.Count > 0)
                     {
                         log("Patching...");
@@ -424,7 +426,7 @@ namespace ArdysaModsTools.Core.Services
                             extractDir, mergedBlocks, log, ct).ConfigureAwait(false);
 
                         mergedBlocks.Clear();
-                        
+
                         if (!patchSuccess)
                         {
                             return Fail("Patching package failed.", report, targetPath);
@@ -516,6 +518,8 @@ namespace ArdysaModsTools.Core.Services
                     if (!replaceSuccess)
                         return Fail("VPK replacement failed.", report, targetPath);
 
+                    await ItemsGameBaselineStore.CommitAsync(targetPath, patchedIds, ct).ConfigureAwait(false);
+
                     if (!await ProtectedVpkStore.DeployAsync(
                             targetPath, newProtectedVpkPath, log, CancellationToken.None, _logger).ConfigureAwait(false))
                         return Fail("VPK replacement failed.", report, targetPath);
@@ -560,10 +564,7 @@ namespace ArdysaModsTools.Core.Services
                         _logger?.LogDebug($"Cleanup failed: {ex.Message}");
                     }
 
-                    System.Runtime.GCSettings.LargeObjectHeapCompactionMode = System.Runtime.GCLargeObjectHeapCompactionMode.CompactOnce;
-                    GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect();
+                    Core.Helpers.LargeWorkMemory.Release();
                 }
             }
             catch (OperationCanceledException)
