@@ -28,6 +28,8 @@ namespace ArdysaModsTools.Core.Models
 
         public bool CanCancel { get; init; } = true;
 
+        public string? ConfirmKey { get; init; }
+
         public bool IsError { get; init; }
     }
 }

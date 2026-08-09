@@ -3439,6 +3439,15 @@
                <div id="launch-bar" class="launch-bar"><span id="launch-bar-fill"></span></div>
             </div>
             <div class="confirm-actions">
+               <!-- Only rendered on the one step that asks a question instead of reporting progress:
+                    Steam has just updated Dota 2, the package has been rebuilt, and starting the
+                    game is the user's call. Hidden (and unlabelled) for every other state. -->
+               <button
+                  id="launch-confirm"
+                  class="ob-btn primary"
+                  style="display: none"
+                  onclick="send('confirmLaunch', event)"
+               ></button>
                <button
                   id="launch-cancel"
                   class="ob-btn ghost"
@@ -3909,10 +3918,22 @@
             const bar = document.getElementById("launch-bar");
             const fill = document.getElementById("launch-bar-fill");
             const cancel = document.getElementById("launch-cancel");
+            const confirm = document.getElementById("launch-confirm");
+
+            // A step that waits for an answer is not working on anything: no spinner, no bar, and a
+            // primary button that says what it will do.
+            const asking = !!(p.confirmLabel);
 
             if (heading) heading.textContent = p.heading || "";
             if (detail) detail.textContent = p.detail || "";
-            if (spinner) spinner.classList.toggle("is-error", !!p.isError);
+            if (spinner) {
+               spinner.classList.toggle("is-error", !!p.isError);
+               spinner.style.display = asking ? "none" : "";
+            }
+            if (confirm) {
+               confirm.textContent = p.confirmLabel || "";
+               confirm.style.display = asking ? "" : "none";
+            }
 
             // A bar only when there is a real percentage behind it; otherwise the ring alone says
             // "working" without inventing progress the flow cannot measure.

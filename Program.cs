@@ -52,6 +52,12 @@ namespace ArdysaModsTools
         [STAThread]
         static void Main()
         {
+            if (GameSessionWatcher.IsWaitLaunch(Environment.GetCommandLineArgs()))
+            {
+                GameSessionWatcher.WaitThenRelaunch();
+                return;
+            }
+
             var startupLogPath = System.IO.Path.Combine(
                 AppDomain.CurrentDomain.BaseDirectory, "startup_log.txt");
             var logInitialized = false;
@@ -161,6 +167,13 @@ namespace ArdysaModsTools
                 Log("Checking for Dota 2 process...");
                 if (ProcessChecker.IsProcessRunning(gameProcessName))
                 {
+                    if (GameSessionWatcher.IsResumedLaunch(Environment.GetCommandLineArgs()))
+                    {
+                        bool rearmed = GameSessionWatcher.StartStub(startMinimized);
+                        Log($"Dota 2 running on a resumed launch — watcher re-armed: {rearmed}");
+                        if (rearmed) return;
+                    }
+
                     Log("BLOCKED: Dota 2 is running");
                     MessageBox.Show(
                         Core.Services.Localization.Loc.T("program.dota2Running.body"),

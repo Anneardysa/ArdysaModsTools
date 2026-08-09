@@ -247,6 +247,12 @@ namespace ArdysaModsTools
                 return;
             }
 
+            if (GameSessionWatcher.IsResumedLaunch(Environment.GetCommandLineArgs()))
+            {
+                ShowShellToast(Loc.T("session.resumed.title"), Loc.T("session.resumed.body"), "info", 6000);
+                return;
+            }
+
             ShowSupportDialogOnStartup();
             ShowOnboardingGuide();
             _trayService?.ShowDonationReminder();
@@ -775,6 +781,9 @@ namespace ArdysaModsTools
                     case "cancelLaunch":
                         _presenter.CancelLaunch();
                         break;
+                    case "confirmLaunch":
+                        _presenter.ConfirmLaunch();
+                        break;
                     case "fixPackageSync":
                         await _presenter.RepairPackageAsync();
                         break;
@@ -1098,7 +1107,10 @@ namespace ArdysaModsTools
                 percent = state.Percent,
                 canCancel = state.CanCancel,
                 isError = state.IsError,
-                cancelLabel = Loc.T(state.IsError ? "play.panel.dismiss" : "play.panel.cancel")
+                cancelLabel = Loc.T(state.IsError ? "play.panel.dismiss"
+                                  : state.ConfirmKey != null ? "play.panel.notNow"
+                                  : "play.panel.cancel"),
+                confirmLabel = state.ConfirmKey != null ? Loc.T(state.ConfirmKey) : null
             }, _jsonOptions);
 
             Js("launch", $"setLaunchPanel({payload})");

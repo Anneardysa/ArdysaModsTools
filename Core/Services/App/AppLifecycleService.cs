@@ -93,6 +93,23 @@ namespace ArdysaModsTools.Core.Services.App
             }
         }
 
+        public bool ExitUntilGameCloses(bool resumeMinimized = false)
+        {
+            try
+            {
+                if (!GameSessionWatcher.StartStub(resumeMinimized))
+                    return false;
+
+                Application.Exit();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                FallbackLogger.Log($"[AppLifecycleService] Game-session handoff failed: {ex.Message}");
+                return false;
+            }
+        }
+
         public void RestartApplication()
         {
             try

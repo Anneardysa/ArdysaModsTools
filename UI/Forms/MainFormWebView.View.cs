@@ -453,6 +453,21 @@ namespace ArdysaModsTools
             }
         }
 
+        public bool ExitUntilGameCloses()
+        {
+            if (InvokeRequired)
+                return (bool)Invoke(new Func<bool>(ExitUntilGameCloses));
+
+            if (Application.OpenForms.Count > 1)
+            {
+                _logger.LogDebug("[SESSION] Handoff skipped — a dialog is open.");
+                return false;
+            }
+
+            bool minimized = !Visible || WindowState == FormWindowState.Minimized;
+            return _lifecycleService.ExitUntilGameCloses(minimized);
+        }
+
         public async Task<OperationResult> RunWithProgressOverlayAsync(
             string initialStatus,
             Func<ProgressContext, Task<OperationResult>> operation,

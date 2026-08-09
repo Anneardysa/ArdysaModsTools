@@ -45,6 +45,8 @@ namespace ArdysaModsTools.UI.Presenters
 
         private volatile bool _dotaRunning;
 
+        private volatile TaskCompletionSource<bool>? _confirmWaiter;
+
         public LaunchPresenter(IMainFormView view, Logger logger,
             IItemsGameMergeService merge, ISteamAppStateService steam,
             Func<string, bool>? launcher = null)
@@ -60,7 +62,14 @@ namespace ArdysaModsTools.UI.Presenters
 
         public event Action? PackageRepaired;
 
-        public void NotifyDotaRunning(bool running) => _dotaRunning = running;
+        public void NotifyDotaRunning(bool running)
+        {
+            _dotaRunning = running;
+
+            if (running) _confirmWaiter?.TrySetResult(false);
+        }
+
+        public void ConfirmLaunch() => _confirmWaiter?.TrySetResult(true);
 
         public void Cancel()
         {
@@ -115,7 +124,9 @@ namespace ArdysaModsTools.UI.Presenters
             try
             {
                 Show("play.panel.checking", "play.panel.checkingDetail", percent: null);
-                if (!await WaitForSteamToSettleAsync(targetPath, cts.Token).ConfigureAwait(false)) return;
+                await WaitForSteamUpdateAsync(targetPath, cts.Token).ConfigureAwait(false);
+
+                if (GameStartedWithoutUs(Loc.T("verify.chip.sync"))) return;
                 if (!await RepairAsync(targetPath, cts.Token).ConfigureAwait(false)) return;
 
                 _view.SetLaunchPanel(null);
@@ -139,11 +150,19 @@ namespace ArdysaModsTools.UI.Presenters
         private async Task RunAsync(string? targetPath, CancellationToken ct)
         {
             Show("play.panel.checking", "play.panel.checkingDetail", percent: null);
-            if (!await WaitForSteamToSettleAsync(targetPath, ct).ConfigureAwait(false))
+            bool updated = await WaitForSteamUpdateAsync(targetPath, ct).ConfigureAwait(false);
+
+            if (GameStartedWithoutUs(Loc.T("play.button")))
                 return;
 
             if (!await RepairAsync(targetPath, ct).ConfigureAwait(false))
                 return;
+
+            if (updated && !await WaitForLaunchConfirmationAsync(ct).ConfigureAwait(false))
+            {
+                _view.SetLaunchPanel(null);
+                return;
+            }
 
             if (!Launch())
                 return;
@@ -151,12 +170,12 @@ namespace ArdysaModsTools.UI.Presenters
             await WaitForGameAsync(targetPath, ct).ConfigureAwait(false);
         }
 
-        private async Task<bool> WaitForSteamToSettleAsync(string? targetPath, CancellationToken ct)
+        private async Task<bool> WaitForSteamUpdateAsync(string? targetPath, CancellationToken ct)
         {
             var state = _steam.Read(targetPath);
-            if (!state.IsUpdatePending) return true;
+            if (!state.IsUpdatePending) return false;
 
-            while (state.IsUpdatePending)
+            while (state.IsUpdatePending && !_dotaRunning)
             {
                 ct.ThrowIfCancellationRequested();
 
@@ -166,6 +185,43 @@ namespace ArdysaModsTools.UI.Presenters
             }
 
             return true;
+        }
+
+        private bool GameStartedWithoutUs(string title)
+        {
+            if (!_dotaRunning) return false;
+
+            _view.SetLaunchPanel(null);
+            _view.ShowShellToast(title, Loc.T("play.alreadyRunning"), "info");
+            return true;
+        }
+
+        private async Task<bool> WaitForLaunchConfirmationAsync(CancellationToken ct)
+        {
+            if (_dotaRunning) return false;
+
+            var waiter = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _confirmWaiter = waiter;
+
+            if (_dotaRunning) waiter.TrySetResult(false);
+
+            try
+            {
+                _view.SetLaunchPanel(new LaunchPanelState
+                {
+                    HeadingKey = "play.panel.updated",
+                    DetailKey = "play.panel.updatedDetail",
+                    ConfirmKey = "play.panel.launchNow",
+                    CanCancel = true
+                });
+
+                using (ct.Register(() => waiter.TrySetCanceled(ct)))
+                    return await waiter.Task.ConfigureAwait(false);
+            }
+            finally
+            {
+                _confirmWaiter = null;
+            }
         }
 
         private async Task<bool> RepairAsync(string? targetPath, CancellationToken ct)
@@ -225,8 +281,18 @@ namespace ArdysaModsTools.UI.Presenters
 
                 if (_steam.Read(targetPath).IsUpdatePending)
                 {
-                    if (!await WaitForSteamToSettleAsync(targetPath, ct).ConfigureAwait(false)) return;
+                    await WaitForSteamUpdateAsync(targetPath, ct).ConfigureAwait(false);
+
+                    if (_dotaRunning) continue;
+
                     if (!await RepairAsync(targetPath, ct).ConfigureAwait(false)) return;
+
+                    if (!await WaitForLaunchConfirmationAsync(ct).ConfigureAwait(false))
+                    {
+                        _view.SetLaunchPanel(null);
+                        return;
+                    }
+
                     if (!Launch()) return;
 
                     deadline = DateTime.UtcNow + LaunchTimeout;

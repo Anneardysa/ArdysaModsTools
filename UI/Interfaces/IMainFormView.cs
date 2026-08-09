@@ -161,6 +161,8 @@ namespace ArdysaModsTools.UI.Interfaces
 
         void RestartApplication();
 
+        bool ExitUntilGameCloses();
+
         Task<OperationResult> RunWithProgressOverlayAsync(
             string initialStatus,
             Func<ProgressContext, Task<OperationResult>> operation,

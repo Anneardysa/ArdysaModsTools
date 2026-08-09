@@ -69,6 +69,8 @@ namespace ArdysaModsTools.UI.Presenters
         private ModStatusInfo? _currentStatus;
         private bool _dotaRunning;
 
+        private int _handoffStarted;
+
         private const string RequiredModFilePath = DotaPaths.ModsVpk;
 
         private const string SteamLaunchUrl = "steam://rungameid/570";
@@ -1012,10 +1014,28 @@ namespace ArdysaModsTools.UI.Presenters
                 return;
             }
 
-            await _launchPresenter.LaunchAsync(_targetPath);
+            await RunLaunchFlowAsync(() => _launchPresenter.LaunchAsync(_targetPath));
+        }
+
+        private async Task RunLaunchFlowAsync(Func<Task> flow)
+        {
+            _view.SetPlayState(false, "play.reason.busy");
+            try
+            {
+                await flow();
+            }
+            finally
+            {
+                if (_currentStatus != null)
+                    PushPlayState(_currentStatus);
+                else
+                    _view.SetPlayState(false, "play.reason.notReady");
+            }
         }
 
         public void CancelLaunch() => _launchPresenter?.Cancel();
+
+        public void ConfirmLaunch() => _launchPresenter?.ConfirmLaunch();
 
         public async Task RepairPackageAsync()
         {
@@ -1025,7 +1045,7 @@ namespace ArdysaModsTools.UI.Presenters
                 return;
             }
 
-            await _launchPresenter.RepairOnlyAsync(_targetPath);
+            await RunLaunchFlowAsync(() => _launchPresenter.RepairOnlyAsync(_targetPath));
         }
 
         private static bool CanLaunch(ModStatusInfo? status) =>
@@ -1125,6 +1145,8 @@ namespace ArdysaModsTools.UI.Presenters
                         Loc.T("notification.dota2Running.body"),
                         System.Windows.Forms.ToolTipIcon.Info,
                         5000);
+
+                    _ = HandOffToGameSessionAsync();
                 }
                 else
                 {
@@ -1139,6 +1161,54 @@ namespace ArdysaModsTools.UI.Presenters
                     }
                 }
             });
+        }
+
+        private static readonly TimeSpan GameSessionHandoffDelay = TimeSpan.FromSeconds(8);
+
+        private async Task HandOffToGameSessionAsync()
+        {
+            bool deferralLogged = false;
+
+            try
+            {
+                while (true)
+                {
+                    await Task.Delay(GameSessionHandoffDelay, _lifetimeCts.Token).ConfigureAwait(true);
+
+                    if (!_dotaRunning)
+                        return;
+
+                    if (_commandInFlight || IsOperationRunning || _launchPresenter?.IsRunning == true)
+                    {
+                        if (!deferralLogged)
+                        {
+                            deferralLogged = true;
+                            _logger.LogDebug("[SESSION] Handoff deferred — an operation is running.");
+                        }
+                        continue;
+                    }
+
+                    if (Interlocked.Exchange(ref _handoffStarted, 1) == 1)
+                        return;
+
+                    if (_view.ExitUntilGameCloses())
+                        return;
+
+                    Interlocked.Exchange(ref _handoffStarted, 0);
+                    if (!deferralLogged)
+                    {
+                        deferralLogged = true;
+                        _logger.LogDebug("[SESSION] Handoff declined by the view — will retry.");
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"[SESSION] Handoff failed: {ex.Message}");
+            }
         }
 
         #endregion

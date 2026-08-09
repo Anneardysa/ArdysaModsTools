@@ -9,9 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.21-beta] (Builds 2297–2298)
+## [2.2.21-beta] (Builds 2297–2299)
 
 ### Added
+
+- **A Dota 2 update now ends in a question, not a launch** (2299): the launch flow already refuses to
+  hand the game to Steam while an update is queued, waits it out and rebuilds the package against
+  what the update delivered — then started the game unattended. An update is a wait the user did not
+  sign up for when they pressed Play, so the flow parks on "Dota 2 has been updated — start it now?"
+  and launches only when asked. The panel drops the question by itself if Steam starts the game first.
+- **AMT steps aside for the game and comes back when it ends** (2299): while Dota 2 runs, every button
+  is already disabled — every file AMT would touch is held open by the game — so an idle WebView2
+  process worth hundreds of megabytes sits there earning nothing. Eight seconds after the game
+  appears, AMT starts a stub of its own executable (`--wait-dota`, answered at the top of
+  `Program.Main` before DI, localization or any window) and exits; the stub polls for the game and
+  reopens the app when the session ends. It never exits without a stub to bring it back, defers while
+  an install, a repair or a dialog is in flight and keeps offering until the match ends rather than
+  giving up on the first no, leaves at most one stub per process (a latch here, a named mutex there),
+  waits for the game to stay gone before reopening — dota2.exe lingers while it shuts down, and the
+  app refuses to start while it exists — and re-arms itself instead of dying behind a message box if
+  it comes back to find another match already running. The tray-minimized state is carried across.
 
 - **A Play button that repairs the mod package before launching** (2298): the package carries its own
   copy of the game's item data and shadows the game's, so a Dota 2 update leaves the game reading
