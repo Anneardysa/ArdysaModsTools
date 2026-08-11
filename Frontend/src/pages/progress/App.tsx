@@ -5,7 +5,6 @@ import { store, type PreviewHero } from "./store";
 import css from "./progress.module.css";
 
 
-const IMAGE_BASE_URL = "https://raw.githubusercontent.com/Anneardysa/ArdysaMods/main/assets/updates/";
 const CIRCUMFERENCE = 628.32;
 
 function sendCancel(): void {
@@ -56,7 +55,7 @@ function HeroCard({ hero, onOpen }: { hero: PreviewHero; onOpen: () => void }) {
             {!broken && (
                <img
                   className={css.heroImg}
-                  src={`${IMAGE_BASE_URL}${hero.file}`}
+                  src={hero.image}
                   alt={hero.name}
                   loading="lazy"
                   onError={() => setBroken(true)}
@@ -155,7 +154,7 @@ function PreviewPanel({ onOpenLightbox }: { onOpenLightbox: (hero: PreviewHero) 
                ) : (
                   <div className={css.previewGrid}>
                      {filtered.map((hero) => (
-                        <HeroCard key={hero.file} hero={hero} onOpen={() => onOpenLightbox(hero)} />
+                        <HeroCard key={hero.image} hero={hero} onOpen={() => onOpenLightbox(hero)} />
                      ))}
                   </div>
                ))}
@@ -239,7 +238,7 @@ export function App() {
          {lightboxHero && (
             <div className={`${css.lightbox} ${css.active}`} onClick={closeLightbox}>
                <div className={css.lightboxContent} onClick={(e) => e.stopPropagation()}>
-                  <img className={css.lightboxImg} src={`${IMAGE_BASE_URL}${lightboxHero.file}`} alt={lightboxHero.name} />
+                  <img className={css.lightboxImg} src={lightboxHero.image} alt={lightboxHero.name} />
                   <div className={css.lightboxName}>{lightboxHero.name}</div>
                </div>
             </div>
