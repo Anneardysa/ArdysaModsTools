@@ -190,6 +190,11 @@ export function App() {
       send("alertDismissed");
    };
 
+   const chooseMode = (mode: "clean" | "add" | null) => {
+      store.set({ modeModalOpen: false });
+      send("modeSelected", { mode });
+   };
+
    return (
       <>
          <div className={css.bgfx} aria-hidden="true" />
@@ -256,10 +261,7 @@ export function App() {
          )}
 
          {modeModalOpen && (
-            <ModeModal
-               onSelect={(mode) => send("modeSelected", { mode })}
-               onDismiss={() => send("modeSelected", { mode: null })}
-            />
+            <ModeModal onSelect={chooseMode} onDismiss={() => chooseMode(null)} />
          )}
 
          {alert.visible && (
