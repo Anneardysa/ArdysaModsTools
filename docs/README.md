@@ -1,73 +1,105 @@
-# ArdysaModsTools Documentation
+# 📚 ArdysaModsTools Documentation
 
-Documentation hub for AMT. Start with the guide that matches what you're trying to do.
+Welcome to the AMT 2.0 documentation hub. Find everything you need to use or contribute to the project.
 
 ---
 
-## For users
+## 🎯 Quick Navigation
+
+### 👥 For Users
 
 | Guide                                  | Description                                       |
 | -------------------------------------- | ------------------------------------------------- |
-| **[Main README](../README.md)**        | Project overview, features, installation          |
-| **[Quick Start](user/QUICK_START.md)** | Detect Dota 2, install, and press Play in 5 minutes |
-| **[User Guide](user/USER_GUIDE.md)**   | Every feature explained, plus FAQ                 |
-| **[Troubleshooting](TROUBLESHOOTING.md)** | Error codes and common failures                |
-| **[Changelog](../CHANGELOG.md)**       | What changed in each release                      |
+| **[Main README](../README.md)**        | Complete project overview, features, installation |
+| **[Quick Start](user/QUICK_START.md)** | Get up and running in 5 minutes                   |
+| **[User Guide](user/USER_GUIDE.md)**   | Detailed usage walkthrough with FAQ               |
 
-## For contributors
+### 👨‍💻 For Developers
 
-| Guide                                          | Description                              |
-| ---------------------------------------------- | ---------------------------------------- |
-| **[Contributing](../.github/CONTRIBUTING.md)** | How to report, request, and send patches |
-| **[Security Policy](../.github/SECURITY.md)**  | Reporting vulnerabilities privately      |
-| **[Code of Conduct](../.github/CODE_OF_CONDUCT.md)** | Ground rules for participation     |
-| **[Privacy Policy](../PRIVACY.md)**            | What leaves your machine (and what doesn't) |
+| Guide                                             | Description                    |
+| ------------------------------------------------- | ------------------------------ |
+| **[Development Setup](developer/development.md)** | Environment, building, testing |
+| **[Architecture](developer/architecture.md)**     | System design, DI, MVP pattern |
+| **[Services API](developer/api/services.md)**     | Core service reference         |
+| **[Contributing](../.github/CONTRIBUTING.md)**    | How to report, request, and send patches |
+| **[Installer Guide](dev/INSTALLER.md)**           | Installer build process        |
+| **[Security](../.github/SECURITY.md)**            | Reporting vulnerabilities      |
 
 ---
 
-## Where things live
+## 📖 Documentation Structure
 
 ```
 docs/
-├── README.md              ← You are here
-├── TROUBLESHOOTING.md     ← Error codes, common failures
-├── INSTALL_INFO.txt       ← Text shown by the installer
-└── user/                  ← End-user guides
-    ├── QUICK_START.md
-    ├── USER_GUIDE.md
-    └── images/
+├── README.md                            ← You are here
+├── TROUBLESHOOTING.md                   ← Common issues & solutions
+│
+├── user/                                ← End-user guides
+│   ├── QUICK_START.md
+│   └── USER_GUIDE.md
+│
+├── dev/                                 ← Contributor guidelines
+│   ├── CONTRIBUTING.md
+│   ├── SECURITY.md
+│   └── INSTALLER.md
+│
+├── developer/                           ← Technical documentation
+│   ├── architecture.md                  ← System design, DI, CDN
+│   ├── development.md                   ← Setup & building
+│   └── api/
+│       ├── services.md                  ← Service reference
+│       ├── models.md                    ← Data models
+│       ├── ui-components.md             ← Forms & presenters
+│       ├── helpers.md                   ← Utilities
+│       ├── exceptions.md                ← Error codes
+│       ├── active-mods.md               ← Query installed mods
+│       ├── misc-mods.md                 ← Misc mod control
+│       ├── auto-patching.md             ← Auto re-patching
+│       └── mod-file-structure.md        ← File/folder specs
+│
+├── adr/                                 ← Architecture Decision Records
+│   ├── README.md                        ← ADR index
+│   ├── TEMPLATE.md                      ← ADR template
+│   ├── 0001-refactor-mainform-mvp.md
+│   ├── 0002-complete-di-migration-factory-pattern.md
+│   ├── 0003-multi-cdn-strategy-r2-primary.md
+│   ├── 0004-presenter-decomposition-srp.md
+│   ├── 0005-webview2-hybrid-ui.md
+│   ├── 0006-automated-patch-watcher.md
+│   ├── 0007-security-anti-tamper-architecture.md
+│   ├── 0008-hero-cosmetic-priority-merge.md
+│   ├── 0009-cdn-download-resilience-layer.md
+│   ├── 0010-asset-hash-verification.md
+│   └── 0012-incremental-delta-updates.md
+│
+└── samples/                             ← Example JSON configs (empty)
 ```
 
-> [!NOTE]
-> **Maintainers:** the internal documentation tree — `docs/developer/` (architecture, API
-> reference), `docs/adr/` (Architecture Decision Records), and `docs/dev/INSTALLER.md` — is
-> listed in [`.mirrorignore`](../.mirrorignore) and exists **only in the private upstream
-> repository**. It is deliberately not linked from here, because those links resolve to 404
-> on the public GitHub mirror. See [CONTRIBUTING.md](../.github/CONTRIBUTING.md#how-this-repository-works)
-> for how the mirror works.
+### 🆘 Need Help?
+
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** — Common issues and solutions
+- **[Changelog](../CHANGELOG.md)** — What's new in each version
 
 ---
 
-## Key concepts
+## 🔑 Key Concepts
 
-| Concept                     | Description                                                              |
-| --------------------------- | ------------------------------------------------------------------------ |
-| **MVP pattern**             | View → Presenter → Service; forms hold no business logic                 |
-| **DI + factory**            | `IMainFormFactory` bridges the DI container with `Application.Run()`     |
-| **Multi-CDN fallback**      | Cloudflare R2 → Backblaze B2 (Cloudflare Worker), chosen by `SmartCdnSelector` |
-| **SHA-256 gate**            | Every download is hash-verified before it is allowed near the game folder |
-| **Transactional writes**    | Extract to temp → verify → atomic swap → rollback on any failure          |
-| **`OperationResult`**       | Services return results for expected failures instead of throwing        |
-| **Package Sync**            | The mod package carries its own item data; Play rebuilds it after a Dota 2 patch |
+| Concept                     | Description                                    |
+| --------------------------- | ---------------------------------------------- |
+| **MVP Pattern**             | UI uses Model-View-Presenter for testability   |
+| **DI + Factory Pattern**    | `IMainFormFactory` bridges DI with WinForms    |
+| **Multi-CDN Fallback**      | R2 → jsDelivr → GitHub Raw → GFW proxy mirrors |
+| **Smart CDN Selection**     | Latency benchmark picks fastest CDN per user   |
+| **OperationResult**         | Service returns instead of throwing exceptions |
+| **Presenter Decomposition** | 3 SRP presenters split from MainFormPresenter  |
 
 ---
 
-## Links
+## 🔗 External Links
 
-- [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases)
-- [Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
-- [Discord](https://discord.gg/5xKg4fyumv)
-- [Website](https://ardysamods.my.id)
+- 📦 [Releases](https://github.com/Anneardysa/ArdysaModsTools/releases)
+- 🐛 [Issues](https://github.com/Anneardysa/ArdysaModsTools/issues)
+- 💬 [Discord](https://discord.gg/ardysa)
 
 ---
 

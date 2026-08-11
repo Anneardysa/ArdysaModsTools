@@ -9,30 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.21-beta] (Builds 2297–2312)
-
-### Fixed
-
-- **The install progress preview panel no longer reads from a private repo** (2312): it listed hero
-  thumbnails through the GitHub Contents API on `Anneardysa/ArdysaMods` and built each image URL
-  against `raw.githubusercontent.com`. Both return 404 since that repo went private and the site
-  became a Cloudflare Pages mirror, so the listing failed before a single image was ever requested.
-  The panel now reuses `ModsPackUpdatesService` and the site's `updates.json` — the same manifest the
-  ModsPack updates dialog reads — which carries absolute thumbnail URLs on the Pages host, so the
-  page no longer assembles image URLs of its own.
-- **Play button items_game merge no longer corrupts or reverts modded item blocks** (2302): fixed numeric ID collisions where non-cosmetic schema sections (`kill_eater_score_types`, `item_levels`, `rarities`, etc.) sharing numeric IDs with cosmetic items (e.g. ID `"462"`) overwrote item definitions in `IndexSpans`. Added quote-aware comment skipping to `EnumerateTopLevelChildren` and `IndexSpans` so line comments with quotes (`//`) no longer cause overlay parsing to fail and revert modded items back to vanilla definitions.
-
-### Changed
-
-- **The B2 fallback bucket is now mirrored from R2 on a schedule** (2313): `cdn2` carried only
-  `config/`, so the second host in `CdnConfig.GetCdnBaseUrls()` answered 404 for most of what it was
-  supposed to back up. Three separate writers publish to R2 — ModsPack's local `sync-to-r2.ps1`,
-  `release.yml` and `sync-release-to-r2.yml` — so rather than teaching each one to push twice,
-  `.github/workflows/mirror-r2-to-b2.yml` mirrors the bucket itself and covers every writer at once,
-  including hand-uploads. Runs after a release sync, every six hours, and on demand. It uses `sync`
-  rather than `copy` so retired release folders do not linger on the fallback, guarded by
-  `--max-delete`; a dataset re-key legitimately trips that guard and is meant to.
-- **Multi-CDN infrastructure migrated to R2 Primary and B2 Secondary Fallback**: following the privacy transition of the `ModsPack` repository, public GitHub/jsDelivr CDN fallbacks are replaced with `https://cdn2.ardysamods.my.id/` (Backblaze B2 via Cloudflare Worker proxy). `SmartCdnSelector` and `CdnFallbackService` updated to track latency and statistics for `cdn2`.
+## [2.2.21-beta] (Builds 2297–2299)
 
 ### Added
 

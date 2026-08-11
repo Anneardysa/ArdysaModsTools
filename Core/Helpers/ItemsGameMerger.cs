@@ -24,22 +24,13 @@ namespace ArdysaModsTools.Core.Helpers
     {
         public readonly record struct MergeResult(string Text, int Applied, int Dropped);
 
-        internal static readonly string[] ItemMarkers =
+        private static readonly string[] ItemMarkers =
         {
-            "\"prefab\"", "\"used_by_heroes\"", "\"item_slot\"", "\"model_player\"",
-            "\"image_inventory\"", "\"portraits\"", "\"visuals\"", "\"item_name\"", "\"item_type_name\"", "\"name\""
+            "\"prefab\"", "\"used_by_heroes\"", "\"item_slot\"", "\"model_player\"", "\"image_inventory\""
         };
 
-        internal static bool IsCosmeticItem(ReadOnlySpan<char> block)
+        private static bool IsCosmeticItem(ReadOnlySpan<char> block)
         {
-            if (block.IndexOf("\"level\"".AsSpan(), StringComparison.OrdinalIgnoreCase) >= 0) return false;
-            int typeNameIdx = block.IndexOf("\"type_name\"".AsSpan(), StringComparison.OrdinalIgnoreCase);
-            if (typeNameIdx >= 0)
-            {
-                if (typeNameIdx < 5 || !block.Slice(typeNameIdx - 5, 5).Equals("item_".AsSpan(), StringComparison.OrdinalIgnoreCase))
-                    return false;
-            }
-
             foreach (var marker in ItemMarkers)
                 if (block.IndexOf(marker.AsSpan(), StringComparison.OrdinalIgnoreCase) >= 0) return true;
             return false;
@@ -85,13 +76,11 @@ namespace ArdysaModsTools.Core.Helpers
             int copiedTo = 0;
             int pos = 0;
 
-            bool hasItemsSection = KeyValuesBlockHelper.FindItemsSectionRange(basis, out int itemsStart, out int itemsEnd);
-
             while (pos < basis.Length)
             {
-                int q1 = KeyValuesBlockHelper.IndexOfUncommentedQuote(basis, pos);
+                int q1 = basis.IndexOf('"', pos);
                 if (q1 < 0) break;
-                int q2 = KeyValuesBlockHelper.FindClosingQuote(basis, q1);
+                int q2 = basis.IndexOf('"', q1 + 1);
                 if (q2 < 0) break;
 
                 string token = basis.Substring(q1 + 1, q2 - q1 - 1);
@@ -99,15 +88,13 @@ namespace ArdysaModsTools.Core.Helpers
 
                 if (!IsNumeric(token)) continue;
 
-                int braceStart = KeyValuesBlockHelper.SkipWhitespaceAndComments(basis, pos);
+                int braceStart = KeyValuesBlockHelper.SkipWhitespace(basis, pos);
                 if (braceStart >= basis.Length || basis[braceStart] != '{') continue;
 
                 int braceEnd = KeyValuesBlockHelper.ExtractBalancedBlockEnd(basis, braceStart);
                 if (braceEnd < 0) continue;
 
                 pos = braceEnd;
-
-                if (hasItemsSection && (q1 < itemsStart || q1 >= itemsEnd)) continue;
 
                 if (!moddedBlocks.TryGetValue(token, out var moddedAt)) continue;
                 var moddedBlock = moddedNormalized.AsSpan(moddedAt.Start, moddedAt.Length);

@@ -25,7 +25,17 @@ namespace ArdysaModsTools.Core.Constants
 
         public const string R2BaseUrl = "https://cdn.ardysamods.my.id";
 
-        public const string Cdn2BaseUrl = "https://cdn2.ardysamods.my.id";
+        public const string JsDelivrBaseUrl = "https://cdn.jsdelivr.net/gh/Anneardysa/ModsPack@main";
+
+        public const string GitHubRawBaseUrl = "https://raw.githubusercontent.com/Anneardysa/ModsPack/main";
+
+        #endregion
+
+        #region GitHub Proxy Mirrors (GFW Bypass)
+
+        public const string GitHubProxyPrimaryUrl = "https://ghfast.top/" + GitHubRawBaseUrl;
+
+        public const string GitHubProxySecondaryUrl = "https://gh-proxy.com/" + GitHubRawBaseUrl;
 
         #endregion
 
@@ -89,24 +99,21 @@ namespace ArdysaModsTools.Core.Constants
                 return
                 [
                     R2BaseUrl,
-                    Cdn2BaseUrl
+                    JsDelivrBaseUrl,
+                    GitHubRawBaseUrl,
+                    GitHubProxyPrimaryUrl,
+                    GitHubProxySecondaryUrl
                 ];
             }
 
             return
             [
-                Cdn2BaseUrl
+                JsDelivrBaseUrl,
+                GitHubRawBaseUrl,
+                GitHubProxyPrimaryUrl,
+                GitHubProxySecondaryUrl
             ];
         }
-
-        private static readonly string[] LegacyBaseUrls =
-        [
-            "https://ghfast.top/https://raw.githubusercontent.com/Anneardysa/ModsPack/main",
-            "https://gh-proxy.com/https://raw.githubusercontent.com/Anneardysa/ModsPack/main",
-            "https://cdn.jsdelivr.net/gh/Anneardysa/ModsPack@main",
-            "https://raw.githubusercontent.com/Anneardysa/ModsPack/main",
-            "https://raw.githubusercontent.com/Anneardysa/ModsPack/refs/heads/main"
-        ];
 
         public static string? ExtractAssetPath(string url)
         {
@@ -121,10 +128,7 @@ namespace ArdysaModsTools.Core.Constants
                 return q >= 0 ? raw.Substring(0, q) : raw;
             }
 
-            var baseUrls = GetCdnBaseUrls()
-                .Concat(LegacyBaseUrls)
-                .OrderByDescending(b => b.Length)
-                .ToList();
+            var baseUrls = GetCdnBaseUrls().OrderByDescending(b => b.Length).ToList();
             
             int queryIndex = url.IndexOf('?');
             string urlWithoutQuery = queryIndex != -1 ? url.Substring(0, queryIndex) : url;
@@ -170,7 +174,7 @@ namespace ArdysaModsTools.Core.Constants
 
         public static string BuildUrl(string assetPath)
         {
-            string baseUrl = IsR2Enabled ? R2BaseUrl : Cdn2BaseUrl;
+            string baseUrl = IsR2Enabled ? R2BaseUrl : JsDelivrBaseUrl;
             baseUrl = baseUrl.TrimEnd('/');
             assetPath = assetPath.TrimStart('/');
             return $"{baseUrl}/{assetPath}";
@@ -193,8 +197,7 @@ namespace ArdysaModsTools.Core.Constants
             if (string.IsNullOrEmpty(url))
                 return false;
 
-            return url.Contains("cdn2.ardysamods.my.id") ||
-                   url.Contains("ghfast.top") ||
+            return url.Contains("ghfast.top") ||
                    url.Contains("gh-proxy.com");
         }
 

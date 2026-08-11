@@ -342,8 +342,7 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
         private static string GetCdnName(string url)
         {
-            if (url.Contains("cdn2.ardysamods.my.id")) return "Backblaze B2 (cdn2)";
-            if (url.Contains("r2.dev") || url.Contains("cdn.ardysamods.my.id")) return "Cloudflare R2";
+            if (url.Contains("r2.dev") || url.Contains("ardysamods.my.id")) return "Cloudflare R2";
             if (url.Contains("jsdelivr")) return "jsDelivr";
             if (url.Contains("ghfast.top")) return "GitHub Proxy (ghfast)";
             if (url.Contains("gh-proxy.com")) return "GitHub Proxy (gh-proxy)";

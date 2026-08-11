@@ -239,7 +239,6 @@ namespace ArdysaModsTools.Core.Services
 
         private static string GetCdnDisplayName(string cdnBaseUrl)
         {
-            if (cdnBaseUrl.Contains("cdn2.ardysamods.my.id")) return "B2 CDN";
             if (cdnBaseUrl.Contains("ardysamods.my.id")) return "R2 CDN";
             if (cdnBaseUrl.Contains("jsdelivr.net")) return "jsDelivr CDN";
             if (cdnBaseUrl.Contains("raw.githubusercontent.com")) return "GitHub";
