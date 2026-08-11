@@ -162,7 +162,11 @@ jobs:
               days-before-stale: 14
               days-before-close: 7
               stale-issue-label: "status: stale"
-              exempt-issue-labels: "status: accepted,blocked: dota-patch"
+              # `status: fixed-pending-release` and `shipped` are exempt because mark-fixed clears the
+              # `status:` labels but NOT the `needs:` ones — so a report that was waiting on a log, and
+              # then got fixed, still carries `needs: log` and would be staled and closed as not_planned
+              # while the fix sits waiting for a release. Nothing already fixed may be staled.
+              exempt-issue-labels: "status: accepted,status: fixed-pending-release,status: shipped,blocked: dota-patch"
               days-before-pr-stale: -1
               days-before-pr-close: -1
               stale-issue-message: >
