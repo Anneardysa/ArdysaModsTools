@@ -21,7 +21,7 @@ using ArdysaModsTools.Core.Services.Localization;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -52,14 +52,6 @@ namespace ArdysaModsTools.UI.Forms
         public bool HideDownloadSpeed { get; set; } = false;
 
         public bool ShowPreview { get; set; } = false;
-
-        private static readonly HttpClient _httpClient = new()
-        {
-            Timeout = TimeSpan.FromSeconds(10)
-        };
-
-        private const string GitHubApiUrl =
-            "https://api.github.com/repos/Anneardysa/ArdysaMods/contents/assets/updates";
 
         public ProgressOverlay()
         {
@@ -306,15 +298,23 @@ namespace ArdysaModsTools.UI.Forms
             {
                 await ExecuteScriptSafeAsync("showPreviewLoading()");
 
-                using var request = new HttpRequestMessage(HttpMethod.Get, GitHubApiUrl);
-                request.Headers.TryAddWithoutValidation("User-Agent", HttpClientProvider.UserAgent);
-                request.Headers.Add("Accept", "application/vnd.github.v3+json");
+                var updates = await new Core.Services.ModsPackUpdatesService().GetUpdatesAsync();
 
-                using var response = await _httpClient.SendAsync(request);
-                response.EnsureSuccessStatusCode();
+                var heroes = (updates ?? new List<Core.Models.ModsPackUpdate>())
+                    .Where(u => !string.IsNullOrWhiteSpace(u.Image))
+                    .OrderBy(u => u.Hero, StringComparer.OrdinalIgnoreCase)
+                    .Select(u => new Dictionary<string, string>
+                    {
+                        { "name", u.Hero },
+                        { "image", u.Image }
+                    })
+                    .ToList();
 
-                string json = await response.Content.ReadAsStringAsync();
-                var heroes = ParseHeroListFromGitHubResponse(json);
+                if (updates == null)
+                {
+                    await ExecuteScriptSafeAsync("showPreviewError('Could not load preview data')");
+                    return;
+                }
 
                 if (heroes.Count == 0)
                 {
@@ -326,62 +326,12 @@ namespace ArdysaModsTools.UI.Forms
                 string escapedJson = heroesJson.Replace("\\", "\\\\").Replace("'", "\\'");
                 await ExecuteScriptSafeAsync($"initPreview(JSON.parse('{escapedJson}'))");
             }
-            catch (HttpRequestException ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Preview fetch failed: {ex.Message}");
-                await ExecuteScriptSafeAsync(
-                    $"showPreviewError('Network error: {EscapeForJs(ex.Message)}')");
-            }
-            catch (TaskCanceledException)
-            {
-                System.Diagnostics.Debug.WriteLine("Preview fetch timed out");
-                await ExecuteScriptSafeAsync("showPreviewError('Request timed out')");
-            }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Preview error: {ex.Message}");
                 await ExecuteScriptSafeAsync(
                     $"showPreviewError('Failed to load preview')");
             }
-        }
-
-        private static List<Dictionary<string, string>> ParseHeroListFromGitHubResponse(string json)
-        {
-            var heroes = new List<Dictionary<string, string>>();
-
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array)
-                return heroes;
-
-            foreach (var item in doc.RootElement.EnumerateArray())
-            {
-                if (!item.TryGetProperty("name", out var nameEl))
-                    continue;
-
-                string fileName = nameEl.GetString() ?? "";
-                if (!fileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) &&
-                    !fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                    continue;
-
-                string heroName = Path.GetFileNameWithoutExtension(fileName)
-                    .Replace("_", " ")
-                    .Replace("-", " ");
-
-                if (heroName.Length > 0)
-                {
-                    heroName = System.Globalization.CultureInfo.CurrentCulture
-                        .TextInfo.ToTitleCase(heroName.ToLower());
-                }
-
-                heroes.Add(new Dictionary<string, string>
-                {
-                    { "name", heroName },
-                    { "file", fileName }
-                });
-            }
-
-            heroes.Sort((a, b) => string.Compare(a["name"], b["name"], StringComparison.OrdinalIgnoreCase));
-            return heroes;
         }
 
         private async Task ExecuteScriptSafeAsync(string script)
@@ -392,16 +342,6 @@ namespace ArdysaModsTools.UI.Forms
                     await _webView.CoreWebView2.ExecuteScriptAsync(script);
             }
             catch { }
-        }
-
-        private static string EscapeForJs(string value)
-        {
-            return (value ?? "")
-                .Replace("\\", "\\\\")
-                .Replace("'", "\\'")
-                .Replace("\"", "\\\"")
-                .Replace("\n", "\\n")
-                .Replace("\r", "");
         }
 
         public void Complete()

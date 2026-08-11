@@ -1,7 +1,7 @@
 import { createStore } from "../../bridge/store";
 
 export type ServerEntry = { Name: string; Status?: string };
-export type PreviewHero = { name: string; file: string };
+export type PreviewHero = { name: string; image: string };
 
 type DownloadProgress =
    | { kind: "bytes"; downloaded: number; total: number }
