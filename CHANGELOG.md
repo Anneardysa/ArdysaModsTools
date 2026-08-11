@@ -19,6 +19,10 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 
 - **Multi-CDN infrastructure migrated to R2 Primary and B2 Secondary Fallback**: following the privacy transition of the `ModsPack` repository, public GitHub/jsDelivr CDN fallbacks are replaced with `https://cdn2.ardysamods.my.id/` (Backblaze B2 via Cloudflare Worker proxy). `SmartCdnSelector` and `CdnFallbackService` updated to track latency and statistics for `cdn2`.
 
+### Changed
+
+- **Multi-CDN infrastructure migrated to R2 Primary and B2 Secondary Fallback**: following the privacy transition of the `ModsPack` repository, public GitHub/jsDelivr CDN fallbacks are replaced with `https://cdn2.ardysamods.my.id/` (Backblaze B2 via Cloudflare Worker proxy). `SmartCdnSelector` and `CdnFallbackService` updated to track latency and statistics for `cdn2`.
+
 ### Added
 
 - **A Dota 2 update now ends in a question, not a launch** (2299): the launch flow already refuses to

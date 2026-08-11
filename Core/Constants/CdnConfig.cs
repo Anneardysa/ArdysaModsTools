@@ -25,17 +25,7 @@ namespace ArdysaModsTools.Core.Constants
 
         public const string R2BaseUrl = "https://cdn.ardysamods.my.id";
 
-        public const string JsDelivrBaseUrl = "https://cdn.jsdelivr.net/gh/Anneardysa/ModsPack@main";
-
-        public const string GitHubRawBaseUrl = "https://raw.githubusercontent.com/Anneardysa/ModsPack/main";
-
-        #endregion
-
-        #region GitHub Proxy Mirrors (GFW Bypass)
-
-        public const string GitHubProxyPrimaryUrl = "https://ghfast.top/" + GitHubRawBaseUrl;
-
-        public const string GitHubProxySecondaryUrl = "https://gh-proxy.com/" + GitHubRawBaseUrl;
+        public const string Cdn2BaseUrl = "https://cdn2.ardysamods.my.id";
 
         #endregion
 
@@ -99,19 +89,13 @@ namespace ArdysaModsTools.Core.Constants
                 return
                 [
                     R2BaseUrl,
-                    JsDelivrBaseUrl,
-                    GitHubRawBaseUrl,
-                    GitHubProxyPrimaryUrl,
-                    GitHubProxySecondaryUrl
+                    Cdn2BaseUrl
                 ];
             }
 
             return
             [
-                JsDelivrBaseUrl,
-                GitHubRawBaseUrl,
-                GitHubProxyPrimaryUrl,
-                GitHubProxySecondaryUrl
+                Cdn2BaseUrl
             ];
         }
 
@@ -174,7 +158,7 @@ namespace ArdysaModsTools.Core.Constants
 
         public static string BuildUrl(string assetPath)
         {
-            string baseUrl = IsR2Enabled ? R2BaseUrl : JsDelivrBaseUrl;
+            string baseUrl = IsR2Enabled ? R2BaseUrl : Cdn2BaseUrl;
             baseUrl = baseUrl.TrimEnd('/');
             assetPath = assetPath.TrimStart('/');
             return $"{baseUrl}/{assetPath}";
@@ -197,7 +181,8 @@ namespace ArdysaModsTools.Core.Constants
             if (string.IsNullOrEmpty(url))
                 return false;
 
-            return url.Contains("ghfast.top") ||
+            return url.Contains("cdn2.ardysamods.my.id") ||
+                   url.Contains("ghfast.top") ||
                    url.Contains("gh-proxy.com");
         }
 
