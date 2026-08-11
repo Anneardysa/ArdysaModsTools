@@ -24,6 +24,14 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 
 ### Changed
 
+- **The B2 fallback bucket is now mirrored from R2 on a schedule** (2313): `cdn2` carried only
+  `config/`, so the second host in `CdnConfig.GetCdnBaseUrls()` answered 404 for most of what it was
+  supposed to back up. Three separate writers publish to R2 — ModsPack's local `sync-to-r2.ps1`,
+  `release.yml` and `sync-release-to-r2.yml` — so rather than teaching each one to push twice,
+  `.github/workflows/mirror-r2-to-b2.yml` mirrors the bucket itself and covers every writer at once,
+  including hand-uploads. Runs after a release sync, every six hours, and on demand. It uses `sync`
+  rather than `copy` so retired release folders do not linger on the fallback, guarded by
+  `--max-delete`; a dataset re-key legitimately trips that guard and is meant to.
 - **Multi-CDN infrastructure migrated to R2 Primary and B2 Secondary Fallback**: following the privacy transition of the `ModsPack` repository, public GitHub/jsDelivr CDN fallbacks are replaced with `https://cdn2.ardysamods.my.id/` (Backblaze B2 via Cloudflare Worker proxy). `SmartCdnSelector` and `CdnFallbackService` updated to track latency and statistics for `cdn2`.
 
 ### Added
