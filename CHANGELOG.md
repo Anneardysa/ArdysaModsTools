@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.21-beta] (Builds 2297–2299)
+## [2.2.21-beta] (Builds 2297–2302)
+
+### Fixed
+
+- **Play button items_game merge no longer corrupts or reverts modded item blocks** (2302): fixed numeric ID collisions where non-cosmetic schema sections (`kill_eater_score_types`, `item_levels`, `rarities`, etc.) sharing numeric IDs with cosmetic items (e.g. ID `"462"`) overwrote item definitions in `IndexSpans`. Added quote-aware comment skipping to `EnumerateTopLevelChildren` and `IndexSpans` so line comments with quotes (`//`) no longer cause overlay parsing to fail and revert modded items back to vanilla definitions.
+
+### Changed
+
+- **Multi-CDN infrastructure migrated to R2 Primary and B2 Secondary Fallback**: following the privacy transition of the `ModsPack` repository, public GitHub/jsDelivr CDN fallbacks are replaced with `https://cdn2.ardysamods.my.id/` (Backblaze B2 via Cloudflare Worker proxy). `SmartCdnSelector` and `CdnFallbackService` updated to track latency and statistics for `cdn2`.
 
 ### Added
 

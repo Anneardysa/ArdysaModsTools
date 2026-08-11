@@ -27,6 +27,56 @@ namespace ArdysaModsTools.Core.Helpers
 {
     public static class KeyValuesBlockHelper
     {
+        public static bool FindItemsSectionRange(string text, out int bodyStart, out int bodyEnd)
+        {
+            bodyStart = -1;
+            bodyEnd = -1;
+            if (string.IsNullOrEmpty(text)) return false;
+
+            string token = "\"items\"";
+            int pos = 0;
+
+            while (pos < text.Length)
+            {
+                int idx = text.IndexOf(token, pos, StringComparison.OrdinalIgnoreCase);
+                if (idx < 0) break;
+
+                int lineStart = FindLineStart(text, idx);
+                string linePrefix = text.Substring(lineStart, idx - lineStart).TrimStart();
+                if (linePrefix.StartsWith("//"))
+                {
+                    pos = idx + token.Length;
+                    continue;
+                }
+
+                int prev = PrevNonWhitespaceIndex(text, idx - 1);
+                if (prev >= 0 && text[prev] == '"')
+                {
+                    pos = idx + token.Length;
+                    continue;
+                }
+
+                int afterToken = idx + token.Length;
+                int braceStart = SkipWhitespaceAndComments(text, afterToken);
+                if (braceStart >= text.Length || text[braceStart] != '{')
+                {
+                    pos = idx + token.Length;
+                    continue;
+                }
+
+                int braceEnd = ExtractBalancedBlockEnd(text, braceStart);
+                if (braceEnd > braceStart)
+                {
+                    bodyStart = braceStart + 1;
+                    bodyEnd = braceEnd - 1;
+                    return true;
+                }
+
+                pos = idx + token.Length;
+            }
+
+            return false;
+        }
         public static string? ExtractBlockById(string content, string id, string? heroId = null, bool requireItemMarkers = true)
         {
             if (string.IsNullOrEmpty(content) || string.IsNullOrEmpty(id)) return null;
@@ -46,6 +96,10 @@ namespace ArdysaModsTools.Core.Helpers
                 int after = SkipWhitespace(content, closingQuote + 1);
                 if (after >= content.Length) { searchPos = pos + 1; continue; }
                 if (content[after] != '{') { searchPos = pos + 1; continue; }
+
+                int lineStart = FindLineStart(content, pos);
+                string linePrefix = content.Substring(lineStart, pos - lineStart).TrimStart();
+                if (linePrefix.StartsWith("//")) { searchPos = pos + 1; continue; }
 
                 int prev = PrevNonWhitespaceIndex(content, pos - 1);
                 if (prev >= 0 && content[prev] == '"') { searchPos = pos + 1; continue; }
@@ -109,6 +163,10 @@ namespace ArdysaModsTools.Core.Helpers
                 int after = SkipWhitespace(content, closingQuote + 1);
                 if (after >= content.Length) { searchPos = pos + 1; continue; }
                 if (content[after] != '{') { searchPos = pos + 1; continue; }
+
+                int lineStart = FindLineStart(content, pos);
+                string linePrefix = content.Substring(lineStart, pos - lineStart).TrimStart();
+                if (linePrefix.StartsWith("//")) { searchPos = pos + 1; continue; }
 
                 int prev = PrevNonWhitespaceIndex(content, pos - 1);
                 if (prev >= 0 && content[prev] == '"') { searchPos = pos + 1; continue; }
@@ -899,6 +957,48 @@ namespace ArdysaModsTools.Core.Helpers
             public TopLevelChild(string key, string rawText) { Key = key; RawText = rawText; }
         }
 
+        public static int IndexOfUncommentedQuote(string text, int pos, int limit = -1)
+        {
+            if (string.IsNullOrEmpty(text) || pos < 0) return -1;
+            int n = limit >= 0 && limit < text.Length ? limit : text.Length;
+            while (pos < n)
+            {
+                char c = text[pos];
+                if (c == '/' && pos + 1 < n && text[pos + 1] == '/')
+                {
+                    pos += 2;
+                    while (pos < n && text[pos] != '\n') pos++;
+                    if (pos < n) pos++;
+                    continue;
+                }
+                if (c == '"') return pos;
+                pos++;
+            }
+            return -1;
+        }
+
+        public static int SkipWhitespaceAndComments(string s, int idx, int limit = -1)
+        {
+            int n = limit >= 0 && limit < s.Length ? limit : s.Length;
+            while (idx < n)
+            {
+                if (char.IsWhiteSpace(s[idx]))
+                {
+                    idx++;
+                    continue;
+                }
+                if (s[idx] == '/' && idx + 1 < n && s[idx + 1] == '/')
+                {
+                    idx += 2;
+                    while (idx < n && s[idx] != '\n') idx++;
+                    if (idx < n) idx++;
+                    continue;
+                }
+                break;
+            }
+            return idx;
+        }
+
         private static List<TopLevelChild> EnumerateTopLevelChildren(string block)
         {
             var result = new List<TopLevelChild>();
@@ -914,7 +1014,7 @@ namespace ArdysaModsTools.Core.Helpers
             int pos = braceStart + 1;
             while (pos < bodyEnd)
             {
-                int keyQuote = block.IndexOf('"', pos);
+                int keyQuote = IndexOfUncommentedQuote(block, pos, bodyEnd);
                 if (keyQuote < 0 || keyQuote >= bodyEnd) break;
 
                 int keyQuoteEnd = FindClosingQuote(block, keyQuote);
@@ -923,7 +1023,7 @@ namespace ArdysaModsTools.Core.Helpers
                 string key = block.Substring(keyQuote + 1, keyQuoteEnd - keyQuote - 1);
                 int lineStart = FindLineStart(block, keyQuote);
 
-                int afterKey = SkipWhitespace(block, keyQuoteEnd + 1);
+                int afterKey = SkipWhitespaceAndComments(block, keyQuoteEnd + 1, bodyEnd);
                 if (afterKey >= bodyEnd) break;
 
                 int spanEnd;
@@ -965,7 +1065,7 @@ namespace ArdysaModsTools.Core.Helpers
             return -1;
         }
 
-        private static int FindClosingQuote(string s, int openQuoteIdx)
+        internal static int FindClosingQuote(string s, int openQuoteIdx)
         {
             bool escape = false;
             for (int i = openQuoteIdx + 1; i < s.Length; i++)

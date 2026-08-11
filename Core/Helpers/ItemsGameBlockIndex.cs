@@ -41,12 +41,14 @@ namespace ArdysaModsTools.Core.Helpers
             var result = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
             if (string.IsNullOrEmpty(text)) return result;
 
+            bool hasItemsSection = KeyValuesBlockHelper.FindItemsSectionRange(text, out int itemsStart, out int itemsEnd);
+
             int pos = 0;
             while (pos < text.Length)
             {
-                int q1 = text.IndexOf('"', pos);
+                int q1 = KeyValuesBlockHelper.IndexOfUncommentedQuote(text, pos);
                 if (q1 < 0) break;
-                int q2 = text.IndexOf('"', q1 + 1);
+                int q2 = KeyValuesBlockHelper.FindClosingQuote(text, q1);
                 if (q2 < 0) break;
 
                 var token = text.AsSpan(q1 + 1, q2 - q1 - 1);
@@ -54,15 +56,23 @@ namespace ArdysaModsTools.Core.Helpers
 
                 if (!IsNumeric(token)) continue;
 
-                int braceStart = KeyValuesBlockHelper.SkipWhitespace(text, pos);
+                int braceStart = KeyValuesBlockHelper.SkipWhitespaceAndComments(text, pos);
                 if (braceStart >= text.Length || text[braceStart] != '{') continue;
 
                 int braceEnd = KeyValuesBlockHelper.ExtractBalancedBlockEnd(text, braceStart);
                 if (braceEnd < 0) continue;
 
-                int start = KeyValuesBlockHelper.FindLineStart(text, q1);
-                result[token.ToString()] = (start, braceEnd - start);
                 pos = braceEnd;
+
+                if (hasItemsSection && (q1 < itemsStart || q1 >= itemsEnd)) continue;
+
+                int start = KeyValuesBlockHelper.FindLineStart(text, q1);
+                var blockSpan = text.AsSpan(start, braceEnd - start);
+
+                if (ItemsGameMerger.IsCosmeticItem(blockSpan))
+                {
+                    result[token.ToString()] = (start, braceEnd - start);
+                }
             }
 
             return result;
