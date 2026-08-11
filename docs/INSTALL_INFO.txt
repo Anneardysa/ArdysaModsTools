@@ -1,38 +1,51 @@
-ArdysaModsTools (AMT 2.0)
+ArdysaModsTools (AMT)
 The Ultimate Dota 2 Mod Manager
 
-Thank you for choosing ArdysaModsTools! This application makes it easy to install and manage cosmetic mods for Dota 2.
+Thank you for choosing ArdysaModsTools! This application makes it easy to install
+and manage cosmetic mods for Dota 2.
 
 
 WHAT YOU CAN DO
 
-   - Install mod packs with one click
-   - Create custom hero cosmetic sets
-   - Apply weather, terrain, and HUD mods
-   - Automatically re-patch mods after Dota 2 updates
-   - Safely disable all mods when needed
+   - Install curated mod packs with one click
+   - Create custom hero cosmetic sets, personas and item combinations
+   - Apply weather, terrain, HUD, courier, ward, music and cursor mods
+   - Tune Dota 2 performance settings for more FPS
+   - Launch Dota 2 with your mods automatically repaired after a game update
+   - Safely disable all mods and return to the vanilla game at any time
 
 
 REQUIREMENTS
 
    - Windows 10 or 11 (64-bit)
-   - .NET 8.0 Desktop Runtime (checked automatically)
-   - Microsoft WebView2 Runtime (installed automatically)
    - Dota 2 installed via Steam
+   - Microsoft WebView2 Runtime (installed automatically if missing)
+
+   No separate .NET installation is needed - the runtime ships inside the app.
 
 
 HOW TO USE
 
-   1. Launch ArdysaModsTools after installation
-   2. Click "Install ModsPack" to apply mods
-   3. After Dota 2 updates, run the app again to re-patch
-   4. Use "Disable Mods" to remove all changes
+   1. Close Dota 2, then launch ArdysaModsTools
+   2. Click "Auto Detect" to find your Dota 2 installation
+   3. Click "Install ModsPack", or open the Skin Selector to pick specific cosmetics
+   4. Press "PLAY DOTA 2" to start the game
+
+   Always start Dota 2 with the PLAY DOTA 2 button. After a Valve patch it rebuilds
+   your mod package for the new game version - which is what prevents the game from
+   crashing on startup. Launching from Steam skips that repair.
+
+   Use "Disable Mods" to remove all changes and restore the vanilla game.
 
 
 GETTING HELP
 
-   For support and updates, visit:
+   Documentation and support:
    https://github.com/Anneardysa/ArdysaModsTools
+   https://ardysamods.my.id
 
+
+This tool modifies Dota 2 game files. It changes cosmetic elements only and is
+client-side - other players see the default game. Use at your own risk.
 
 Click Next to continue with the installation.

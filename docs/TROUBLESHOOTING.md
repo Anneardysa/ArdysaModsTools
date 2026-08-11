@@ -15,20 +15,26 @@ Common issues and solutions for developers and users.
 
 **Causes:**
 
-1. **CDN blocked in your region** (jsDelivr blocked in some countries)
+1. **CDN blocked or unreachable** from your network
 2. **Firewall/antivirus blocking** the application
 3. **DNS issues** with your ISP
 4. **Rate limiting** from too many requests
 
 **Solutions:**
 
-1. Update to latest version (uses R2 CDN with fallback)
-2. Check console log for specific error:
-   - `[NET] Timeout` → Slow connection, try again
-   - `[NET] Server returned 403` → Rate limited, wait 1 hour
-   - `[NET] Connection failed` → Network issue, check firewall
-3. Try changing DNS to `8.8.8.8` or `1.1.1.1`
-4. Whitelist `cdn.ardysamods.my.id` in firewall
+1. Update to the latest version.
+2. Check the console log for the specific error:
+   - `[NET] Timeout` → slow connection, try again
+   - `[NET] Server returned 403` → rate limited, wait an hour
+   - `[NET] Connection failed` → network issue, check the firewall
+3. Change DNS to `8.8.8.8` or `1.1.1.1`.
+4. Whitelist **both** CDN hosts in your firewall:
+   - `cdn.ardysamods.my.id` (primary)
+   - `cdn2.ardysamods.my.id` (fallback)
+
+> [!NOTE]
+> AMT contacts **only** those two hosts for assets. It does not fall back to jsDelivr, GitHub
+> Raw, or any GFW proxy — those were removed from the chain. Whitelisting them does nothing.
 
 ---
 
@@ -134,14 +140,33 @@ public void Setup()
 **Causes:**
 
 1. Dota 2 was updated (signatures changed)
-2. Gameinfo.gi not patched
-3. VPK file corrupted
+2. `gameinfo_branchspecific.gi` not patched
+3. The mod package is out of sync with the game's item data
+4. VPK file corrupted
 
 **Solutions:**
 
-1. Click "Patch Update" in AMT
-2. Check console for errors
-3. Reinstall mods with "Install ModsPack"
+1. Click **Patch Update** in AMT — this rewrites `gameinfo_branchspecific.gi` and
+   `dota.signatures`.
+2. Press **PLAY DOTA 2**. Patch Update does *not* rebuild the package; if the **Package Sync**
+   chip is red, only Play (or its **Fix** action) repairs it. See
+   [Dota 2 crashes on launch](#dota-2-crashes-on-startup-after-a-game-update) below.
+3. Check the console for errors.
+4. Reinstall with **Install ModsPack**.
+
+### Dota 2 crashes on startup after a game update
+
+**Cause:** the installed mod package carries its own copy of Dota 2's item definitions and
+shadows the game's. When a patch changes those definitions, the game starts on data that no
+longer matches its own content and dies.
+
+**Solution:** press **PLAY DOTA 2** in AMT. It waits for any pending Steam update to finish,
+rebuilds the package against whatever the update actually delivered, and then launches. You do
+**not** need to redownload the ModsPack — the data needed to repair it is already on disk.
+
+> [!TIP]
+> Launching Dota 2 directly from Steam skips this repair entirely. After a Dota 2 patch, start
+> the game from AMT at least once.
 
 ### "Signature Mismatch" After Dota Update
 
@@ -155,21 +180,36 @@ Click "Patch Update" → Wait for completion → Launch Dota 2
 
 ---
 
-## 🔒 Security Issues
+## 🔒 Antivirus & Integrity
 
-### App Won't Launch (Security Check Failed)
+### Antivirus flags AMT or removes part of the install
 
-**Causes:**
-
-1. Debugger attached (expected in development)
-2. Antivirus flagging as suspicious
-3. Running in VM/sandbox (detected)
+**This is a false positive.** AMT bundles Valve's `vpk.exe` and HLLib's `HLExtract.exe` to repack
+game archives, and some scanners flag any tool that writes into game files.
 
 **Solutions:**
 
-1. **Antivirus:** Add exception for AMT folder (see ADR-0007 — the runtime anti-tamper/anti-debug
-   layer was removed in 2026-07; the fix for AV false positives is Authenticode code signing)
-3. **Release testing:** Use unprotected build: `dotnet publish -c Release -p:SkipInternalProtection=true`
+1. Add an exception for your AMT installation folder.
+2. Download only from [official releases](https://github.com/Anneardysa/ArdysaModsTools/releases)
+   or [ardysamods.my.id](https://ardysamods.my.id). Releases are Authenticode-signed by the
+   SignPath Foundation — check the publisher on the UAC prompt.
+3. If your AV already stripped a file, reinstall rather than patching around it.
+
+> [!NOTE]
+> AMT has **no anti-debug or runtime anti-tamper layer** — it was removed in 2026-07 precisely
+> because it caused hacktool false positives and stopped nobody. If AMT refuses to start, it is
+> not a "security check": read `ardysa_fallback.log` or `startup_log.txt` for the real reason.
+
+### `DL_009` — this build is too old
+
+The asset format has moved on and your version can't read it. **Update AMT.** This is deliberate,
+not a bug: an old client reading new assets is how installs get corrupted.
+
+### `DL_006` — integrity check failed on a download
+
+A downloaded file's SHA-256 didn't match the manifest, so it was rejected before it could touch
+your game folder. Usually transient — retry. If it persists, it's a server-side manifest issue;
+report it with the log.
 
 ---
 
@@ -201,9 +241,9 @@ Click "Patch Update" → Wait for completion → Launch Dota 2
 
 **Solutions:**
 
-1. Check `tools/Source 2 Viewer/` has all DLLs
-2. Delete `_ArdysaMods/_temp/` and retry
-3. Free up disk space (need ~2GB for extraction)
+1. Check `tools/vpk/` and `tools/hllib/` have all their DLLs
+2. Delete `<Dota 2>/game/_ArdysaMods/_temp/` and retry
+3. Free up disk space (need ~2 GB for extraction)
 
 ---
 
@@ -213,11 +253,16 @@ Click "Patch Update" → Wait for completion → Launch Dota 2
 
 Check console in main window for detailed logs. Copy with the "Copy" button.
 
-### Log File Location
+### Log File Locations
 
-```
-[Dota 2 Path]/game/dota/_ArdysaMods/_temp/logs/
-```
+| File                      | Where                                                                       |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `ardysa_fallback.log`     | Installer builds: `%LocalAppData%\ArdysaModsTools\` · portable: next to the exe. **This is the one to attach to a bug report.** |
+| `startup_log.txt`         | Next to `ArdysaModsTools.exe`. For when AMT won't start at all — overwritten every launch, so grab it right after a failed start. |
+| `generation_report_*.txt` | `<Dota 2 folder>\game\_ArdysaMods\_temp\`. Skin Selector / Miscellaneous bugs. Already sanitized — safe to post as-is. |
+
+> A screenshot of the red failure card is not enough — that card is deliberately stripped of
+> file paths and internal identifiers before it's shown. The log can say what actually broke.
 
 ### Common Log Patterns
 
