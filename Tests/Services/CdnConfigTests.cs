@@ -92,6 +92,27 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public void ExtractAssetPath_LegacyJsDelivrAndGitHubUrls_ExtractsRelativePath()
+        {
+            string jsDelivrUrl = "https://cdn.jsdelivr.net/gh/Anneardysa/ModsPack@main/config/banner.json";
+            string rawGitHubUrl = "https://raw.githubusercontent.com/Anneardysa/ModsPack/main/config/banner.json";
+
+            Assert.That(CdnConfig.ExtractAssetPath(jsDelivrUrl), Is.EqualTo("config/banner.json"));
+            Assert.That(CdnConfig.ExtractAssetPath(rawGitHubUrl), Is.EqualTo("config/banner.json"));
+        }
+
+        [Test]
+        public void ConvertToCdn_LegacyUrls_ConvertsToPrimaryOrCdn2()
+        {
+            string legacyUrl = "https://cdn.jsdelivr.net/gh/Anneardysa/ModsPack@main/config/banner.json";
+            string primaryConverted = CdnConfig.ConvertToCdn(legacyUrl, CdnConfig.R2BaseUrl);
+            string cdn2Converted = CdnConfig.ConvertToCdn(legacyUrl, CdnConfig.Cdn2BaseUrl);
+
+            Assert.That(primaryConverted, Is.EqualTo("https://cdn.ardysamods.my.id/config/banner.json"));
+            Assert.That(cdn2Converted, Is.EqualTo("https://cdn2.ardysamods.my.id/config/banner.json"));
+        }
+
+        [Test]
         public void IsModsPackUrl_RecognizesPrimaryAndCdn2Domains()
         {
             Assert.That(CdnConfig.IsModsPackUrl("https://cdn.ardysamods.my.id/Assets/test.zip"), Is.True);

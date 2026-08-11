@@ -189,21 +189,16 @@ namespace ArdysaModsTools.Core.Services.Config
             if (string.IsNullOrEmpty(url))
                 return Array.Empty<string>();
             
-            string? repoPath = null;
-            var fallbacks = new List<string>(2);
-            
-            if (url.StartsWith(R2CdnBase, StringComparison.OrdinalIgnoreCase))
+            string? repoPath = Constants.CdnConfig.ExtractAssetPath(url);
+            if (string.IsNullOrEmpty(repoPath))
+                return Array.Empty<string>();
+
+            if (url.StartsWith(Cdn2Base, StringComparison.OrdinalIgnoreCase))
             {
-                repoPath = url.Substring(R2CdnBase.Length).TrimStart('/');
-                fallbacks.Add($"{Cdn2Base}/{repoPath}");
+                return new[] { $"{R2CdnBase}/{repoPath}" };
             }
-            else if (url.StartsWith(Cdn2Base, StringComparison.OrdinalIgnoreCase))
-            {
-                repoPath = url.Substring(Cdn2Base.Length).TrimStart('/');
-                fallbacks.Add($"{R2CdnBase}/{repoPath}");
-            }
-            
-            return fallbacks.ToArray();
+
+            return new[] { $"{Cdn2Base}/{repoPath}" };
         }
         
         private static (string Owner, string Repo, string Branch, string Path) ParseRawGitHubUrl(string url)

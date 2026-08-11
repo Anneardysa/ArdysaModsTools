@@ -99,6 +99,15 @@ namespace ArdysaModsTools.Core.Constants
             ];
         }
 
+        private static readonly string[] LegacyBaseUrls =
+        [
+            "https://ghfast.top/https://raw.githubusercontent.com/Anneardysa/ModsPack/main",
+            "https://gh-proxy.com/https://raw.githubusercontent.com/Anneardysa/ModsPack/main",
+            "https://cdn.jsdelivr.net/gh/Anneardysa/ModsPack@main",
+            "https://raw.githubusercontent.com/Anneardysa/ModsPack/main",
+            "https://raw.githubusercontent.com/Anneardysa/ModsPack/refs/heads/main"
+        ];
+
         public static string? ExtractAssetPath(string url)
         {
             if (string.IsNullOrEmpty(url))
@@ -112,7 +121,10 @@ namespace ArdysaModsTools.Core.Constants
                 return q >= 0 ? raw.Substring(0, q) : raw;
             }
 
-            var baseUrls = GetCdnBaseUrls().OrderByDescending(b => b.Length).ToList();
+            var baseUrls = GetCdnBaseUrls()
+                .Concat(LegacyBaseUrls)
+                .OrderByDescending(b => b.Length)
+                .ToList();
             
             int queryIndex = url.IndexOf('?');
             string urlWithoutQuery = queryIndex != -1 ? url.Substring(0, queryIndex) : url;
