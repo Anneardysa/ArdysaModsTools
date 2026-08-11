@@ -33,6 +33,16 @@ jobs:
                  const body  = issue.body || '';
                  const has   = n => issue.labels.some(l => (l.name || l) === n);
 
+                 // Issues the mirror pipeline files from a commit carry no bug-report form, so every
+                 // "this section is missing" check below fires on them and pins a `needs:` label to a
+                 // report nobody can ever answer. That is not cosmetic: `needs:` labels are what the
+                 // stale job hunts, so an already-fixed issue would be closed as not_planned while it
+                 // waits for a release. Triage is for reports from people; leave these alone.
+                 if (has('source: automated')) {
+                    core.info('source: automated — filed by the mirror pipeline, skipping triage.');
+                    return;
+                 }
+
                  // Issue forms render as "### Question\n\nAnswer". Index them by heading.
                  const sections = {};
                  for (const chunk of body.split(/^###[ \t]+/m).slice(1)) {
