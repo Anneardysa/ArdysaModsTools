@@ -104,6 +104,15 @@
     <ApplicationDefinition Remove="publish\**" />
     <!-- Exclude scripts folder from compilation (contains standalone tools) -->
     <Compile Remove="scripts\**\*.cs" />
+    <!-- Frontend/ is the React source for Assets/Html (Node-only, plus node_modules and the WebView2
+         dev probe). The build output is committed under Assets/Html, so nothing in here belongs to the
+         .NET build — and the probe's own .cs would otherwise collide with this project. -->
+    <Compile Remove="Frontend\**" />
+    <Content Remove="Frontend\**" />
+    <EmbeddedResource Remove="Frontend\**" />
+    <None Remove="Frontend\**" />
+    <Page Remove="Frontend\**" />
+    <ApplicationDefinition Remove="Frontend\**" />
   </ItemGroup>
 
   <!-- ============================================== -->
@@ -232,59 +241,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     
-    <!-- HTML Templates -->
-    <Content Include="Assets\Html\main_shell.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\progress.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\hero_gallery.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\generation_preview.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\misc_form.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\settings_form.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\patch_required.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\install_method.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\disable_options.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\whatsnew.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\about.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\status_details.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\verify_files.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\update_available.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\dota2_performance.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\support.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\modspack_update.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Html\modspack_updates.html">
+    <!-- HTML Templates. Built from Frontend/src/pages/ by Frontend/build.mjs (output is committed, so
+         the .NET build never needs Node); pages not yet migrated are still hand-written here. -->
+    <Content Include="Assets\Html\*.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
 

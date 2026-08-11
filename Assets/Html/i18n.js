@@ -64,6 +64,7 @@
       if (fallback) window.__localeFallback = fallback;
       updateCjkFlag();
       applyI18n();
+      window.dispatchEvent(new CustomEvent("amt:locale"));
    };
 
    var FADE_STYLE_ID = "i18n-fade-style";

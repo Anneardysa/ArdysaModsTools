@@ -12,10 +12,10 @@ namespace ArdysaModsTools.Tests.Services.Misc
         [Test]
         public void EveryPreset_WithGlobalShadowsOn_UsesAutoShadowTextures()
         {
-            var html = File.ReadAllText(FindPerformanceHtml());
-            var presets = ExtractPresets(html);
+            var source = File.ReadAllText(FindPerformanceDataTs());
+            var presets = ExtractPresets(source);
 
-            Assert.That(presets, Is.Not.Empty, "Failed to parse any presets from dota2_performance.html");
+            Assert.That(presets, Is.Not.Empty, "Failed to parse any presets from data.ts");
 
             foreach (var (name, cvars) in presets)
             {
@@ -33,9 +33,9 @@ namespace ArdysaModsTools.Tests.Services.Misc
             }
         }
 
-        private static IReadOnlyList<(string Name, Dictionary<string, string> Cvars)> ExtractPresets(string html)
+        private static IReadOnlyList<(string Name, Dictionary<string, string> Cvars)> ExtractPresets(string source)
         {
-            var body = ExtractBraceBlock(html, "const PRESETS =");
+            var body = ExtractBraceBlock(source, "const PRESETS");
             var result = new List<(string, Dictionary<string, string>)>();
 
             foreach (Match block in Regex.Matches(body, @"(\w+)\s*:\s*\{([^{}]*)\}"))
@@ -66,9 +66,9 @@ namespace ArdysaModsTools.Tests.Services.Misc
             throw new AssertionException($"Unbalanced braces after '{marker}'.");
         }
 
-        private static string FindPerformanceHtml()
+        private static string FindPerformanceDataTs()
         {
-            const string rel = "Assets/Html/dota2_performance.html";
+            const string rel = "Frontend/src/pages/dota2_performance/data.ts";
             for (var dir = new DirectoryInfo(TestContext.CurrentContext.TestDirectory); dir != null; dir = dir.Parent)
             {
                 var candidate = Path.Combine(dir.FullName, rel);
