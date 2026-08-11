@@ -19,33 +19,24 @@
    <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <!-- Tailwind Play CDN, vendored to Assets/Html/vendor/tailwind.min.js (v3.4.17, MIT) so this
-           page renders styled with no network. Kept as the runtime JIT build rather than a
-           precompiled stylesheet: a generated sheet would be far smaller, but it has to be
-           regenerated whenever this page's markup changes and nothing in the build enforces that —
-           so adding a utility class here would silently render unstyled. The JIT compiles whatever
-           the page actually uses, and the inline tailwind.config below stays authoritative. At 400 KB
-           on local disk the size is irrelevant for a desktop app. Relative src resolves because
-           Dota2PerformanceForm navigates this file as file://. -->
       <script src="vendor/tailwind.min.js"></script>
       <script>
-         // Monochrome terminal palette — mirrors main_shell.html / ardysamods.my.id.
          tailwind.config = {
             theme: {
                extend: {
                   colors: {
-                     "amt-bg": "var(--canvas)", // canvas
-                     "amt-surface": "var(--panel-2)", // panel-2
-                     "amt-surface2": "var(--panel-hover)", // panel
-                     "amt-border": "var(--hairline)", // hairline
-                     "amt-border-strong": "var(--hairline-strong)", // hairline-strong
-                     "amt-accent": "var(--accent)", // single mono accent
+                     "amt-bg": "var(--canvas)",
+                     "amt-surface": "var(--panel-2)",
+                     "amt-surface2": "var(--panel-hover)",
+                     "amt-border": "var(--hairline)",
+                     "amt-border-strong": "var(--hairline-strong)",
+                     "amt-accent": "var(--accent)",
                      "amt-accent-dim": "var(--accent)",
                      "amt-accent-hover": "var(--primary-hover)",
-                     "amt-on-accent": "var(--on-primary)", // text on a primary-filled button
-                     "amt-text": "var(--ink)", // ink
-                     "amt-text-dim": "var(--body)", // body
-                     "amt-text-muted": "var(--mute)", // mute
+                     "amt-on-accent": "var(--on-primary)",
+                     "amt-text": "var(--ink)",
+                     "amt-text-dim": "var(--body)",
+                     "amt-text-muted": "var(--mute)",
                      "amt-success": "var(--ink)",
                      "amt-error": "#ff8983",
                      "amt-warning": "var(--body)",
@@ -59,13 +50,8 @@
             },
          };
       </script>
-      <!-- Bundled JetBrains Mono. This page is navigated as file:// (Dota2PerformanceForm), so a
-           relative href resolves; the NavigateToString pages get fonts.css spliced in by
-           UI/Helpers/WebViewTheming instead. -->
       <link rel="stylesheet" href="fonts.css" />
       <style>
-         /* ════ design tokens — same vocabulary as main_shell.html; theme.css overrides these
-                under :root[data-theme="light"]. Dark values below = the shipped look. ════ */
          :root {
             --canvas: #000000;
             --panel-2: #050505;
@@ -78,8 +64,6 @@
             --on-primary: #000000;
             --primary-hover: #e5e5e5;
 
-            /* Hover/fill washes and table dividers: ink-over-canvas at low alpha. Kept apart from
-               --accent-dim (0.1) so the flip to light doesn't brighten every hover state here. */
             --wash: rgba(255, 255, 255, 0.04);
             --divider: rgba(255, 255, 255, 0.08);
 
@@ -96,8 +80,6 @@
          body {
             font-family: "JetBrains Mono", monospace;
             background: var(--canvas);
-            /* ponytail: grid lines stay literal — --accent-dim is 0.1, 3x this alpha, which would
-               visibly brighten the dark-mode grid. Decorative texture, invisible on white; fine. */
             background-image:
                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
@@ -125,7 +107,6 @@
             background: var(--panel-2);
             border: 1px solid var(--hairline-strong);
          }
-         /* preset buttons mirror the main_shell sidebar nav-btn (sharp, white inset bar on hover) */
          .preset-btn {
             transition: all 0.18s ease;
             border: 1px solid var(--hairline);
@@ -145,7 +126,6 @@
             color: #e8c878;
          }
 
-         /* sharp monochrome switch (track fills white when on) */
          .toggle-track {
             width: 42px;
             height: 22px;
@@ -238,7 +218,6 @@
          .action-btn:active {
             transform: translateY(0);
          }
-         /* armed state for the two-step DELETE confirm */
          .action-btn.armed {
             background: #ff8983 !important;
             border-color: #ff8983 !important;
@@ -300,7 +279,6 @@
             animation: fadeIn 0.35s ease both;
          }
 
-         /* toast = solid notification card (slides in from the right, colored accent per status) */
          .toast {
             position: fixed;
             bottom: 20px;
@@ -387,7 +365,6 @@
             color: var(--ink);
          }
 
-         /* "mod" badge — amber so changed-from-original values pop against the mono grid */
          .diff-badge {
             display: inline-block;
             font-family: "JetBrains Mono", monospace;
@@ -402,7 +379,6 @@
             letter-spacing: 1px;
          }
 
-         /* autoexec.cfg status banner — persistent, high-contrast (not a fleeting toast) */
          .cfg-banner {
             display: none;
             align-items: center;
@@ -483,7 +459,6 @@
       </style>
    </head>
    <body class="bg-amt-bg text-amt-text select-none">
-      <!-- Titlebar -->
       <div
          id="titlebar"
          class="h-11 w-full flex items-center justify-between px-4 border-b border-amt-border relative z-10"
@@ -519,14 +494,12 @@
       </div>
 
       <div class="flex relative z-10" style="height: calc(100vh - 44px)">
-         <!-- Sidebar -->
          <div
             class="w-[220px] flex-shrink-0 flex flex-col border-r border-amt-border fade-in"
             style="min-height: 0"
          >
             <div class="px-4 pt-4 pb-2 text-[11px] text-amt-text-muted tracking-[3px] flex-shrink-0" data-i18n="perf.presets">[ PRESETS ]</div>
 
-            <!-- Scrollable preset list: stays clear of the footer at any window height / DPI. -->
             <div class="flex-1 min-h-0 overflow-y-auto px-4 pb-2 flex flex-col gap-2">
                <button
                   onclick="applyPreset('potato')"
@@ -578,16 +551,13 @@
                </button>
             </div>
 
-            <!-- Pinned footer: output/path, always visible below the scroll area. -->
             <div class="flex-shrink-0 mx-4 mb-4 mt-2 text-[11px] text-amt-text-dim leading-relaxed p-3 border border-amt-border rounded-lg">
                <span data-i18n="perf.sidebar.output" data-i18n-vars='{"file":"autoexec.cfg"}'>// output: autoexec.cfg</span><br />
                <span data-i18n="perf.sidebar.path" data-i18n-vars='{"path":"dota/cfg/"}'>// path: dota/cfg/</span>
             </div>
          </div>
 
-         <!-- Main Content -->
          <div class="flex-1 flex flex-col overflow-hidden">
-            <!-- autoexec.cfg status banner (persistent, high-contrast) -->
             <div id="cfgBanner" class="cfg-banner">
                <svg
                   class="cfg-banner-ico"
@@ -614,7 +584,6 @@
                </button>
             </div>
 
-            <!-- Tabs -->
             <div class="flex border-b border-amt-border px-5 pt-1">
                <button
                   class="tab-btn active px-5 py-3 text-base font-bold tracking-wider"
@@ -634,10 +603,8 @@
                </button>
             </div>
 
-            <!-- Tab: CVars -->
             <div id="tabCvars" class="flex-1 overflow-y-auto p-5 space-y-3"></div>
 
-            <!-- Tab: Launch -->
             <div id="tabLaunch" class="flex-1 overflow-y-auto p-5 space-y-4 hidden">
                <div class="glass rounded-lg p-5 fade-in">
                   <div class="text-base font-bold tracking-wider mb-1" data-i18n="perf.launch.title">[ LAUNCH_OPTIONS ]</div>
@@ -705,7 +672,6 @@
                </div>
             </div>
 
-            <!-- Action Bar -->
             <div class="flex-shrink-0 border-t border-amt-border p-4 flex items-center gap-3">
                <button
                   onclick="sendMessage('applySettings')"
@@ -742,17 +708,9 @@
          </div>
       </div>
 
-      <!-- Toast -->
       <div id="toast" class="toast"></div>
 
       <script>
-         // ═══════════════════════════════════════════════════════════
-         // i18n STUBS — window.t / window.tp are provided by i18n.js,
-         // which C# injects AFTER navigation completes. The init()
-         // IIFE below calls renderSettings() at page-load time (before
-         // injection), so we need safe stubs that return the fallback.
-         // Once i18n.js runs, it overwrites these with the real impls.
-         // ═══════════════════════════════════════════════════════════
          if (typeof window.t !== "function") {
             window.t = function (key, fallback) { return typeof fallback === "string" ? fallback : key; };
          }
@@ -760,9 +718,6 @@
             window.tp = function (key, count, vars) { return count + " settings"; };
          }
 
-         // ═══════════════════════════════════════════════════════════
-         // CVAR DEFINITIONS
-         // ═══════════════════════════════════════════════════════════
          const SETTINGS = {
             "DISPLAY & FPS": {
                cvars: {
@@ -1063,9 +1018,6 @@
             },
          };
 
-         // ═══════════════════════════════════════════════════════════
-         // LAUNCH OPTIONS
-         // ═══════════════════════════════════════════════════════════
          const LAUNCH_OPTIONS = [
             { flag: "-novid", desc: "Skips the intro video on startup.", default: true },
             { flag: "-console", desc: "Enables the developer console.", default: true },
@@ -1120,9 +1072,6 @@
          let enabledLaunchOptions = {};
          let customLaunchOptions = [];
 
-         // Launch options have no other source of truth (the app can't write Steam's launch
-         // options), so persist the user's selection in localStorage. The WebView2 user-data
-         // folder is persistent, so this survives across sessions.
          const LS_LAUNCH_ENABLED = "amt_launch_enabled";
          const LS_LAUNCH_CUSTOM = "amt_launch_custom";
 
@@ -1144,15 +1093,11 @@
             } catch (e) {
                console.error("loadLaunchOptions error:", e);
             }
-            // Seed defaults for any flags missing from the saved set (e.g. flags added by an app update).
             LAUNCH_OPTIONS.forEach((opt) => {
                if (enabledLaunchOptions[opt.flag] === undefined) enabledLaunchOptions[opt.flag] = opt.default;
             });
          }
 
-         // ═══════════════════════════════════════════════════════════
-         // PRESETS
-         // ═══════════════════════════════════════════════════════════
          const PRESETS = {
             potato: {
                fps_max: "57",
@@ -1268,9 +1213,6 @@
                r_dota_bloom_compute_shader: "1",
                r_texture_stream_mip_bias: "1",
                cl_particle_fallback_base: "2",
-               // ponytail: mode 1 (not 2) is deliberate — mode >=2 with the 128px
-               // lb_shadow_texture overrides below turns the whole map black on unit
-               // hover (undersized shadow atlas). Matches Competitive's proven combo.
                cl_globallight_shadow_mode: "1",
                r_texturefilteringquality: "1",
                cl_particle_fallback_multiplier: "4",
@@ -1433,9 +1375,6 @@
          let originalValues = {};
          let activePreset = null;
 
-         // ═══════════════════════════════════════════════════════════
-         // TABS
-         // ═══════════════════════════════════════════════════════════
          function switchTab(tab) {
             document
                .querySelectorAll(".tab-btn")
@@ -1444,9 +1383,6 @@
             document.getElementById("tabLaunch").classList.toggle("hidden", tab !== "launch");
          }
 
-         // ═══════════════════════════════════════════════════════════
-         // RENDER
-         // ═══════════════════════════════════════════════════════════
          function renderSettings() {
             const container = document.getElementById("tabCvars");
             container.innerHTML = "";
@@ -1543,9 +1479,6 @@
             checkPresetMatch();
          }
 
-         // ═══════════════════════════════════════════════════════════
-         // LAUNCH OPTIONS
-         // ═══════════════════════════════════════════════════════════
          function renderLaunchOptions() {
             const container = document.getElementById("launchTags");
             container.innerHTML = "";
@@ -1622,9 +1555,6 @@
             }
          }
 
-         // ═══════════════════════════════════════════════════════════
-         // PRESETS
-         // ═══════════════════════════════════════════════════════════
          function applyPreset(name) {
             const preset = PRESETS[name];
             if (!preset) return;
@@ -1680,7 +1610,6 @@
             showToast(window.t("perf.banner.resetNotice", "// reset to defaults"), "info");
          }
 
-         // DELETE installed autoexec.cfg — two-step confirm (no modal): first click arms, second confirms.
          let _deleteArmed = false;
          let _deleteTimer = null;
          function deleteCfg(btn) {
@@ -1702,9 +1631,6 @@
             btn.textContent = btn.dataset.label || window.t("perf.action.delete", "DELETE");
          }
 
-         // ═══════════════════════════════════════════════════════════
-         // INTEROP
-         // ═══════════════════════════════════════════════════════════
          function sendMessage(type, data = {}) {
             if (window.chrome && window.chrome.webview) {
                window.chrome.webview.postMessage({ type, ...data });
@@ -1759,13 +1685,11 @@
                `<span class="toast-ico">${TOAST_ICONS[kind]}</span>` +
                '<div class="toast-body"><div class="toast-title"></div><div class="toast-msg"></div></div>';
             t.querySelector(".toast-title").textContent = titles[kind];
-            // Message via textContent so C# error strings can't inject markup; trim a leading "// ".
             t.querySelector(".toast-msg").textContent = String(msg ?? "").replace(/^\/\/\s*/, "");
 
             t.className = `toast ${kind} show`;
 
             clearTimeout(_toastTimer);
-            // Keep failures up longer so they can actually be read.
             _toastTimer = setTimeout(() => t.classList.remove("show"), kind === "error" ? 6500 : 3800);
          }
 
@@ -1773,8 +1697,6 @@
             showToast(`// ${title}: ${msg}`, type);
          }
 
-         // Persistent, high-contrast status banner for the autoexec.cfg state (C# → JS).
-         // state: "warning" | "success" → shown; "ok" | "hidden" | "" → dismissed.
          function showCfgBanner(message, state) {
             const b = document.getElementById("cfgBanner");
             if (!b) return;
@@ -1797,10 +1719,6 @@
             if (b) b.classList.remove("show");
          }
 
-         // ═══════════════════════════════════════════════════════════
-         // EVENT LISTENERS — attached before init() so they survive
-         // even if init() throws (e.g. missing i18n, CDN timeout).
-         // ═══════════════════════════════════════════════════════════
          document.getElementById("closeBtn")?.addEventListener("click", function (e) {
             e.stopPropagation();
             sendMessage("close");
@@ -1809,9 +1727,6 @@
             if (e.key === "Enter") addCustomLaunch();
          });
 
-         // ═══════════════════════════════════════════════════════════
-         // INIT
-         // ═══════════════════════════════════════════════════════════
          (function init() {
             for (const cat of Object.values(SETTINGS)) {
                for (const [cvar, cfg] of Object.entries(cat.cvars)) {

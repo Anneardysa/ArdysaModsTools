@@ -1,124 +1,87 @@
-# ============================================================================
-# AMT 2.0 - .gitignore
-# ============================================================================
+# ArdysaModsTools — .gitignore
+#
+# How these rules work (read before editing):
+#   - A pattern with no leading slash matches at ANY depth: `bin/` already covers
+#     Tests/bin/, Installer/bin/, Frontend/dev/probe/bin/. Never repeat it per project.
+#   - A negation (`!x`) CANNOT re-include a file whose parent directory is excluded.
+#     That is why `!scripts/**/` exists below, before the per-file exceptions.
+#   - Anchor a pattern with a slash (`build/Installer/Output/`) whenever a bare name
+#     would match unrelated directories elsewhere in the tree.
+#
+# After editing, both checks must stay clean:
+#   git ls-files -i -c --exclude-standard   -> must print nothing (tracked AND ignored
+#                                              = a rule that lies about the repo)
+#   git check-ignore -v <path>              -> names the exact rule hiding a file
+#   git status --porcelain -uall            -> nothing that should be committed is missing
 
-# IDE & EDITOR FILES
-.vs/
-*.user
-*.suo
-*.cache
-.idea/
-*.rsuser
-*.userprefs
+# ─── AI assistant workspaces ────────────────────────────────────────────────
+.claude/
+.agent/
+.impeccable/
 
-# .NET BUILD ARTIFACTS
+# ─── Build & publish output ─────────────────────────────────────────────────
 bin/
 obj/
-[Bb]in/
-[Oo]bj/
-[Dd]ebug/
-[Rr]elease/
-x64/
-x86/
-[Ww][Ii][Nn]32/
-[Aa][Rr][Mm]/
-[Aa][Rr][Mm]64/
-bld/
-[Ll]og/
-[Ll]ogs/
-*.log
-
-# PROJECT-SPECIFIC BUILD OUTPUTS
-# Build folder is ignored but Installer subfolder is allowed for Inno Setup script
-[Bb]uild/*
-![Bb]uild/[Ii]nstaller/
-build/Installer/Output
-portable/
 publish/
+portable/
+dist/
+delta/
 protected/
 installer_output/
-Tests/bin/
-Tests/obj/
+build/Installer/Output/
 
-# DEPENDENCIES & PACKAGES
-*.nupkg
-*.snupkg
-.nuget/
-packages/
+# ─── Logs & diagnostics ─────────────────────────────────────────────────────
+*.log
+logs/
+*.dmp
+*.trx
 
-# COMPILED BINARIES
+# ─── Binaries ───────────────────────────────────────────────────────────────
 *.exe
 !tools/**/*.exe
-!AppIcon.ico
-*.dmp
 
-# SCRIPTS & TOOLS — all local tooling ignored; a few pipeline scripts are force-tracked below.
-scripts/**
-# Re-include directories so git descends into them to reach the whitelisted files.
-!scripts/**/
-!scripts/**/*.iss
-# Delta-update release pipeline — must be tracked: release.yml runs the manifest generator on the
-# CI runner, and without the pair no release can publish an incremental update at all.
-!scripts/release/generate-files-manifest.ps1
-!scripts/release/publish-delta-to-r2.ps1
-# Public-mirror engine — must be tracked so the GitLab CI mirror job can run it (kept out of the
-# public mirror itself via .mirrorignore). publish.py / publish_gui.py stay ignored (local only).
-!scripts/release/publish-github.ps1
-# Git hooks — must be tracked so a fresh clone can install them. The pre-push guard is what stops
-# a raw push to the public GitHub mirror from publishing real key material and full comments.
-!scripts/dev/hooks/*
-# Self-check for the issue auto-triage workflow — tracked because that workflow auto-closes user
-# reports, so its logic needs a check that travels with it.
-!scripts/dev/triage-selfcheck.mjs
-tools/confuserex/
-config/feature_access.json
+# ─── IDE & editor ───────────────────────────────────────────────────────────
+.vs/
+.idea/
+*.user
+*.rsuser
 
-# LOCAL-ONLY DOCS (kept out of the public repo)
-docs/dev/DISTRIBUTION.md
-
-# CONFIGURATION & SECRETS
-.env
-.env.local
-*.secrets.json
-
-# QA BOT — local question database (.env token already covered above)
-scripts/community/qa_bot/qa.db*
-appsettings.json
-appsettings.*.json
-!appsettings.template.json
-
-# OS-GENERATED FILES
+# ─── OS-generated ───────────────────────────────────────────────────────────
 Thumbs.db
-ehthumbs.db
 Desktop.ini
-.DS_Store
 
-# DEVELOPMENT TOOLS
+# ─── Frontend/ (React sources ARE tracked; only tooling output is not — the
+#     built HTML under Assets/Html is committed so the .NET build needs no Node)
+node_modules/
+Frontend/.vite/
+Frontend/.vite-out/
+.probe-shots/
+
+# ─── Python helper scripts ──────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
-*$py.class
-.Python
-*.egg-info/
-.eggs/
-npm-debug.log*
 
-# LOCAL DEVELOPER TOOLS
-build.txt
+# ─── Secrets & signed config ────────────────────────────────────────────────
+.env
+.env.*
+*.secrets.json
+config/feature_access.json
+
+# ─── Local-only tooling (a few pipeline scripts are force-tracked below) ────
+scripts/**
+!scripts/**/
+!scripts/**/*.iss
+!scripts/release/generate-files-manifest.ps1
+!scripts/release/publish-delta-to-r2.ps1
+!scripts/release/publish-github.ps1
+!scripts/release/open-mirror-issues.ps1
+!scripts/dev/hooks/*
+!scripts/dev/triage-selfcheck.mjs
 commit-and-push.ps1
 COMMIT_GUIDE.md
 
-# PERSONAL/INTERNAL DOCUMENTATION
-docs/samples/
-*.trx
+# ─── Local-only docs (kept out of both repos) ───────────────────────────────
+docs/dev/DISTRIBUTION.md
 
-# AI ASSISTANT TOOLS
-.auto-claude/
-.agent/
-.antigravity
-.trains/
-.claude/
-.CLAUDE.md
-/.train
-
-# AMT 3.0 (next/) - ignored on main branch (2.0)
+# ─── AMT 3.0 (Rust + Tauri, ADR-0014) — not part of the 2.x branch ──────────
 next/

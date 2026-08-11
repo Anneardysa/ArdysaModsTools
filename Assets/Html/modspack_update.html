@@ -55,7 +55,6 @@
             overflow: hidden;
          }
 
-         /* ═══ DRAG AREA ═══ */
          .drag-area {
             position: fixed;
             top: 0;
@@ -67,7 +66,6 @@
             z-index: 10;
          }
 
-         /* ═══ CLOSE BUTTON ═══ */
          .close-btn {
             position: fixed;
             top: 10px;
@@ -94,7 +92,6 @@
             height: 14px;
          }
 
-         /* ═══ MAIN CONTAINER ═══ */
          .container {
             flex: 1;
             display: flex;
@@ -104,7 +101,6 @@
             padding: 40px 48px 32px;
          }
 
-         /* ═══ UPDATE ICON ═══ */
          .update-icon {
             width: 56px;
             height: 56px;
@@ -127,7 +123,6 @@
             50% { opacity: 0.8; transform: scale(1.06); }
          }
 
-         /* ═══ BADGE ═══ */
          .badge {
             display: inline-block;
             padding: 5px 16px;
@@ -141,7 +136,6 @@
             animation: fadeInUp 0.35s ease-out 0.06s both;
          }
 
-         /* ═══ TITLE ═══ */
          .title {
             font-size: 15px;
             font-weight: bold;
@@ -151,7 +145,6 @@
             animation: fadeInUp 0.35s ease-out 0.12s both;
          }
 
-         /* ═══ DESCRIPTION ═══ */
          .description {
             font-size: 11px;
             color: var(--text-secondary);
@@ -162,7 +155,6 @@
             animation: fadeInUp 0.35s ease-out 0.18s both;
          }
 
-         /* ═══ BUTTONS ═══ */
          .buttons {
             display: flex;
             flex-direction: column;
@@ -206,7 +198,6 @@
             border-color: var(--text-muted);
          }
 
-         /* ═══ ANIMATIONS ═══ */
          @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -223,7 +214,6 @@
       </button>
 
       <div class="container">
-         <!-- Update Icon -->
          <div class="update-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -231,19 +221,15 @@
             </svg>
          </div>
 
-         <!-- Badge -->
          <div class="badge" data-i18n="modspackUpd.badge">[ MODSPACK UPDATE ]</div>
 
-         <!-- Title -->
          <div class="title" data-i18n="modspackUpd.title">A NEWER MODSPACK IS AVAILABLE</div>
 
-         <!-- Description -->
          <div class="description" data-i18n-html="modspackUpd.description">
             A new version of the ModsPack has been released.<br />
             Update now to get the latest cosmetic mods.
          </div>
 
-         <!-- Buttons -->
          <div class="buttons">
             <button class="btn btn-primary" onclick="updateNow()" data-i18n="modspackUpd.updateNow">UPDATE NOW</button>
             <button class="btn btn-secondary" onclick="dismiss()" data-i18n="modspackUpd.notNow">NOT NOW</button>
@@ -269,7 +255,6 @@
             }
          }
 
-         // ESC to close
          document.addEventListener("keydown", (e) => {
             if (e.key === "Escape") dismiss();
          });

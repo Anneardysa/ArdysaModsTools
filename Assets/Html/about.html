@@ -63,7 +63,6 @@
             border: 1px solid var(--hairline-strong);
          }
 
-         /* ── title bar ── */
          #titlebar {
             height: 40px;
             min-height: 40px;
@@ -123,7 +122,6 @@
             color: #fff;
          }
 
-         /* ── scrollable body ── */
          .body {
             flex: 1;
             min-height: 0;
@@ -131,7 +129,6 @@
             padding: 22px 22px 8px;
          }
 
-         /* ── identity ── */
          .hero {
             display: flex;
             align-items: center;
@@ -185,7 +182,6 @@
             background: rgba(0, 0, 0, 0.4);
          }
 
-         /* ── description ── */
          .desc {
             font-size: 12px;
             line-height: 1.75;
@@ -193,7 +189,6 @@
             margin-bottom: 22px;
          }
 
-         /* ── credits ── */
          .section-label {
             font-size: 11px;
             font-weight: 600;
@@ -256,7 +251,6 @@
             border: 1px solid var(--hairline);
             background: var(--panel-2);
          }
-         /* tech-stack logos (Built With) — brand icons on top, lib chips below */
          .tech-stack {
             display: flex;
             flex-wrap: wrap;
@@ -278,7 +272,6 @@
             width: 22px;
             height: 22px;
             object-fit: contain;
-            /* normalize every brand SVG to a white silhouette (monochrome design) */
             filter: brightness(0) invert(1);
             opacity: 0.85;
             transition: var(--transition);
@@ -291,7 +284,6 @@
             background: var(--panel-hover);
          }
 
-         /* ── footer ── */
          .footer {
             display: flex;
             align-items: center;
@@ -344,7 +336,6 @@
       </style>
    </head>
    <body>
-      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg), used via <use href="#ardysaGlyph"> -->
       <svg width="0" height="0" style="position: absolute" aria-hidden="true">
          <defs>
             <g id="ardysaGlyph">
@@ -468,7 +459,6 @@
             if (e.key === "Escape") act("close");
          });
 
-         /* ── C# → JS: app version label ── */
          function setVersion(v) {
             const el = document.getElementById("about-ver");
             if (el) el.textContent = v ? "v" + String(v).replace(/^v/i, "") : "";

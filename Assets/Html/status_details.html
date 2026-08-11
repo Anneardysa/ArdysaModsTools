@@ -27,8 +27,6 @@
             box-sizing: border-box;
          }
 
-         /* ══════════ tokens — the main_shell vocabulary, so this dialog inherits the shell's
-               look and theme.css's light-mode ramp without a second palette to maintain ══════════ */
          :root {
             --canvas: #000000;
             --panel: rgba(10, 10, 10, 0.9);
@@ -46,12 +44,9 @@
             --body: #888888;
             --mute: #444444;
 
-            /* verdict hues — same values as the shell's verify panel and the status pill, so a row
-               here can never disagree with the row the user just saw on the main window. */
             --verify-ok: #50c878;
             --verify-bad: #ff5050;
             --verify-warn: #f5c451;
-            /* legacy names kept because theme.css darkens these for light mode */
             --color-green: #50c878;
             --color-orange: #f5c451;
             --color-red: #ff5050;
@@ -67,7 +62,6 @@
             --transition: all 0.18s ease;
          }
 
-         /* Chinese UI: Latin still resolves to JetBrains Mono, CJK falls through (mirrors main_shell). */
          html[data-cjk] {
             --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Microsoft YaHei", "Microsoft JhengHei",
                "PingFang SC", "PingFang TC", "Noto Sans CJK SC", sans-serif;
@@ -94,7 +88,6 @@
             border: 1px solid var(--hairline);
          }
 
-         /* ── animated wave backdrop (shell signature) ── */
          .bgfx {
             position: fixed;
             inset: 0;
@@ -152,7 +145,6 @@
             }
          }
 
-         /* ════════════ title bar (id matches the shell so theme.css restyles it in light mode) ═══ */
          #titlebar {
             position: relative;
             z-index: 1;
@@ -203,7 +195,6 @@
             height: 12px;
          }
 
-         /* ════════════════════════════════ CONTENT ════════════════════════════════ */
          .content {
             position: relative;
             z-index: 1;
@@ -213,8 +204,6 @@
             flex-direction: column;
             gap: var(--sp-3);
             padding: var(--sp-4);
-            /* The window is sized to its content in C#, so this never scrolls in practice; when a
-               translation runs long it stays reachable without painting a scrollbar over the design. */
             overflow-y: auto;
             scrollbar-width: none;
          }
@@ -222,11 +211,6 @@
             display: none;
          }
 
-         /* ── level 1: the verdict ──
-            The element also carries the shell's `status-card` class: it is inert here (this page
-            styles it below) but theme.css frames .status-card in solid black for light mode, the
-            same treatment the two .info-section cards get, so the primary card is not the only one
-            left on a grey hairline. */
          .hero {
             display: flex;
             align-items: center;
@@ -273,8 +257,6 @@
             content: "// ";
             color: var(--mute);
          }
-         /* Status tints the icon chip only — the headline stays in plain ink so the colour is
-            reinforcement, never the sole signal. */
          .hero.ready .hero-ico {
             border-color: var(--verify-ok);
          }
@@ -288,7 +270,6 @@
             border-color: var(--color-blue);
          }
 
-         /* ── level 2: sections ── */
          .section-label {
             font-size: 9px;
             font-weight: 600;
@@ -300,13 +281,11 @@
          .section-label::before {
             content: "// ";
          }
-         /* class kept from the previous markup: theme.css frames .info-section in black for light mode */
          .info-section {
             background: var(--panel-2);
             border: 1px solid var(--hairline);
          }
 
-         /* ── version rows ── */
          .kv {
             display: flex;
             align-items: baseline;
@@ -338,7 +317,6 @@
             color: var(--verify-warn);
          }
 
-         /* ── diagnostic rows ── */
          .check-row {
             display: flex;
             align-items: center;
@@ -350,8 +328,6 @@
          .check-row + .check-row {
             border-top: 1px solid var(--hairline);
          }
-         /* The summary is a conclusion, not another input — a heavier rule and bolder label set it
-            apart from the three measurements above it. */
          .check-row.summary {
             border-top: 1px solid var(--hairline-strong);
             background: var(--accent-dim);
@@ -410,7 +386,6 @@
             color: var(--mute);
          }
 
-         /* ── notes: the reason a check failed, and the raw error ── */
          .note {
             padding: 8px 10px;
             border-left: 2px solid var(--mute);
@@ -420,9 +395,6 @@
             letter-spacing: 0.3px;
             color: var(--body);
          }
-         /* Clamped so a long diagnostic can never push the buttons out of the window; the full text
-            stays available as the block's tooltip. The clamp lives on the text span, not on .note —
-            a block-level label inside a -webkit-box breaks its line counting and leaks a 4th line. */
          .note-text {
             display: -webkit-box;
             -webkit-box-orient: vertical;
@@ -452,7 +424,6 @@
             color: var(--verify-bad);
          }
 
-         /* ════════════════════════════════ FOOTER ════════════════════════════════ */
          .footer {
             position: relative;
             z-index: 1;
@@ -514,7 +485,6 @@
       </div>
 
       <div class="content">
-         <!-- ── Verdict ── -->
          <div class="hero status-card fade-in" id="hero">
             <div class="hero-ico" id="statusIcon"></div>
             <div class="hero-text">
@@ -523,7 +493,6 @@
             </div>
          </div>
 
-         <!-- ── Version info ── -->
          <div class="fade-in delay-1">
             <div class="section-label" data-i18n="statusDetails.versionInfo">Version Info</div>
             <div class="info-section" id="sectionVersion">
@@ -546,7 +515,6 @@
             </div>
          </div>
 
-         <!-- ── Diagnostics: three measurements, then the conclusion they add up to ── -->
          <div class="fade-in delay-2">
             <div class="section-label" data-i18n="statusDetails.diagnostics">Diagnostics</div>
             <div class="info-section" id="sectionChecks">
@@ -573,13 +541,11 @@
             </div>
          </div>
 
-         <!-- Plain-language reason for a failed setup check (hidden when everything passes) -->
          <div class="note warn fade-in delay-3 hidden" id="verifyDetail">
             <span class="note-label" data-i18n="common.warning">Warning</span>
             <span class="note-text" id="verifyDetailText"></span>
          </div>
 
-         <!-- Raw diagnostic (hashes / registry entry) — the line support actually needs -->
          <div class="note bad fade-in delay-3 hidden" id="errorBlock">
             <span class="note-label" data-i18n="common.error">Error</span>
             <span class="note-text" id="errorBlockText"></span>
@@ -594,7 +560,6 @@
       </div>
 
       <script>
-         /* ── SVG Icons (no emoji) ── */
          const ICONS = {
             ready: '<svg viewBox="0 0 24 24" fill="none" stroke="#50c878" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
             needUpdate:
@@ -606,13 +571,7 @@
                '<svg viewBox="0 0 24 24" fill="none" stroke="#555555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
          };
 
-         /**
-          * Populate the entire dialog from a single data payload.
-          * Called once from C# after WebView2 navigation completes.
-          * @param {Object} data - Combined status + version payload
-          */
          function populate(data) {
-            // ── Status header ──
             const status = data.status || "NotInstalled";
             const iconKey = mapStatusToIcon(status);
 
@@ -621,7 +580,6 @@
             document.getElementById("statusText").textContent = data.statusText || "Unknown";
             document.getElementById("statusDescription").textContent = data.description || "status unknown";
 
-            // ── Patch button visibility ──
             const patchBtn = document.getElementById("patchBtn");
             if (data.showPatchBtn) {
                patchBtn.classList.remove("hidden");
@@ -630,41 +588,27 @@
                patchBtn.classList.add("hidden");
             }
 
-            // ── Version info ──
             setVal("valDotaVersion", data.dotaVersion, true);
             setVal("valBuildNumber", data.buildNumber);
             setVal("valPatchedVersion", data.patchedVersion, false, data.versionMismatch);
             setVal("valPatchDate", data.patchDate || "Never");
 
-            // ── Diagnostics ──
-            // These three come from the setup verification sweep — the same conditions Dota 2
-            // checks at launch — instead of being inferred from the overall status. null still means
-            // "not determined" and renders gray.
             setCheck("dotDigest", "labelDigest", data.digestOk);
             setCheck("dotGameInfo", "labelGameInfo", data.gameInfoOk);
-            // Elevation only claims a verdict when the sweep reached one: nothing found reads as a
-            // plain green OK like any other check, and adminOk is null only when the probes could not
-            // run. A detection is neither — it is amber, applied over the dot below.
             setCheck("dotAdmin", "labelAdmin", data.adminOk);
             if (data.adminAdvisory) markAdvisory("dotAdmin", "labelAdmin", data.adminStateText, data.adminNote);
             document.getElementById("labelAdmin").title = data.adminNote || "";
 
-            // Overall is an AND over the checks that actually reported: a gray (null) check must not
-            // drag the summary to red, only a real false does.
             const decided = [data.digestOk, data.gameInfoOk, data.adminOk].filter((v) => v !== null && v !== undefined);
             const allOk = decided.length > 0 && decided.every((v) => v === true);
             setCheck("dotOverall", "labelOverall", decided.length === 0 ? null : allOk);
-            // An amber advisory holds back Ready, so the summary must not read a clean OK above it —
-            // that contradiction is the whole reason the pill now names the elevation itself.
             if (data.adminAdvisory && allOk)
                markAdvisory("dotOverall", "labelOverall", data.adminStateText, data.adminNote);
 
-            // Explanation for whichever check failed (already translated by C#).
             setNote("verifyDetail", "verifyDetailText", data.verifyDetail);
             setNote("errorBlock", "errorBlockText", data.errorMessage);
          }
 
-         /** Map status enum string to icon key (also the hero's accent class) */
          function mapStatusToIcon(status) {
             switch (status) {
                case "Ready":
@@ -680,7 +624,6 @@
             }
          }
 
-         /** Helper: set a version value cell */
          function setVal(id, value, isHighlight, isMismatch) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -689,7 +632,6 @@
             el.classList.toggle("mismatch", !!isMismatch);
          }
 
-         /** Helper: set a check-row dot + label */
          function setCheck(dotId, labelId, isOk) {
             const dot = document.getElementById(dotId);
             const label = document.getElementById(labelId);
@@ -710,9 +652,6 @@
             }
          }
 
-         /** Helper: repaint a check row as an amber advisory — neither the green of a verified pass
-          *  nor the red of a failure. The state column is 9px, so the short word goes in the cell and
-          *  the full sentence in its tooltip. */
          function markAdvisory(dotId, labelId, stateText, note) {
             const dot = document.getElementById(dotId);
             const label = document.getElementById(labelId);
@@ -723,8 +662,6 @@
             label.className = "check-status warn";
          }
 
-         /** Helper: fill a note block, or hide it when there is nothing to say. The text is clamped
-          *  to 3 lines in CSS, so the full string is mirrored into the tooltip. */
          function setNote(blockId, textId, text) {
             const block = document.getElementById(blockId);
             if (!block) return;
@@ -737,7 +674,6 @@
             }
          }
 
-         /* ── Actions ── */
          function patchNow() {
             sendMessage({ type: "patchNow" });
          }
@@ -745,7 +681,6 @@
             sendMessage({ type: "close" });
          }
          function startDrag(e) {
-            // Only the bar itself drags — the close button must stay clickable.
             if (e && e.target.closest(".tb-close")) return;
             sendMessage({ type: "startDrag" });
          }

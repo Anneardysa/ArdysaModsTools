@@ -47,8 +47,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* safe center: centered when it fits, top-aligned + scrollable when too tall at
-               high DPI, so the bottom buttons are never clipped. */
             justify-content: safe center;
             font-family: "JetBrains Mono", monospace;
             color: var(--text-primary);
@@ -57,7 +55,6 @@
             user-select: none;
          }
 
-         /* ── Animated Wave Background ── */
          .animated-bg {
             position: fixed;
             inset: 0;
@@ -87,7 +84,6 @@
             }
          }
 
-         /* ── Corner Decorations ── */
          .corner-decoration {
             position: fixed;
             width: 14px;
@@ -119,7 +115,6 @@
             border-right: 1px solid;
          }
 
-         /* ── Drag Area ── */
          .drag-area {
             position: fixed;
             top: 0;
@@ -131,7 +126,6 @@
             z-index: 10;
          }
 
-         /* ── Animations ── */
          @keyframes fadeSlideIn {
             from {
                opacity: 0;
@@ -161,7 +155,6 @@
             animation: fadeSlideIn 0.35s ease-out both;
          }
 
-         /* ── Container ── */
          .container {
             text-align: center;
             padding: 24px 32px;
@@ -171,7 +164,6 @@
             max-width: 460px;
          }
 
-         /* ── Header ── */
          .header-icon {
             margin-bottom: 8px;
          }
@@ -208,7 +200,6 @@
             content: "// ";
          }
 
-         /* ── Progress Bar ── */
          .progress-container {
             width: 100%;
             height: 2px;
@@ -234,7 +225,6 @@
             background: var(--color-red);
          }
 
-         /* ── Check Rows ── */
          .checks-section {
             text-align: left;
             margin-bottom: 16px;
@@ -270,7 +260,6 @@
             border-color: rgba(255, 100, 100, 0.2);
          }
 
-         /* ── Check Dot ── */
          .check-dot {
             width: 10px;
             height: 10px;
@@ -296,7 +285,6 @@
             box-shadow: 0 0 8px rgba(255, 100, 100, 0.5);
          }
 
-         /* ── Check Text ── */
          .check-info {
             flex: 1;
             min-width: 0;
@@ -322,7 +310,6 @@
             color: rgba(255, 100, 100, 0.6);
          }
 
-         /* ── Check Badge ── */
          .check-badge {
             font-size: 9px;
             text-transform: uppercase;
@@ -342,7 +329,6 @@
             color: var(--color-red);
          }
 
-         /* ── Summary ── */
          .summary {
             font-size: 10px;
             color: var(--text-muted);
@@ -362,7 +348,6 @@
             color: var(--color-orange);
          }
 
-         /* ── Buttons ── */
          .btn-container {
             display: flex;
             justify-content: center;
@@ -414,7 +399,6 @@
       <div class="corner-decoration bottom-right"></div>
 
       <div class="container">
-         <!-- Header -->
          <div class="header-icon fade-in" id="headerIcon">
             <svg
                viewBox="0 0 24 24"
@@ -434,12 +418,10 @@
          <div class="title fade-in" id="titleText">Verifying</div>
          <div class="subtitle fade-in" id="subtitleText">scanning mod files</div>
 
-         <!-- Progress -->
          <div class="progress-container fade-in">
             <div class="progress-bar" id="progressBar"></div>
          </div>
 
-         <!-- Check Rows -->
          <div class="checks-section" id="checksContainer">
             <div class="check-row" id="check-0">
                <div class="check-dot" id="dot-0"></div>
@@ -478,10 +460,8 @@
             </div>
          </div>
 
-         <!-- Summary (hidden until all done) -->
          <div class="summary" id="summaryText"></div>
 
-         <!-- Buttons -->
          <div class="btn-container fade-in">
             <button class="btn btn-primary hidden" id="patchBtn" onclick="requestPatch()">
                Patch Update
@@ -501,10 +481,6 @@
                '<svg viewBox="0 0 24 24" fill="none" stroke="#ffb464" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
          };
 
-         /**
-          * Called by C# before running a check.
-          * Shows the row and starts the spinner.
-          */
          function startCheck(index) {
             const row = document.getElementById(`check-${index}`);
             const dot = document.getElementById(`dot-${index}`);
@@ -517,12 +493,6 @@
             badge.className = "check-badge checking";
          }
 
-         /**
-          * Called by C# when a check finishes.
-          * @param {number} index - Check index (0-3)
-          * @param {boolean} passed - Whether the check passed
-          * @param {string} detail - Result detail text
-          */
          function completeCheck(index, passed, detail) {
             const row = document.getElementById(`check-${index}`);
             const dot = document.getElementById(`dot-${index}`);
@@ -547,12 +517,6 @@
             updateProgress();
          }
 
-         /**
-          * Called by C# after all checks complete.
-          * @param {number} passed - Number of checks passed
-          * @param {number} total - Total number of checks
-          * @param {boolean} showPatchBtn - Whether to show the Patch Update button
-          */
          function allDone(passed, total, showPatchBtn) {
             const icon = document.getElementById("headerIcon");
             const title = document.getElementById("titleText");
@@ -563,7 +527,6 @@
 
             const allPass = passed === total;
 
-            // Update header
             icon.innerHTML = allPass ? ICONS.allPass : ICONS.hasIssues;
             title.textContent = allPass ? "All Clear" : "Issues Found";
             title.style.color = allPass ? "var(--color-green)" : "var(--color-orange)";
@@ -571,20 +534,16 @@
                ? "all files verified successfully"
                : `${total - passed} issue${total - passed > 1 ? "s" : ""} require attention`;
 
-            // Progress bar final state
             bar.classList.add(allPass ? "done-ok" : passed > 0 ? "done-warn" : "done-fail");
 
-            // Summary
             summary.textContent = `${passed}/${total} checks passed`;
             summary.classList.add("visible", allPass ? "all-pass" : "has-issues");
 
-            // Patch button
             if (showPatchBtn) {
                patchBtn.classList.remove("hidden");
             }
          }
 
-         /** Update the progress bar width */
          function updateProgress() {
             const bar = document.getElementById("progressBar");
             if (bar) {
@@ -592,7 +551,6 @@
             }
          }
 
-         /* ── Actions ── */
          function requestPatch() {
             sendMessage({ type: "patchNow" });
          }

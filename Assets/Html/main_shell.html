@@ -26,9 +26,7 @@
             box-sizing: border-box;
          }
 
-         /* ════════════════ ardysamods.my.id design tokens (monochrome terminal) ════════════════ */
          :root {
-            /* surfaces — mirror site style.css :root */
             --canvas: #000000;
             --panel: rgba(10, 10, 10, 0.9);
             --panel-2: #050505;
@@ -37,60 +35,44 @@
             --hairline-strong: #333333;
             --dashed: rgba(136, 136, 136, 0.4);
 
-            /* brand — single white accent (site --accent) */
-            --accent: #ffffff; /* onboarding spotlight/dots/card rule — same value the other shells use */
+            --accent: #ffffff;
             --primary: #ffffff;
             --primary-soft: #ffffff;
             --primary-deep: #ffffff;
             --on-primary: #000000;
             --primary-glow: rgba(255, 255, 255, 0.16);
             --accent-dim: rgba(255, 255, 255, 0.1);
-            --wash: rgba(255, 255, 255, 0.06); /* faint ink wash; theme.css overrides for light */
+            --wash: rgba(255, 255, 255, 0.06);
 
-            /* cautionary yellow accent — used by the "feature unavailable" confirm variant */
             --warn-accent: #f5c451;
             --warn-glow: rgba(245, 196, 81, 0.22);
 
-            /* setup-verification verdicts. Dark values are the exact StatusColors the status dot
-               uses (Ready 80,200,120 / Error 255,80,80 / NeedUpdate 255,180,50) so a check row and
-               the pill can never disagree. theme.css darkens the first two for light mode — at 9px
-               they sit on #f6f6f6 there and the shipped greens/reds only reach ~2:1.
-               The Fix button's ink is NOT --on-primary: that token flips to white in light mode,
-               which would put white text on the amber fill (1.8:1). The fill is the same amber in
-               both themes, so its ink is pinned dark in both. */
             --verify-ok: #50c878;
             --verify-bad: #ff5050;
-            /* advisory (Process Elevation): amber, never red — it is information, not a failure */
             --verify-warn: #f5c451;
             --verify-fix-bg: #ffb432;
             --verify-fix-ink: #1a1a1a;
 
-            /* text */
             --ink: #ffffff;
             --ink-strong: #ffffff;
             --body: #888888;
             --mute: #444444;
 
-            /* semantic (in-product cues only) */
             --success: #ffffff;
             --warning: #888888;
             --error: #ffffff;
             --info: #888888;
 
-            /* type — site loads JetBrains Mono only */
             --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
             --mono: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
-            /* radius — site is sharp-cornered */
             --r-sm: 0px;
             --r-md: 0px;
             --r-pill: 0px;
-            --clip: 12px; /* signature cut-corner notch */
+            --clip: 12px;
 
-            /* motion */
             --transition: all 0.18s ease;
 
-            /* spacing */
             --sp-1: 4px;
             --sp-2: 8px;
             --sp-3: 12px;
@@ -99,10 +81,6 @@
             --sp-6: 24px;
          }
 
-         /* Chinese UI only: keep JetBrains Mono for Latin (the main_shell look) but append a CJK-capable
-            fallback so Chinese renders cleanly instead of the browser default. i18n.js sets the data-cjk
-            flag while a Chinese locale is active, so every other language is untouched. Latin glyphs still
-            resolve to JetBrains Mono first; only CJK characters fall through to YaHei / JhengHei. */
          html[data-cjk] {
             --sans:
                "JetBrains Mono", SFMono-Regular, Menlo, Consolas, "Microsoft YaHei",
@@ -134,7 +112,6 @@
             border-radius: 0px;
          }
 
-         /* ── animated wave backdrop (site .animated-bg signature) ── */
          .bgfx {
             position: fixed;
             inset: 0;
@@ -169,7 +146,6 @@
             }
          }
 
-         /* ── cut-corner notch utility (site --clip-size cards) ── */
          .notch {
             position: relative;
          }
@@ -187,7 +163,6 @@
             z-index: 2;
          }
 
-         /* ════════════════════════════════ TITLE BAR ════════════════════════════════ */
          #titlebar {
             position: relative;
             z-index: 1;
@@ -269,7 +244,6 @@
             color: #fff;
          }
 
-         /* ════════════════════════════════ SHELL ════════════════════════════════ */
          .shell {
             position: relative;
             z-index: 1;
@@ -280,7 +254,6 @@
             gap: var(--sp-4);
          }
 
-         /* ════════════════════════════════ SIDEBAR ════════════════════════════════ */
          .sidebar {
             width: 280px;
             min-width: 280px;
@@ -291,19 +264,10 @@
             display: flex;
             flex-direction: column;
             gap: var(--sp-5);
-            /* Scroll rather than crush. The window is clamped to the working area, so on a 1080p
-               screen with a taskbar the sidebar's content is taller than the space it gets. Flex
-               resolves that by shrinking children, and .verify-panel loses first because it clips
-               (overflow: hidden) — which silently ate the bottom rows of the report, including the
-               one explaining why the Play button above it is disabled. */
             overflow-y: auto;
-            /* The vertical scrollbar eats into the content box while the children are still width:100%,
-               which otherwise produces a second, horizontal scrollbar along the sidebar's foot. */
             overflow-x: hidden;
             min-height: 0;
          }
-         /* Nothing in the sidebar gives way. Shrinking any of it produces silent damage — a clipped
-            report, or squashed nav buttons — where a scrollbar is honest and recoverable. */
          .sidebar > * {
             flex-shrink: 0;
          }
@@ -331,7 +295,6 @@
             background: var(--hairline);
          }
 
-         /* ── nav buttons ── */
          .nav-btn {
             -webkit-app-region: no-drag;
             display: flex;
@@ -347,8 +310,8 @@
             font-size: 12px;
             font-weight: 600;
             letter-spacing: 0.5px;
-            line-height: 15px; /* fixed so the CN<->EN font-metric change during the fade can't re-center the label */
-            white-space: nowrap; /* never wrap (e.g. long "Performance Tweak"), which would change the row height */
+            line-height: 15px;
+            white-space: nowrap;
             cursor: pointer;
             text-align: left;
             transition: var(--transition);
@@ -376,7 +339,6 @@
             opacity: 0.4;
             pointer-events: none;
          }
-         /* detection highlight — quiet pulse emphasis */
          .nav-btn.highlight {
             border-color: var(--primary-deep);
             color: var(--ink-strong);
@@ -396,7 +358,6 @@
             }
          }
 
-         /* patch button accent states */
          .nav-btn.patch.ready {
             border-color: var(--primary-deep);
             color: var(--primary);
@@ -424,7 +385,6 @@
             height: 11px;
             opacity: 0.55;
          }
-         /* "SOON" tag on not-yet-available nav entries (e.g. Utilities) */
          .nav-btn .tag-soon {
             margin-left: auto;
             font-size: 9px;
@@ -440,17 +400,6 @@
             margin-top: auto;
          }
 
-         /* ── play button ──
-            Sits above the verification report so the sidebar reads top-down as one sentence:
-            "launch the game — here is why you can (or cannot)".
-
-            Disabled it is a plain panel row, indistinguishable in weight from the report below it.
-            Enabled it INVERTS to --primary/--on-primary, which is the strongest emphasis a
-            black-and-white system has and flips correctly in both themes (white-on-black in dark,
-            black-on-white in light). Deliberately NOT the amber --verify-fix-bg: that colour means
-            "action needed" everywhere else in this panel, and using it for "ready" would read as a
-            fifth verify state. No green either — see the design tokens above; this shell is
-            monochrome apart from the verdict dots. */
          .play-btn {
             display: flex;
             align-items: center;
@@ -493,14 +442,6 @@
             pointer-events: none;
          }
 
-         /* ── setup verification panel ──
-            One row per condition Dota 2 validates at launch, grouped in a container that reads as a
-            single report sitting directly above the status card — so a red row is visibly the reason
-            the pill below it is not green. Hidden entirely until a sweep has run.
-
-            Each row names its subject on the left and its verdict on the right. Colour is
-            reinforcement, never the only signal: the verdict word carries the same meaning for a
-            colour-blind user. */
          .verify-panel {
             display: none;
             flex-direction: column;
@@ -513,9 +454,6 @@
          .verify-panel.show {
             display: flex;
          }
-         /* Dota 2 is running: the rows still report the verdict, but their panels open repairs that
-            cannot touch a package the game has open. Dimmed rather than hidden — the report is the
-            reason the user is looking at the sidebar in the first place. */
          .verify-panel.is-locked .verify-item {
             pointer-events: none;
             opacity: 0.55;
@@ -566,19 +504,9 @@
             overflow: hidden;
             text-overflow: ellipsis;
          }
-         /* The verdict is the SAME chip component as the status badge below (.status-badge.sb-sm):
-            one icon + one word, tinted per state. It replaced a dot + a bare caps word, so a row's
-            verdict now reads exactly like the pill's — and a verdict that changes between sweeps
-            rolls over instead of silently substituting itself. The row label stays in normal ink
-            even on a failure: two red things in one row is shouting, and the chip already says it.
-            Colour is still never the only signal — the word rides inside the chip. */
          .verify-head .status-badge {
             padding: 0 4px;
          }
-         /* ── process elevation modal ── */
-         /* Amber only when something WAS found. Opened on a clean machine this dialog is a
-            "how it works" explainer, and a permanent warning glyph is what made the whole feature
-            read as a fault. */
          .elev-ico {
             color: var(--mute);
          }
@@ -599,7 +527,6 @@
             color: var(--verify-warn);
             border-left-color: var(--verify-warn);
          }
-         /* The previous reading, while the re-check triggered on open is still running. */
          .elev-detected.rechecking {
             opacity: 0.45;
          }
@@ -625,9 +552,6 @@
          .elev-steps li {
             margin-bottom: 4px;
          }
-         /* The repair action, shown inside the elevation modal beside what it actually does.
-            Matches the sibling .ob-btn's flex so the two share the row evenly; when it is hidden
-            (nothing repairable) Close simply takes the full width. */
          .confirm-actions .verify-fix {
             flex: 1;
             text-align: center;
@@ -656,7 +580,6 @@
             filter: none;
          }
 
-         /* ── status card ── */
          .status-card {
             display: flex;
             align-items: center;
@@ -667,19 +590,7 @@
             border-radius: var(--r-sm);
          }
 
-         /* ── status badge ──────────────────────────────────────────────────────────────
-            The mod-status verdict as one chip. Icon and label sit in clipping slots and ROLL
-            over on every change (blur through the swap), so a transition is felt rather than
-            silently substituted — the old dot changed colour with nothing to notice.
-
-            The tint reads from the SAME --verify-* tokens the check rows use, so the chip and
-            the rows below it can never disagree, and theme.css's light-mode darkening of those
-            tokens applies here for free. The icon carries the verdict too: never colour alone.
-            --sb-ink/line/fill are the per-kind knobs; [data-kind] is pushed from C# off the
-            culture-invariant enum. */
          .status-badge {
-            /* neutral is also the fallback: an unrecognised kind renders as a plain chip
-               rather than an unstyled one. */
             --sb-ink: var(--body);
             --sb-line: var(--hairline-strong);
             --sb-fill: transparent;
@@ -702,13 +613,10 @@
                background-color 0.3s ease,
                border-color 0.3s ease;
          }
-         /* The footer chip is the only one that stretches; the verdict chips in the verification
-            rows above size to their content. */
          .status-card > .status-badge {
             flex: 1;
             min-width: 0;
          }
-         /* Compact modifier: same component, row-sized, verdict word in the panel's small caps. */
          .status-badge.sb-sm {
             gap: 5px;
             height: 20px;
@@ -744,8 +652,6 @@
             --sb-fill: color-mix(in srgb, var(--sb-ink) 10%, transparent);
          }
 
-         /* Breathing wash while a check is in flight — behind the content, tinted by
-            currentColor so it follows the kind without a second token. */
          .sb-pulse {
             position: absolute;
             inset: 0;
@@ -760,8 +666,6 @@
             animation: spin 1s linear infinite;
          }
 
-         /* Roll slots. The EXITING node is pulled out of flow (absolute) so the outgoing and
-            incoming content never sit side by side mid-swap. */
          .sb-roll {
             position: relative;
             display: flex;
@@ -785,9 +689,6 @@
             overflow: hidden;
             text-overflow: ellipsis;
          }
-         /* will-change lives on the animating classes only, and sbSwap drops .sb-in when the roll
-            finishes — otherwise every settled chip would hold a compositing layer for the life of
-            the window, and there are up to four of them on screen. */
          .sb-in,
          .sb-out {
             will-change: transform, filter;
@@ -854,8 +755,6 @@
                filter: blur(6px);
             }
          }
-         /* Deliberately shallow: the wash underneath is already 5-6% ink, and a peak much past
-            this turned the chip into a solid grey block in BOTH themes rather than a breath. */
          @keyframes sb-pulse {
             0%,
             100% {
@@ -867,8 +766,6 @@
                transform: scale(1.04);
             }
          }
-         /* The roll itself is skipped in JS (the swap becomes instant); this covers the two
-            looping decorations, which no script gates. */
          @media (prefers-reduced-motion: reduce) {
             .status-badge .sb-pulse,
             .status-badge .sb-icon svg {
@@ -895,20 +792,16 @@
             color: var(--ink);
             background: var(--panel-hover);
          }
-         /* send() already refuses a click on .is-disabled; this makes the refusal visible. */
          .status-refresh.is-disabled {
             opacity: 0.4;
             pointer-events: none;
          }
-         /* No spinner on the refresh button any more — the badge itself reports "checking",
-            and two spinners 8px apart read as two separate operations. */
          @keyframes spin {
             to {
                transform: rotate(360deg);
             }
          }
 
-         /* ── socials + version ── */
          .footer-row {
             display: flex;
             align-items: center;
@@ -961,14 +854,9 @@
             letter-spacing: 0.5px;
          }
 
-         /* ════════════════════════════════ CONTENT ════════════════════════════════ */
          .content {
             flex: 1;
             min-width: 0;
-            /* min-height:0 lets this flex child shrink below its content size, and overflow-y
-               makes the page scroll instead of cropping its lower cards when the viewport is
-               shorter than the content (small screens / high scale). No scrollbar appears when
-               it fits, so normal screens are unchanged. */
             min-height: 0;
             overflow-y: auto;
             display: flex;
@@ -976,7 +864,6 @@
             gap: var(--sp-3);
          }
 
-         /* ── banner carousel ── */
          .carousel {
             height: 240px;
             border-radius: var(--r-md);
@@ -1026,7 +913,6 @@
             color: var(--ink);
             text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
          }
-         /* arrows (only when multiple slides) */
          .car-arrow {
             -webkit-app-region: no-drag;
             position: absolute;
@@ -1061,7 +947,6 @@
             background: var(--accent-dim);
             border-color: var(--primary);
          }
-         /* dots */
          .car-dots {
             position: absolute;
             right: 14px;
@@ -1083,9 +968,8 @@
             box-shadow: 0 0 6px var(--primary);
          }
 
-         /* ── latest updates strip (new Skin Selector sets, fed by loadLatestUpdates) ── */
          .updates-strip {
-            display: none; /* revealed by loadLatestUpdates() only when cards exist */
+            display: none;
             flex-shrink: 0;
          }
          .updates-strip.show {
@@ -1116,13 +1000,12 @@
             display: flex;
             gap: var(--sp-2);
             overflow-x: auto;
-            scrollbar-width: none; /* arrows (Skin Selector style) instead of a scrollbar */
+            scrollbar-width: none;
             scroll-behavior: smooth;
          }
          .updates-row::-webkit-scrollbar {
             display: none;
          }
-         /* hover-revealed side arrows — mirrors .carousel-arrow in hero_gallery.html */
          .updates-arrow {
             -webkit-app-region: no-drag;
             position: absolute;
@@ -1139,7 +1022,7 @@
             backdrop-filter: blur(4px);
             border: 1px solid var(--hairline-strong);
             border-radius: var(--r-md);
-            color: #fff; /* over artwork — stays white ink on dark scrim in both themes */
+            color: #fff;
             cursor: pointer;
             opacity: 0;
             transition: var(--transition);
@@ -1191,7 +1074,6 @@
          .update-card:hover img {
             transform: scale(1.04);
          }
-         /* caption over artwork — stays dark ink-on-scrim in both themes */
          .uc-cap {
             position: absolute;
             left: 0;
@@ -1224,7 +1106,6 @@
             letter-spacing: 0.1em;
          }
 
-         /* ── promo cards row (Install image card + News card) ── */
          .cards {
             display: flex;
             gap: var(--sp-3);
@@ -1243,10 +1124,8 @@
             background: var(--panel-2);
             cursor: pointer;
             transition: var(--transition);
-            /* <button> does not inherit body font — pin it so card text stays JetBrains Mono */
             font-family: var(--sans);
          }
-         /* signature corner brackets */
          .promo-card::before,
          .promo-card::after {
             content: "";
@@ -1347,7 +1226,6 @@
             letter-spacing: 0.3px;
             color: var(--body);
          }
-         /* version badges on the What's New card */
          .promo-card .pc-vers {
             display: flex;
             flex-wrap: wrap;
@@ -1384,13 +1262,9 @@
             color: var(--ink);
             transform: translateX(3px);
          }
-         /* install card — primary emphasis */
          .promo-card.install {
             border-color: var(--primary);
          }
-         /* inset the banner image from the card edge so the card surface frames it.
-            Explicit width/height (not auto) are required: an absolutely-positioned <img>
-            with auto size renders at its intrinsic resolution and overflows the card. */
          .promo-card.install .bg {
             inset: 10px;
             width: calc(100% - 20px);
@@ -1402,9 +1276,9 @@
             background: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.72) 100%);
          }
          .promo-card.install .pc-ico {
-            color: var(--primary); /* white download glyph */
+            color: var(--primary);
             border-color: var(--primary);
-            background: var(--canvas); /* solid black box for contrast */
+            background: var(--canvas);
          }
          .promo-card.is-disabled {
             opacity: 0.4;
@@ -1414,15 +1288,14 @@
          .promo-card:active {
             transform: translateY(1px);
          }
-         /* brand logo centered in the What's New card's open space (above the title) */
          .promo-card.news .pc-logo {
             position: relative;
             z-index: 2;
             align-self: center;
             height: 66px;
             width: auto;
-            margin-bottom: 12px; /* breathing room above the title */
-            color: var(--ink); /* currentColor → white glyph (no background square) */
+            margin-bottom: 12px;
+            color: var(--ink);
             opacity: 0.95;
             pointer-events: none;
             filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.5));
@@ -1432,8 +1305,6 @@
             opacity: 1;
             transform: scale(1.05);
          }
-         /* News card: center the logo + title + subtitle group vertically;
-            keep the corner icon/chevron pinned at the top (out of flow). */
          .promo-card.news .pc-body {
             justify-content: center;
             align-items: center;
@@ -1450,7 +1321,6 @@
             text-align: center;
          }
 
-         /* ── dota running warning ── */
          .warning {
             display: none;
             align-items: center;
@@ -1485,7 +1355,6 @@
             }
          }
 
-         /* ── dota 2 path found (transient green confirmation) ── */
          .path-found {
             display: none;
             align-items: center;
@@ -1518,7 +1387,6 @@
             min-width: 0;
          }
 
-         /* ── console (code surface → mono) ── */
          .console {
             flex: 1;
             min-height: 0;
@@ -1646,8 +1514,6 @@
          .log-line.progress .msg {
             color: #8cc2ff;
          }
-         /* Highlighted heads-up line (e.g. the region/CDN notice on startup). A boxed,
-            amber-accented block so it stands out from the thin-bar log stream. */
          .log-line.notice {
             background: rgba(232, 200, 120, 0.07);
             border: 1px solid rgba(232, 200, 120, 0.24);
@@ -1671,7 +1537,6 @@
             }
          }
 
-         /* ── patch dropdown ── */
          .menu {
             position: fixed;
             z-index: 200;
@@ -1734,15 +1599,11 @@
             }
          }
 
-         /* ════════════════════════════════ WHAT'S NEW MODAL ════════════════════════════════ */
          .modal-overlay {
             position: fixed;
             inset: 0;
             z-index: 400;
             display: none;
-            /* "safe center" + scroll: centered when the modal fits, but top-aligned and
-               scrollable when it's taller than the viewport, so its footer/buttons stay
-               reachable instead of being cropped off-screen (small screens / high scale). */
             align-items: safe center;
             justify-content: center;
             overflow-y: auto;
@@ -1938,10 +1799,6 @@
             border-color: var(--primary-deep);
          }
 
-         /* ════════════════════════════════ CONFIRM MODAL ════════════════════════════════ */
-         /* Shares the .modal-overlay / .modal shell with What's New; adds a centered
-            icon-led body + action row. Used for the Skin Selector beta gate (replaces the
-            native Yes/No MessageBox). Monochrome per the shipped design system. */
          .modal.confirm {
             width: 420px;
             border-top: 2px solid var(--primary);
@@ -1984,7 +1841,6 @@
             color: var(--body);
             white-space: pre-line;
          }
-         /* signature cut-corner callout for the IMPORTANT note */
          .confirm-note {
             position: relative;
             width: 100%;
@@ -2009,11 +1865,6 @@
             letter-spacing: 1.5px;
             color: var(--body);
          }
-         /* ── launch panel ──
-            Same confirm shell, but the body reports ongoing work instead of asking a question: a ring
-            while waiting on something with no measurable progress (Steam, the game starting), and a
-            bar when there genuinely is a percentage (a package rebuild). Monochrome — the ring is the
-            single --primary accent against the hairline track. */
          .launch-spinner {
             width: 44px;
             height: 44px;
@@ -2068,7 +1919,6 @@
             text-align: center;
          }
 
-         /* ── yellow "warn" accent variant (feature-unavailable notice) ── */
          .confirm--warn .modal-title .led {
             background: var(--warn-accent);
             box-shadow: 0 0 6px var(--warn-accent);
@@ -2090,7 +1940,6 @@
             box-shadow: 0 0 0 3px var(--warn-glow);
          }
 
-         /* ── install-failure variant: red accent + embedded log excerpt ── */
          .modal.confirm.failure {
             border-top-color: var(--error);
          }
@@ -2129,7 +1978,6 @@
          .failure-log-empty {
             color: var(--mute);
          }
-         /* success variant of the install-log modal (opened via the toast's Show Log button) */
          .confirm-ico .ico-ok {
             display: none;
          }
@@ -2153,9 +2001,6 @@
             border-left-color: var(--success);
          }
 
-         /* ════════════════════════════════ TOASTS ════════════════════════════════ */
-         /* Bottom-right notification cards. Replaces the system-tray balloon for in-app
-            confirmations (e.g. "Patch update completed!") so feedback matches the shell. */
          .toast-host {
             position: fixed;
             right: 18px;
@@ -2182,7 +2027,6 @@
             box-shadow: 0 18px 50px rgba(0, 0, 0, 0.66);
             animation: toastIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
          }
-         /* corner brackets — match promo cards */
          .toast::before,
          .toast::after {
             content: "";
@@ -2282,10 +2126,6 @@
             }
          }
 
-         /* ════════════════════════════════ ONBOARDING GUIDE ════════════════════════════════ */
-         /* DOM-native replacement for the GDI overlay (which cannot screenshot WebView2 nor
-            resolve DOM elements). Spotlight = a transparent rect with a huge box-shadow that
-            dims everything around the highlighted control while it stays visible underneath. */
          .onboard {
             position: fixed;
             inset: 0;
@@ -2459,7 +2299,6 @@
          .ob-btn.primary:hover {
             box-shadow: 0 0 16px var(--primary-glow);
          }
-         /* disabled while a confirm countdown runs */
          .ob-btn.primary:disabled {
             opacity: 0.45;
             cursor: default;
@@ -2469,7 +2308,6 @@
             box-shadow: none;
          }
 
-         /* ── scrollbar ── */
          ::-webkit-scrollbar {
             width: 8px;
          }
@@ -2486,7 +2324,6 @@
       </style>
    </head>
    <body>
-      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg), used via <use href="#ardysaGlyph"> -->
       <svg width="0" height="0" style="position: absolute" aria-hidden="true">
          <defs>
             <g id="ardysaGlyph">
@@ -2504,10 +2341,8 @@
          </defs>
       </svg>
 
-      <!-- animated wave backdrop -->
       <div class="bgfx" aria-hidden="true"></div>
 
-      <!-- ═══════════════════ TITLE BAR ═══════════════════ -->
       <header id="titlebar">
          <div class="brand">
             <span class="glyph">
@@ -2596,9 +2431,7 @@
          </div>
       </header>
 
-      <!-- ═══════════════════ SHELL ═══════════════════ -->
       <div class="shell">
-         <!-- ─────────── SIDEBAR ─────────── -->
          <aside class="sidebar notch">
             <div class="group">
                <div class="group-label" data-i18n="shell.group.detectPath">Detect Path</div>
@@ -2731,7 +2564,6 @@
                   </svg>
                   <span data-i18n="shell.nav.performanceTweak">Performance Tweak</span>
                </button>
-               <!-- Utilities page not built yet — button ships visibly disabled with a SOON tag -->
                <button id="btn-utilities" class="nav-btn is-disabled" disabled>
                   <svg
                      class="ico"
@@ -2753,9 +2585,6 @@
 
             <div class="sb-spacer"></div>
 
-            <!-- Ships disabled: nothing has been verified yet at first paint, and a button that is
-                 clickable before the first status sweep would let the user launch an install AMT has
-                 not checked. setPlayState() enables it. -->
             <button
                id="btn-play"
                class="play-btn is-disabled"
@@ -2769,12 +2598,9 @@
                <span data-i18n="play.button">PLAY DOTA 2</span>
             </button>
 
-            <!-- Populated by setSetupChecks() from C#; empty and hidden until the first sweep. -->
             <div id="verify-panel" class="verify-panel"></div>
 
             <div class="status-card">
-               <!-- Icon and label are swapped by renderStatus(); the seeded neutral icon keeps the
-                    chip balanced before the first sweep, and data-key stops it re-animating. -->
                <span
                   id="status-badge"
                   class="status-badge"
@@ -2860,7 +2686,6 @@
             </div>
          </aside>
 
-         <!-- ─────────── CONTENT ─────────── -->
          <main class="content">
             <div id="carousel" class="carousel">
                <div id="carousel-track" class="carousel-track"></div>
@@ -2901,7 +2726,6 @@
                <div id="car-dots" class="car-dots"></div>
             </div>
 
-            <!-- Latest hero-set additions (hidden until loadLatestUpdates pushes cards) -->
             <div id="updates-strip" class="updates-strip">
                <div class="updates-head">
                   <span class="updates-title" data-i18n="heroGallery.latestUpdates"
@@ -3113,7 +2937,6 @@
          </main>
       </div>
 
-      <!-- ═══════════════════ PATCH MENU ═══════════════════ -->
       <div id="patch-menu" class="menu">
          <button class="menu-item" onclick="patchMenuAction('patchApply')">
             <svg
@@ -3164,7 +2987,6 @@
          </button>
       </div>
 
-      <!-- ═══════════════════ WHAT'S NEW MODAL ═══════════════════ -->
       <div id="news-modal" class="modal-overlay" onclick="onNewsBackdrop(event)">
          <div class="modal" role="dialog" aria-modal="true" aria-label="What's New">
             <div class="modal-head">
@@ -3239,7 +3061,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════ CONFIRM MODAL ═══════════════════ -->
       <div id="confirm-modal" class="modal-overlay" onclick="onConfirmBackdrop(event)">
          <div
             class="modal confirm"
@@ -3312,14 +3133,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════ PROCESS ELEVATION MODAL ═══════════════════
-           Opened from the Process Elevation row. Static markup with data-i18n so it re-translates
-           on a language switch like the rest of the shell; only the detected-state line is filled
-           in from C#. Information only — no action, because the fix is outside AMT. -->
-      <!-- ═══════════════════ PACKAGE SYNC MODAL ═══════════════════
-           Opened from the Package Sync row. Explains why the game rejects the package and offers the
-           repair, because that repair rebuilds the whole package and takes minutes — long enough that
-           starting it from a row click with no warning would be a surprise, not a fix. -->
       <div id="sync-modal" class="modal-overlay" onclick="onPackageSyncBackdrop(event)">
          <div
             class="modal confirm"
@@ -3373,7 +3186,6 @@
                   launch.
                </div>
 
-               <!-- The measured finding for this install, filled in from the sweep. -->
                <div id="sync-detail" class="elev-detected found"></div>
 
                <div class="elev-steps">
@@ -3415,10 +3227,6 @@
          </div>
       </div>
 
-      <!-- Launch panel. Covers the gap between pressing Play and the game appearing, which is neither
-           instant nor always successful: Steam may be updating, the package may need rebuilding first,
-           and a cold start can take minutes. No backdrop click-to-close — the flow behind it is doing
-           real work to the install, so leaving is a deliberate act via the button. -->
       <div id="launch-modal" class="modal-overlay">
          <div
             class="modal confirm"
@@ -3439,9 +3247,6 @@
                <div id="launch-bar" class="launch-bar"><span id="launch-bar-fill"></span></div>
             </div>
             <div class="confirm-actions">
-               <!-- Only rendered on the one step that asks a question instead of reporting progress:
-                    Steam has just updated Dota 2, the package has been rebuilt, and starting the
-                    game is the user's call. Hidden (and unlabelled) for every other state. -->
                <button
                   id="launch-confirm"
                   class="ob-btn primary"
@@ -3518,7 +3323,6 @@
                   the game no longer reads the files AMT patched — so your mods stop working.
                </div>
 
-               <!-- What AMT found. Amber when something was detected, muted when nothing was. -->
                <div id="elevation-detected" class="elev-detected"></div>
 
                <div class="elev-steps">
@@ -3562,7 +3366,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════ INSTALL FAILURE MODAL ═══════════════════ -->
       <div id="failure-modal" class="modal-overlay" onclick="onFailureBackdrop(event)">
          <div
             class="modal confirm failure"
@@ -3652,10 +3455,8 @@
          </div>
       </div>
 
-      <!-- ═══════════════════ TOAST HOST ═══════════════════ -->
       <div id="toast-host" class="toast-host" aria-live="polite"></div>
 
-      <!-- ═══════════════════ ONBOARDING GUIDE ═══════════════════ -->
       <div id="onboard" class="onboard" aria-hidden="true">
          <div id="onboard-spot" class="onboard-spot"><span class="onboard-glow"></span></div>
          <div id="onboard-card" class="onboard-card">
@@ -3691,19 +3492,15 @@
          "use strict";
          const MAX_LINES = 500;
 
-         /* CDN images marked data-src get a per-launch cache-buster so swapping
-            the file on the CDN shows up next app start without a rebuild */
          document.querySelectorAll("img[data-src]").forEach((img) => {
             img.src = img.dataset.src + "?t=" + Date.now();
          });
 
-         /* ════════ JS → C# bridge ════════ */
          function post(type, data = {}) {
             if (window.chrome && window.chrome.webview) {
                window.chrome.webview.postMessage(Object.assign({ type }, data));
             }
          }
-         /* generic button → message; stop drag/menu side-effects */
          function send(type, ev) {
             if (ev) ev.stopPropagation();
             hidePatchMenu();
@@ -3726,10 +3523,6 @@
             post("copyConsole", { text });
          }
 
-         /* ════════ C# → JS API ════════ */
-         /* Elements seeded with data-i18n only for their PLACEHOLDER text (version, status) get
-            rewritten by applyI18n on every language switch, which would stomp the live value pushed
-            from C#. Dropping the attribute on the first dynamic write hands ownership to the host. */
          function claimFromI18n(el) {
             if (el) el.removeAttribute("data-i18n");
             return el;
@@ -3739,7 +3532,6 @@
             claimFromI18n(document.getElementById("version")).textContent = v || "";
          }
 
-         /* C# → JS: override the install-card background from banner.json (cache-busted). */
          function setInstallCard(url) {
             const el = document.getElementById("install-card-bg");
             if (!el || !url) return;
@@ -3747,7 +3539,6 @@
             el.src = url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
          }
 
-         /* C# → JS: version badges on the What's New card + modal choices. */
          function setNewsVersions(payload) {
             const p = typeof payload === "string" ? JSON.parse(payload) : payload || {};
             if (p.app) {
@@ -3764,15 +3555,6 @@
             }
          }
 
-         /* ── status badge ──────────────────────────────────────────────────────────────────
-            The status chip: two slots (icon, label) whose contents roll over on every change.
-            Each swap animates the incoming node in and the outgoing one out — the outgoing node
-            is dropped on animationend, so nothing accumulates however often status is pushed.
-            Under prefers-reduced-motion the swap is instant instead (the exiting node is removed
-            immediately, since no animationend would ever fire to clean it up).
-
-            Lucide glyph paths, inlined: this shell has no runtime CDN dependency and must render
-            offline (see the bundled-assets test). */
          const SB_ICONS = {
             neutral: '<circle cx="12" cy="12" r="9" />',
             info: '<circle cx="12" cy="12" r="9" /><path d="M12 16v-4" /><path d="M12 8h.01" />',
@@ -3787,8 +3569,6 @@
          );
 
          function sbSwap(slot, node, key) {
-            // Guarded on an ELEMENT child, not the key alone: the seeded markup is a bare text
-            // node, so the very first push must always replace it and claim the slot.
             const prev = slot.lastElementChild;
             if (prev && slot.dataset.key === key) return;
             slot.dataset.key = key;
@@ -3814,16 +3594,11 @@
 
          function sbNode(html, text) {
             const span = document.createElement("span");
-            // Icons are literals from SB_ICONS above; the label is host/user-influenced text and
-            // therefore only ever goes in via textContent.
             if (html) span.innerHTML = html;
             else span.textContent = text;
             return span;
          }
 
-         /* Paints any badge: the footer status chip and the verification rows' verdict chips are
-            the same component. Pass text = null for an icon-only chip (the panel header's summary).
-            A badge with no label slot simply skips that swap. */
          function paintBadge(badge, kind, text, tooltip) {
             if (!badge) return;
             badge.dataset.kind = kind;
@@ -3842,7 +3617,6 @@
             if (label && text != null) sbSwap(label, sbNode(null, text), text);
          }
 
-         /* Badge skeleton for the chips this script creates (the seeded footer one is in markup). */
          function sbCreate(withLabel, extraClass) {
             const badge = document.createElement("span");
             badge.className = "status-badge sb-sm" + (extraClass ? " " + extraClass : "");
@@ -3864,7 +3638,6 @@
          }
 
          function renderStatus(kind, text, tooltip) {
-            // Claimed before the swap so a language switch can no longer stomp the pushed value.
             claimFromI18n(document.getElementById("status-label"));
             paintBadge(document.getElementById("status-badge"), kind, text, tooltip || "");
          }
@@ -3875,15 +3648,9 @@
          }
 
          function showChecking() {
-            // The previous status' tooltip must not linger over "Checking…".
             renderStatus("loading", window.t ? window.t("status.checking.text") : "Checking…", "");
          }
 
-         // Play button. Enabled only when C# says the install is genuinely ready to launch; the
-         // tooltip always carries the reason, so a greyed button explains itself instead of just
-         // refusing. Both strings arrive translated from C# (see MainFormWebView.SetPlayState), which
-         // is why the static data-i18n-title is dropped on the first push — leaving it would let the
-         // page's own translation pass overwrite the live reason on the next language switch.
          function setPlayState(payload) {
             const p = typeof payload === "string" ? JSON.parse(payload) : payload;
             const btn = document.getElementById("btn-play");
@@ -3899,9 +3666,6 @@
             btn.title = (p && p.reason) || "";
          }
 
-         // Launch panel. Driven entirely by C# (LaunchPresenter) — every string arrives translated,
-         // so this only reflects state. null hides it. The panel is deliberately not dismissible by
-         // clicking the backdrop: the flow behind it rewrites the installed package.
          function setLaunchPanel(payload) {
             const overlay = document.getElementById("launch-modal");
             if (!overlay) return;
@@ -3920,8 +3684,6 @@
             const cancel = document.getElementById("launch-cancel");
             const confirm = document.getElementById("launch-confirm");
 
-            // A step that waits for an answer is not working on anything: no spinner, no bar, and a
-            // primary button that says what it will do.
             const asking = !!(p.confirmLabel);
 
             if (heading) heading.textContent = p.heading || "";
@@ -3935,8 +3697,6 @@
                confirm.style.display = asking ? "" : "none";
             }
 
-            // A bar only when there is a real percentage behind it; otherwise the ring alone says
-            // "working" without inventing progress the flow cannot measure.
             const hasPercent = typeof p.percent === "number" && p.percent >= 0;
             if (bar) bar.classList.toggle("show", hasPercent && !p.isError);
             if (fill && hasPercent) fill.style.width = Math.min(100, Math.max(0, p.percent)) + "%";
@@ -3949,15 +3709,6 @@
             overlay.classList.add("show");
          }
 
-         // Setup verification panel. Every string arrives already translated from C# (same Loc
-         // catalog as the rest of the app), so this only builds nodes — textContent, never innerHTML,
-         // because the detail carries user-influenced text like registry paths and file names.
-         // Re-pushed by C# on a language change, so the panel never lags the rest of the UI.
-         //
-         // Rows are repainted IN PLACE and rebuilt only when the set of checks changes. That is what
-         // keeps the verdict chips honest: sbSwap animates a verdict that actually changed between
-         // sweeps and leaves an unchanged one alone, where a wholesale innerHTML rebuild would make
-         // the whole panel re-animate on every routine re-check.
          const VERIFY_KIND = { pass: "success", fail: "danger", advisory: "warning" };
 
          function setSetupChecks(payload) {
@@ -3971,8 +3722,6 @@
                panel.innerHTML = "";
                panel.dataset.rows = "";
                panel.classList.remove("show");
-               // Nothing to verify any more (folder detached, install removed). Drop the cache so an
-               // open modal falls back to its static explanation instead of sitting on "Checking…".
                _elevationDetail = "";
                _elevationFound = false;
                _elevationCanFix = false;
@@ -3984,9 +3733,6 @@
             const failed = checks.some((c) => c.state === "fail");
             const advisory = !failed && checks.some((c) => c.state === "advisory");
 
-            // Cached so a panel can be reopened without another sweep. Selected BY ID: more than one
-            // check now carries its own panel, so "the first one with a dialog" would silently start
-            // feeding the elevation modal whichever check happened to be declared first.
             const elevation = checks.find((c) => c.id === "NotForcedToRunAsAdmin") || {};
             _elevationDetail = elevation.detail || "";
             _elevationFound = !!elevation.detected;
@@ -3995,9 +3741,6 @@
             _syncDetail = sync.detail || "";
             _syncNeedsFix = sync.state === "fail";
 
-            // Header: title on the left, summary chip on the right — icon only, since the rows
-            // below spell out the words. It is the panel's own verdict, so the group reads at a
-            // glance before any individual row is scanned.
             const signature = checks.map((c) => c.id).join("|");
             if (panel.dataset.rows !== signature) {
                panel.innerHTML = "";
@@ -4034,10 +3777,6 @@
             checks.forEach((c, i) => {
                const item = rows[i];
                item.title = c.detail || "";
-               // Rows that carry their own explanation open it; the rest fall through to the
-               // Status Details dialog, where the file-level diagnostics live.
-               // Rows that carry their own panel open it; which panel is decided by the check, not
-               // by the flag alone, since more than one check now has something of its own to say.
                item.onclick = !c.hasOwnDialog
                   ? () => send("patchViewStatus")
                   : c.id === "ItemsGameInSync"
@@ -4053,33 +3792,20 @@
                );
             });
 
-            // The one repairable condition is the elevation compatibility flag, and its button lives
-            // in the elevation modal next to the explanation of what it does — a bare "Fix Setup" on
-            // the panel gave no clue which row it acted on.
             _elevationCanFix = p.canFix === true;
             _elevationFixLabel = p.fixLabel || "Fix Setup";
 
             panel.classList.add("show");
 
-            // An open modal is looking at the same data: this push IS the answer to the re-check it
-            // asked for on open, so it must repaint rather than keep showing the stale reading.
             if (document.getElementById("elevation-modal").classList.contains("show"))
                renderElevationModal();
          }
 
-         // ── Process Elevation modal ──
-         // Information only: the fix lives in Windows, not in AMT. Kept as its own dialog because
-         // the consequence (Dota 2 stops finding matches) is the part users need told, and a
-         // diagnostics list cannot carry it.
          let _elevationDetail = "";
          let _elevationFound = false;
          let _elevationCanFix = false;
          let _elevationFixLabel = "Fix Setup";
 
-         // ── Package Sync panel ──
-         // Its own dialog for the same reason the elevation row has one: the repair is a package
-         // rebuild that takes minutes, and starting that from a one-line row with no warning is not
-         // a fair thing to do to someone who clicked to find out what was wrong.
          let _syncDetail = "";
          let _syncNeedsFix = false;
 
@@ -4087,7 +3813,6 @@
             const box = document.getElementById("sync-detail");
             if (box) box.textContent = _syncDetail || "";
 
-            // The repair is only offered while there is something to repair.
             const fix = document.getElementById("sync-fix");
             if (fix) {
                fix.disabled = false;
@@ -4113,13 +3838,11 @@
 
          function packageSyncFix(ev) {
             const btn = document.getElementById("sync-fix");
-            if (btn) btn.disabled = true; // the rebuild takes minutes; do not let it be started twice
+            if (btn) btn.disabled = true;
             closePackageSyncModal();
             send("fixPackageSync", ev);
          }
 
-         // Paints the modal from the cached sweep. Split out of openElevationModal so the incoming
-         // re-check can repaint an already-open dialog through the exact same code path.
          function renderElevationModal() {
             const box = document.getElementById("elevation-detected");
             if (box) {
@@ -4129,14 +3852,10 @@
                box.style.display = _elevationDetail ? "block" : "none";
             }
 
-            // Amber icon only when something was actually found — see .elev-ico.
             document
                .getElementById("elevation-modal")
                .classList.toggle("found", _elevationFound === true);
 
-            // Offered only for the persistent compatibility flag, which AMT can clear from HKCU.
-            // A one-off "Run as administrator" launch has nothing to clear — the steps below are
-            // the whole fix there.
             const fix = document.getElementById("elevation-fix");
             if (fix) {
                fix.textContent = _elevationFixLabel;
@@ -4149,14 +3868,6 @@
             renderElevationModal();
             document.getElementById("elevation-modal").classList.add("show");
 
-            // Elevation is the one check whose answer changes WITHOUT AMT doing anything — the user
-            // just restarts Steam differently. Opening the dialog therefore re-runs the sweep instead
-            // of showing whatever the last status refresh happened to see; setSetupChecks repaints
-            // this dialog when the answer lands.
-            //
-            // The last reading stays on screen (dimmed) while that runs rather than being replaced by
-            // a "checking…" placeholder: if the push never arrives — folder detached, refresh threw —
-            // the user is left looking at a real previous answer instead of a stuck spinner.
             const box = document.getElementById("elevation-detected");
             if (box && _elevationDetail) box.classList.add("rechecking");
             send("refreshStatus");
@@ -4164,7 +3875,7 @@
 
          function elevationFix() {
             const fix = document.getElementById("elevation-fix");
-            if (fix) fix.disabled = true; // the repair re-checks status, which re-pushes the panel
+            if (fix) fix.disabled = true;
             send("fixSetup");
             closeElevationModal();
          }
@@ -4213,10 +3924,6 @@
             const running = on === true || on === "true";
             document.getElementById("warning").classList.toggle("show", running);
 
-            // While the game holds the install open, nothing in the sidebar can act on it. The nav
-            // buttons and Play are switched off from C#; these two are not part of that set and are
-            // turned off here so the whole panel reads consistently. The social and support links
-            // stay live — they touch nothing.
             const refresh = document.getElementById("status-refresh");
             if (refresh) refresh.classList.toggle("is-disabled", running);
 
@@ -4224,8 +3931,6 @@
             if (verify) verify.classList.toggle("is-locked", running);
          }
 
-         // Transient green confirmation shown when the Dota 2 install path is attached
-         // (startup auto-detect, saved path, or manual detect). Auto-hides after a few seconds.
          let _pathFoundTimer = null;
          function showPathFound(path) {
             const banner = document.getElementById("pathFoundBanner");
@@ -4237,12 +3942,6 @@
             _pathFoundTimer = setTimeout(() => banner.classList.remove("show"), 4000);
          }
 
-         /* A console line that describes a CURRENT condition rather than something that happened.
-            Written once and updated in place, so a warning the status sweep re-derives on every
-            refresh does not stack up; retracted by clearStickyLog once the condition is fixed.
-
-            Ordinary lines are history and are never touched again — these are the exception, and the
-            data-log-key attribute is what makes them findable. */
          function showStickyLog(key, text, category) {
             const body = document.getElementById("console-body");
             const existing = body.querySelector('[data-log-key="' + key + '"]');
@@ -4292,8 +3991,6 @@
             if (atBottom) body.scrollTop = body.scrollHeight;
          }
 
-         /* Localized console line: segJson carries i18n keys (see C# LogSegment / Logger.LogLocalized),
-            stored on the element so applyI18n can re-translate it live when the language changes. */
          function appendLogI18n(segJson, category) {
             const body = document.getElementById("console-body");
             const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
@@ -4310,8 +4007,6 @@
             bar.className = "bar";
             const msg = document.createElement("div");
             msg.className = "msg";
-            /* Pre-bootstrap fallback: show literal strings / raw keys instead of a blank line;
-               applyI18n re-translates via data-i18n-log once the localizer arrives. */
             msg.textContent = window.renderLogSegments
                ? window.renderLogSegments(segs)
                : segs
@@ -4330,14 +4025,10 @@
             document.getElementById("console-body").innerHTML = "";
          }
 
-         /* ════════ banner carousel ════════ */
          let _carSlides = [];
          let _carIndex = 0;
          let _carTimer = null;
 
-         /* C# → JS: Skin Selector "Latest Updates" cards. Payload shape lives in
-            SetUpdateResolver.SetUpdateCard (heroId/heroName/setThumbnail/daysAgo/...) — keep in sync.
-            Cards are built with createElement/textContent: hero names are remote data. */
          function loadLatestUpdates(payload) {
             const cards = typeof payload === "string" ? JSON.parse(payload) : payload;
             if (!Array.isArray(cards) || cards.length === 0) return;
@@ -4381,7 +4072,6 @@
             });
             document.getElementById("updates-count").textContent = cards.length + " new";
             document.getElementById("updates-strip").classList.add("show");
-            /* Property handlers (not addEventListener) so a repeat push can't stack duplicates. */
             row.onscroll = updatesArrowState;
             row.onwheel = function (e) {
                if (row.scrollWidth <= row.clientWidth) return;
@@ -4391,13 +4081,11 @@
             updatesArrowState();
          }
 
-         /* Pages the updates row left/right (dir = ±1); scroll-behavior:smooth animates it. */
          function updatesScroll(dir) {
             const row = document.getElementById("updates-row");
             row.scrollLeft += dir * Math.max(row.clientWidth - 80, 160);
          }
 
-         /* Hides each arrow at its end of the row, like the Skin Selector carousel. */
          function updatesArrowState() {
             const row = document.getElementById("updates-row");
             const max = row.scrollWidth - row.clientWidth;
@@ -4409,13 +4097,11 @@
                .classList.toggle("disabled", row.scrollLeft >= max - 2);
          }
 
-         /* C# → JS: single bundled-banner fallback (kept for when no R2 manifest is present). */
          function setBanner(dataUri) {
             if (!dataUri || _carSlides.length > 0) return;
             renderCarousel([{ image: dataUri, link: "", title: "" }]);
          }
 
-         /* C# → JS: R2 carousel slides [{ image, link, title }]. */
          function loadBanners(payload) {
             const slides = typeof payload === "string" ? JSON.parse(payload) : payload;
             if (!Array.isArray(slides) || slides.length === 0) return;
@@ -4438,8 +4124,6 @@
 
                const img = document.createElement("img");
                img.alt = s.title || "";
-               // A slide whose CDN image fails shows the panel surface + caption instead of the
-               // broken-image glyph (same guard the install card uses).
                img.onerror = () => {
                   img.style.display = "none";
                };
@@ -4496,8 +4180,6 @@
             if (_carSlides.length <= 1) return;
             if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)
                return;
-            // Don't advance while the window is hidden/minimized — the user would come back to a
-            // slide they never saw start.
             _carTimer = setInterval(() => {
                if (!document.hidden) carouselGo(_carIndex + 1);
             }, 5000);
@@ -4516,7 +4198,6 @@
             c.addEventListener("mouseleave", startCarouselAuto);
          })();
 
-         /* ════════ patch dropdown ════════ */
          function showPatchMenu() {
             const btn = document.getElementById("btn-patch");
             const menu = document.getElementById("patch-menu");
@@ -4530,7 +4211,6 @@
             document.getElementById("patch-menu").classList.remove("show");
          }
 
-         /* ════════ what's new modal ════════ */
          function openNewsModal(ev) {
             if (ev) ev.stopPropagation();
             const btn =
@@ -4565,18 +4245,13 @@
             }
          });
 
-         /* ════════ confirm modal (replaces native Yes/No MessageBox) ════════ */
-         /* C# → JS. payload = { id, eyebrow, heading, body, note, confirmText, cancelText }.
-            The result is posted back as { type:"shellModalResult", id, ok } and the C# side
-            resolves the awaiting Task. id ties the reply to the originating request. */
          let _confirmId = null;
-         let _confirmLocked = false; // true while the Continue countdown is running
+         let _confirmLocked = false;
          let _confirmCdTimer = null;
 
          function showShellConfirm(payload) {
             const p = typeof payload === "string" ? JSON.parse(payload) : payload || {};
             _confirmId = typeof p.id === "number" ? p.id : null;
-            // Accent variant (reset every time — the modal is reused across callers).
             document
                .getElementById("confirm-modal")
                .classList.toggle("confirm--warn", p.accent === "warn");
@@ -4598,7 +4273,6 @@
             const cancel = document.getElementById("confirm-cancel");
             cancel.textContent = p.cancelText || "Cancel";
 
-            // Reset any prior countdown state.
             if (_confirmCdTimer) {
                clearInterval(_confirmCdTimer);
                _confirmCdTimer = null;
@@ -4607,7 +4281,6 @@
             okBtn.disabled = false;
             okBtn.textContent = okLabel;
 
-            // Optional countdown: gate Continue for N seconds (e.g. the beta gate).
             const cd = parseInt(p.countdown, 10) || 0;
             if (cd > 0) {
                _confirmLocked = true;
@@ -4642,7 +4315,6 @@
 
          function resolveConfirm(ok) {
             if (!confirmActive()) return;
-            // Continue is blocked while the countdown runs; Cancel/close stay available.
             if (ok && _confirmLocked) return;
             if (_confirmCdTimer) {
                clearInterval(_confirmCdTimer);
@@ -4659,24 +4331,16 @@
             if (ev.target === ev.currentTarget) resolveConfirm(false);
          }
 
-         /* ════════ install log modal (complete + failure cards) ════════ */
-         /* C# → JS. payload = { title, body, lines: [{ t, c }] }. lines is the curated
-            InstallReport from the install run (simple user-facing steps, no URLs/paths);
-            when absent the modal falls back to an excerpt of the console. */
          function showInstallFailure(payload) {
             const p = typeof payload === "string" ? JSON.parse(payload) : payload || {};
             openInstallLog(p.title, p.body, "error", true, p.lines);
          }
 
-         /* C# → JS. Install-complete card: green accent, Done + Show Log actions; the log
-            excerpt stays hidden until Show Log is pressed. */
          function showInstallComplete(payload) {
             const p = typeof payload === "string" ? JSON.parse(payload) : payload || {};
             openInstallLog(p.title, p.body, "success", false, p.lines);
          }
 
-         /* variant: "error" (red accent) or "success" (green accent). withLog=false keeps the
-            log excerpt collapsed behind the Show Log action (install-complete card). */
          function openInstallLog(title, body, variant, withLog = true, reportLines = null) {
             const ok = variant === "success";
             const modal = document.querySelector("#failure-modal .modal");
@@ -4690,7 +4354,6 @@
             document.getElementById("failure-heading").textContent = title || "";
             document.getElementById("failure-text").textContent = body || "";
 
-            // Collapsed log (complete card) ↔ visible log (failure card / after Show Log).
             document.querySelector("#failure-modal .failure-log").style.display = withLog
                ? ""
                : "none";
@@ -4706,7 +4369,6 @@
             logBody.innerHTML = "";
 
             if (Array.isArray(reportLines) && reportLines.length > 0) {
-               // Curated install report from C# — the preferred source.
                reportLines.forEach((r) => {
                   const line = document.createElement("div");
                   line.className = "log-line " + (r.c || "default");
@@ -4720,7 +4382,6 @@
                   logBody.appendChild(line);
                });
             } else {
-               // Fallback: excerpt of the shell console (no report was collected).
                const all = [...document.querySelectorAll("#console-body .log-line")];
                let lines = ok
                   ? all.slice(-12)
@@ -4740,7 +4401,7 @@
                } else {
                   lines.forEach((l) => {
                      const clone = l.cloneNode(true);
-                     clone.removeAttribute("data-i18n-log"); // snapshot — don't re-translate live
+                     clone.removeAttribute("data-i18n-log");
                      logBody.appendChild(clone);
                   });
                }
@@ -4779,8 +4440,6 @@
             post("copyConsole", { text });
          }
 
-         /* ════════ toasts (replaces tray balloon for in-app feedback) ════════ */
-         /* C# → JS. payload = { title, message, variant: "success|error|info", timeout }. */
          const TOAST_ICONS = {
             success: '<path d="M20 6 9 17l-5-5" />',
             error: '<circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="13" /><line x1="12" y1="16" x2="12.01" y2="16" />',
@@ -4843,8 +4502,6 @@
             const timeout = typeof p.timeout === "number" && p.timeout > 0 ? p.timeout : 4000;
             timer = setTimeout(dismiss, timeout);
 
-            // Hovering holds the toast open (a long message must not vanish mid-read); leaving
-            // re-arms the full timeout.
             toast.addEventListener("mouseenter", () => {
                if (timer) {
                   clearTimeout(timer);
@@ -4856,7 +4513,6 @@
             });
          }
 
-         /* ════════ onboarding guide (DOM-native, replaces GDI overlay) ════════ */
          let _obSteps = [];
          let _obIndex = 0;
 
@@ -4864,7 +4520,6 @@
             return document.getElementById("onboard").classList.contains("show");
          }
 
-         /* C# → JS entry. payload = [{ target, title, desc, pad }] */
          function startOnboarding(payload) {
             _obSteps = typeof payload === "string" ? JSON.parse(payload) : payload;
             if (!Array.isArray(_obSteps) || _obSteps.length === 0) return;
@@ -4937,7 +4592,6 @@
             spot.style.width = rect.width + "px";
             spot.style.height = rect.height + "px";
 
-            // Place card: prefer right, then left, then below, then above the spotlight.
             const cw = card.offsetWidth || 300;
             const ch = card.offsetHeight || 190;
             const gap = 16;
@@ -4986,21 +4640,16 @@
             post("onboardingDone");
          }
 
-         /* ════════ window drag (titlebar) ════════ */
          document.getElementById("titlebar").addEventListener("mousedown", (e) => {
             if (onboardActive()) return;
             if (e.target.closest(".win-btn")) return;
             post("startDrag");
          });
 
-         /* keyboard: onboarding nav takes priority while active, else ESC closes patch menu */
          document.addEventListener("keydown", (e) => {
             if (confirmActive()) {
                if (e.key === "Escape") resolveConfirm(false);
                else if (e.key === "Enter") {
-                  // If a button in the modal has focus (e.g. the user tabbed to Cancel), let the
-                  // native Enter→click on THAT button win. Defaulting Enter to Continue here would
-                  // turn a deliberate Cancel into a Continue on a destructive-action gate.
                   const f = document.activeElement;
                   if (f && f.tagName === "BUTTON" && f.closest("#confirm-modal")) return;
                   e.preventDefault();

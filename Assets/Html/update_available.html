@@ -27,8 +27,6 @@
             box-sizing: border-box;
          }
 
-         /* Monochrome design system — mirrors whatsnew.html / main_shell.html:
-            white primary on black, JetBrains Mono, hairline borders, square corners. */
          :root {
             --canvas: #000000;
             --panel: #050505;
@@ -67,7 +65,6 @@
             border: 1px solid var(--hairline-strong);
          }
 
-         /* ── title bar ── */
          #titlebar {
             height: 40px;
             min-height: 40px;
@@ -127,7 +124,6 @@
             color: #fff;
          }
 
-         /* ── scrollable body ── */
          .container {
             flex: 1;
             min-height: 0;
@@ -135,8 +131,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* safe center: centered when it fits, top-aligned + scrollable when too tall at
-               high DPI, so the download cards are never clipped. */
             justify-content: safe center;
             padding: 26px 26px 22px;
          }
@@ -152,7 +146,6 @@
             }
          }
 
-         /* Badge */
          .badge {
             display: inline-block;
             padding: 4px 12px;
@@ -165,7 +158,6 @@
             margin-bottom: 12px;
          }
 
-         /* Title */
          .title {
             font-size: 14px;
             font-weight: 700;
@@ -175,7 +167,6 @@
             margin-bottom: 18px;
          }
 
-         /* Version info */
          .version-info {
             width: 100%;
             background: var(--panel);
@@ -209,8 +200,6 @@
             color: var(--ink);
          }
 
-         /* Delta check — installer installs open delta-first; this holds the spot the
-            "Update Now" card (or, failing that, the download links) will take. */
          .delta-check {
             display: flex;
             align-items: center;
@@ -240,7 +229,6 @@
             }
          }
 
-         /* Section label */
          .section-label {
             width: 100%;
             font-size: 9px;
@@ -251,7 +239,6 @@
             text-align: center;
          }
 
-         /* Download cards */
          .download-section {
             width: 100%;
             display: flex;
@@ -321,7 +308,6 @@
             height: 14px;
          }
 
-         /* Incremental update — the primary action, filled white */
          .download-card.primary {
             background: var(--primary);
             border-color: var(--primary);
@@ -343,8 +329,6 @@
             opacity: 0.7;
          }
 
-         /* Automatic update notice — replaces the old "Update Now" card. Same panel weight, no
-            hover/cursor affordance: it is information, not an action. */
          .auto-note {
             width: 100%;
             background: var(--panel);
@@ -367,7 +351,6 @@
             letter-spacing: 0.3px;
          }
 
-         /* Download / apply progress */
          .progress-box {
             width: 100%;
             background: var(--panel);
@@ -403,7 +386,6 @@
             text-overflow: ellipsis;
          }
 
-         /* Error line */
          .error-line {
             width: 100%;
             font-size: 10px;
@@ -413,7 +395,6 @@
             letter-spacing: 0.3px;
          }
 
-         /* ── footer ── */
          .footer {
             display: flex;
             align-items: center;
@@ -457,7 +438,6 @@
       </style>
    </head>
    <body>
-      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg) -->
       <svg width="0" height="0" style="position: absolute" aria-hidden="true">
          <defs>
             <g id="ardysaGlyph">
@@ -485,13 +465,10 @@
       </header>
 
       <div class="container">
-         <!-- Badge -->
          <div class="badge" data-i18n="updateAvail.badge">[ UPDATE AVAILABLE ]</div>
 
-         <!-- Title -->
          <div class="title" data-i18n="updateAvail.title">A NEW VERSION IS AVAILABLE</div>
 
-         <!-- Version info -->
          <div class="version-info">
             <div class="version-row">
                <span class="version-label" data-i18n="updateAvail.current">Current</span>
@@ -507,20 +484,16 @@
             </div>
          </div>
 
-         <!-- Delta check (installer installs open delta-first: links hidden while this runs) -->
          <div class="delta-check" id="deltaCheck" style="display: none">
             <div class="spinner"></div>
             <span data-i18n="updateAvail.checking">Calculating update size…</span>
          </div>
 
-         <!-- Automatic update notice (shown the moment the diff answers — there is no choice to make,
-              so this explains why instead of offering a button) -->
          <div class="auto-note" id="autoNote" style="display: none">
             <div class="auto-note-title" id="autoNoteTitle"></div>
             <div class="auto-note-desc" id="autoNoteDesc"></div>
          </div>
 
-         <!-- Progress (replaces the cards while the update downloads) -->
          <div class="progress-box" id="progressBox" style="display: none">
             <div class="progress-title" id="progressTitle">Downloading update...</div>
             <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
@@ -529,11 +502,9 @@
 
          <div class="error-line" id="errorLine" style="display: none"></div>
 
-         <!-- Download section -->
          <div class="section-label" id="downloadLabel" data-i18n="updateAvail.downloadSection">Download Latest Version</div>
 
          <div class="download-section" id="fullSection">
-            <!-- CDN Link -->
             <div class="download-card" onclick="openLink('cdn')" id="cdnCard">
                <div class="card-icon">
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -551,7 +522,6 @@
                </div>
             </div>
 
-            <!-- Website / GitHub Link -->
             <div class="download-card" onclick="openLink('github')" id="githubCard">
                <div class="card-icon">
                   <svg fill="currentColor" viewBox="0 0 24 24">
@@ -571,7 +541,6 @@
          </div>
       </div>
 
-      <!-- Footer -->
       <footer class="footer">
          <button class="btn-cancel" id="btnCancel" onclick="notNow()" data-i18n="updateAvail.notNow">Not Now</button>
       </footer>
@@ -595,16 +564,10 @@
                document.getElementById("githubDesc").textContent = data.githubFilename;
             }
 
-            // Automatic update (installer installs): hide the full-download links while the host
-            // diffs the install tree. Exactly one of setAutoUpdateNote / setDeltaUnavailable ends
-            // this state; the timer is the backstop so the user is never stranded with no action.
             if (data.deltaPending) {
                document.getElementById("deltaCheck").style.display = "flex";
                document.getElementById("fullSection").style.display = "none";
                document.getElementById("downloadLabel").style.display = "none";
-               // No way out while this runs either: the diff hashes the whole install tree, which is
-               // seconds of wide-open "click X and skip the update". The host refuses the close for
-               // exactly the same span.
                document.getElementById("btnCancel").style.display = "none";
                document.getElementById("btnClose").style.display = "none";
                deltaTimer = setTimeout(deltaTimedOut, 45000);
@@ -618,11 +581,6 @@
             }
          }
 
-         // ── Automatic update ──────────────────────────────────────────────────
-         // The host applies the update itself as soon as the diff succeeds — there is no button to
-         // start it and none to skip it. Whenever it can't (no manifest for this release, portable
-         // build, or a failed apply) the full-download cards below are the only offer, exactly as
-         // before, and the window is dismissible again.
 
          let deltaTimer = null;
 
@@ -645,13 +603,10 @@
             endDeltaCheck();
             document.getElementById("fullSection").style.display = "flex";
             document.getElementById("downloadLabel").style.display = "block";
-            // Nothing left to force — the manual links are the only route, so let the user leave.
             document.getElementById("btnCancel").style.display = "block";
             document.getElementById("btnClose").style.display = "flex";
          }
 
-         // Backstop: the host's diff should always answer, but if it never does, the window must not
-         // stay locked with no action in it. Tell the host so it stops refusing the close as well.
          function deltaTimedOut() {
             sendMessage({ type: "deltaTimeout" });
             setDeltaUnavailable();
@@ -663,9 +618,6 @@
             document.getElementById("fullSection").style.display = "none";
             document.getElementById("downloadLabel").style.display = "none";
             document.getElementById("errorLine").style.display = "none";
-            // Both ways out are removed while the update downloads: cancelling here would leave the
-            // user on the stale build this update exists to replace. The host refuses the close too
-            // (Alt+F4), and every failure path restores both controls.
             document.getElementById("btnCancel").style.display = "none";
             document.getElementById("btnClose").style.display = "none";
          }

@@ -46,8 +46,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* safe center: centered when it fits, top-aligned + scrollable when too tall at
-               high DPI, so the bottom buttons are never clipped. */
             justify-content: safe center;
             overflow-y: auto;
             user-select: none;
@@ -61,7 +59,6 @@
             text-align: center;
          }
 
-         /* Badge */
          .badge {
             display: inline-block;
             padding: 8px 20px;
@@ -74,7 +71,6 @@
             margin-bottom: 24px;
          }
 
-         /* Title */
          .title {
             font-size: 18px;
             font-weight: bold;
@@ -83,7 +79,6 @@
             letter-spacing: 0.5px;
          }
 
-         /* Brand mark */
          .brand-mark {
             width: 34px;
             height: 34px;
@@ -93,7 +88,6 @@
          }
          .brand-mark svg { width: 100%; height: 100%; display: block; }
 
-         /* Icon */
          .icon {
             font-size: 48px;
             margin-bottom: 20px;
@@ -112,7 +106,6 @@
             }
          }
 
-         /* Message */
          .message {
             font-size: 12px;
             color: var(--text-secondary);
@@ -125,7 +118,6 @@
             font-weight: bold;
          }
 
-         /* Buttons */
          .buttons {
             display: flex;
             gap: 16px;
@@ -168,7 +160,6 @@
             color: var(--text-secondary);
          }
 
-         /* Draggable Header */
          .drag-area {
             position: fixed;
             top: 0;
@@ -181,7 +172,6 @@
       </style>
    </head>
    <body>
-      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg) -->
       <svg width="0" height="0" style="position: absolute" aria-hidden="true">
          <defs>
             <g id="ardysaGlyph">

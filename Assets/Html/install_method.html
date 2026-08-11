@@ -10,7 +10,6 @@
             box-sizing: border-box;
          }
 
-         /* ── ardysamods.my.id monochrome tokens (shared with main_shell) ── */
          :root {
             --canvas: #000000;
             --panel: rgba(10, 10, 10, 0.9);
@@ -51,7 +50,6 @@
             border: 1px solid var(--hairline-strong);
          }
 
-         /* cut-corner notch utility */
          .notch {
             position: relative;
          }
@@ -69,7 +67,6 @@
             z-index: 2;
          }
 
-         /* ── title bar ── */
          #titlebar {
             height: 40px;
             min-height: 40px;
@@ -129,12 +126,9 @@
             color: #fff;
          }
 
-         /* ── body ── */
          .content {
             flex: 1;
             min-height: 0;
-            /* Scroll instead of cropping if the card is taller than the window (long localized
-               text / very small screen). No scrollbar shows when it fits. */
             overflow-y: auto;
             display: flex;
             flex-direction: column;
@@ -156,7 +150,6 @@
             gap: 12px;
          }
 
-         /* ── option card ── */
          .opt {
             -webkit-app-region: no-drag;
             position: relative;
@@ -237,7 +230,6 @@
             transform: translateY(1px);
          }
 
-         /* primary (recommended) emphasis */
          .opt.primary {
             box-shadow: inset 3px 0 0 var(--primary);
          }
@@ -261,7 +253,6 @@
             border: 1px solid var(--primary);
          }
 
-         /* ── manual-install card ── */
          [hidden] {
             display: none !important;
          }
@@ -306,7 +297,6 @@
             color: var(--body);
             transition: var(--transition);
          }
-         /* highlight only during an active OS drag (drop-only, not clickable) */
          .dropzone.drag {
             border-color: var(--primary);
             color: var(--ink);
@@ -334,7 +324,6 @@
             color: var(--mute);
          }
 
-         /* ── "or" divider ── */
          .or-divider {
             display: flex;
             align-items: center;
@@ -353,7 +342,6 @@
             background: var(--hairline-strong);
          }
 
-         /* ── download mirrors ── */
          .dl-section {
             -webkit-app-region: no-drag;
             display: flex;
@@ -416,7 +404,6 @@
       </style>
    </head>
    <body>
-      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg) -->
       <svg width="0" height="0" style="position: absolute" aria-hidden="true">
          <defs>
             <g id="ardysaGlyph">
@@ -426,7 +413,6 @@
          </defs>
       </svg>
 
-      <!-- ── title bar ── -->
       <header id="titlebar" onmousedown="maybeDrag(event)">
          <div class="brand">
             <span class="glyph">
@@ -444,7 +430,6 @@
          </div>
       </header>
 
-      <!-- ── body: choose method ── -->
       <main class="content" id="card-choose">
          <div class="lead" data-i18n="installMethod.lead">Choose how you want to install mods.</div>
 
@@ -483,7 +468,6 @@
          </div>
       </main>
 
-      <!-- ── body: manual import ── -->
       <main class="content" id="card-manual" hidden>
          <button class="back" onclick="showChoose()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -493,7 +477,6 @@
          </button>
          <div class="lead" data-i18n-html="installMethod.manual.lead">Import a VPK mods file (<b>pak01_dir.vpk</b>) from your computer.</div>
 
-         <!-- download ModsPack from mirrors (links come from R2 config/mods_download.json) -->
          <div class="dl-section">
             <div class="dl-label" data-i18n="installMethod.manual.download">Don't have the file? Download ModsPack</div>
             <div class="dl-row">
@@ -558,8 +541,6 @@
          function act(type) {
             sendMessage({ type });
          }
-         /* card switching: external file drops are handled host-side (C#), so the
-            two cards just toggle visibility and tell C# which card is active. */
          function showManual() {
             document.getElementById("card-choose").hidden = true;
             document.getElementById("card-manual").hidden = false;
@@ -570,13 +551,10 @@
             document.getElementById("card-choose").hidden = false;
             sendMessage({ type: "back" });
          }
-         /* C# flips the dropzone highlight during a host-handled OS drag. */
          function setDrag(on) {
             const dz = document.getElementById("dropzone");
             if (dz) dz.classList.toggle("drag", !!on);
          }
-         /* download links are injected by C# (setDownloadLinks) from R2 config; a button
-            stays disabled until its link arrives, and clicks open in the system browser. */
          var dlLinks = { mega: null, mediafire: null };
          function setDownloadLinks(links) {
             dlLinks = links || {};
@@ -589,7 +567,6 @@
             var url = dlLinks[which];
             if (url) sendMessage({ type: "open", url: url });
          }
-         /* drag only when not pressing a control */
          function maybeDrag(ev) {
             if (ev.target.closest(".win-btn, .opt, .dropzone, .back")) return;
             sendMessage({ type: "startDrag" });

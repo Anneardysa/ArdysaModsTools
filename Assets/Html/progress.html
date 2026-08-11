@@ -55,9 +55,6 @@
             position: relative;
          }
 
-         /* ════════════════════════════════════════
-            Animated Wave Background
-            ════════════════════════════════════════ */
          .animated-bg {
             position: fixed;
             inset: 0;
@@ -89,9 +86,6 @@
             }
          }
 
-         /* ════════════════════════════════════════
-            Main Layout — Side-by-Side
-            ════════════════════════════════════════ */
          .main-layout {
             display: flex;
             align-items: stretch;
@@ -102,7 +96,6 @@
             z-index: 1;
          }
 
-         /* Left side: progress */
          .progress-side {
             flex: 1;
             display: flex;
@@ -114,7 +107,6 @@
             position: relative;
          }
 
-         /* Right side: preview (hidden by default) */
          .preview-side {
             display: none;
             width: 520px;
@@ -128,9 +120,6 @@
             display: flex;
          }
 
-         /* ════════════════════════════════════════
-            Progress Ring (Left Side)
-            ════════════════════════════════════════ */
          .progress-ring-container {
             position: relative;
             width: 220px;
@@ -247,9 +236,6 @@
             content: "// ";
          }
 
-         /* ════════════════════════════════════════
-            Server Log
-            ════════════════════════════════════════ */
          .server-log {
             display: none;
             margin-top: 18px;
@@ -364,7 +350,6 @@
             animation: pulse 2s ease-in-out infinite;
          }
 
-         /* Corner Decorations — scoped to progress-side */
          .corner-decoration {
             position: absolute;
             width: 20px;
@@ -374,9 +359,6 @@
             pointer-events: none;
          }
 
-         /* ════════════════════════════════════════
-            Preview Panel (Right Side)
-            ════════════════════════════════════════ */
          .preview-header {
             display: flex;
             align-items: center;
@@ -409,7 +391,6 @@
             font-weight: 600;
          }
 
-         /* Search */
          .preview-search {
             padding: 12px 20px;
             flex-shrink: 0;
@@ -450,7 +431,6 @@
             color: var(--text-muted);
          }
 
-         /* Grid */
          .preview-grid-wrapper {
             flex: 1;
             overflow-y: auto;
@@ -463,7 +443,6 @@
             gap: 10px;
          }
 
-         /* Custom scrollbar */
          .preview-grid-wrapper::-webkit-scrollbar {
             width: 6px;
          }
@@ -481,7 +460,6 @@
             background: var(--text-muted);
          }
 
-         /* Hero Card */
          .hero-preview-card {
             position: relative;
             border-radius: 6px;
@@ -537,7 +515,6 @@
             letter-spacing: 0.5px;
          }
 
-         /* States */
          .preview-loading,
          .preview-error,
          .preview-empty {
@@ -605,7 +582,6 @@
             opacity: 0.6;
          }
 
-         /* Skeleton loader */
          .skeleton-card {
             border-radius: 6px;
             overflow: hidden;
@@ -629,9 +605,6 @@
             }
          }
 
-         /* ════════════════════════════════════════
-            Lightbox
-            ════════════════════════════════════════ */
          .lightbox {
             display: none;
             position: fixed;
@@ -671,9 +644,6 @@
             color: var(--text-secondary);
          }
 
-         /* ════════════════════════════════════════
-            Cancel Button (bottom center)
-            ════════════════════════════════════════ */
          .cancel-container {
             position: absolute;
             bottom: 28px;
@@ -712,11 +682,8 @@
    <body>
       <div class="animated-bg"></div>
 
-      <!-- Main Layout -->
       <div class="main-layout">
-         <!-- Left: Progress -->
          <div class="progress-side">
-            <!-- Corner decorations (scoped to progress container) -->
             <div
                class="corner-decoration"
                style="top: 16px; left: 16px; border-top: 1px solid; border-left: 1px solid"
@@ -744,10 +711,8 @@
             <div class="status working" id="status" data-i18n="progress.preparing">Preparing</div>
             <div class="substatus" id="substatus"></div>
 
-            <!-- Server Log (shown during multi-CDN download) -->
             <div class="server-log" id="serverLog"></div>
 
-            <!-- Download progress: 0/120MB or file count -->
             <div class="download-progress" id="downloadProgress" style="display: none">
                <span id="downloadedSize">0</span> / <span id="totalSize">0</span
                ><span id="progressUnit"> MB</span>
@@ -762,7 +727,6 @@
 
             <div class="credits" data-i18n="progress.madeWith">made with ❤️</div>
 
-            <!-- Cancel Button (scoped to progress container) -->
             <div class="cancel-container">
                <button class="cancel-btn" id="cancelBtn" onclick="requestCancel()" data-i18n="progress.cancel">
                   [ CANCEL ]
@@ -770,9 +734,7 @@
             </div>
          </div>
 
-         <!-- Right: Preview Panel (hidden by default) -->
          <div class="preview-side" id="previewSide">
-            <!-- Header -->
             <div class="preview-header">
                <div class="preview-title">
                   <span class="preview-title-text" data-i18n="progress.preview.title">ModsPack Preview</span>
@@ -780,7 +742,6 @@
                </div>
             </div>
 
-            <!-- Search -->
             <div class="preview-search">
                <div class="preview-search-wrapper">
                   <svg
@@ -806,9 +767,7 @@
                </div>
             </div>
 
-            <!-- Grid (scrollable) -->
             <div class="preview-grid-wrapper" id="previewGridWrapper">
-               <!-- Loading state (shown initially) -->
                <div class="preview-loading" id="previewLoading">
                   <div class="preview-loading-dots">
                      <div class="preview-loading-dot"></div>
@@ -819,7 +778,6 @@
                   <div class="preview-state-sub" data-i18n="progress.preview.loadingSub">Fetching hero skins from server...</div>
                </div>
 
-               <!-- Error state (hidden) -->
                <div class="preview-error" id="previewError" style="display: none">
                   <svg
                      class="preview-error-icon"
@@ -840,19 +798,16 @@
                   </div>
                </div>
 
-               <!-- Empty search state (hidden) -->
                <div class="preview-empty" id="previewEmpty" style="display: none">
                   <div class="preview-state-text" data-i18n="progress.preview.empty">No heroes found</div>
                   <div class="preview-state-sub" data-i18n="progress.preview.emptySub">Try a different search term</div>
                </div>
 
-               <!-- Hero grid (hidden until loaded) -->
                <div class="preview-grid" id="previewGrid" style="display: none"></div>
             </div>
          </div>
       </div>
 
-      <!-- Lightbox -->
       <div class="lightbox" id="lightbox" onclick="closeLightbox()">
          <div class="lightbox-content" onclick="event.stopPropagation()">
             <img class="lightbox-img" id="lightboxImg" src="" alt="" />
@@ -861,9 +816,6 @@
       </div>
 
       <script>
-         /* ════════════════════════════════════════
-            Existing Progress Functions (unchanged API)
-            ════════════════════════════════════════ */
          const circumference = 628.32;
 
          function updateProgress(percent) {
@@ -935,9 +887,6 @@
             }
          }
 
-         /* ════════════════════════════════════════
-            Server Log Functions
-            ════════════════════════════════════════ */
          function updateServerLog(servers) {
             const container = document.getElementById("serverLog");
             if (!servers || servers.length === 0) {
@@ -964,7 +913,6 @@
                .join("");
          }
 
-         /* Cancel via WebView2 message bridge */
          function requestCancel() {
             if (window.chrome && window.chrome.webview) {
                window.chrome.webview.postMessage("cancel");
@@ -976,56 +924,34 @@
             if (c) c.style.display = "none";
          }
 
-         /* ════════════════════════════════════════
-            Preview Panel Functions
-            ════════════════════════════════════════ */
          const IMAGE_BASE_URL =
             "https://raw.githubusercontent.com/Anneardysa/ArdysaMods/main/assets/updates/";
 
          let allHeroes = [];
          let currentFilter = "";
 
-         /**
-          * Initialize preview panel with hero data.
-          * Called from C# after fetching hero list from GitHub API.
-          * @param {Array<{name: string, file: string}>} heroes
-          */
          function initPreview(heroes) {
             allHeroes = heroes;
 
-            // Show the preview panel
             document.getElementById("previewSide").classList.add("visible");
 
-            // Update count
             document.getElementById("previewCount").textContent = heroes.length + " skins";
 
-            // Hide loading, show grid
             document.getElementById("previewLoading").style.display = "none";
             document.getElementById("previewGrid").style.display = "grid";
 
-            // Render
             renderHeroes(heroes);
 
-            // Wire up search
             document.getElementById("previewSearch").addEventListener("input", function () {
                currentFilter = this.value.toLowerCase().trim();
                filterHeroes();
             });
          }
 
-         /**
-          * Show the preview panel in loading state (before data arrives).
-          * Called from C# immediately to show the wider layout.
-          */
          function showPreviewLoading() {
             document.getElementById("previewSide").classList.add("visible");
          }
 
-         /**
-          * Show error state if preview data could not be fetched.
-          * Called from C# on fetch failure.
-          * @param {string} message
-          */
          function showPreviewError(message) {
             document.getElementById("previewSide").classList.add("visible");
             document.getElementById("previewLoading").style.display = "none";
@@ -1092,9 +1018,6 @@
             }
          }
 
-         /* ════════════════════════════════════════
-            Lightbox
-            ════════════════════════════════════════ */
          function openLightbox(hero) {
             const img = document.getElementById("lightboxImg");
             const name = document.getElementById("lightboxName");
@@ -1109,7 +1032,6 @@
             document.getElementById("lightboxImg").src = "";
          }
 
-         // ESC closes lightbox
          document.addEventListener("keydown", function (e) {
             if (e.key === "Escape") closeLightbox();
          });

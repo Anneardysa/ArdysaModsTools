@@ -63,7 +63,6 @@
             border: 1px solid var(--hairline-strong);
          }
 
-         /* title bar */
          #titlebar {
             height: 40px;
             min-height: 40px;
@@ -123,7 +122,6 @@
             color: #fff;
          }
 
-         /* body / list */
          .list {
             flex: 1;
             min-height: 0;
@@ -247,7 +245,6 @@
             text-underline-offset: 2px;
          }
 
-         /* loading / error state */
          .state {
             flex: 1;
             display: flex;
@@ -296,7 +293,6 @@
             border-color: var(--primary);
          }
 
-         /* footer */
          .footer {
             display: flex;
             align-items: center;
@@ -399,7 +395,6 @@
             if (e.key === "Escape") act("close");
          });
 
-         /* ── C# → JS: render the release list ── */
          function loadReleases(payload) {
             const rels = typeof payload === "string" ? JSON.parse(payload) : payload;
             const list = document.getElementById("list");
@@ -467,7 +462,6 @@
             return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
          }
 
-         /* ── compact, escape-first markdown renderer ── */
          function escapeHtml(s) {
             return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
          }

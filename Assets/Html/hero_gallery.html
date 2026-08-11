@@ -21,19 +21,8 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>Skin Selector</title>
       <style>
-         /* ════════════════════════════════════════════════════════════════════════════
-            SKIN SELECTOR — Hero Gallery
-            Monochrome terminal design system, mirrored from main_shell.html /
-            ardysamods.my.id. Black/white only, JetBrains Mono, 0px corners, signature
-            cut-corner notches + corner brackets, grid + wave backdrop.
 
-            Typography follows a golden-ratio hierarchy (φ ≈ 1.618):
-              10 → 11 → 13(base) → 16 → 21 — body leading is exactly 1.618.
-            ════════════════════════════════════════════════════════════════════════════ */
-
-         /* ─────────────────────────── design tokens ─────────────────────────── */
          :root {
-            /* surfaces */
             --canvas: #000000;
             --panel: rgba(10, 10, 10, 0.9);
             --panel-2: #050505;
@@ -42,42 +31,35 @@
             --hairline-strong: #333333;
             --dashed: rgba(136, 136, 136, 0.4);
 
-            /* single white accent */
             --primary: #ffffff;
             --on-primary: #000000;
             --primary-glow: rgba(255, 255, 255, 0.16);
             --accent-dim: rgba(255, 255, 255, 0.1);
             --wash: var(--wash);
 
-            /* text */
             --ink: #ffffff;
             --body: #888888;
             --mute: #444444;
 
-            /* type */
             --sans: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
             --mono: "JetBrains Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
-            /* golden-ratio type scale */
             --fs-overline: 10px;
             --fs-label: 11px;
             --fs-body: 13px;
             --fs-sub: 16px;
             --fs-head: 21px;
             --lh-tight: 1.2;
-            --lh-body: 1.618; /* golden leading */
+            --lh-body: 1.618;
             --ls-overline: 2px;
             --ls-label: 1px;
 
-            /* radius — sharp-cornered, signature notch */
             --r-sm: 0px;
             --r-md: 0px;
             --clip: 12px;
 
-            /* motion */
             --transition: all 0.18s ease;
 
-            /* spacing */
             --sp-1: 4px;
             --sp-2: 8px;
             --sp-3: 12px;
@@ -109,11 +91,10 @@
             font-size: var(--fs-body);
             line-height: var(--lh-body);
             min-height: 100vh;
-            padding-top: 44px; /* clear fixed titlebar */
+            padding-top: 44px;
             -webkit-font-smoothing: antialiased;
          }
 
-         /* ── animated wave backdrop (site .animated-bg signature) ── */
          .bgfx {
             position: fixed;
             inset: 0;
@@ -142,17 +123,14 @@
             .bgfx::before { animation: none; }
          }
 
-         /* ─────────────────────────── utilities ─────────────────────────── */
          .hidden { display: none !important; }
          .flex { display: flex !important; }
 
-         /* scrollbars */
          ::-webkit-scrollbar { width: 9px; height: 9px; }
          ::-webkit-scrollbar-track { background: var(--panel-2); }
          ::-webkit-scrollbar-thumb { background: var(--hairline-strong); border-radius: 0; }
          ::-webkit-scrollbar-thumb:hover { background: #555; }
 
-         /* animations reused by JS-rendered nodes */
          .animate-fade-in { animation: fadeIn 0.2s ease-out backwards; }
          .animate-scale-in { animation: scaleIn 0.2s ease-out; }
          .animate-slide-left { animation: slideLeft 0.25s ease-out; }
@@ -162,7 +140,6 @@
          @keyframes slideLeft { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
          @keyframes slideRight { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
 
-         /* generic buttons */
          .btn {
             display: inline-flex;
             align-items: center;
@@ -200,7 +177,6 @@
          }
          .btn.ghost { background: none; }
 
-         /* ════════════════════════════════ TITLE BAR ════════════════════════════════ */
          #titleBar {
             position: fixed;
             top: 0;
@@ -257,16 +233,13 @@
             color: #fff;
          }
 
-         /* ── announcement marquee (deliberate yellow notice — the one sanctioned
-            color accent, signalling a caution/notice in the chrome). Sits just to
-            the right of the brand "Beta" tag. ── */
          .tb-marquee {
             flex: 0 1 440px;
             min-width: 0;
             display: flex;
             justify-content: flex-start;
             margin-left: var(--sp-5);
-            pointer-events: none; /* let title-bar drag pass through */
+            pointer-events: none;
          }
          .tb-marquee-inner {
             position: relative;
@@ -276,14 +249,10 @@
             overflow: hidden;
             display: flex;
             align-items: center;
-            /* Demoted from a solid amber block: this is a passive, permanent disclaimer, so it
-               must not outrank the page title or the primary action. Amber ink on the panel
-               keeps the warning read without dominating the monochrome surface. */
             background: rgba(227, 179, 65, 0.08);
             color: #e3b341;
             border: 1px solid rgba(227, 179, 65, 0.35);
          }
-         /* soft fade at both edges so text enters/exits cleanly */
          .tb-marquee-inner::before,
          .tb-marquee-inner::after {
             content: "";
@@ -333,7 +302,6 @@
             .tb-marquee { justify-content: center; }
          }
 
-         /* ════════════════════════════════ HEADER ════════════════════════════════ */
          .gallery-header {
             position: sticky;
             top: 44px;
@@ -354,7 +322,6 @@
             gap: var(--sp-4);
          }
 
-         /* search */
          .search {
             position: relative;
             flex: 1;
@@ -388,7 +355,6 @@
             box-shadow: 0 0 0 1px var(--primary-glow);
          }
 
-         /* selection counter */
          .sel-counter {
             display: flex;
             align-items: baseline;
@@ -413,7 +379,6 @@
             gap: var(--sp-2);
             margin-left: auto;
          }
-         /* Splits preset/destructive controls from the count + primary action. */
          .gh-divider {
             width: 1px;
             align-self: stretch;
@@ -422,7 +387,6 @@
             flex-shrink: 0;
          }
 
-         /* filter pills row */
          .gh-filters {
             display: flex;
             align-items: center;
@@ -459,7 +423,6 @@
             border-color: var(--primary);
             font-weight: 700;
          }
-         /* monochrome-ize the colored attribute glyphs */
          .filter-pill img {
             width: 15px;
             height: 15px;
@@ -473,7 +436,6 @@
          .filter-pill .star { font-size: 12px; line-height: 1; }
          .gh-spacer { flex: 1; }
 
-         /* has-sets toggle pill */
          .toggle-pill {
             display: inline-flex;
             align-items: center;
@@ -502,15 +464,13 @@
          }
          .toggle-pill .toggle-dot { display: inline-block; transition: var(--transition); }
 
-         /* ════════════════════════════════ MAIN ════════════════════════════════ */
          main {
             position: relative;
             z-index: 1;
             padding: var(--sp-6);
-            padding-bottom: 72px; /* clear fixed footer */
+            padding-bottom: 72px;
          }
 
-         /* ── Latest Updates ── */
          #latestUpdatesSection { margin-bottom: 32px; }
          .lu-head {
             display: flex;
@@ -657,11 +617,8 @@
          #latestUpdatesContainer { transition: all 0.3s ease; max-height: 340px; opacity: 1; }
          #latestUpdatesContainer.collapsed { max-height: 0; opacity: 0; overflow: hidden; }
 
-         /* ════════════════════════════════ HERO GRID ════════════════════════════════ */
          #heroGrid {
             display: grid;
-            /* Tighter track so extra window width adds COLUMNS rather than inflating each card —
-               card size then stays ~constant from 800px up to a 4K-wide window. */
             grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
             gap: var(--sp-3);
          }
@@ -679,7 +636,6 @@
             transform: translateY(-3px);
             box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
          }
-         /* signature corner brackets */
          .hc-inner::before,
          .hc-inner::after {
             content: "";
@@ -774,8 +730,6 @@
             z-index: 4;
          }
          .hc-name {
-            /* Stays at 10px: at the denser track a name like "Vengeful Spirit" ellipsises at
-               11px. Weight carries the hierarchy against the 9px muted sub-line instead. */
             font-size: var(--fs-overline);
             font-weight: 700;
             color: var(--ink);
@@ -794,8 +748,6 @@
          }
          .hc-sub.muted { color: var(--mute); }
 
-         /* ── locked cards: heroes with no custom set yet (default set only) ──
-            Grayed out and non-interactive — they can't be selected until a set ships. */
          .hero-card.locked .hc-inner {
             cursor: not-allowed;
             filter: grayscale(1);
@@ -825,7 +777,6 @@
          }
          .hero-card.locked .hc-lock svg { width: 11px; height: 11px; }
 
-         /* empty state */
          #emptyState {
             flex-direction: column;
             align-items: center;
@@ -838,7 +789,6 @@
          #emptyState .es-title { font-size: var(--fs-sub); color: var(--body); letter-spacing: 1px; }
          #emptyState .es-sub { font-size: var(--fs-label); margin-top: 6px; }
 
-         /* ════════════════════════════════ SET MODAL ════════════════════════════════ */
          .modal-backdrop { background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(3px); }
          #setModal {
             position: fixed;
@@ -931,9 +881,6 @@
          .sm-x svg { width: 16px; height: 16px; }
          .sm-x:hover { background: rgba(248, 81, 73, 0.85); color: #fff; }
 
-         /* ── catalog + selection tray ──
-            The tray is the hero's "cart": every asset picked for THIS hero, removable in place.
-            Both columns scroll independently under one shared height cap. */
          .sm-body {
             display: flex;
             min-height: 0;
@@ -983,9 +930,6 @@
             min-width: 22px;
             text-align: center;
          }
-         /* Thumbnails only — the tray answers "what have I picked", not "what is it called".
-            Names/slots live on the tile's own tooltip so the rail stays pure art. One square
-            per row, stacked top to bottom, so each pick is shown at full 1:1 rail width. */
          .sm-cart-list {
             flex: 1;
             min-height: 0;
@@ -1006,8 +950,6 @@
          }
          .cart-chip {
             position: relative;
-            /* flex-shrink 0 + aspect-ratio is what actually holds the square. As a grid item the
-               row squeezed the tile to fit the rail height; in a column flex it cannot. */
             flex: 0 0 auto;
             aspect-ratio: 1;
             overflow: hidden;
@@ -1028,8 +970,6 @@
             object-fit: cover;
             object-position: top;
          }
-         /* Remove affordance: the whole chip is the target, revealed on hover/focus so the
-            resting state is nothing but artwork. */
          .cart-chip::after {
             content: "";
             position: absolute;
@@ -1067,7 +1007,6 @@
             flex-shrink: 0;
          }
 
-         /* ── category sections (monochrome) ── */
          .set-category-section { width: 100%; }
          .set-category-header {
             display: flex;
@@ -1098,9 +1037,6 @@
          }
          .set-category-grid {
             display: grid;
-            /* Catalog density: auto-FILL keeps the track count fixed by width, so a tile stays
-               ~133px whether the hero has 2 sets or 20 — the whole catalog reads at a glance
-               instead of a few oversized previews. (auto-fit stretched them to 220px.) */
             grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
             gap: var(--sp-3);
          }
@@ -1116,7 +1052,6 @@
             letter-spacing: 0.2px;
          }
 
-         /* ── set tiles ── */
          .set-tile {
             position: relative;
             overflow: hidden;
@@ -1126,7 +1061,6 @@
             transition: var(--transition);
          }
          .set-tile:hover { border-color: var(--hairline-strong); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
-         /* corner brackets on selection */
          .set-tile::before,
          .set-tile::after {
             content: "";
@@ -1150,7 +1084,6 @@
          .set-tile-img img { width: 100%; height: 100%; object-fit: cover; }
          .set-tile-body { padding: var(--sp-2) 10px var(--sp-3); }
 
-         /* toggle indicator (items / base / persona / prismatic) */
          .toggle-indicator {
             position: absolute;
             top: 6px;
@@ -1169,7 +1102,6 @@
          .set-tile.selected .toggle-indicator { border-color: var(--primary); background: var(--primary); }
          .set-tile.selected .toggle-indicator svg { opacity: 1; }
 
-         /* style-count badge */
          .style-count-badge {
             position: absolute;
             bottom: 6px;
@@ -1186,7 +1118,6 @@
             z-index: 4;
          }
 
-         /* tag badges (monochrome, bracketed) */
          .item-tag-badge,
          .set-tag-badge {
             display: inline-block;
@@ -1207,7 +1138,6 @@
          .set-tile.selected .item-tag-badge,
          .set-tile.selected .set-tag-badge { color: var(--ink); border-color: var(--primary); }
 
-         /* selection status line on a tile */
          .set-status {
             display: block;
             margin-top: 6px;
@@ -1220,7 +1150,6 @@
             text-overflow: ellipsis;
          }
 
-         /* ════════════════════════════════ STYLE PREVIEW MODAL ════════════════════════════════ */
          .style-preview-backdrop { background: rgba(0, 0, 0, 0.86); backdrop-filter: blur(6px); }
          #stylePreviewModal {
             position: fixed;
@@ -1283,7 +1212,6 @@
          .style-preview-close:hover { background: rgba(248, 81, 73, 0.85); color: #fff; }
          .style-preview-grid {
             display: grid;
-            /* Same catalog track as .set-category-grid so variants read at the same scale. */
             grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
             gap: var(--sp-3);
             padding: var(--sp-5);
@@ -1341,7 +1269,6 @@
             background: rgba(0, 0, 0, 0.5);
          }
 
-         /* ════════════════════════════════ FOOTER ════════════════════════════════ */
          footer.status-bar {
             position: fixed;
             bottom: 0;
@@ -1363,7 +1290,6 @@
          #statusText { color: var(--body); }
          #statusText::before { content: "> "; color: var(--mute); }
 
-         /* ════════════════════════════════ CACHING OVERLAY ════════════════════════════════ */
          #cachingOverlay {
             position: fixed;
             inset: 0;
@@ -1394,7 +1320,6 @@
          #cachingBar { height: 100%; background: var(--primary); transition: width 0.2s ease; width: 0%; }
          .co-meta { display: flex; justify-content: space-between; font-size: var(--fs-overline); color: var(--mute); letter-spacing: 0.5px; }
 
-         /* ════════════════════════════════ ALERT / CONFIRM MODALS ════════════════════════════════ */
          .ov {
             position: fixed;
             inset: 0;
@@ -1434,13 +1359,11 @@
          .dialog-msg strong { color: var(--ink); font-weight: 700; }
          .dialog-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); padding: 0 var(--sp-5) var(--sp-5); }
 
-         /* log modal — wider dialog + scrollable terminal (mirrors the Miscellaneous log modal) */
          .log-dialog { width: 620px; }
          .log-modal-console { position: relative; height: 320px; overflow-y: auto; padding: var(--sp-3); margin-top: var(--sp-2); background: var(--canvas); border: 1px solid var(--hairline-strong); font-family: var(--mono); font-size: var(--fs-overline); line-height: 1.65; color: var(--body); }
          .retro-terminal::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 3px); pointer-events: none; }
          .log-line { padding: 1px 0; white-space: pre-wrap; word-break: break-word; }
 
-         /* confirm selection list */
          #confirmSelectionList {
             margin-top: var(--sp-4);
             max-height: 200px;
@@ -1464,7 +1387,6 @@
    </head>
 
    <body>
-      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg) -->
       <svg width="0" height="0" style="position: absolute" aria-hidden="true">
          <defs>
             <g id="ardysaGlyph">
@@ -1473,10 +1395,8 @@
             </g>
          </defs>
       </svg>
-      <!-- animated wave + grid backdrop -->
       <div class="bgfx"></div>
 
-      <!-- ═══════════════════════════ TITLE BAR ═══════════════════════════ -->
       <div id="titleBar" onmousedown="startDrag(event)">
          <div class="tb-brand">
             <svg class="tb-logo" viewBox="0 0 1000 1000" fill="currentColor" aria-hidden="true"><use href="#ardysaGlyph" /></svg>
@@ -1514,10 +1434,8 @@
          </button>
       </div>
 
-      <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
       <header class="gallery-header">
          <div class="gh-rows">
-            <!-- top row: search + counter + actions -->
             <div class="gh-top">
                <div class="search">
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1531,7 +1449,6 @@
                   <button id="loadPresetBtn" class="btn ghost" title="Load selections from file" data-i18n-title="heroGallery.loadPreset.title" data-i18n="common.load">Load</button>
                   <button id="clearAllBtn" class="btn ghost" data-i18n="heroGallery.clearAll">Clear All</button>
                   <span class="gh-divider" aria-hidden="true"></span>
-                  <!-- The count is what the primary action acts on, so it sits with it. -->
                   <div class="sel-counter">
                      <span id="selectionCount">0</span>
                      <span data-i18n="heroGallery.selected">Selected</span>
@@ -1540,7 +1457,6 @@
                </div>
             </div>
 
-            <!-- filter pills -->
             <div class="gh-filters">
                <button class="filter-pill active" data-category="all" data-i18n="heroGallery.allHeroes">All Heroes</button>
                <button id="hasSetsToggle" class="toggle-pill" title="Show only heroes that have custom sets" data-i18n-title="heroGallery.hasSetsToggle.title">
@@ -1568,9 +1484,7 @@
          </div>
       </header>
 
-      <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
       <main>
-         <!-- Latest Updates -->
          <section id="latestUpdatesSection" class="hidden">
             <div class="lu-head">
                <div class="lu-head-left">
@@ -1610,10 +1524,8 @@
             </div>
          </section>
 
-         <!-- Hero grid -->
          <div id="heroGrid"></div>
 
-         <!-- Empty state -->
          <div id="emptyState" class="hidden">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1623,7 +1535,6 @@
          </div>
       </main>
 
-      <!-- ═══════════════════════════ SET MODAL ═══════════════════════════ -->
       <div id="setModal" class="hidden modal-backdrop">
          <div class="sm-wrap">
             <button id="prevHeroBtn" class="nav-arrow" title="Previous hero" data-i18n-title="heroGallery.prevHero.title">
@@ -1648,7 +1559,6 @@
                   </button>
                </div>
 
-               <!-- Catalog (left) + the hero's selection tray (right). -->
                <div class="sm-body">
                   <div id="modalSetsGrid"></div>
                   <aside class="sm-cart">
@@ -1674,13 +1584,11 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
       <footer class="status-bar">
          <span id="statusText" data-i18n="hero.status.ready">Ready</span>
          <span id="versionText">version ...</span>
       </footer>
 
-      <!-- ═══════════════════════════ CACHING OVERLAY ═══════════════════════════ -->
       <div id="cachingOverlay" class="hidden">
          <div class="co-box">
             <div class="co-ico">
@@ -1698,7 +1606,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ ALERT MODAL ═══════════════════════════ -->
       <div id="alertModal" class="hidden ov">
          <div class="ov-scrim" onclick="closeAlert()"></div>
          <div class="dialog">
@@ -1726,7 +1633,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ LOG MODAL ═══════════════════════════ -->
       <div id="logModal" class="hidden ov" style="z-index: 250">
          <div class="ov-scrim" onclick="closeLogModal()"></div>
          <div class="dialog log-dialog">
@@ -1745,7 +1651,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ CONFIRM MODAL ═══════════════════════════ -->
       <div id="confirmModal" class="hidden ov">
          <div class="ov-scrim" onclick="closeConfirm(false)"></div>
          <div class="dialog">
@@ -1768,7 +1673,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ STYLE PREVIEW MODAL ═══════════════════════════ -->
       <div id="stylePreviewModal" class="hidden style-preview-backdrop" onclick="closeStylePreview()">
          <div class="style-preview-panel" onclick="event.stopPropagation()">
             <div class="style-preview-header">
@@ -1793,12 +1697,8 @@
          </div>
       </div>
       <script>
-         // ============================================
-         // Data & State
-         // ============================================
          let heroes = [];
-         let filteredHeroes = []; // Currently visible heroes after filtering
-         // Structured selections: { heroId: { set: idx|null, items: [idx...], base: idx|null } }
+         let filteredHeroes = [];
          let selections = {};
          let favorites = new Set();
          let currentFilter = "all";
@@ -1807,9 +1707,6 @@
          let currentModalHeroId = null;
          let focusedSetIndex = 0;
 
-         // ============================================
-         // Selection Helpers
-         // ============================================
          function getHeroSelection(heroId) {
             if (!selections[heroId]) {
                selections[heroId] = { set: null, items: [], base: null, prismatic: null };
@@ -1823,7 +1720,6 @@
             return s.set !== null || (s.items && s.items.length > 0) || s.base !== null || (s.prismatic != null);
          }
 
-         // Check if the currently selected set is a Persona category
          function isPersonaActive(heroId) {
             const s = selections[heroId];
             if (!s || s.set === null) return false;
@@ -1832,7 +1728,6 @@
             return getSetCategory(hero.sets[s.set]) === 'persona';
          }
 
-         // Prismatic is a Base add-on: it can only be selected once a Base Hero is active.
          function isBaseActive(heroId) {
             const s = selections[heroId];
             return !!(s && s.base != null);
@@ -1870,18 +1765,11 @@
             return (set && set.category) || 'legacyset';
          }
 
-         // Extract the slot tag from an item set's archive URL filename.
-         // Format: item_{tag}_{name}[_{N}].zip → returns the tag segment.
-         // Falls back to the 'tag' field sent from C# if available.
          function extractItemTag(set) {
-            // Use pre-computed tag from C# if available
             if (set && set.tag) return set.tag;
             return null;
          }
 
-         // Category tag shown on non-item tiles in place of a name label.
-         // Legacy → "Set", Custom → "Mix", Persona → "Persona", Base → "Arcana".
-         // Returns { label, cssClass } or null for items (they use their slot tag).
          function getCategoryTag(set) {
             switch (getSetCategory(set)) {
                case 'customset': return { label: 'Mix', cssClass: 'tag-custom' };
@@ -1893,7 +1781,6 @@
             }
          }
 
-         // Find all item indices that share the same tag as the given index.
          function getItemsWithSameTag(hero, targetIdx) {
             if (!hero || !hero.sets) return [];
             const targetSet = hero.sets[targetIdx];
@@ -1911,11 +1798,7 @@
             return sameTag;
          }
 
-         // ============================================
-         // C# Interop Functions
-         // ============================================
          
-         // Caching Overlay Control
          function showCachingOverlay() {
             const overlay = document.getElementById("cachingOverlay");
             if (overlay) {
@@ -1961,11 +1844,9 @@
             renderHeroes();
          }
 
-         // Called from C# to restore highlighted heroes (simplified persistence)
          function loadHighlightedHeroes(heroIdsJson) {
             const heroIds = typeof heroIdsJson === "string" ? JSON.parse(heroIdsJson) : heroIdsJson;
             if (!Array.isArray(heroIds)) return;
-            // Mark heroes as highlighted with empty selection state
             heroIds.forEach(id => {
                if (!selections[id]) {
                   selections[id] = { set: null, items: [], base: null, prismatic: null };
@@ -1982,14 +1863,11 @@
             renderHeroes();
          }
 
-         // ============================================
-         // Latest Updates Carousel
-         // ============================================
          let latestUpdates = [];
          let updatesCollapsed = false;
          let highlightSetIndex = -1;
          let carouselIndex = 0;
-         const MAX_CAROUSEL_ITEMS = 30; // Maximum items to show for better UX
+         const MAX_CAROUSEL_ITEMS = 30;
 
          function loadLatestUpdates(updatesJson) {
             let parsed = typeof updatesJson === "string" ? JSON.parse(updatesJson) : updatesJson;
@@ -1999,14 +1877,11 @@
                return;
             }
 
-            // Limit to max items for better UX
             latestUpdates = parsed.slice(0, MAX_CAROUSEL_ITEMS);
 
-            // Show section
             document.getElementById("latestUpdatesSection").classList.remove("hidden");
             document.getElementById("updatesCount").textContent = `${latestUpdates.length} new`;
 
-            // Render cards
             const grid = document.getElementById("latestUpdatesGrid");
             grid.innerHTML = latestUpdates
                .map((update, idx) => {
@@ -2034,14 +1909,12 @@
                })
                .join("");
 
-            // Init carousel
             carouselIndex = 0;
             updateCarouselPosition();
             updateCarouselArrows();
 
             window.addEventListener("resize", handleCarouselResize);
             
-            // Add mouse wheel scrolling for carousel
             const carouselWrapper = document.querySelector('.carousel-wrapper');
             if (carouselWrapper) {
                carouselWrapper.addEventListener('wheel', handleCarouselWheel, { passive: false });
@@ -2052,19 +1925,15 @@
             const metrics = getCarouselMetrics();
             if (!metrics || metrics.maxScrollIndex <= 0) return;
             
-            // Prevent page scroll when on carousel
             e.preventDefault();
             
-            // Scroll direction: positive deltaY = scroll down = next, negative = prev
             if (e.deltaY > 0) {
-               // Scroll right (next)
                if (carouselIndex < metrics.maxScrollIndex) {
                   carouselIndex = Math.min(carouselIndex + 1, metrics.maxScrollIndex);
                   updateCarouselPosition();
                   updateCarouselArrows();
                }
             } else if (e.deltaY < 0) {
-               // Scroll left (prev)
                if (carouselIndex > 0) {
                   carouselIndex = Math.max(carouselIndex - 1, 0);
                   updateCarouselPosition();
@@ -2074,7 +1943,6 @@
          }
 
          function handleCarouselResize() {
-            // Clamp carouselIndex to valid range after resize
             const metrics = getCarouselMetrics();
             if (metrics) {
                carouselIndex = Math.min(carouselIndex, metrics.maxScrollIndex);
@@ -2088,9 +1956,9 @@
             const grid = document.getElementById("latestUpdatesGrid");
             if (!wrapper || !grid) return null;
 
-            const cardWidth = 150; // card width
-            const gap = 10; // gap between cards
-            const padding = 24; // 12px padding on each side
+            const cardWidth = 150;
+            const gap = 10;
+            const padding = 24;
             const wrapperWidth = wrapper.clientWidth - padding;
             const totalCards = latestUpdates.length;
             const totalContentWidth = totalCards * cardWidth + (totalCards - 1) * gap;
@@ -2116,14 +1984,12 @@
 
             const { totalCards, visibleCards, maxScrollIndex } = metrics;
 
-            // Hide dots if all items fit or only one page
             if (totalCards <= visibleCards || maxScrollIndex <= 0) {
                dotsContainer.innerHTML = "";
                return;
             }
 
-            // Create dots for each scroll position (page-based for cleaner UX)
-            const totalDots = Math.min(maxScrollIndex + 1, 5); // Max 5 dots
+            const totalDots = Math.min(maxScrollIndex + 1, 5);
             const dotStep = maxScrollIndex / (totalDots - 1);
             
             dotsContainer.innerHTML = Array.from({ length: totalDots }, (_, i) => {
@@ -2132,7 +1998,6 @@
                return `<button class="carousel-dot ${i === 0 && carouselIndex === 0 ? 'active' : ''} ${isActive ? 'active' : ''}" onclick="goToCarouselIndex(${dotIndex})"></button>`;
             }).join("");
             
-            // Update active dot
             const dots = dotsContainer.querySelectorAll('.carousel-dot');
             dots.forEach((dot, i) => {
                const dotIndex = Math.round(i * dotStep);
@@ -2158,10 +2023,8 @@
 
             const { cardWidth, gap, maxScrollIndex } = metrics;
 
-            // Clamp carousel index to valid range
             carouselIndex = Math.max(0, Math.min(carouselIndex, maxScrollIndex));
 
-            // Calculate offset
             const offset = carouselIndex * (cardWidth + gap);
             grid.style.transform = `translateX(-${offset}px)`;
 
@@ -2184,7 +2047,6 @@
             const metrics = getCarouselMetrics();
             if (!metrics) return;
 
-            // Scroll by a few items at a time for better UX
             const scrollAmount = Math.max(1, Math.floor(metrics.visibleCards / 2));
             carouselIndex = Math.max(0, carouselIndex - scrollAmount);
             updateCarouselPosition();
@@ -2203,33 +2065,26 @@
          }
 
          function goToCarouselPage(page) {
-            // Legacy function - kept for compatibility
             carouselIndex = page;
             updateCarouselPosition();
             updateCarouselArrows();
          }
 
          function navigateToUpdate(heroId, setIndex) {
-            // Store which set to highlight
             highlightSetIndex = setIndex;
 
-            // Find hero card
             const heroCard = document.querySelector(`[data-hero-id="${heroId}"]`);
             if (heroCard) {
-               // Scroll to hero if not visible
                heroCard.scrollIntoView({ behavior: "smooth", block: "center" });
 
-               // Open the modal after scroll
                setTimeout(() => {
                   openHeroModal(heroId);
 
-                  // Highlight and focus the specific set
                   if (setIndex >= 0) {
                      setTimeout(() => {
                         focusedSetIndex = setIndex;
                         updateFocusState();
 
-                        // Add highlight effect to the set tile
                         const setTiles = document.querySelectorAll(".set-tile");
                         if (setTiles[setIndex]) {
                            setTiles[setIndex].classList.add("highlighted");
@@ -2238,13 +2093,11 @@
                               block: "nearest",
                            });
 
-                           // Remove highlight after animation
                            setTimeout(() => {
                               setTiles[setIndex].classList.remove("highlighted");
                            }, 2000);
                         }
 
-                        // Reset highlight tracker
                         highlightSetIndex = -1;
                      }, 150);
                   }
@@ -2276,16 +2129,12 @@
             document.getElementById("alertTitle").textContent = title;
             document.getElementById("alertMessage").textContent = message;
 
-            // Optional "Show Log" action (generation completion only) — the log itself is
-            // rendered by a native dialog; this just asks C# for it. OK never shows the log.
             document.getElementById("alertLogButton").classList.toggle("hidden", !showLogButton);
 
-            // Hide all icons first
             document.getElementById("alertIconSuccess").classList.add("hidden");
             document.getElementById("alertIconWarning").classList.add("hidden");
             document.getElementById("alertIconInfo").classList.add("hidden");
 
-            // Show the appropriate icon (monochrome — icons differ by shape, not color)
             const container = document.getElementById("alertIconContainer");
             container.className = "dialog-ico";
 
@@ -2302,7 +2151,6 @@
          }
 
          function requestGenerate() {
-            // Filter to only heroes with actual selections
             const activeSelections = {};
             for (const [id, sel] of Object.entries(selections)) {
                if (hasAnySelection(id)) activeSelections[id] = sel;
@@ -2318,21 +2166,17 @@
 
          function closeAlert() {
             document.getElementById("alertModal").classList.add("hidden");
-            // Notify C# that alert was dismissed
             if (window.chrome && window.chrome.webview) {
                window.chrome.webview.postMessage({ type: "alertDismissed" });
             }
          }
 
-         // Sanitized run log pushed from C# before the completion alert shows. Rendered
-         // on demand by the in-shell log modal (same style as the Miscellaneous log modal).
          let _generationLogText = "";
 
          function setGenerationLog(text) {
             _generationLogText = text || "";
             const dst = document.getElementById("logModalContent");
             dst.innerHTML = "";
-            // textContent per line keeps this XSS-safe (the log is plain text, not HTML).
             const lines = _generationLogText.length ? _generationLogText.split("\n") : [];
             if (lines.length === 0) {
                const div = document.createElement("div");
@@ -2350,12 +2194,9 @@
          }
 
          function openLogModal() {
-            // Keep the alert open behind the log modal; OK never opens this.
             document.getElementById("logModal").classList.remove("hidden");
             const box = document.getElementById("logModalConsole");
             if (box) box.scrollTop = box.scrollHeight;
-            // Tell C# the log was viewed so it re-arms the completion-alert dismissal timeout
-            // (a button click proves the JS bridge is alive; reading can outlast one window).
             if (window.chrome && window.chrome.webview) {
                window.chrome.webview.postMessage({ type: "generationLogOpened" });
             }
@@ -2365,8 +2206,6 @@
             document.getElementById("logModal").classList.add("hidden");
          }
 
-         // NavigateToString pages run at about:blank (isSecureContext false), so
-         // navigator.clipboard is undefined — the copy has to go through the host.
          function copyGenerationLog(btn) {
             if (!_generationLogText) return;
             if (window.chrome && window.chrome.webview) {
@@ -2390,9 +2229,6 @@
             document.getElementById("versionText").textContent = `version ${version}`;
          }
 
-         // ============================================
-         // Attribute Helpers
-         // ============================================
          function matchesCategory(heroAttr, category) {
             if (category === "all") return true;
             if (category === "favorites") return false;
@@ -2404,26 +2240,20 @@
             return true;
          }
 
-         // A set entry that is just the hero's stock look (no real cosmetic set).
          function isDefaultSetEntry(s) {
             const name = (s && s.name || "").toLowerCase();
             return name === "default set" || name === "default";
          }
 
-         // Count of real (non-default) cosmetic sets a hero offers.
          function customSetCount(hero) {
             if (!hero.sets || hero.sets.length === 0) return 0;
             return hero.sets.filter(s => !isDefaultSetEntry(s)).length;
          }
 
-         // Check if a hero has at least one set that is NOT "Default Set".
          function heroHasCustomSets(hero) {
             return customSetCount(hero) > 0;
          }
 
-         // ============================================
-         // Rendering
-         // ============================================
          function renderHeroes() {
             const grid = document.getElementById("heroGrid");
             const emptyState = document.getElementById("emptyState");
@@ -2445,7 +2275,6 @@
                   }
                }
 
-               // Has Sets toggle filter
                if (showOnlyWithSets && !heroHasCustomSets(hero)) {
                   return false;
                }
@@ -2469,12 +2298,9 @@
                   const isSelected = hasAnySelection(hero.id);
                   const isFavorite = favorites.has(hero.id);
                   const summary = getSelectionSummary(hero);
-                  // Selectable only when the hero ships at least one real (non-default) set.
-                  // Default-only heroes are locked: grayed out and not clickable.
                   const setCount = customSetCount(hero);
                   const isLocked = setCount === 0;
 
-                  // Determine display thumbnail: use selected set's thumb if available
                   let displayThumb = hero.thumbnail;
                   const sel = selections[hero.id];
                   if (isSelected && sel && sel.set !== null && hero.sets && hero.sets[sel.set]) {
@@ -2527,12 +2353,8 @@
                .join("");
          }
 
-         // ============================================
-         // Modal Functions
-         // ============================================
          function openHeroModal(heroId) {
             const hero = heroes.find((h) => h.id === heroId);
-            // Locked: no real (non-default) set yet — not selectable.
             if (!hero || !heroHasCustomSets(hero)) {
                updateStatus(`${hero?.displayName || heroId} has no sets available`);
                return;
@@ -2553,12 +2375,7 @@
             return set && set.isCustom === true;
          }
 
-         // Render a set/item/base/persona tile with appropriate styling
          function renderSetTile(set, idx, hero, heroSel, tileType) {
-            // Styled tiles: this single tile represents a whole styleGroup. Selection and
-            // display collapse across all variants in the group, and clicking the tile opens
-            // the Style Preview modal instead of selecting directly. A group with a single
-            // variant (or no styleGroup) behaves like a normal tile that selects on click.
             const styleGroup = set.styleGroup || null;
             const groupEntries = styleGroup
                ? hero.sets.map((s, i) => ({ set: s, idx: i })).filter(e => e.set.styleGroup === styleGroup)
@@ -2580,19 +2397,13 @@
             }
             const isFocused = focusedSetIndex === idx;
 
-            // For a styled tile, show the active variant's thumbnail when one is selected; otherwise
-            // prefer the authored group cover, falling back to the first style's thumb / hero portrait.
             const activeSet = hasStyles && activeStyleIdx !== null ? hero.sets[activeStyleIdx] : null;
             const groupCover = hasStyles ? (set.styleGroupThumbnail || null) : null;
             const thumbUrl = (activeSet && activeSet.thumbnailUrl) || groupCover || set.thumbnailUrl || hero.thumbnail;
             const tileClass = tileType === 'item' ? 'item-tile' : tileType === 'base' ? 'base-tile' : tileType === 'persona' ? 'persona-tile' : tileType === 'prismatic' ? 'prismatic-tile' : '';
 
-            // Click handler depends on type
-            // Persona uses selectSet — it shares the set slot
-            // Styled tiles open the Style Preview modal for the group; everything else selects directly.
             let clickFn;
             if (hasStyles) {
-               // Escape the group name for an inline (double-quoted) onclick attribute.
                const groupArg = `'${String(styleGroup).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;')}'`;
                clickFn = `openStylePreviewForTile('${currentModalHeroId}', ${groupArg}, '${tileType}')`;
             } else if (tileType === 'set' || tileType === 'persona') {
@@ -2605,7 +2416,6 @@
                clickFn = `toggleBase('${currentModalHeroId}', ${idx})`;
             }
 
-            // Status label
             let statusHtml = '';
             if (isSelected) {
                const activeLabel = activeSet && (activeSet.styleLabel || activeSet.name);
@@ -2613,9 +2423,6 @@
                statusHtml = `<span class="set-status">${statusText}</span>`;
             }
 
-            // Tag badge — items show their slot tag (head/weapon/…); Legacy/Custom/
-            // Persona/Base tiles show a category tag (Set/Mix/Persona/Arcana) in
-            // place of a name label.
             let tagHtml = '';
             if (tileType === 'item') {
                const tag = extractItemTag(set);
@@ -2629,7 +2436,6 @@
                }
             }
 
-            // Toggle indicator for items, base, and persona
             const showToggle = tileType === 'item' || tileType === 'base' || tileType === 'persona' || tileType === 'prismatic';
             const toggleHtml = showToggle ? `
                <div class="toggle-indicator">
@@ -2638,12 +2444,8 @@
                   </svg>
                </div>` : '';
 
-            // Variant-count badge on styled tiles
             const styleCountBadge = hasStyles ? `<span class="style-count-badge">${groupEntries.length} styles</span>` : '';
 
-            // Display name is kept only for the image alt text — no grid tile (plain or
-            // Style Card) renders a visible name label anymore; each shows just its tag
-            // badge. The set/variant name still appears inside the Style Preview Modal.
             const displayName = styleGroup || set.name || `Set ${idx + 1}`;
 
             return `
@@ -2666,10 +2468,6 @@
             `;
          }
 
-         // Returns the original set index of the currently-active style within a group,
-         // or null when none of the group's styles is selected. Honors the selection slot
-         // for the tile type (set/persona → sel.set, item → sel.items, base → sel.base,
-         // prismatic → sel.prismatic).
          function getActiveStyleIndex(entries, heroSel, tileType) {
             for (const { idx } of entries) {
                if (tileType === 'item') {
@@ -2685,16 +2483,10 @@
             return null;
          }
 
-         // ============================================
-         // Style Preview Modal
-         // ============================================
-         let stylePreviewState = null; // { heroId, tileType, groupIndices, entries }
+         let stylePreviewState = null;
 
-         // Selects a style within a group, enforcing one-active-style-per-group, then delegates
-         // to the existing selection handlers so all downstream rules/notifications are reused.
          function selectStyle(heroId, tileType, idx, groupIndices) {
             if (tileType === 'item') {
-               // Multi-select slot: drop any sibling style of this group before toggling.
                if (isPersonaActive(heroId)) return;
                const sel = getHeroSelection(heroId);
                if (!sel.items.includes(idx)) {
@@ -2715,13 +2507,10 @@
             }
          }
 
-         // Opens the Style Preview Modal for a tile that belongs to a styleGroup.
-         // Called directly from tile onclick — gathers group entries from hero data.
          function openStylePreviewForTile(heroId, groupName, tileType) {
             const hero = heroes.find(h => h.id === heroId);
             if (!hero) return;
 
-            // Gather all entries in this styleGroup
             const entries = [];
             let groupCover = null;
             hero.sets.forEach((s, i) => {
@@ -2739,15 +2528,10 @@
                heroSel, tileType
             );
 
-            // Store state for the preview modal
             stylePreviewState = { heroId, tileType, groupIndices, entries, group: groupName, groupCover };
 
-            // Determine accent color for the modal
-            // Monochrome design — the selection accent is always the single white primary.
             const accent = '#ffffff';
 
-            // Header — show the active style's thumb when one is selected, else the group cover
-            // (falling back to the first style's thumb / hero portrait).
             const display = activeIdx !== null ? entries.find(e => e.idx === activeIdx) : entries[0];
             const headThumb = activeIdx !== null
                ? ((display && display.thumbnailUrl) || groupCover || hero.thumbnail)
@@ -2756,7 +2540,6 @@
             document.getElementById('stylePreviewTitle').textContent = groupName;
             document.getElementById('stylePreviewSub').textContent = `${entries.length} style variant${entries.length > 1 ? 's' : ''} \u00b7 ${hero.displayName || hero.name}`;
 
-            // Build tile grid
             const grid = document.getElementById('stylePreviewGrid');
             grid.style.setProperty('--sc-accent', accent);
             grid.innerHTML = entries.map(e => {
@@ -2787,7 +2570,6 @@
             const { heroId, tileType, groupIndices } = stylePreviewState;
             selectStyle(heroId, tileType, idx, groupIndices);
 
-            // Re-render the preview tiles to reflect new selection
             const hero = heroes.find(h => h.id === heroId);
             if (!hero) return;
             const heroSel = getHeroSelection(heroId);
@@ -2797,7 +2579,6 @@
                heroSel, tileType
             );
 
-            // Update active states on tiles
             const tiles = document.querySelectorAll('#stylePreviewGrid .style-preview-tile');
             entries.forEach((e, i) => {
                if (tiles[i]) {
@@ -2805,7 +2586,6 @@
                }
             });
 
-            // Update header thumb: selected variant's thumb, else the group cover.
             const display = activeIdx !== null ? entries.find(e => e.idx === activeIdx) : entries[0];
             const groupCover = stylePreviewState.groupCover || null;
             document.getElementById('stylePreviewThumb').src = activeIdx !== null
@@ -2819,7 +2599,6 @@
             const heroSel = getHeroSelection(heroId);
             const hero = heroes.find(h => h.id === heroId);
 
-            // Deselect all styles in this group
             entries.forEach(e => {
                if (tileType === 'item') {
                   const ci = heroSel.items ? heroSel.items.indexOf(e.idx) : -1;
@@ -2832,7 +2611,6 @@
                   if (heroSel.set === e.idx) heroSel.set = null;
                }
             });
-            // Prismatic depends on a Base — drop it if this removed the active Base.
             if (tileType === 'base' && heroSel.base == null) heroSel.prismatic = null;
             cleanupEmptySelection(heroId);
             updateSelectionCount();
@@ -2854,7 +2632,6 @@
             const heroSel = getHeroSelection(currentModalHeroId);
             const setsGrid = document.getElementById("modalSetsGrid");
 
-            // Partition sets into 6 categories, keeping original indices
             const legacySets = [];
             const customSets = [];
             const personaSets = [];
@@ -2884,8 +2661,6 @@
             const hasItemsSelected = heroSel.items && heroSel.items.length > 0;
             let html = '';
 
-            // Section builder helper. `locked` dims the tiles to signal the whole
-            // category is currently unavailable (clicks are still blocked in the handler).
             function buildSection(entries, headerClass, label, tileType, notice, locked) {
                if (entries.length === 0) return '';
                let s = '<div class="set-category-section">';
@@ -2901,8 +2676,6 @@
                   s += `<div class="exclusion-notice">${notice}</div>`;
                }
                s += `<div class="set-category-grid${locked ? ' category-locked' : ''}">`;
-               // For entries with a styleGroup, render only ONE representative tile per group.
-               // The tile's click handler opens the Style Preview Modal for that group.
                const renderedGroups = new Set();
                s += entries.map(({ set, idx }) => {
                   const group = set.styleGroup;
@@ -2916,20 +2689,14 @@
                return s;
             }
 
-            // 1. Legacy Sets
             html += buildSection(legacySets, 'legacy', 'Legacy Set', 'set');
-            // 2. Custom Sets
             html += buildSection(customSets, 'custom', 'Custom Set', 'set');
-            // 3. Persona (shares set slot — selecting one deselects sets and vice versa)
             const personaNotice = hasItemsSelected ? '\u26a0 Selecting a persona will clear items and base' : null;
             html += buildSection(personaSets, 'persona', 'Persona', 'persona', personaNotice);
-            // 4. Items
             const itemNotice = personaActive ? '\u26a0 Items are disabled while a persona is active' : null;
             html += buildSection(itemSets, 'item', 'Items', 'item', itemNotice);
-            // 5. Base Hero
             const baseNotice = personaActive ? '\u26a0 Base is disabled while a persona is active' : null;
             html += buildSection(baseSets, 'basehero', 'Base Hero', 'base', baseNotice);
-            // 6. Prismatic — applied last (overrides everything). Requires an active Base Hero.
             const baseActive = isBaseActive(currentModalHeroId);
             const prismaticNotice = baseActive ? null : '⚠ Select a Base Hero first to enable Prismatic';
             html += buildSection(prismaticSets, 'prismatic', 'Prismatic', 'prismatic', prismaticNotice, !baseActive);
@@ -2939,10 +2706,6 @@
             renderSetCart(hero, heroSel);
          }
 
-         // Selection tray for the open hero — one row per asset currently picked, in the order the
-         // generator layers them (set/persona → items → base → prismatic). Rows remove through the
-         // same toggles the tiles use, so the exclusivity rules (persona clears items, dropping a
-         // base drops its prismatic) apply identically from either side.
          function renderSetCart(hero, heroSel) {
             const list = document.getElementById("setCartList");
             const countEl = document.getElementById("setCartCount");
@@ -2979,10 +2742,6 @@
                return;
             }
 
-            // Thumbnail-only chips. The name and slot ride along as the chip's tooltip, so the rail
-            // shows art at rest and the label is there for anyone who needs to disambiguate. The
-            // remove button carries no title of its own — it covers the whole chip, and a title
-            // there would mask the name on every hover.
             const removeLabel = window.t ? window.t("heroGallery.cartRemove") : "Remove from selection";
             list.innerHTML = rows
                .map(
@@ -3010,14 +2769,10 @@
                .replace(/'/g, "&#39;");
          }
 
-         // Sizes the set modal to its catalog instead of the other way round: a hero with 4 sets
-         // was getting the same 900px dialog as a hero with 20, so the art sat in a mostly empty
-         // panel. Width = the widest rendered section (style groups already collapsed to one tile)
-         // plus the fixed selection tray, clamped to 3-5 catalog columns.
          function fitPanelToCatalog(setsGrid) {
             const panel = setsGrid.closest(".sm-panel");
             if (!panel) return;
-            const TILE = 133, GAP = 12, CHROME = 42, TRAY = 233; // tile, gap, panel padding+borders, tray
+            const TILE = 133, GAP = 12, CHROME = 42, TRAY = 233;
             const counts = [...setsGrid.querySelectorAll(".set-category-grid")].map((g) => g.children.length);
             const cols = Math.min(5, Math.max(3, ...counts, 3));
             panel.style.maxWidth = cols * TILE + (cols - 1) * GAP + CHROME + TRAY + "px";
@@ -3031,16 +2786,14 @@
 
             let newIndex = currentIndex + direction;
 
-            // Find next hero with a real (non-default) set — locked heroes are skipped.
             while (newIndex >= 0 && newIndex < filteredHeroes.length) {
                const nextHero = filteredHeroes[newIndex];
                if (heroHasCustomSets(nextHero)) {
-                  // Apply slide animation
                   const setsGrid = document.getElementById("modalSetsGrid");
                   const animClass = direction > 0 ? "animate-slide-left" : "animate-slide-right";
 
                   setsGrid.classList.remove("animate-slide-left", "animate-slide-right");
-                  void setsGrid.offsetWidth; // Force reflow to restart animation
+                  void setsGrid.offsetWidth;
                   setsGrid.classList.add(animClass);
 
                   openHeroModal(nextHero.id);
@@ -3060,7 +2813,6 @@
 
             renderModalSets();
 
-            // Scroll focused tile into view
             setTimeout(() => {
                const focusedTile = document.querySelector(
                   `.set-tile[data-set-index="${focusedSetIndex}"]`,
@@ -3086,19 +2838,13 @@
             closeModal();
          }
 
-         // Rule A: Selecting a set (Legacy, Custom, or Persona) — mutually exclusive
-         // Selecting a Legacy Set deselects Custom/Persona, and vice versa.
-         // When a Persona is selected, items and base are cleared (persona replaces base).
          function selectSet(heroId, setIndex) {
             const sel = getHeroSelection(heroId);
             const hero = heroes.find(h => h.id === heroId);
-            // Toggle off if already selected
             if (sel.set === setIndex) {
                sel.set = null;
             } else {
                sel.set = setIndex;
-               // If the newly selected set is a Persona, clear items and base
-               // (and Prismatic, which depends on a Base being active).
                if (hero && hero.sets[setIndex] && getSetCategory(hero.sets[setIndex]) === 'persona') {
                   sel.items = [];
                   sel.base = null;
@@ -3113,23 +2859,18 @@
             renderHeroes();
          }
 
-         // Rule C: Toggle an item ON/OFF (multi-select, tag-exclusive)
-         // - Blocked if a Persona set is active (persona cannot combine with items)
-         // - Selecting an item deselects any other item with the same tag
          function toggleItem(heroId, setIndex) {
             const sel = getHeroSelection(heroId);
             const hero = heroes.find(h => h.id === heroId);
 
-            // Block if persona is active — user must deselect persona first
             if (isPersonaActive(heroId)) {
                return;
             }
 
             const idx = sel.items.indexOf(setIndex);
             if (idx >= 0) {
-               sel.items.splice(idx, 1); // turn OFF
+               sel.items.splice(idx, 1);
             } else {
-               // Tag exclusivity: deselect items with the same tag
                if (hero) {
                   const sameTagItems = getItemsWithSameTag(hero, setIndex);
                   sameTagItems.forEach(conflictIdx => {
@@ -3137,7 +2878,7 @@
                      if (ci >= 0) sel.items.splice(ci, 1);
                   });
                }
-               sel.items.push(setIndex); // turn ON
+               sel.items.push(setIndex);
             }
             cleanupEmptySelection(heroId);
             focusedSetIndex = setIndex;
@@ -3147,24 +2888,21 @@
             renderHeroes();
          }
 
-         // Rule B: Toggle base hero — only one active at a time
          function toggleBase(heroId, setIndex) {
             const sel = getHeroSelection(heroId);
 
-            // Block if persona is active — persona replaces base
             if (isPersonaActive(heroId)) {
                return;
             }
 
             if (sel.base === setIndex) {
-               sel.base = null; // turn OFF
-               // Prismatic depends on a Base — drop it when Base is removed.
+               sel.base = null;
                if (sel.prismatic != null) {
                   sel.prismatic = null;
                   updateStatus('Prismatic cleared — it requires an active Base Hero');
                }
             } else {
-               sel.base = setIndex; // turn ON (auto-deselects previous)
+               sel.base = setIndex;
             }
             cleanupEmptySelection(heroId);
             focusedSetIndex = setIndex;
@@ -3174,21 +2912,17 @@
             renderHeroes();
          }
 
-         // Toggle prismatic — top layer applied last, only one active at a time.
-         // Requires a Base Hero to be selected first: a Prismatic is a Base add-on and
-         // cannot be turned on without an active Base. Coexists with set/items.
          function togglePrismatic(heroId, setIndex) {
             const sel = getHeroSelection(heroId);
 
             if (sel.prismatic === setIndex) {
-               sel.prismatic = null; // turn OFF
+               sel.prismatic = null;
             } else {
-               // Block turning ON unless a Base Hero is already selected.
                if (!isBaseActive(heroId)) {
                   updateStatus('Select a Base Hero first to enable Prismatic');
                   return;
                }
-               sel.prismatic = setIndex; // turn ON (auto-deselects previous)
+               sel.prismatic = setIndex;
             }
             cleanupEmptySelection(heroId);
             focusedSetIndex = setIndex;
@@ -3198,12 +2932,10 @@
             renderHeroes();
          }
 
-         // Legacy compat: redirect old calls
          function selectSetFromModal(heroId, setIndex) {
             selectSet(heroId, setIndex);
          }
 
-         // Remove hero from selections if nothing is selected
          function cleanupEmptySelection(heroId) {
             if (!hasAnySelection(heroId)) {
                delete selections[heroId];
@@ -3220,9 +2952,6 @@
             closeModal();
          }
 
-         // ============================================
-         // User Interactions
-         // ============================================
          function toggleFavorite(heroId) {
             if (favorites.has(heroId)) {
                favorites.delete(heroId);
@@ -3254,7 +2983,6 @@
                return;
             }
 
-            // Build the list of selected heroes with summaries
             const selectedItems = [];
             for (const [heroId, sel] of Object.entries(selections)) {
                const hero = heroes.find((h) => h.id === heroId);
@@ -3283,9 +3011,8 @@
             updateStatus("All selections cleared");
          }
 
-         // Confirmation modal state
          let confirmCallback = null;
-         let confirmType = "clearAll"; // "clearAll" or "baseNoSet"
+         let confirmType = "clearAll";
 
          function showConfirm(title, message) {
             confirmType = "clearAll";
@@ -3303,7 +3030,6 @@
             document.getElementById("confirmSelectionList").classList.add("hidden");
             document.getElementById("confirmSelectionList").innerHTML = "";
             
-            // Customize Yes button text for confirmation flow
             const yesBtn = document.querySelector("#confirmModal button[onclick='closeConfirm(true)']");
             if (yesBtn) {
                yesBtn.textContent = "Continue";
@@ -3320,7 +3046,6 @@
             const listContainer = document.getElementById("confirmSelectionList");
 
             if (items && items.length > 0) {
-               // Build the list HTML
                const listHtml = items
                   .map(
                      (item) => `
@@ -3350,7 +3075,6 @@
          function closeConfirm(confirmed) {
             document.getElementById("confirmModal").classList.add("hidden");
             
-            // Restore default Yes button text
             const yesBtn = document.querySelector("#confirmModal button[onclick='closeConfirm(true)']");
             if (yesBtn) {
                yesBtn.textContent = "Yes, Clear All";
@@ -3371,14 +3095,10 @@
          }
 
          function updateSelectionCount() {
-            // Count heroes that have any actual selection
             const count = Object.keys(selections).filter(id => hasAnySelection(id)).length;
             document.getElementById("selectionCount").textContent = count;
          }
 
-         // ============================================
-         // Notify C#
-         // ============================================
          function notifySelectionChanged() {
             if (window.chrome && window.chrome.webview) {
                window.chrome.webview.postMessage({
@@ -3405,7 +3125,6 @@
          }
 
          function startDrag(event) {
-            // Only start drag on left mouse button
             if (event.button !== 0) return;
             if (window.chrome && window.chrome.webview) {
                window.chrome.webview.postMessage({ type: "startDrag" });
@@ -3427,7 +3146,6 @@
             }
          }
 
-         // Called from C# after loading preset file
          function applyLoadedSelections(loadedSelections) {
             selections =
                typeof loadedSelections === "string"
@@ -3439,9 +3157,6 @@
             updateStatus(`Loaded ${Object.keys(selections).length} selection(s)`);
          }
 
-         // ============================================
-         // Event Listeners
-         // ============================================
          document.getElementById("searchInput").addEventListener("input", (e) => {
             searchQuery = e.target.value;
             renderHeroes();
@@ -3474,7 +3189,6 @@
             if (e.target.id === "stylePreviewModal") closeStylePreview();
          });
 
-         // Global keyboard handler
          document.addEventListener("keydown", (e) => {
             const modal = document.getElementById("setModal");
             const isModalOpen = !modal.classList.contains("hidden");
@@ -3482,8 +3196,6 @@
             const isSearchFocused = document.activeElement === searchInput;
 
             if (isModalOpen) {
-               // Style Preview Modal takes priority: Escape closes it; all other keys are
-               // swallowed so the set modal underneath doesn't navigate behind the preview.
                const stylePreview = document.getElementById("stylePreviewModal");
                const isStylePreviewOpen = !stylePreview.classList.contains("hidden");
                if (isStylePreviewOpen) {
@@ -3494,7 +3206,6 @@
                   return;
                }
 
-               // Modal navigation
                switch (e.key) {
                   case "ArrowLeft":
                      e.preventDefault();
@@ -3523,7 +3234,6 @@
                      break;
                }
             } else {
-               // Gallery mode - instant search
                if (
                   !isSearchFocused &&
                   e.key.length === 1 &&
@@ -3531,9 +3241,7 @@
                   !e.altKey &&
                   !e.metaKey
                ) {
-                  // Single character key - focus search and type
                   searchInput.focus();
-                  // Don't prevent default - let the character be typed
                } else if (e.key === "Escape" && isSearchFocused) {
                   searchInput.blur();
                   searchInput.value = "";
@@ -3543,9 +3251,6 @@
             }
          });
 
-         // ============================================
-         // Demo Data
-         // ============================================
          if (!window.chrome || !window.chrome.webview) {
             const demoHeroes = [
                {

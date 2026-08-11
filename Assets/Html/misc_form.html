@@ -21,14 +21,6 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>Miscellaneous</title>
       <style>
-         /* ════════════════════════════════════════════════════════════════════════════
-            MISCELLANEOUS — Custom Options
-            Monochrome terminal design system, shared with the Skin Selector gallery and
-            main_shell.html / ardysamods.my.id. Black/white only, JetBrains Mono, 0px
-            corners, cut-corner brackets, grid + wave backdrop.
-            Golden-ratio type hierarchy (φ ≈ 1.618): 10 → 11 → 13(base) → 16 → 21,
-            body leading 1.618.
-            ════════════════════════════════════════════════════════════════════════════ */
 
          :root {
             --canvas: #000000;
@@ -97,7 +89,6 @@
             -webkit-font-smoothing: antialiased;
          }
 
-         /* animated wave backdrop */
          .bgfx { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
          .bgfx::before {
             content: "";
@@ -113,7 +104,6 @@
          @keyframes infiniteWave { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
          @media (prefers-reduced-motion: reduce) { .bgfx::before { animation: none; } }
 
-         /* ─────────────────────────── utilities ─────────────────────────── */
          .hidden { display: none !important; }
          .opacity-50 { opacity: 0.5; }
          .pointer-events-none { pointer-events: none; }
@@ -137,7 +127,6 @@
          @keyframes slideRight { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
          @keyframes spin { to { transform: rotate(360deg); } }
 
-         /* generic buttons */
          .btn {
             display: inline-flex;
             align-items: center;
@@ -164,7 +153,6 @@
          .btn.primary:disabled { opacity: 0.45; cursor: default; box-shadow: none; pointer-events: none; }
          .btn.ghost { background: none; }
 
-         /* ════════════════════════════════ TITLE BAR ════════════════════════════════ */
          #titleBar {
             position: relative;
             z-index: 5;
@@ -196,7 +184,6 @@
          .tb-close svg { width: 15px; height: 15px; }
          .tb-close:hover { background: rgba(248, 81, 73, 0.85); color: #fff; }
 
-         /* ════════════════════════════════ HEADER ════════════════════════════════ */
          .mf-header {
             position: relative;
             z-index: 4;
@@ -214,7 +201,6 @@
          .mf-sub::before { content: "> "; color: var(--mute); }
          .mf-actions { display: flex; align-items: center; gap: var(--sp-2); }
 
-         /* ════════════════════════════════ MAIN / OPTIONS GRID ════════════════════════════════ */
          .mf-main { position: relative; z-index: 1; flex: 1; min-height: 0; display: flex; flex-direction: column; }
          .mf-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-6); }
          .options-grid {
@@ -231,7 +217,6 @@
             transition: var(--transition);
          }
          .tile-card:hover { border-color: var(--hairline-strong); transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55); }
-         /* corner brackets */
          .tile-card::before, .tile-card::after {
             content: ""; position: absolute; width: 8px; height: 8px; z-index: 3; opacity: 0; transition: var(--transition);
          }
@@ -252,7 +237,6 @@
          .tile-name { margin-top: var(--sp-3); font-size: var(--fs-body); font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
          .tile-choice { margin-top: 3px; font-size: var(--fs-label); color: var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
          .grid-empty { grid-column: 1 / -1; text-align: center; padding: 60px 0; color: var(--mute); font-size: var(--fs-label); letter-spacing: 0.5px; }
-         /* letter placeholder used when a thumbnail is missing */
          .thumb-letter {
             width: 100%;
             aspect-ratio: 1;
@@ -266,7 +250,6 @@
             color: var(--mute);
          }
 
-         /* ════════════════════════════════ FOOTER ════════════════════════════════ */
          .status-bar {
             position: relative;
             z-index: 4;
@@ -285,7 +268,6 @@
          #statusText { color: var(--body); }
          #statusText::before { content: "> "; color: var(--mute); }
 
-         /* ════════════════════════════════ CACHING OVERLAY ════════════════════════════════ */
          #cachingOverlay {
             position: fixed; inset: 0; z-index: 80;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -305,7 +287,6 @@
          #cachingBar { height: 100%; background: var(--primary); transition: width 0.2s ease; width: 0%; }
          .co-meta { display: flex; justify-content: space-between; font-size: var(--fs-overline); color: var(--mute); letter-spacing: 0.5px; }
 
-         /* ════════════════════════════════ MODAL SHELL (shared) ════════════════════════════════ */
          .ov { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: var(--sp-4); }
          .ov-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.82); backdrop-filter: blur(3px); }
          .modal-backdrop { background: rgba(0, 0, 0, 0.82); }
@@ -339,7 +320,6 @@
          .sm-x:hover { background: rgba(248, 81, 73, 0.85); color: #fff; }
          .sm-foot { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); padding: var(--sp-4) var(--sp-5); border-top: 1px solid var(--hairline); background: rgba(0, 0, 0, 0.5); flex-shrink: 0; }
 
-         /* choices grid + cards (option modal + style overlay) */
          .choices-grid {
             padding: var(--sp-5);
             display: grid;
@@ -348,8 +328,6 @@
             max-height: 58vh;
             overflow-y: auto;
          }
-         /* the main option preview modal gets larger tiles + more room than the
-            smaller style/ethereal overlays (which keep the compact .choices-grid). */
          #modalChoices {
             grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
             gap: var(--sp-4);
@@ -374,7 +352,6 @@
          .choice-name { margin-top: 8px; font-size: var(--fs-label); text-align: center; color: var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
          .choice-card.selected .choice-name { color: var(--ink); }
          .choice-name.wrap { white-space: normal; line-height: var(--lh-tight); }
-         /* badges on choice cards (Styles / Ethereal) — bracketed mono labels */
          .choice-badge {
             position: absolute;
             top: -1px;
@@ -394,7 +371,6 @@
          .choice-badge.ethereal { left: -1px; cursor: pointer; }
          .choice-badge.ethereal:hover { border-color: var(--primary); }
 
-         /* ════════════════════════════════ ETHEREAL OVERLAY ════════════════════════════════ */
          .mf-dialog {
             position: relative; z-index: 1;
             width: 100%; max-width: 520px; max-height: 86vh;
@@ -438,7 +414,6 @@
          .eth-row.selected .eth-name { color: var(--ink); }
          #etherealCounter { font-size: var(--fs-overline); letter-spacing: 0.5px; color: var(--body); text-transform: uppercase; }
 
-         /* ════════════════════════════════ PROGRESS OVERLAY ════════════════════════════════ */
          #progressOverlay { background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(6px); }
          .progress-panel { position: relative; z-index: 1; width: 100%; max-width: 540px; background: var(--panel-2); border: 1px solid var(--hairline-strong); }
          .progress-head { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--hairline); background: rgba(0, 0, 0, 0.5); }
@@ -463,7 +438,6 @@
             line-height: 1.65;
             color: var(--body);
          }
-         /* subtle scanline texture (retro terminal) */
          .retro-terminal::before {
             content: "";
             position: absolute; inset: 0;
@@ -471,12 +445,10 @@
             pointer-events: none;
          }
          .log-line { padding: 1px 0; white-space: pre-wrap; word-break: break-word; animation: fadeIn 0.15s ease-out; }
-         /* flash feedback hooks (paired with C# flashConsole) */
          #progressConsole.flash-success { border-color: var(--primary); box-shadow: 0 0 16px var(--primary-glow); }
          #progressConsole.flash-error { border-color: #f85149; box-shadow: 0 0 16px rgba(248, 81, 73, 0.3); }
          .progress-foot { display: flex; justify-content: flex-end; padding: var(--sp-4) var(--sp-5); border-top: 1px solid var(--hairline); background: rgba(0, 0, 0, 0.5); }
 
-         /* ════════════════════════════════ MODE MODAL ════════════════════════════════ */
          .mode-panel { position: relative; z-index: 1; width: 100%; max-width: 460px; background: var(--panel-2); border: 1px solid var(--hairline-strong); border-top: 2px solid var(--primary); padding: var(--sp-5); }
          .mode-title { font-size: var(--fs-sub); font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink); margin-bottom: var(--sp-4); }
          .mode-list { display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -502,7 +474,6 @@
          .mode-cancel { margin-top: var(--sp-4); width: 100%; text-align: center; padding: 8px; background: none; border: 1px solid var(--hairline); color: var(--body); font-family: var(--sans); font-size: var(--fs-label); font-weight: 600; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: var(--transition); }
          .mode-cancel:hover { color: var(--ink); border-color: var(--hairline-strong); }
 
-         /* ════════════════════════════════ ALERT DIALOG ════════════════════════════════ */
          .dialog { position: relative; z-index: 1; width: 440px; max-width: 100%; background: var(--panel-2); border: 1px solid var(--hairline-strong); border-top: 2px solid var(--primary); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.72); }
          .dialog-body { display: flex; align-items: flex-start; gap: var(--sp-4); padding: var(--sp-5) var(--sp-5) var(--sp-4); }
          .dialog-ico { width: 42px; height: 42px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--hairline-strong); background: var(--wash); color: var(--ink); }
@@ -512,11 +483,9 @@
          .dialog-msg { font-size: var(--fs-label); line-height: var(--lh-body); color: var(--body); white-space: pre-line; }
          .dialog-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); padding: 0 var(--sp-5) var(--sp-5); }
 
-         /* log modal — wider dialog + scrollable terminal mirroring the progress console */
          .log-dialog { width: 620px; }
          .log-modal-console { position: relative; height: 320px; overflow-y: auto; padding: var(--sp-3); margin-top: var(--sp-2); background: var(--canvas); border: 1px solid var(--hairline-strong); font-family: var(--mono); font-size: var(--fs-overline); line-height: 1.65; color: var(--body); }
 
-         /* ════════════════════════════════ TRIBUTE MODAL ════════════════════════════════ */
          #tributeModal .ov-scrim { background: rgba(0, 0, 0, 0.9); }
          .tribute-panel { position: relative; z-index: 1; width: 100%; max-width: 420px; background: var(--panel-2); border: 1px solid var(--hairline-strong); border-top: 2px solid var(--primary); overflow: hidden; }
          .tribute-head { position: relative; padding: var(--sp-6) var(--sp-5) var(--sp-4); text-align: center; }
@@ -545,7 +514,6 @@
    </head>
 
    <body>
-      <!-- Ardysa brand mark — canonical sprite (mirrors Assets/logo/ardysa.svg) -->
       <svg width="0" height="0" style="position: absolute" aria-hidden="true">
          <defs>
             <g id="ardysaGlyph">
@@ -556,7 +524,6 @@
       </svg>
       <div class="bgfx"></div>
 
-      <!-- ═══════════════════════════ TITLE BAR ═══════════════════════════ -->
       <div id="titleBar" onmousedown="startDrag(event)">
          <div class="tb-brand">
             <svg class="tb-logo" viewBox="0 0 1000 1000" fill="currentColor" aria-hidden="true"><use href="#ardysaGlyph" /></svg>
@@ -570,7 +537,6 @@
          </button>
       </div>
 
-      <!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
       <header class="mf-header">
          <div>
             <h1 class="mf-title" data-i18n="miscForm.title">Miscellaneous Options</h1>
@@ -586,20 +552,17 @@
          </div>
       </header>
 
-      <!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
       <main class="mf-main">
          <div class="mf-scroll">
             <div id="optionsGrid" class="options-grid"></div>
          </div>
       </main>
 
-      <!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
       <footer class="status-bar">
          <span id="statusText" data-i18n="hero.status.ready">Ready</span>
          <span id="versionText">version ...</span>
       </footer>
 
-      <!-- ═══════════════════════════ CACHING OVERLAY ═══════════════════════════ -->
       <div id="cachingOverlay">
          <div class="co-box">
             <div class="co-ico">
@@ -618,7 +581,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ OPTION MODAL (carousel) ═══════════════════════════ -->
       <div id="optionModal" class="hidden ov" style="z-index: 90">
          <div class="ov-scrim" onclick="closeOptionModal()"></div>
          <div class="sm-wrap">
@@ -661,7 +623,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ STYLE OVERLAY ═══════════════════════════ -->
       <div id="styleOverlay" class="hidden ov" style="z-index: 95">
          <div class="ov-scrim" onclick="closeStyleOverlay()"></div>
          <div class="mf-dialog">
@@ -684,7 +645,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ ETHEREAL OVERLAY ═══════════════════════════ -->
       <div id="etherealOverlay" class="hidden ov" style="z-index: 96">
          <div class="ov-scrim" onclick="closeEtherealOverlay()"></div>
          <div class="mf-dialog">
@@ -708,7 +668,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ PROGRESS OVERLAY ═══════════════════════════ -->
       <div id="progressOverlay" class="hidden ov" style="z-index: 100">
          <div class="progress-panel animate-bounce-in">
             <div class="progress-head">
@@ -733,7 +692,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ MODE MODAL ═══════════════════════════ -->
       <div id="modeModal" class="hidden ov" style="z-index: 100">
          <div class="ov-scrim" onclick="dismissModeModal()"></div>
          <div class="mode-panel animate-bounce-in">
@@ -766,7 +724,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ ALERT MODAL ═══════════════════════════ -->
       <div id="alertModal" class="hidden ov" style="z-index: 100">
          <div class="ov-scrim" onclick="closeAlert()"></div>
          <div class="dialog">
@@ -797,7 +754,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ LOG MODAL ═══════════════════════════ -->
       <div id="logModal" class="hidden ov" style="z-index: 250">
          <div class="ov-scrim" onclick="closeLogModal()"></div>
          <div class="dialog log-dialog">
@@ -816,7 +772,6 @@
          </div>
       </div>
 
-      <!-- ═══════════════════════════ CREATOR TRIBUTE MODAL ═══════════════════════════ -->
       <div id="tributeModal" class="hidden ov" style="z-index: 200">
          <div class="ov-scrim"></div>
          <div class="tribute-panel animate-bounce-in">
@@ -885,17 +840,14 @@
          </div>
       </div>
       <script>
-         // Default thumbnail for options without images (AMT logo)
          let DEFAULT_THUMB = "";
 
-         // State
          let options = [];
          let selections = {};
          let currentOptionIndex = -1;
          let isGenerating = false;
          const thumbCache = new Map();
 
-         // Ethereal effects data (static — matches EtherealEffects.cs)
          const ETHEREAL_EFFECTS = {
             "Touch of Midas (Midas Gold)":
                "particles/econ/courier/courier_golden_roshan/golden_roshan_ambient.vpcf",
@@ -973,10 +925,9 @@
                "particles/econ/courier/courier_trail_international_2014/plushy_shag_courier_international_2014.vpcf",
          };
          const MAX_ETHEREAL_SLOTS = 2;
-         let etherealSelections = []; // currently selected effect names
-         let currentEtherealOptionId = null; // which option the ethereal overlay is for
+         let etherealSelections = [];
+         let currentEtherealOptionId = null;
 
-         // C# calls
          function setDefaultThumb(url) {
             DEFAULT_THUMB = url;
          }
@@ -987,12 +938,10 @@
             document.getElementById("optionsCount").textContent =
                `${options.length} options available`;
 
-            // Hide loading overlay immediately and render
             hideCachingOverlay();
             renderOptions();
             setStatus("Ready");
 
-            // Preload thumbnails in background (for faster modal loading)
             setTimeout(() => preloadThumbnailsBackground(), 100);
          }
 
@@ -1002,10 +951,6 @@
             renderOptions();
          }
 
-         // Reset every option to its default (first/no-op) choice. A missing entry in
-         // `selections` already renders as opt.choices[0], so emptying the map is the whole
-         // reset — no per-option loop, robust to any config. C# clears its mirror + the saved
-         // file so the cleared state survives a relaunch.
          function clearSelections() {
             if (isGenerating) return;
 
@@ -1022,12 +967,10 @@
             setStatus(hadSelections ? "Selections cleared" : "Already at default");
          }
 
-         // Called from C# when a conflicting option is auto-reset due to mutual exclusion
          function resetOption(optionId, defaultChoiceId) {
             selections[optionId] = defaultChoiceId;
             renderOptions();
 
-            // Flash the reset tile to indicate the change
             const tile = document.querySelector(`[data-option-id="${optionId}"]`);
             if (tile) {
                tile.style.transition = "border-color 0.3s, opacity 0.3s";
@@ -1047,7 +990,6 @@
             document.getElementById("versionText").textContent = `version ${version}`;
          }
 
-         // Background thumbnail preloader (silent, no overlay)
          function preloadThumbnailsBackground() {
             options.forEach((opt) => {
                if (!opt.thumbnailPattern) return;
@@ -1075,7 +1017,6 @@
             }
          }
 
-         // C# calls these to control caching overlay
          function showCachingOverlay() {
             const overlay = document.getElementById("cachingOverlay");
             if (overlay) {
@@ -1150,15 +1091,11 @@
             }
          }
 
-         // Mirror C# MiscOption.IsDefaultChoice: the "Default …"/"Disable …" no-op choices have
-         // no CDN thumbnail, so skip the request entirely and let the placeholder render.
          function isDefaultChoice(name) {
             const n = (name || "").replace(/^\s+/, "").toLowerCase();
             return n.startsWith("default") || n.startsWith("disable");
          }
 
-         // Find a per-choice thumbnailId override (shared art) by choice/style id. Mirrors the
-         // C# MiscOption.ChoiceThumbnailIds lookup so both sides resolve the same thumbnail URL.
          function findThumbnailId(opt, choiceId) {
             if (!opt.choices) return null;
             for (const c of opt.choices) {
@@ -1175,9 +1112,6 @@
          function getThumbUrl(opt, choiceId) {
             if (!opt.thumbnailPattern) return null;
             if (isDefaultChoice(choiceId)) return null;
-            // Honor a per-choice thumbnailId override (used verbatim as the CDN stem); otherwise
-            // mirror C# sanitization: strip non-alphanumeric (except space/hyphen), trim, lowercase,
-            // replace spaces. MUST mirror MiscOption.GetThumbnailUrl.
             const override = findThumbnailId(opt, choiceId);
             const token = override || choiceId
                .replace(/[^\w\s\-]/g, "")
@@ -1193,7 +1127,6 @@
             return thumbCache.get(url) || url;
          }
 
-         // Progress overlay
          function showProgress(title = "Generating...") {
             document.getElementById("progressOverlay").classList.remove("hidden");
             document.getElementById("progressTitle").textContent = title;
@@ -1262,13 +1195,9 @@
             document
                .getElementById(`alertIcon${iconMap[type] || "Info"}`)
                .classList.remove("hidden");
-            // Monochrome — icons differ by shape, not color.
             const container = document.getElementById("alertIconContainer");
             container.className = "dialog-ico";
 
-            // Offer "Show Log" on any generation-outcome alert that actually has console
-            // output — on errors it's the only way to see the failed step, since showAlert
-            // hides the progress overlay (the log content survives until the next run).
             const showLogBtn = document.getElementById("alertShowLogBtn");
             if (showLogBtn) {
                const hasLog = !!document.getElementById("progressConsoleContent")?.textContent.trim();
@@ -1284,8 +1213,6 @@
             sendMessage("alertDismissed");
          }
 
-         // Mirror the run's console into a dedicated modal so the user can review the full
-         // log after the completion alert. Reads from the live #progressConsoleContent.
          function openLogModal() {
             const src = document.getElementById("progressConsoleContent");
             const dst = document.getElementById("logModalContent");
@@ -1301,11 +1228,7 @@
             document.getElementById("logModal").classList.add("hidden");
          }
 
-         // NavigateToString pages run at about:blank (isSecureContext false), so
-         // navigator.clipboard is undefined — the copy has to go through the host.
          function copyLog(btn) {
-            // Per-node, not innerText: innerText collapses to textContent (losing the line
-            // breaks) whenever the modal is not laid out.
             const text = [...document.querySelectorAll("#logModalContent .log-line")]
                .map((n) => n.textContent)
                .join("\n");
@@ -1325,7 +1248,6 @@
             }, 1200);
          }
 
-         // Rendering
          let firstRender = true;
 
          function renderOptions() {
@@ -1351,7 +1273,6 @@
                card.dataset.optionId = opt.id;
                card.onclick = () => openOptionModal(i);
 
-               // Always try to load image if URL exists, let onerror handle failures
                const hasUrl = thumbUrl && thumbUrl.length > 0;
 
                card.innerHTML = `
@@ -1371,17 +1292,14 @@
             }
          }
 
-         // Handle image error - try alternate formats, then fall back to letter placeholder
          function handleImgError(img, letter) {
             const src = img.src;
             const formats = [".webp", ".png", ".jpg", ".jpeg"];
             const base = src.replace(/\.(png|webp|jpg|jpeg)$/i, "");
             const currentExt = src.match(/\.(png|webp|jpg|jpeg)$/i)?.[0]?.toLowerCase() || "";
 
-            // Track tried formats in data attribute
             let tried = (img.dataset.triedFormats || currentExt).split(",");
 
-            // Find next format to try
             for (const fmt of formats) {
                if (tried.includes(fmt)) continue;
                tried.push(fmt);
@@ -1391,14 +1309,12 @@
                return;
             }
 
-            // All formats failed, show solid color placeholder
             const placeholder = document.createElement("div");
             placeholder.className = "tile-thumb";
             placeholder.style.backgroundColor = "rgb(17, 17, 17)";
             img.replaceWith(placeholder);
          }
 
-         // Option Modal (Carousel)
          function openOptionModal(index) {
             currentOptionIndex = index;
             showOptionInModal(options[index]);
@@ -1406,15 +1322,13 @@
             document.addEventListener("keydown", handleModalKeydown);
          }
 
-         // Track which special options have shown tribute this session
          let tributeShownFor = new Set();
          let tributeTimer = null;
          let pendingAfterTribute = null;
 
          function closeOptionModal() {
-            closeStyleOverlay(); // Close style overlay if open
+            closeStyleOverlay();
 
-            // Check if current option is Special with a non-default selection
             if (currentOptionIndex >= 0) {
                const opt = options[currentOptionIndex];
                if (opt && opt.isSpecialVpk) {
@@ -1442,7 +1356,6 @@
             const countdown = document.getElementById("tributeCountdown");
             const subtitle = document.getElementById("tributeSubtitle");
 
-            // Show which option triggered the tribute
             if (choiceName) {
                subtitle.textContent = `Selected: ${choiceName}`;
             } else {
@@ -1477,7 +1390,6 @@
             }
             document.getElementById("tributeModal").classList.add("hidden");
 
-            // Execute pending callback (e.g., proceed with generation)
             if (pendingAfterTribute) {
                const cb = pendingAfterTribute;
                pendingAfterTribute = null;
@@ -1486,13 +1398,12 @@
          }
 
          function handleModalKeydown(e) {
-            // If style overlay is open, Escape closes it first
             if (!document.getElementById("styleOverlay").classList.contains("hidden")) {
                if (e.key === "Escape") {
                   closeStyleOverlay();
                   e.preventDefault();
                }
-               return; // Block arrow keys while overlay is open
+               return;
             }
             if (e.key === "ArrowLeft") {
                navigateOption(-1);
@@ -1523,7 +1434,6 @@
 
             document.getElementById("modalTitle").textContent = opt.name;
 
-            // Header thumbnail — show the currently selected choice/style
             const headerThumbUrl = getThumbUrl(opt, currentSelection);
             const hasUrl = headerThumbUrl && headerThumbUrl.length > 0;
             const headerLetter = opt.name.charAt(0).toUpperCase();
@@ -1535,13 +1445,11 @@
                modalThumb.innerHTML = `<div class="choice-letter">${headerLetter}</div>`;
             }
 
-            // ALWAYS render base choices (no modalViewMode branching)
             const choicesGrid = document.getElementById("modalChoices");
             choicesGrid.innerHTML = "";
             let selectedCard = null;
 
             (opt.choices || []).forEach((c) => {
-               // A base choice is selected if it IS the current selection OR if one of its styles is
                const isDirectlySelected = c.id === currentSelection;
                const hasSelectedStyle = c.styles && c.styles.some((s) => s.id === currentSelection);
                const isSelected = isDirectlySelected || hasSelectedStyle;
@@ -1554,13 +1462,11 @@
                card.className = `choice-card${isSelected ? " selected" : ""}`;
                card.onclick = () => selectBaseChoice(opt.id, c);
 
-               // Style badge — bracketed mono label
                const styleBadge =
                   c.styles && c.styles.length > 0
                      ? `<div class="choice-badge styles">Styles</div>`
                      : "";
 
-               // Ethereal badge — only on Courier option
                const isCourier = opt.id && opt.id.toLowerCase() === "courier";
                const etherealBadge = isCourier
                   ? `<div class="choice-badge ethereal" onclick="event.stopPropagation(); openEtherealOverlay('${opt.id}', '${c.id}')">Ethereal</div>`
@@ -1580,14 +1486,12 @@
                if (isSelected) selectedCard = card;
             });
 
-            // Scroll to selected card (item #1)
             if (selectedCard) {
                requestAnimationFrame(() => {
                   selectedCard.scrollIntoView({ block: "center", behavior: "smooth" });
                });
             }
 
-            // Arrows always visible (no modalViewMode gating)
             const showArrows = options.length > 1;
             document.getElementById("prevOptionBtn").style.visibility = showArrows
                ? "visible"
@@ -1597,14 +1501,12 @@
                : "hidden";
          }
 
-         // --- Style Overlay Functions ---
 
          function openStyleOverlay(optId, choiceObj) {
             const opt = options.find((o) => o.id === optId);
             if (!opt) return;
             const currentSelection = selections[optId];
 
-            // Set header
             document.getElementById("styleOverlayTitle").textContent = choiceObj.name;
             const cThumb = getThumbUrl(opt, choiceObj.id);
             const thumbEl = document.getElementById("styleOverlayThumb");
@@ -1615,7 +1517,6 @@
                thumbEl.innerHTML = `<div class="choice-letter">${cLetter}</div>`;
             }
 
-            // Render style cards
             const grid = document.getElementById("styleOverlayGrid");
             grid.innerHTML = "";
 
@@ -1647,14 +1548,12 @@
             document.getElementById("styleOverlay").classList.add("hidden");
          }
 
-         // --- Ethereal Overlay Functions ---
 
          function openEtherealOverlay(optId, choiceId) {
             currentEtherealOptionId = optId;
             const opt = options.find((o) => o.id === optId);
             if (!opt) return;
 
-            // Load saved ethereal selections from main selections
             const saved = selections["CourierEthereal"] || "";
             etherealSelections = saved
                ? saved
@@ -1663,7 +1562,6 @@
                     .filter(Boolean)
                : [];
 
-            // Set thumbnail
             const cThumb = getThumbUrl(opt, choiceId);
             const thumbEl = document.getElementById("etherealOverlayThumb");
             const letter = (choiceId || "E").charAt(0).toUpperCase();
@@ -1704,7 +1602,6 @@
                   row.onclick = () => toggleEthereal(name);
                }
 
-               // Checkbox
                const checkbox = `<div class="eth-box">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
@@ -1727,7 +1624,6 @@
                etherealSelections.push(effectName);
             }
 
-            // Save to selections
             selections["CourierEthereal"] = etherealSelections.join(",");
             sendMessage("selectionChanged", {
                optionId: "CourierEthereal",
@@ -1737,25 +1633,19 @@
             renderEtherealGrid();
          }
 
-         // Called when clicking a parent/base choice tile
          function selectBaseChoice(optId, choiceObj) {
             if (choiceObj.styles && choiceObj.styles.length > 0) {
-               // Has styles → open the style overlay ON TOP of the courier modal
-               // If no style is currently selected from this courier, auto-select the first
                const currentSelection = selections[optId];
                const hasSelectedStyle = choiceObj.styles.some((s) => s.id === currentSelection);
                if (!hasSelectedStyle) {
                   selections[optId] = choiceObj.styles[0].id;
                   sendMessage("selectionChanged", { optionId: optId, choiceId: selections[optId] });
                }
-               // Refresh the base modal to highlight this courier
                const opt = options.find((o) => o.id === optId);
                if (opt) showOptionInModal(opt);
                renderOptions();
-               // Then open style overlay
                openStyleOverlay(optId, choiceObj);
             } else {
-               // No styles — direct selection
                selections[optId] = choiceObj.id;
                sendMessage("selectionChanged", { optionId: optId, choiceId: choiceObj.id });
                const opt = options.find((o) => o.id === optId);
@@ -1763,21 +1653,17 @@
                renderOptions();
             }
 
-            // Enforce mutual exclusion on the JS side for instant UI feedback
             enforceExclusion(optId);
          }
 
-         // Mutual exclusion: reset conflicting options when a non-default selection is made
          function enforceExclusion(optId) {
             const opt = options.find((o) => o.id === optId);
             if (!opt || !opt.excludesWith || opt.excludesWith.length === 0) return;
 
-            // Check if current selection is default (first choice)
             const currentChoice = selections[optId];
             const defaultChoice = opt.choices?.[0]?.id || "default";
             if (currentChoice === defaultChoice) return;
 
-            // Reset each conflicting option to its default
             opt.excludesWith.forEach((excludedId) => {
                const excludedOpt = options.find((o) => o.id === excludedId);
                if (!excludedOpt) return;
@@ -1794,24 +1680,19 @@
             });
          }
 
-         // Called when clicking a specific style tile in the overlay
          function selectStyle(optId, styleId, parentChoiceObj) {
             selections[optId] = styleId;
             sendMessage("selectionChanged", { optionId: optId, choiceId: styleId });
 
-            // Refresh the style overlay to update selection highlight
             if (parentChoiceObj) openStyleOverlay(optId, parentChoiceObj);
-            // Refresh main modal header thumb and grid
             const opt = options.find((o) => o.id === optId);
             if (opt) showOptionInModal(opt);
             renderOptions();
          }
 
-         // Actions
          function generate() {
             if (isGenerating) return;
 
-            // Check if any Special option has a non-default selection
             let specialChoiceName = null;
             const hasSpecialSelected = options.some((opt) => {
                if (!opt.isSpecialVpk) return false;
@@ -1825,7 +1706,6 @@
             });
 
             if (hasSpecialSelected) {
-               // Show tribute first, then generate after dismissal
                pendingAfterTribute = () => sendMessage("generate", { selections });
                showTributeModal(specialChoiceName);
             } else {
@@ -1839,8 +1719,6 @@
          function closeModeModal() {
             document.getElementById("modeModal").classList.add("hidden");
          }
-         // Scrim / Cancel dismiss: tell C# a null mode was chosen so it stops waiting
-         // immediately instead of sitting out the full timeout.
          function dismissModeModal() {
             closeModeModal();
             sendMessage("modeSelected", { mode: null });
@@ -1860,7 +1738,6 @@
             sendMessage("savePreset", { selections });
          }
 
-         // Messaging
          function sendMessage(type, data = {}) {
             if (window.chrome?.webview) window.chrome.webview.postMessage({ type, ...data });
             else console.log("Message:", type, data);
@@ -1872,7 +1749,6 @@
             if (event.button === 0) sendMessage("startDrag");
          }
 
-         // Demo
          if (!window.chrome?.webview) {
             setTimeout(() => {
                loadOptions([
@@ -1909,7 +1785,6 @@
                ]);
                setVersion("2.0.16-beta");
 
-               // Test console
                setTimeout(() => {
                   showProgress("Testing...");
                   appendConsole("Console test line 1");

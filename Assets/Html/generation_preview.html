@@ -52,7 +52,6 @@
             overflow: hidden;
          }
 
-         /* ── Animated Wave Background ── */
          .animated-bg {
             position: fixed;
             inset: 0;
@@ -82,7 +81,6 @@
             }
          }
 
-         /* ── Corner Decorations ── */
          .corner-decoration {
             position: fixed;
             width: 14px;
@@ -115,7 +113,6 @@
             border-right: 1px solid;
          }
 
-         /* ── Drag Area ── */
          .drag-area {
             position: fixed;
             top: 0;
@@ -140,7 +137,6 @@
             animation: fadeSlideIn 0.35s ease-out both;
          }
 
-         /* ── Layout ── */
          .container {
             flex: 1;
             display: flex;
@@ -188,9 +184,6 @@
             content: "// ";
          }
 
-         /* ── Selection rows ── */
-         /* Two columns of compact rows: a generation run can carry 50+ heroes, and a
-            single column of 80px rows showed only four of them before scrolling. */
          .list {
             flex: 1;
             min-height: 0;
@@ -248,7 +241,6 @@
             text-overflow: ellipsis;
          }
 
-         /* ── Buttons ── */
          .btn-container {
             display: flex;
             justify-content: center;
@@ -323,7 +315,6 @@
          const PLACEHOLDER =
             "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 56'%3E%3Crect fill='%23222' width='56' height='56'/%3E%3C/svg%3E";
 
-         // Called by C# with the selected layers: [{ hero, setName, thumb }]
          function loadItems(items) {
             items = Array.isArray(items) ? items : [];
 

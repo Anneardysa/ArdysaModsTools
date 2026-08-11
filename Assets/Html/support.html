@@ -42,20 +42,17 @@
             --accent-glow: rgba(41, 171, 224, 0.15);
             --yt-glow: rgba(255, 50, 50, 0.15);
 
-            /* ═══ SPACING TOKENS ═══ */
             --sp-xs: 6px;
             --sp-sm: 10px;
             --sp-md: 16px;
             --sp-lg: 20px;
             --sp-xl: 24px;
 
-            /* ═══ FONT TOKENS ═══ */
             --fs-xs: 11px;
             --fs-sm: 13px;
             --fs-md: 15px;
             --fs-lg: 22px;
 
-            /* ═══ ELEMENT TOKENS ═══ */
             --icon-card: 32px;
          }
 
@@ -71,14 +68,12 @@
             flex-direction: column;
          }
 
-         /* ═══ TITLEBAR (DRAG REGION) ═══ */
          #titlebar {
             height: 36px;
             min-height: 36px;
             -webkit-app-region: drag;
          }
 
-         /* ═══ CLOSE X (outside drag region) ═══ */
          .close-x {
             position: fixed;
             top: 0;
@@ -101,7 +96,6 @@
             background: rgba(255, 80, 80, 0.8);
          }
 
-         /* ═══ MAIN LAYOUT ═══ */
          .container {
             flex: 1;
             min-height: 0;
@@ -109,14 +103,11 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* safe center: centered when it fits, top-aligned + scrollable when too tall at
-               high DPI, so the donation cards/buttons are never clipped. */
             justify-content: safe center;
             gap: 0;
             overflow-y: auto;
          }
 
-         /* ═══ BADGE ═══ */
          .badge {
             font-size: var(--fs-sm);
             font-weight: 700;
@@ -128,7 +119,6 @@
             animation: fadeSlideIn 0.3s ease-out both;
          }
 
-         /* ═══ HEADER ═══ */
          .title {
             font-size: var(--fs-lg);
             font-weight: 700;
@@ -145,7 +135,6 @@
             animation: fadeSlideIn 0.35s ease-out 0.1s both;
          }
 
-         /* ═══ DONATION CARDS ═══ */
          .cards-row {
             display: flex;
             gap: var(--sp-md);
@@ -232,7 +221,6 @@
             margin-top: var(--sp-xs);
          }
 
-         /* ═══ FOOTER MESSAGE ═══ */
          .footer-msg {
             font-size: var(--fs-sm);
             color: var(--text-muted);
@@ -240,7 +228,6 @@
             animation: fadeSlideIn 0.4s ease-out 0.35s both;
          }
 
-         /* ═══ SEPARATOR ═══ */
          .separator {
             width: 100%;
             height: 1px;
@@ -249,7 +236,6 @@
             animation: fadeSlideIn 0.3s ease-out 0.4s both;
          }
 
-         /* ═══ "DON'T SHOW TODAY" — on-launch prompt only ═══ */
          .snooze-row { display: none; align-items: center; gap: var(--sp-xs); margin-top: var(--sp-md);
             font-family: "JetBrains Mono", monospace; font-size: var(--fs-sm); color: var(--text-muted);
             cursor: pointer; user-select: none; animation: fadeSlideIn 0.4s ease-out 0.5s both; }
@@ -259,7 +245,6 @@
 
 
 
-         /* ═══ CLOSE BUTTON ═══ */
          .close-btn {
             margin-top: var(--sp-lg);
             padding: var(--sp-xs) clamp(20px, 4vw, 36px);
@@ -280,7 +265,6 @@
             background: var(--surface);
             border-color: var(--text-dim);
          }
-         /* locked state while the startup countdown runs */
          .close-btn.locked {
             cursor: default;
             opacity: 0.65;
@@ -311,24 +295,19 @@
       </style>
    </head>
    <body>
-      <!-- Drag region -->
       <div id="titlebar"></div>
 
-      <!-- Close X (outside drag region so clicks always work) -->
       <button class="close-x" onclick="requestClose()" title="Close (ESC)" data-i18n-title="common.close">✕</button>
 
       <div class="container">
-         <!-- Badge -->
          <div class="badge" data-i18n="support.badge">[ SUPPORT ]</div>
 
-         <!-- Header -->
          <div class="title" data-i18n="support.title">SUPPORT THE DEVELOPMENT</div>
          <div class="subtitle" data-i18n-html="support.subtitle">
             ArdysaModsTools is free and always will be.<br />Your support helps keep this project
             alive!
          </div>
 
-         <!-- Donation cards -->
           <div class="cards-row">
              <div class="card card-paypal" onclick="openUrl('https://paypal.me/ardysa')">
                 <img
@@ -355,24 +334,19 @@
              </div>
           </div>
 
-         <!-- Footer message -->
          <div class="footer-msg" data-i18n="support.footerMsg">❤ Every contribution helps improve the tool for everyone ❤</div>
 
-         <!-- Separator -->
          <div class="separator"></div>
 
-         <!-- "Don't show this today" — revealed only on the on-launch prompt -->
          <label id="snoozeRow" class="snooze-row">
             <input type="checkbox" id="snoozeToday" />
             <span data-i18n="support.dontShowToday">Don't show this again today</span>
          </label>
 
-         <!-- Close button -->
          <button id="close-btn" class="close-btn" onclick="requestClose()">[ CLOSE ]</button>
       </div>
 
       <script>
-         // C# → JS interop (with window.close() fallback)
          function sendMessage(type, data = {}) {
             if (window.chrome && window.chrome.webview) {
                window.chrome.webview.postMessage({ type, ...data });
@@ -385,10 +359,6 @@
             sendMessage("openUrl", { url });
          }
 
-         // ═══ STARTUP COUNTDOWN ═══
-         // When the dialog is shown on app launch, C# calls startCountdown(5) so the user can't
-         // dismiss it instantly. All close paths (X, button, ESC) route through requestClose(),
-         // which is a no-op while locked. Not called for the manual (Support button) open.
          let _closeLocked = false;
          let _cdTimer = null;
 
@@ -397,8 +367,6 @@
             const x = document.querySelector(".close-x");
             let remaining = parseInt(seconds, 10) || 5;
 
-            // Countdown only runs for the on-launch prompt, so this is where the
-            // "Don't show this today" opt-out belongs (hidden on the manual Support open).
             document.getElementById("snoozeRow")?.classList.add("show");
 
             _closeLocked = true;
@@ -427,18 +395,14 @@
 
          function requestClose() {
             if (_closeLocked) return;
-            // Carry the snooze choice on every close path (X / button / ESC). Harmless
-            // for the manual open, where the row stays hidden and the box is unchecked.
             const snoozeToday = !!document.getElementById("snoozeToday")?.checked;
             sendMessage("close", { snoozeToday });
          }
 
-         // ESC to close (blocked while the countdown is locked)
          document.addEventListener("keydown", (e) => {
             if (e.key === "Escape") requestClose();
          });
 
-         // Drag support fallback
          document.getElementById("titlebar")?.addEventListener("mousedown", () => {
             sendMessage("startDrag");
          });

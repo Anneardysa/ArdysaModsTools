@@ -15,20 +15,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/*
- * Shared WebView i18n helper. The C# host injects the active + English-fallback locale maps via
- * setLocale({...}, {...}) right after navigation, then calls applyI18n(). Translation keys and the
- * {token} interpolation syntax mirror the C# LocalizationService exactly so the JSON catalog under
- * Assets/Locales/ is a single source of truth.
- *
- * Declarative markup attributes scanned by applyI18n:
- *   data-i18n="key"              -> element.textContent
- *   data-i18n-html="key"         -> element.innerHTML  (use only for trusted catalog markup, e.g. &nbsp;)
- *   data-i18n-placeholder="key"  -> element.placeholder
- *   data-i18n-title="key"        -> element.title      (tooltips)
- *   data-i18n-aria-label="key"   -> aria-label
- * Optional data-i18n-vars='{"name":"value"}' supplies interpolation tokens for that element.
- */
 (function () {
    window.__locale = window.__locale || {};
    window.__localeFallback = window.__localeFallback || {};
@@ -37,7 +23,7 @@
       if (key == null) return key;
       if (Object.prototype.hasOwnProperty.call(window.__locale, key)) return window.__locale[key];
       if (Object.prototype.hasOwnProperty.call(window.__localeFallback, key)) return window.__localeFallback[key];
-      return key; // surface the key rather than blank when missing.
+      return key;
    }
 
    function interpolate(template, vars) {
@@ -47,16 +33,13 @@
       });
    }
 
-   // t(key) or t(key, { name: value }) — translate + interpolate.
    window.t = function (key, vars) {
       return interpolate(lookup(key), vars);
    };
 
-   // tp(key, count) or tp(key, count, vars) — pluralize (.zero/.one/.other) + interpolate {count}.
    window.tp = function (key, count, vars) {
       var suffix = count === 1 ? "one" : count === 0 ? "zero" : "other";
       var merged = Object.assign({ count: count }, vars || {});
-      // Fall back to .other when an authored .zero is absent.
       var hasZero =
          suffix !== "zero" ||
          Object.prototype.hasOwnProperty.call(window.__locale, key + ".zero") ||
@@ -65,10 +48,6 @@
       return interpolate(lookup(fullKey), merged);
    };
 
-   /* Renders a keyed console log line from its segments. Each segment is either a literal string or
-    * a translation token { k: key, v: vars }. Shared by appendLogI18n (main_shell.html) and the
-    * re-translate pass in applyI18n so console history follows a language switch. Mirrors the C#
-    * LogSegment serialization in Logger.cs. */
    window.renderLogSegments = function (segs) {
       if (!Array.isArray(segs)) return "";
       var out = "";
@@ -80,7 +59,6 @@
       return out;
    };
 
-   // Replaces the active + fallback maps (called by the C# host).
    window.setLocale = function (active, fallback) {
       window.__locale = active || {};
       if (fallback) window.__localeFallback = fallback;
@@ -88,31 +66,18 @@
       applyI18n();
    };
 
-   /* ════════ Bilingual nav-button fade (main_shell left bar, any non-English UI) ════════
-    * Restricted to the seven left-sidebar nav buttons in main_shell (keys "shell.nav.*": Auto Detect
-    * … Performance Tweak); every other button in the app is excluded by that key prefix. Whenever the
-    * UI is in a non-English language each nav button gently crossfades its localized label to the
-    * English original (window.__localeFallback[key]) and back on a slow, synchronized loop — so it
-    * works the same for Spanish, German, French, Portuguese, Russian and both Chinese scripts. An
-    * English UI (or any label kept in English) is inert because the localized text equals the fallback.
-    * The fade animates an inner wrapper span — never the button's own opacity — so disabled-button
-    * styling is untouched. Lives in this shared helper. */
    var FADE_STYLE_ID = "i18n-fade-style";
-   var FADE_HOLD_MS = 4000; // how long each language is shown before crossfading
-   var FADE_DUR_MS = 400;   // opacity transition length
-   var CJK_RE = /[㐀-鿿豈-﫿]/; // CJK ideographs => Chinese text
+   var FADE_HOLD_MS = 4000;
+   var FADE_DUR_MS = 400;
+   var CJK_RE = /[㐀-鿿豈-﫿]/;
    var fadeRegistry = [];
    var fadeTimer = null;
-   var fadeGen = 0;         // bumped on teardown to abort in-flight crossfades
+   var fadeGen = 0;
    var fadeWasHidden = false;
-   // Single shared clock so every nav button crossfades in lockstep (one schedule, not per-button).
-   var fadeShowingEn = false; // true => English original showing; false => localized label. Same for all buttons
-   var fadeNextAt = 0;        // timestamp of the next synchronized flip
-   var fadeFlipping = false;  // a crossfade is mid-flight
+   var fadeShowingEn = false;
+   var fadeNextAt = 0;
+   var fadeFlipping = false;
 
-   // Flag <html data-cjk> while the active locale contains Chinese, so the page can swap in a CJK-capable
-   // font fallback (the JetBrains Mono stack has no Chinese glyphs). Re-evaluated on every setLocale, so a
-   // live switch back to a non-Chinese language clears it. Cheap one-pass scan of the active map.
    function updateCjkFlag() {
       var hasCjk = false;
       for (var k in window.__locale) {
@@ -139,8 +104,6 @@
       return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
    }
 
-   // Rebuild from scratch: tear down timers/spans so re-applies and switching away from Chinese leave
-   // no residue and every button shows its plain Chinese label again.
    function teardownButtonFade() {
       fadeGen++;
       if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
@@ -149,21 +112,17 @@
       fadeRegistry.forEach(function (r) {
          r.el.removeAttribute("data-i18n-loc");
          r.el.removeAttribute("data-i18n-en");
-         // Drop the wrapper span by re-rendering the element's CURRENT active translation. Using the
-         // live key (not the stored localized text) keeps a language switch correct: applyI18n has
-         // already set the new text, and partial/subtree re-applies still collapse the span cleanly.
          r.el.textContent = window.t(r.el.getAttribute("data-i18n"));
       });
       fadeRegistry = [];
    }
 
-   // One synchronized crossfade for the whole nav: fade every button out together, swap text, fade in.
    function fadeFlipAll() {
       var gen = fadeGen;
       fadeFlipping = true;
       fadeRegistry.forEach(function (r) { r.span.style.opacity = "0"; });
       setTimeout(function () {
-         if (gen !== fadeGen) return; // torn down mid-crossfade
+         if (gen !== fadeGen) return;
          fadeShowingEn = !fadeShowingEn;
          fadeRegistry.forEach(function (r) {
             r.span.textContent = fadeShowingEn ? r.en : r.loc;
@@ -175,9 +134,9 @@
    }
 
    function fadeTick() {
-      if (document.hidden) { fadeWasHidden = true; return; } // pause in the background
+      if (document.hidden) { fadeWasHidden = true; return; }
       var now = Date.now();
-      if (fadeWasHidden) { // returned to foreground: restart the shared hold so it doesn't flip instantly
+      if (fadeWasHidden) {
          fadeWasHidden = false;
          fadeNextAt = now + FADE_HOLD_MS;
          return;
@@ -186,17 +145,15 @@
    }
 
    function setupButtonBilingualFade() {
-      teardownButtonFade(); // idempotent — fully rebuilt on every applyI18n
+      teardownButtonFade();
       if (fadeReducedMotion()) return;
       document.querySelectorAll("[data-i18n]").forEach(function (el) {
          var key = el.getAttribute("data-i18n");
-         if (key == null || key.lastIndexOf("shell.nav.", 0) !== 0) return; // left nav bar only
-         if (!el.closest || !el.closest("button")) return; // and only when it's a button
+         if (key == null || key.lastIndexOf("shell.nav.", 0) !== 0) return;
+         if (!el.closest || !el.closest("button")) return;
          var loc = window.t(key);
          if (!Object.prototype.hasOwnProperty.call(window.__localeFallback, key)) return;
          var en = window.__localeFallback[key];
-         // Run for any locale whose label actually differs from the English original. An English UI (or
-         // a label deliberately kept in English) has loc === en and is skipped, so the effect is inert.
          if (en == null || en === loc) return;
          var span = document.createElement("span");
          span.className = "i18n-fade";
@@ -209,12 +166,11 @@
       });
       if (!fadeRegistry.length) return;
       ensureFadeStyle();
-      fadeShowingEn = false;                  // all buttons start showing the localized label together
-      fadeNextAt = Date.now() + FADE_HOLD_MS; // first synchronized flip after one shared hold
+      fadeShowingEn = false;
+      fadeNextAt = Date.now() + FADE_HOLD_MS;
       fadeTimer = setInterval(fadeTick, 200);
    }
 
-   // Walks the DOM (or a subtree) and fills in every data-i18n* attribute.
    window.applyI18n = function (root) {
       root = root || document;
 
@@ -244,8 +200,6 @@
          el.setAttribute("aria-label", window.t(el.getAttribute("data-i18n-aria-label"), varsFor(el)));
       });
 
-      // Re-translate keyed console lines so the log history follows a language switch. Lines logged as
-      // raw text (appendLog) have no data-i18n-log attribute and are left untouched.
       root.querySelectorAll(".log-line[data-i18n-log]").forEach(function (line) {
          var segs;
          try { segs = JSON.parse(line.getAttribute("data-i18n-log")); } catch (e) { return; }
@@ -253,7 +207,6 @@
          if (msg) msg.textContent = window.renderLogSegments(segs);
       });
 
-      // After the catalog text is in place, (re)build the non-English bilingual nav-button fade.
       setupButtonBilingualFade();
    };
 })();

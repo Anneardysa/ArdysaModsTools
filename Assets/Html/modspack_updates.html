@@ -62,7 +62,6 @@
             border: 1px solid var(--hairline-strong);
          }
 
-         /* title bar */
          #titlebar {
             height: 40px;
             min-height: 40px;
@@ -131,7 +130,6 @@
             color: #fff;
          }
 
-         /* controls */
          .controls {
             display: flex;
             align-items: center;
@@ -202,7 +200,6 @@
             color: var(--on-primary);
          }
 
-         /* grid */
          .grid {
             flex: 1;
             min-height: 0;
@@ -321,7 +318,6 @@
             cursor: pointer;
          }
 
-         /* lightbox / preview modal */
          .lightbox {
             position: fixed;
             inset: 0;
@@ -431,7 +427,6 @@
             letter-spacing: 1.5px;
             color: var(--mute);
          }
-         /* nav arrows + close */
          .lb-nav,
          .lb-close {
             position: absolute;
@@ -483,7 +478,6 @@
             height: 16px;
          }
 
-         /* loading / error / empty state */
          .state {
             flex: 1;
             display: flex;
@@ -532,7 +526,6 @@
             border-color: var(--primary);
          }
 
-         /* footer */
          .footer {
             display: flex;
             align-items: center;
@@ -705,14 +698,12 @@
             if (e.key === "Escape") act("close");
          });
 
-         /* ── state ── */
          let _all = [];
          let _filtered = [];
          let _filter = "all";
          let _search = "";
          let _lbIndex = -1;
 
-         /* ── C# → JS: set the ModsPack version badge in the title bar ── */
          function setModspackVersion(v) {
             const el = document.getElementById("brand-ver");
             if (!el || !v) return;
@@ -720,7 +711,6 @@
             el.style.display = "inline-block";
          }
 
-         /* ── C# → JS: render the updates grid ── */
          function loadUpdates(payload) {
             const items = typeof payload === "string" ? JSON.parse(payload) : payload;
             if (!Array.isArray(items) || items.length === 0) {
@@ -754,7 +744,6 @@
                _filtered.forEach((u, i) => grid.appendChild(buildCard(u, i)));
             }
 
-            // If the lightbox is open, keep it pointing at a valid item after a re-filter.
             if (_lbIndex >= 0 && _lbIndex >= _filtered.length) closeLightbox();
 
             document.getElementById("count").textContent =
@@ -819,7 +808,6 @@
             document.getElementById("state-action").style.display = "inline-flex";
          }
 
-         /* ── lightbox preview + carousel ── */
          function openLightbox(index) {
             if (index < 0 || index >= _filtered.length) return;
             _lbIndex = index;
@@ -844,7 +832,6 @@
          }
 
          function onLightboxBackdrop(ev) {
-            // Close only when the dark backdrop itself is clicked (not the image or controls).
             if (ev.target.id === "lightbox") closeLightbox();
          }
 
@@ -864,7 +851,6 @@
                spin.style.display = "none";
                img.style.display = "none";
             };
-            // Preview the full-colour, full-resolution image.
             if (u.image) {
                img.alt = u.hero || "";
                img.src = u.image;
@@ -887,7 +873,6 @@
             document.getElementById("lb-next").disabled = _lbIndex >= _filtered.length - 1;
          }
 
-         /* ── filter + search wiring ── */
          document.getElementById("search-input").addEventListener("input", (e) => {
             _search = e.target.value.trim();
             render();
