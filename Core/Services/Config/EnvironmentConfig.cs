@@ -114,6 +114,9 @@ namespace ArdysaModsTools.Core.Services.Config
         public static string R2CdnBase =>
             Environment.GetEnvironmentVariable("R2_CDN_BASE") ?? "https://cdn.ardysamods.my.id";
         
+        public static string Cdn2Base =>
+            Environment.GetEnvironmentVariable("CDN2_BASE") ?? "https://cdn2.ardysamods.my.id";
+        
         public static string ContentBase => R2CdnBase;
         
         public static string GitHubDownloadBase =>
@@ -192,40 +195,12 @@ namespace ArdysaModsTools.Core.Services.Config
             if (url.StartsWith(R2CdnBase, StringComparison.OrdinalIgnoreCase))
             {
                 repoPath = url.Substring(R2CdnBase.Length).TrimStart('/');
-                fallbacks.Add($"{JsDelivrBase}/{repoPath}");
-                fallbacks.Add($"{RawGitHubBase}/{repoPath}");
+                fallbacks.Add($"{Cdn2Base}/{repoPath}");
             }
-            else if (url.StartsWith("https://raw.githubusercontent.com/", StringComparison.OrdinalIgnoreCase))
+            else if (url.StartsWith(Cdn2Base, StringComparison.OrdinalIgnoreCase))
             {
-                var parsed = ParseRawGitHubUrl(url);
-                if (!string.IsNullOrEmpty(parsed.Path) &&
-                    parsed.Owner.Equals(GitHubOwner, StringComparison.OrdinalIgnoreCase) &&
-                    parsed.Repo.Equals(GitHubModsRepo, StringComparison.OrdinalIgnoreCase))
-                {
-                    repoPath = parsed.Path;
-                    fallbacks.Add($"{R2CdnBase}/{repoPath}");
-                    fallbacks.Add($"{JsDelivrBase}/{repoPath}");
-                }
-            }
-            else if (url.StartsWith("https://cdn.jsdelivr.net/gh/", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    var remainder = url.Substring("https://cdn.jsdelivr.net/gh/".Length);
-                    var atIdx = remainder.IndexOf('@');
-                    if (atIdx >= 0)
-                    {
-                        var afterAt = remainder.Substring(atIdx + 1);
-                        var slashIdx = afterAt.IndexOf('/');
-                        if (slashIdx >= 0)
-                        {
-                            repoPath = afterAt.Substring(slashIdx + 1);
-                            fallbacks.Add($"{R2CdnBase}/{repoPath}");
-                            fallbacks.Add($"{RawGitHubBase}/{repoPath}");
-                        }
-                    }
-                }
-                catch { }
+                repoPath = url.Substring(Cdn2Base.Length).TrimStart('/');
+                fallbacks.Add($"{R2CdnBase}/{repoPath}");
             }
             
             return fallbacks.ToArray();

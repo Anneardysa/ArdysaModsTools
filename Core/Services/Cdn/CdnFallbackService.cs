@@ -79,18 +79,20 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
         private long _totalDownloads;
         private long _r2Successes;
+        private long _cdn2Successes;
         private long _jsdelivrSuccesses;
         private long _githubSuccesses;
         private long _proxySuccesses;
         private long _totalFailures;
 
-        public (long total, long r2, long jsdelivr, long github, long proxy, long failures) GetStats() =>
-            (_totalDownloads, _r2Successes, _jsdelivrSuccesses, _githubSuccesses, _proxySuccesses, _totalFailures);
+        public (long total, long r2, long cdn2, long jsdelivr, long github, long proxy, long failures) GetStats() =>
+            (_totalDownloads, _r2Successes, _cdn2Successes, _jsdelivrSuccesses, _githubSuccesses, _proxySuccesses, _totalFailures);
 
         public void ResetStats()
         {
             Interlocked.Exchange(ref _totalDownloads, 0);
             Interlocked.Exchange(ref _r2Successes, 0);
+            Interlocked.Exchange(ref _cdn2Successes, 0);
             Interlocked.Exchange(ref _jsdelivrSuccesses, 0);
             Interlocked.Exchange(ref _githubSuccesses, 0);
             Interlocked.Exchange(ref _proxySuccesses, 0);
@@ -306,7 +308,9 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
         private void UpdateSuccessStats(string cdnBase)
         {
-            if (cdnBase.Contains("r2.dev") || cdnBase.Contains("ardysamods.my.id"))
+            if (cdnBase.Contains("cdn2.ardysamods.my.id"))
+                Interlocked.Increment(ref _cdn2Successes);
+            else if (cdnBase.Contains("r2.dev") || cdnBase.Contains("cdn.ardysamods.my.id"))
                 Interlocked.Increment(ref _r2Successes);
             else if (cdnBase.Contains("jsdelivr"))
                 Interlocked.Increment(ref _jsdelivrSuccesses);
