@@ -40,9 +40,19 @@
 3. Wait for download and installation
 4. Status will show "Ready" (green) when complete
 
-### Step 4: Play!
+### Step 4: Press PLAY DOTA 2
 
-Launch Dota 2 normally and enjoy your mods! 🎮
+```
+PLAY DOTA 2 → done
+```
+
+Start the game from AMT, not from Steam. The button waits out any pending Dota 2 update,
+rebuilds your mod package for the new version, and then launches — that's what stops the
+crash-on-startup you get after a Valve patch. Nothing is redownloaded; it repairs from data
+already on your disk.
+
+If an update landed, AMT asks before launching (*"Dota 2 has been updated — start it now?"*)
+so a long patch doesn't start the game while you're away. Everything before that is automatic.
 
 ---
 
@@ -57,8 +67,12 @@ Main Window → Install → Auto Install → Done
 **After Dota 2 updates**:
 
 ```
-Patch Update → Done
+Patch Update → PLAY DOTA 2 → Done
 ```
+
+Two different repairs: **Patch Update** restores the game config so mods load at all;
+**Play Dota 2** rebuilds the mod package so it matches the new game version. The status chips
+tell you which one is outstanding.
 
 ### Create Custom Hero Skins
 
@@ -119,13 +133,15 @@ Patch Update → Done
 
 ## ❗ Quick Troubleshooting
 
-| Problem            | Solution                             |
-| ------------------ | ------------------------------------ |
-| Can't launch AMT   | Close Dota 2 first                   |
-| Auto detect failed | Use Manual Select                    |
-| Mods not showing   | Click Patch Update                   |
-| After game update  | Click Patch Update                   |
-| Error messages     | Copy console logs and ask in Discord |
+| Problem                       | Solution                                    |
+| ----------------------------- | ------------------------------------------- |
+| Can't launch AMT              | Close Dota 2 first                          |
+| Auto detect failed            | Use Manual Select                           |
+| Mods not showing              | Patch Update, then **PLAY DOTA 2**          |
+| Dota 2 crashes on startup     | **PLAY DOTA 2** — it rebuilds the package   |
+| **Package Sync** chip is red  | Normal after a Dota 2 patch. **PLAY DOTA 2** clears it |
+| **Process Elevation** chip is red | Restart AMT as Administrator            |
+| Error messages                | Copy console logs and ask in Discord        |
 
 ---
 
@@ -140,11 +156,12 @@ Patch Update → Done
 
 ## 💡 Pro Tips
 
-1. **Star your favorite heroes** - They appear at the top for quick access
-2. **Generate multiple heroes at once** - Select sets for several heroes before clicking Generate
-3. **Copy console logs** - Use the Copy button for debugging
-4. **Run as Admin** - If you encounter permission issues
-5. **After every Dota update** - Run Patch Update to keep mods working
+1. **Always start the game with PLAY DOTA 2** — it's the whole point of the button
+2. **Star your favorite heroes** — they pin to the top for quick access
+3. **Generate multiple heroes at once** — select sets for several heroes before hitting Generate
+4. **Copy console logs** — use the Copy button when reporting anything
+5. **Run as Admin** — if the Process Elevation chip is red
+6. **Set your language and theme** — Settings, applies instantly
 
 ---
 

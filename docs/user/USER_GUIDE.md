@@ -1,6 +1,6 @@
 # ArdysaModsTools User Guide
 
-**Version 2.1.22-beta** | The Ultimate Dota 2 Mod Manager
+**The Ultimate Dota 2 Mod Manager**
 
 ![Banner](images/shell.png)
 
@@ -13,14 +13,17 @@
 3. [Installation](#installation)
 4. [Getting Started](#getting-started)
 5. [Features Overview](#features-overview)
-6. [Main Features](#main-features)
+6. [Play Dota 2](#play-dota-2)
+7. [Main Features](#main-features)
    - [Mod Installation](#mod-installation)
    - [Hero Set Generation](#hero-set-generation)
    - [Miscellaneous Mods](#miscellaneous-mods)
-7. [Advanced Features](#advanced-features)
-8. [Troubleshooting](#troubleshooting)
-9. [FAQ](#faq)
-10.   [Support & Community](#support--community)
+8. [Status & Verification](#status--verification)
+9. [Personalization](#personalization)
+10. [Advanced Features](#advanced-features)
+11. [Troubleshooting](#troubleshooting)
+12. [FAQ](#faq)
+13. [Support & Community](#support--community)
 
 ---
 
@@ -46,7 +49,7 @@
 | **Operating System** | Windows 10/11 (64-bit)                                                                                                |
 | **Runtime**          | Bundled (self-contained — no separate .NET install needed)                                                            |
 | **Browser Runtime**  | [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (usually pre-installed on Windows 10/11) |
-| **Disk Space**       | 500 MB free (for temporary files)                                                                                     |
+| **Disk Space**       | ~2 GB free — VPK extraction during generation needs the headroom                                                      |
 | **Dota 2**           | Installed via Steam                                                                                                   |
 
 > [!NOTE]
@@ -66,9 +69,9 @@
    - Follow the installation wizard
 
 3. **Dependency Check**
-   - The installer will check for .NET 8 Desktop Runtime
-   - If not found, you'll be prompted to download it
-   - After installing .NET 8, run the AMT installer again
+   - The .NET runtime is **bundled** — nothing to install separately
+   - The installer auto-installs the WebView2 Runtime if it's missing
+   - Any previous version of AMT is removed automatically first
 
 4. **Complete Installation**
    - Choose installation location (default: `%LocalAppData%\ArdysaModsTools`)
@@ -101,7 +104,8 @@ The guide will walk you through:
 1. **Auto Detect / Manual Detect**: Finding your Dota 2 installation.
 2. **Skin Selector & Miscellaneous**: Navigating to mod categories.
 3. **Install & Patch Update**: Applying and maintaining your mods.
-4. **Console Logs & Settings**: Inspecting errors and clearing caches.
+4. **Play Dota 2**: Launching the game with your mods repaired and up to date.
+5. **Console Logs & Settings**: Inspecting errors, changing theme/language, clearing caches.
 
 *Note: You can re-run the Onboarding Guide anytime from the Settings page by clicking the "Show Guide" button.*
 
@@ -138,22 +142,92 @@ Once Dota 2 is detected:
 3. Wait for the installation to complete
 4. Status will show "Ready" in green when successful
 
-#### Step 3: Launch Dota 2
+#### Step 3: Press PLAY DOTA 2
 
-The mods are now installed! Launch Dota 2 normally and enjoy your customized game.
+Your mods are installed. Start the game with the **PLAY DOTA 2** button in AMT rather than from
+Steam — see [Play Dota 2](#play-dota-2) below for why that matters.
 
 ---
 
 ## Features Overview
 
-ArdysaModsTools offers four core features:
+| Feature               | Description                                            | Access Point           |
+| --------------------- | ------------------------------------------------------ | ---------------------- |
+| **Play Dota 2**       | Repairs your mods if needed, then launches the game    | Sidebar (primary button) |
+| **Install ModsPack**  | Download and install the main curated mod pack         | Sidebar                |
+| **Skin Selector**     | Create custom hero skins from community sets           | Sidebar                |
+| **Miscellaneous**     | Customize weather, terrain, HUD, and more              | Sidebar                |
+| **Patch Update**      | Re-apply the game-config patch after a Dota 2 update   | Sidebar                |
+| **Disable Mods**      | Restore vanilla Dota 2                                 | Sidebar                |
+| **Performance Tweak** | Optimize Dota 2 cvar & `autoexec.cfg` settings         | Header icon (🔧)       |
+| **Settings**          | Theme, language, cache control, re-run the guide       | Header icon            |
+| **What's New**        | Release notes for the version you're running           | Header icon            |
 
-| Feature               | Description                                  | Access Point |
-| --------------------- | -------------------------------------------- | ------------ |
-| **Install Mods**      | Download and install the main mod pack       | Main Button (Blue) |
-| **Select Hero**       | Create custom hero skins from community sets | Main Button (Purple) |
-| **Miscellaneous**     | Customize weather, terrain, HUD, and more    | Main Button (Orange) |
-| **Performance Tweak** | Optimize Dota 2 cvar & autoexec settings     | Header Icon (🔧) |
+---
+
+## Play Dota 2
+
+The **PLAY DOTA 2** button is the primary action in the sidebar. It is **not** just a shortcut
+to Steam — it exists to stop the single most common way a modded Dota 2 breaks.
+
+### Why not just launch from Steam?
+
+Your mod package carries its own copy of Dota 2's item definitions, and those shadow the game's
+own. When Valve ships a patch that changes those definitions, the game starts on data that no
+longer matches its content — and **crashes on startup**.
+
+Pressing Play fixes that automatically. Launching from Steam skips the fix entirely.
+
+### What happens when you press it
+
+1. **Checks Steam first.** If a Dota 2 update is pending or downloading, AMT waits — showing the
+   download progress — rather than launching into it. This matters: if AMT handed the game to
+   Steam with an update queued, Steam would install the update *after* the repair and undo it.
+2. **Rebuilds your mod package** against whatever the game now ships. Nothing is redownloaded —
+   the data needed is already on your disk. This step is skipped when nothing has changed
+   (the check is a quick hash comparison, not a rebuild).
+3. **Launches the game**, then watches until Dota 2 actually appears.
+
+If an update *did* land, AMT stops and asks — *"Dota 2 has been updated — start it now?"* —
+instead of launching by itself. Waiting out a patch can take many minutes and starting a freshly
+patched game while you're away from the keyboard isn't AMT's call. Everything before that
+question still happens automatically; your package is already rebuilt by the time you're asked.
+
+### The launch panel
+
+While the flow runs, a panel shows what it's doing. Every step except the final "Dota 2 is
+running" can be cancelled.
+
+| Panel says                      | Meaning                                                       |
+| ------------------------------- | ------------------------------------------------------------- |
+| **Checking Steam**              | Making sure a Dota 2 update isn't about to land               |
+| **Steam is updating Dota 2**    | Waiting it out. Your mods will be rebuilt automatically — do nothing |
+| **Rebuilding your mod package** | Repairing the package for the current game version            |
+| **Dota 2 has been updated**     | Update done, package rebuilt — press **Start Dota 2** when ready |
+| **Starting Dota 2**             | Handing the game over to Steam                                |
+| **Waiting for Dota 2**          | Steam is starting the game; closes by itself                  |
+| **Could not prepare your mods** | The rebuild failed. **Nothing was changed** — your existing package is untouched |
+| **Dota 2 did not start**        | Steam accepted the launch but the game never appeared. Your mods are ready; just start it again |
+
+### Things worth knowing
+
+- **If Dota 2 is already running**, Play does nothing but tell you so. The rebuild swaps files
+  the running game holds open, so it would spend minutes only to fail on the last step.
+- **A failed rebuild is safe.** The repair is transactional — it either completes or leaves your
+  existing package exactly as it was.
+- **Steam must be running** for the launch handoff to work.
+
+### Package Sync
+
+The **Package Sync** chip in the status panel is the same check, shown before you press Play.
+Red means your package is older than the game. Its **Fix** action runs the repair *without*
+launching — useful if you want the rebuild out of the way now and will play later.
+
+> [!IMPORTANT]
+> **Patch Update and Play do different jobs.** Patch Update restores the *game config*
+> (`gameinfo_branchspecific.gi`, signatures) so mods load at all. Play rebuilds the *mod package*
+> so its item data matches the game. After a Dota 2 patch you generally want both — and the
+> status panel tells you which one is outstanding.
 
 ---
 
@@ -172,7 +246,7 @@ The primary feature is installing curated mod packs that include multiple cosmet
 3. The application will:
    - Download the latest ModsPack
    - Validate the VPK file
-   - Copy to your Dota 2 folder (`game/dota/_ArdysaMods/`)
+   - Copy to your Dota 2 folder (`game/_ArdysaMods/`)
    - Patch game configuration files for mod compatibility
 4. Monitor progress in the console at the bottom
 5. When complete, status shows **Ready** (green)
@@ -377,34 +451,70 @@ Optimize Dota 2 launch parameters and custom game settings to get the maximum fr
 
 ---
 
+## Status & Verification
+
+AMT checks your install on every launch and shows the result as a status badge plus four
+**verification chips**. Each chip is independent, and each has its own fix.
+
+| Chip                  | Green means                                                     | If it's red                                |
+| --------------------- | ---------------------------------------------------------------- | ------------------------------------------ |
+| **Patch Integrity**   | The game config and signature files are still patched            | Click **Patch Update**                     |
+| **Search Paths**      | Dota 2 is still told to load your mods folder                    | Click **Patch Update**                     |
+| **Process Elevation** | AMT can actually write into your Dota 2 folder                   | Restart AMT **as Administrator**           |
+| **Package Sync**      | Your mod package matches the game's current item data            | Press **PLAY DOTA 2**, or the chip's **Fix** |
+
+> [!NOTE]
+> **Package Sync going red after a Dota 2 patch is normal, not a bug.** It's the check that
+> catches the crash-on-startup problem before you hit it. See [Play Dota 2](#play-dota-2).
+
+### Verifying files
+
+Right-click **Patch Update** → **Verify Mod Files** for a detailed report: required files
+present, VPK integrity, and configuration patches, each listed individually.
+
+---
+
+## Personalization
+
+### Theme
+
+AMT ships light and dark themes, switchable in **Settings**. The interface is monochrome by
+design, matching [ardysamods.my.id](https://ardysamods.my.id).
+
+### Language
+
+Change the interface language in **Settings** — it applies immediately, no restart. Available:
+English, Spanish, German, French, Portuguese, Russian, Simplified Chinese, Traditional Chinese.
+
+Hero names, item names, and Dota jargon deliberately stay in English so they match what you see
+in-game and in the community. Spotted an awkward translation?
+[Report it](https://github.com/Anneardysa/ArdysaModsTools/issues/new?template=4-translation.yml).
+
+### Notifications
+
+Long operations report back with a toast in the corner of the window; when AMT is minimised or
+hidden in the tray, the same notification arrives as a tray balloon instead.
+
+### Re-running the guide
+
+**Settings → Show Guide** replays the newcomer onboarding walkthrough at any time.
+
+---
+
 ## Advanced Features
 
 ### Patch Management
 
-After Dota 2 game updates, some files may need re-patching:
+After Dota 2 game updates, some files need re-patching:
 
-1. **Automatic Detection**:
-   - Application checks mod status on launch
-   - Status indicator shows:
-      - **Ready** (Green): Everything working
-      - **Need Update** (Orange): Patch required
-      - **Error** (Red): Issue detected
+1. **Automatic detection** — AMT checks your mod status on launch, and **PatchWatcher** notices
+   Dota 2 updates in the background while AMT is open.
+2. **Manual patching** — click **Patch Update**. This rewrites the game configuration and
+   signature files.
 
-2. **Manual Patching**:
-   - Click **Patch Update** button
-   - The patch will update signatures and game configuration
-
-### Verification
-
-To verify mod installation integrity:
-
-1. Right-click the **Patch Update** button
-2. Select **Verify Mod Files**
-3. The application checks:
-   - Presence of all required files
-   - VPK integrity
-   - Configuration patches
-4. View detailed status report
+> [!IMPORTANT]
+> Patch Update does **not** rebuild your mod package — that's what **PLAY DOTA 2** does. The two
+> fix different things; the verification chips tell you which one you need.
 
 ### Console Logs
 
@@ -484,7 +594,7 @@ To free up disk space:
 2. **Run Patch**: Click Patch Update
 3. **Restart Dota 2**: Completely exit and relaunch
 4. **Verify Installation**:
-   - Check folder exists: `dota 2 beta/game/dota/_ArdysaMods/`
+   - Check the folder exists: `dota 2 beta/game/_ArdysaMods/`
    - Check `pak01_dir.vpk` is present
 5. **Reinstall**: Click Disable, then Install again
 
@@ -504,16 +614,19 @@ To free up disk space:
 
 ---
 
-#### Issue: .NET 8 Not Found
+#### Issue: AMT won't start at all
 
-**Error**: "Requires .NET 8 Desktop Runtime"
+**Solutions**:
 
-**Solution**:
+1. **Read `startup_log.txt`** — it sits next to `ArdysaModsTools.exe` and is overwritten on
+   every launch, so grab it right after a failed start. It usually names the exact cause.
+2. **Install the [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)** —
+   the entire interface needs it. It's normally pre-installed on Windows 10/11.
+3. **Reinstall.** If your antivirus stripped a file from the install, AMT can fail to start.
 
-1. Click **Yes** when prompted to download
-2. Download from: https://dotnet.microsoft.com/download/dotnet/8.0
-3. Install **Desktop Runtime (x64)**
-4. Run AMT installer again
+> [!NOTE]
+> You do **not** need to install .NET separately. The runtime ships inside the app. If an older
+> guide told you to download the .NET 8 Desktop Runtime, that no longer applies.
 
 ---
 
@@ -540,13 +653,17 @@ Hero set generation taking very long:
 
 ### Error Messages
 
-| Error          | Meaning                | Solution                              |
-| -------------- | ---------------------- | ------------------------------------- |
-| `VPK_001`      | VPK extraction failed  | Verify tools folder exists            |
-| `VPK_002`      | VPK compilation failed | Check permissions, try as admin       |
-| `DOWNLOAD_001` | Download failed        | Check internet, retry                 |
-| `PATCH_001`    | Gameinfo patch failed  | Verify Dota 2 installation            |
-| `GEN_001`      | Hero generation failed | Check specific hero, try individually |
+AMT error codes look like `DL_006` or `VPK_003`. The prefix says which part failed:
+
+| Prefix   | Subsystem                          | Usual fix                                     |
+| -------- | ---------------------------------- | --------------------------------------------- |
+| `DL_`    | Downloading assets from the CDN    | Check internet/firewall and retry. `DL_009` means your build is too old — update AMT |
+| `VPK_`   | Packing / extracting game archives | Close Dota 2, run as Administrator, free disk space |
+| `PATCH_` | Patching Dota 2 game files         | Verify the Dota 2 install in Steam            |
+| `GEN_`   | Hero set generation                | Try the hero on its own to isolate it         |
+| `CFG_`   | Dota 2 / Steam detection, settings | Use **Manual Select** to point at `dota 2 beta` |
+| `MISC_`  | Miscellaneous mods                 | Try **Clean Generate** instead of Add to Current |
+| `UPD_`   | Updating AMT itself                | Download the installer manually from Releases |
 
 > [!TIP]
 > Always copy console logs when reporting errors. Click the **Copy Console** button and paste when asking for help.
@@ -567,7 +684,7 @@ Here's what AMT does and does **NOT** do:
 | AMT Does ✅                                | AMT Does NOT ❌                              |
 | ------------------------------------------ | -------------------------------------------- |
 | Modify local cosmetic VPK files            | Inject into game processes or memory         |
-| Patch `gameinfo.gi` for mod loading        | Interact with VAC or anti-cheat systems      |
+| Patch `gameinfo_branchspecific.gi` for mod loading | Interact with VAC or anti-cheat systems |
 | Replace textures, models, particles        | Connect to Valve's online services           |
 | Work only when Dota 2 is **closed**        | Modify game behavior or give advantages      |
 | Store all changes in `_ArdysaMods/` folder | Touch any files outside the Dota 2 directory |
@@ -624,7 +741,19 @@ If Valve changes their policy:
 
 #### ❓ Is AMT open-source? Can I trust it?
 
-Yes. AMT is fully open-source under the **GNU General Public License v3.0**. The complete source code is available on [GitHub](https://github.com/Anneardysa/ArdysaModsTools). You can audit every line of code.
+Yes, under the **GNU General Public License v3.0** — the source is published at
+[GitHub](https://github.com/Anneardysa/ArdysaModsTools) and you can read and audit all of it.
+
+Two honest caveats about that repository:
+
+- It is a **published mirror** of a private development repo, updated automatically on every
+  change. It is one-way, so pull requests aren't merged there — see
+  [CONTRIBUTING.md](https://github.com/Anneardysa/ArdysaModsTools/blob/main/.github/CONTRIBUTING.md).
+- **Source comments are stripped** from `.cs` files when publishing. The code is complete and
+  compiles; it just isn't annotated.
+
+Releases are also Authenticode-signed by the [SignPath Foundation](https://signpath.org), so you
+can verify a download came from us and hasn't been tampered with.
 
 ---
 
@@ -752,13 +881,11 @@ Click **"Disable Mods"** in AMT. This restores original game configuration. Mod 
 
 ---
 
-#### ❓ AMT says ".NET 8 not found"
+#### ❓ Do I need to install .NET?
 
-**Fix:**
-
-1. Download from [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/8.0)
-2. Install the **.NET 8 Desktop Runtime (x64)**
-3. Run the AMT installer again
+**No.** AMT is self-contained — the .NET runtime ships inside the app. The only external
+requirement is the [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/),
+which the installer adds automatically if it's missing.
 
 ---
 
@@ -816,7 +943,7 @@ Click **"Disable Mods"** in AMT. This restores original game configuration. Mod 
 1. Check status shows **"Ready" (green)** in AMT
 2. Click **"Patch Update"**
 3. **Completely exit** Dota 2 and relaunch (don't just reconnect)
-4. Verify the folder exists: `dota 2 beta/game/dota/_ArdysaMods/`
+4. Verify the folder exists: `dota 2 beta/game/_ArdysaMods/`
 5. Click **"Disable"** and then **"Install"** again for a fresh install
 
 ---
@@ -826,7 +953,7 @@ Click **"Disable Mods"** in AMT. This restores original game configuration. Mod 
 **Fixes:**
 
 1. Check your internet connection
-2. AMT uses multi-CDN fallback (Cloudflare R2 → jsDelivr → GitHub Raw) — it will retry automatically
+2. AMT uses multi-CDN fallback (`cdn.ardysamods.my.id` → `cdn2.ardysamods.my.id`) — it retries automatically
 3. If CDN is blocked in your region, try changing DNS to `8.8.8.8` or `1.1.1.1`
 4. Whitelist `cdn.ardysamods.my.id` in your firewall
 
@@ -876,7 +1003,8 @@ Click **"Disable Mods"** in AMT. This restores original game configuration. Mod 
 
 1. **Always close Dota 2** before using AMT
 2. **Run as Administrator** for best compatibility
-3. **Click "Patch Update"** after every Dota 2 game update
+3. **Start the game with PLAY DOTA 2**, not from Steam — it repairs your mod package after a Dota 2 patch, which is what stops the crash-on-startup
+4. **Click "Patch Update"** after every Dota 2 game update
 4. **Star favorite heroes** for quick access in Skin Selector
 5. **Copy console logs** when reporting bugs (use the Copy button)
 6. **Keep AMT updated** — newer versions have better CDN support and bug fixes
@@ -937,10 +1065,10 @@ A: Yes, ArdysaModsTools is completely free. Donations are appreciated to support
 ### Technical
 
 **Q: Where are mods installed?**  
-A: Mods are installed in: `dota 2 beta/game/dota/_ArdysaMods/pak01_dir.vpk`
+A: Mods are installed in: `dota 2 beta/game/_ArdysaMods/pak01_dir.vpk`
 
 **Q: Where are logs saved?**  
-A: Logs are in: `[Dota 2 Path]/game/_ArdysaMods/_temp/logs/`
+A: The main log is `ardysa_fallback.log` — in `%LocalAppData%\ArdysaModsTools\` for installer builds, or next to `ArdysaModsTools.exe` for portable builds. Generation reports are in `[Dota 2 Path]/game/_ArdysaMods/_temp/`.
 
 **Q: Where are settings saved?**  
 A: Settings are in: `%AppData%\ArdysaModsTools` (favorites, user preferences, and configuration files)
@@ -1006,11 +1134,11 @@ When reporting bugs, include:
 
 ### Feature Requests
 
-Have an idea? Request features in:
-
-- Discord suggestions channel
-- YouTube video comments
-- Community forums
+Have an idea? Open a
+[feature request](https://github.com/Anneardysa/ArdysaModsTools/issues/new?template=3-feature.yml).
+Want a specific hero set, courier, ward, HUD or terrain added? Use the
+[mod / set request](https://github.com/Anneardysa/ArdysaModsTools/issues/new?template=2-mod-request.yml)
+template instead. For "how do I…" questions, Discord is faster.
 
 ---
 
@@ -1055,16 +1183,18 @@ AMT uses:
 
 ### Essential Shortcuts
 
-| Action                | Steps                                           |
-| --------------------- | ----------------------------------------------- |
-| **First Time Setup**  | Auto Detect → Install → Launch Dota 2           |
-| **Install Mods**      | Install button → Auto Install → Wait            |
-| **Disable Mods**      | Disable button → Confirm                        |
-| **After Game Update** | Patch Update                                    |
-| **Create Hero Skin**  | Select Hero → Pick hero → Choose set → Generate |
-| **Add Misc Mods**     | Miscellaneous → Select options → Generate       |
-| **Verify Mods**       | Right-click Patch Update → Verify               |
-| **Get Logs**          | Click Copy Console button                       |
+| Action                | Steps                                              |
+| --------------------- | -------------------------------------------------- |
+| **First Time Setup**  | Auto Detect → Install ModsPack → **Play Dota 2**   |
+| **Play**              | **PLAY DOTA 2** (repairs your package, then launches) |
+| **Install Mods**      | Install → Auto Install → wait                      |
+| **Disable Mods**      | Disable → Confirm                                  |
+| **After Game Update** | Patch Update, then **Play Dota 2**                 |
+| **Create Hero Skin**  | Skin Selector → pick hero → choose set → Generate  |
+| **Add Misc Mods**     | Miscellaneous → select options → Generate          |
+| **Verify Mods**       | Right-click Patch Update → Verify                  |
+| **Repair package only** | Package Sync chip → Fix                          |
+| **Get Logs**          | Copy Console button                                |
 
 ### Status Indicators
 
@@ -1079,4 +1209,4 @@ AMT uses:
 
 **Thank you for using ArdysaModsTools! Enjoy your customized Dota 2 experience! 🎮**
 
-_Version 2.1.22-beta_
+_This guide tracks the latest release. Check **What's New** in the app for what changed in the build you're running._
