@@ -926,6 +926,33 @@ namespace ArdysaModsTools.Tests.Helpers
             Assert.That(KeyValuesBlockHelper.AnyBlockHasItemSlot(index, "hero_base"), Is.False);
         }
 
+        [Test]
+        public void FindItemsSectionRange_WhenItemsSectionExists_ReturnsTrueAndCorrectBounds()
+        {
+            const string content = "\"items_game\"\n{\n\t\"items\"\n\t{\n\t\t\"462\"\n\t\t{\n\t\t\t\"name\"\t\"head\"\n\t\t}\n\t}\n\t\"item_levels\"\n\t{\n\t\t\"1\"\t{}\n\t}\n}";
+
+            bool found = KeyValuesBlockHelper.FindItemsSectionRange(content, out int start, out int end);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(found, Is.True);
+                Assert.That(start, Is.GreaterThan(0));
+                Assert.That(end, Is.GreaterThan(start));
+                Assert.That(content.Substring(start, end - start), Does.Contain("\"462\""));
+                Assert.That(content.Substring(start, end - start), Does.Not.Contain("item_levels"));
+            });
+        }
+
+        [Test]
+        public void FindItemsSectionRange_WhenNoItemsSection_ReturnsFalse()
+        {
+            const string content = "\"462\"\n{\n\t\"name\"\t\"head\"\n}";
+
+            bool found = KeyValuesBlockHelper.FindItemsSectionRange(content, out int start, out int end);
+
+            Assert.That(found, Is.False);
+        }
+
         #endregion
     }
 }
