@@ -1,0 +1,134 @@
+.dragArea {
+   position: fixed;
+   top: 0;
+   left: 0;
+   right: 0;
+   height: 36px;
+   cursor: move;
+   z-index: 10;
+}
+
+.closeBtn {
+   position: fixed;
+   top: 10px;
+   right: var(--sp-3);
+   width: 24px;
+   height: 24px;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   border: 1px solid transparent;
+   background: transparent;
+   color: var(--mute);
+   cursor: pointer;
+   transition: var(--transition);
+   z-index: 20;
+}
+.closeBtn svg {
+   width: 14px;
+   height: 14px;
+}
+.closeBtn:hover {
+   background: var(--danger-solid);
+   border-color: var(--danger-solid);
+   color: #ffffff;
+}
+
+.container {
+   flex: 1;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   justify-content: center;
+   padding: 40px 48px 32px;
+}
+
+@keyframes fadeInUp {
+   from {
+      opacity: 0;
+      transform: translateY(10px);
+   }
+   to {
+      opacity: 1;
+      transform: translateY(0);
+   }
+}
+
+@keyframes iconPulse {
+   0%,
+   100% {
+      opacity: 1;
+   }
+   50% {
+      opacity: 0.72;
+   }
+}
+
+.icon {
+   width: 56px;
+   height: 56px;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   margin-bottom: 18px;
+   color: var(--primary);
+   border: 1px solid var(--hairline-strong);
+   background: var(--wash);
+   animation:
+      iconPulse 2.2s ease-in-out infinite,
+      fadeInUp 0.35s var(--ease-out) both;
+}
+.icon svg {
+   width: 28px;
+   height: 28px;
+}
+
+.badge {
+   padding: 5px var(--sp-4);
+   background: var(--panel-2);
+   border: 1px solid var(--hairline-strong);
+   color: var(--body);
+   font-size: 10px;
+   font-weight: 700;
+   letter-spacing: 1.5px;
+   text-transform: uppercase;
+   margin-bottom: var(--sp-3);
+   animation: fadeInUp 0.35s var(--ease-out) 0.06s both;
+}
+
+.title {
+   font-size: 15px;
+   font-weight: 700;
+   color: var(--ink);
+   letter-spacing: 0.5px;
+   text-align: center;
+   margin-bottom: 10px;
+   animation: fadeInUp 0.35s var(--ease-out) 0.12s both;
+}
+
+.description {
+   font-size: 11px;
+   color: var(--body);
+   text-align: center;
+   line-height: 1.65;
+   margin-bottom: 28px;
+   max-width: 340px;
+   animation: fadeInUp 0.35s var(--ease-out) 0.18s both;
+}
+
+.buttons {
+   display: flex;
+   flex-direction: column;
+   gap: 10px;
+   width: 100%;
+   max-width: 280px;
+}
+.buttons > button {
+   width: 100%;
+}
+.buttons > button:first-child {
+   animation: fadeInUp 0.35s var(--ease-out) 0.24s both;
+}
+.buttons > button:last-child {
+   animation: fadeInUp 0.35s var(--ease-out) 0.3s both;
+}

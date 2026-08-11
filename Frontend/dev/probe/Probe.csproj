@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Standalone WebView2 host for looking at a page in Assets/Html the way the app loads it.
+       Deliberately NOT referencing ArdysaModsTools.csproj: this must build and run in a second without
+       closing the app, and it only needs the two string splices documented below. -->
+  <PropertyGroup>
+    <!-- Exe, not WinExe: the probe reports what it found on stdout, so it needs a console. -->
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>amt-probe</AssemblyName>
+    <RootNamespace>Amt.Probe</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+</Project>

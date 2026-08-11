@@ -1,0 +1,129 @@
+.content {
+   flex: 1;
+   min-height: 0;
+   display: flex;
+   flex-direction: column;
+   gap: 14px;
+   padding: 18px;
+}
+
+.lead {
+   font-size: 12px;
+   line-height: 1.6;
+   color: var(--body);
+}
+
+.options {
+   display: flex;
+   flex-direction: column;
+   gap: var(--sp-3);
+}
+
+.opt {
+   position: relative;
+   display: flex;
+   align-items: center;
+   gap: var(--sp-4);
+   width: 100%;
+   padding: 18px;
+   background: var(--panel-2);
+   border: 1px solid var(--hairline-strong);
+   color: inherit;
+   font-family: var(--sans);
+   text-align: left;
+   cursor: pointer;
+   transition: var(--transition);
+}
+.opt:hover {
+   border-color: var(--hairline-strong);
+   background: var(--panel-hover);
+}
+
+.icon {
+   width: 42px;
+   height: 42px;
+   flex-shrink: 0;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   background: var(--canvas);
+   border: 1px solid var(--hairline-strong);
+   color: var(--body);
+   transition: var(--transition);
+}
+.icon svg {
+   width: 20px;
+   height: 20px;
+}
+
+.info {
+   flex: 1;
+   min-width: 0;
+   display: flex;
+   flex-direction: column;
+   gap: 9px;
+}
+.title {
+   font-size: 13px;
+   font-weight: 700;
+   line-height: 1.2;
+   letter-spacing: 1.5px;
+   text-transform: uppercase;
+   color: var(--ink);
+}
+.desc {
+   font-size: 11.5px;
+   line-height: 1.6;
+   letter-spacing: 0.2px;
+   color: var(--body);
+}
+
+.radio {
+   width: 18px;
+   height: 18px;
+   flex-shrink: 0;
+   border-radius: 50%;
+   border: 1px solid var(--hairline-strong);
+   position: relative;
+   transition: var(--transition);
+}
+
+.opt[aria-checked="true"] {
+   border-color: var(--primary);
+   background: var(--panel-hover);
+   box-shadow: inset 3px 0 0 var(--primary);
+}
+.opt[aria-checked="true"] .icon {
+   border-color: var(--primary);
+   color: var(--ink);
+}
+.opt[aria-checked="true"] .radio {
+   border-color: var(--primary);
+}
+.opt[aria-checked="true"] .radio::after {
+   content: "";
+   position: absolute;
+   inset: 4px;
+   border-radius: 50%;
+   background: var(--primary);
+}
+
+.danger[aria-checked="true"] {
+   border-color: var(--danger);
+   background: var(--danger-dim);
+   box-shadow: inset 3px 0 0 var(--danger);
+}
+.danger[aria-checked="true"] .title {
+   color: var(--danger-soft);
+}
+.danger[aria-checked="true"] .icon {
+   border-color: var(--danger);
+   color: var(--danger-soft);
+}
+.danger[aria-checked="true"] .radio {
+   border-color: var(--danger);
+}
+.danger[aria-checked="true"] .radio::after {
+   background: var(--danger);
+}
+

@@ -1,0 +1,676 @@
+{
+   "debt": {
+      "about": [
+         {
+            "targets": [
+               "#titlebar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "border-bottom-color: var(--hairline-strong)",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".footer"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "backdrop-filter: none"
+            ]
+         }
+      ],
+      "disable_options": [
+         {
+            "targets": [
+               "#titlebar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "border-bottom-color: var(--hairline-strong)",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".footer"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "backdrop-filter: none"
+            ]
+         }
+      ],
+      "dota2_performance": [
+         {
+            "targets": [
+               "#titlebar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "border-bottom-color: var(--hairline-strong)",
+               "backdrop-filter: none"
+            ]
+         }
+      ],
+      "generation_preview": [],
+      "hero_gallery": [
+         {
+            "targets": [
+               ".sm-panel",
+               ".dialog"
+            ],
+            "decls": [
+               "background: #fbfbfb",
+               "border-color: #000000"
+            ]
+         },
+         {
+            "targets": [
+               ".sm-head",
+               ".sm-foot",
+               ".sm-cart"
+            ],
+            "decls": [
+               "background: #f6f6f6"
+            ]
+         },
+         {
+            "targets": [
+               "#titleBar",
+               ".gallery-header",
+               ".status-bar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".tb-marquee-inner"
+            ],
+            "decls": [
+               "background: rgba(227, 179, 65, 0.2)",
+               "color: #6f520d",
+               "border-color: rgba(148, 110, 20, 0.55)"
+            ]
+         },
+         {
+            "targets": [
+               ".tb-marquee-inner"
+            ],
+            "decls": [
+               "background: linear-gradient(90deg, #f6ecd2, rgba(246, 236, 210, 0))"
+            ]
+         },
+         {
+            "targets": [
+               ".tb-marquee-inner"
+            ],
+            "decls": [
+               "background: linear-gradient(270deg, #f6ecd2, rgba(246, 236, 210, 0))"
+            ]
+         },
+         {
+            "targets": [
+               ".update-card"
+            ],
+            "decls": [
+               "border-color: #000000"
+            ]
+         },
+         {
+            "targets": [
+               ".filter-pill"
+            ],
+            "decls": [
+               "filter: grayscale(1) brightness(0)",
+               "opacity: 1"
+            ]
+         },
+         {
+            "targets": [
+               ".filter-pill"
+            ],
+            "decls": [
+               "filter: grayscale(1) brightness(0) invert(1)"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "color: #cf222e"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "color: #9a6700"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "color: #0969da"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "background: rgba(154, 103, 0, 0.06)",
+               "border-color: rgba(154, 103, 0, 0.35)"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "color: #7d5800"
+            ]
+         },
+         {
+            "targets": [
+               ".hc-meta",
+               ".hc-fav"
+            ],
+            "decls": [
+               "--canvas: #000000",
+               "--ink: #ffffff",
+               "--body: #cccccc",
+               "--mute: #999999",
+               "--primary: #ffffff",
+               "--on-primary: #000000",
+               "--hairline-strong: #333333",
+               "--accent-dim: rgba(255, 255, 255, 0.1)",
+               "--primary-glow: rgba(255, 255, 255, 0.16)"
+            ]
+         }
+      ],
+      "install_method": [
+         {
+            "targets": [
+               "#titlebar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "border-bottom-color: var(--hairline-strong)",
+               "backdrop-filter: none"
+            ]
+         }
+      ],
+      "main_shell": [
+         {
+            "targets": [
+               "#titlebar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "border-bottom-color: var(--hairline-strong)",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".modal"
+            ],
+            "decls": [
+               "background: #fbfbfb",
+               "border-color: #000000"
+            ]
+         },
+         {
+            "targets": [
+               ".modal-head",
+               ".choice-ico",
+               ".choice-ver"
+            ],
+            "decls": [
+               "background: #f6f6f6"
+            ]
+         },
+         {
+            "targets": [
+               ".promo-card"
+            ],
+            "decls": [
+               "background: #fbfbfb",
+               "border-color: #000000"
+            ]
+         },
+         {
+            "targets": [
+               ".promo-card",
+               ".veil"
+            ],
+            "decls": [
+               "background: none"
+            ]
+         },
+         {
+            "targets": [
+               ".promo-card",
+               ".pc-ver",
+               ".pc-ico"
+            ],
+            "decls": [
+               "background: #f6f6f6"
+            ]
+         },
+         {
+            "targets": [
+               ".sidebar"
+            ],
+            "decls": [
+               "background: #f3f3f3"
+            ]
+         },
+         {
+            "targets": [
+               ".status-card",
+               ".carousel",
+               ".update-card",
+               ".promo-card",
+               ".console"
+            ],
+            "decls": [
+               "border-color: #000000"
+            ]
+         },
+         {
+            "targets": [
+               ".console-head"
+            ],
+            "decls": [
+               "background: #fbfbfb",
+               "--body: #000000",
+               "--mute: #666666"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line",
+               ".msg"
+            ],
+            "decls": [
+               "color: #cf222e"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line",
+               ".msg"
+            ],
+            "decls": [
+               "color: #9a6700"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line",
+               ".msg"
+            ],
+            "decls": [
+               "color: #0969da"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "background: rgba(154, 103, 0, 0.06)",
+               "border-color: rgba(154, 103, 0, 0.35)"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line",
+               ".msg"
+            ],
+            "decls": [
+               "color: #7d5800"
+            ]
+         },
+         {
+            "targets": [
+               ".promo-card",
+               ".car-arrow",
+               ".car-dots"
+            ],
+            "decls": [
+               "--canvas: #000000",
+               "--ink: #ffffff",
+               "--body: #cccccc",
+               "--mute: #999999",
+               "--primary: #ffffff",
+               "--on-primary: #000000",
+               "--hairline-strong: #333333",
+               "--accent-dim: rgba(255, 255, 255, 0.1)",
+               "--primary-glow: rgba(255, 255, 255, 0.16)"
+            ]
+         },
+         {
+            "targets": [
+               ".promo-card"
+            ],
+            "decls": [
+               "border-color: #000000"
+            ]
+         }
+      ],
+      "misc_form": [
+         {
+            "targets": [
+               ".sm-panel",
+               ".dialog",
+               ".tribute-panel"
+            ],
+            "decls": [
+               "background: #fbfbfb",
+               "border-color: #000000"
+            ]
+         },
+         {
+            "targets": [
+               ".sm-head",
+               ".sm-foot",
+               ".tribute-link-ico"
+            ],
+            "decls": [
+               "background: #f6f6f6"
+            ]
+         },
+         {
+            "targets": [
+               "#titleBar",
+               ".mf-header",
+               ".status-bar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "color: #cf222e"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "color: #9a6700"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "color: #0969da"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "background: rgba(154, 103, 0, 0.06)",
+               "border-color: rgba(154, 103, 0, 0.35)"
+            ]
+         },
+         {
+            "targets": [
+               ".log-line"
+            ],
+            "decls": [
+               "color: #7d5800"
+            ]
+         }
+      ],
+      "modspack_update": [],
+      "modspack_updates": [
+         {
+            "targets": [
+               "#titlebar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "border-bottom-color: var(--hairline-strong)",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".veil"
+            ],
+            "decls": [
+               "background: none"
+            ]
+         },
+         {
+            "targets": [
+               ".controls",
+               ".footer"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".card",
+               ".attr"
+            ],
+            "decls": [
+               "background: #f6f6f6",
+               "color: #000000",
+               "border-color: #a8a8a8"
+            ]
+         }
+      ],
+      "progress": [],
+      "settings_form": [
+         {
+            "targets": [
+               ".footer"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".settings-card",
+               ".version-info"
+            ],
+            "decls": [
+               "border-color: #000000"
+            ]
+         }
+      ],
+      "status_details": [
+         {
+            "targets": [
+               "#titlebar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "border-bottom-color: var(--hairline-strong)",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".footer"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".status-card",
+               ".info-section"
+            ],
+            "decls": [
+               "border-color: #000000"
+            ]
+         }
+      ],
+      "support": [
+         {
+            "targets": [
+               "#titlebar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "border-bottom-color: var(--hairline-strong)",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".card"
+            ],
+            "decls": [
+               "background: #f6f6f6",
+               "color: #000000",
+               "border-color: #a8a8a8"
+            ]
+         }
+      ],
+      "update_available": [
+         {
+            "targets": [
+               "#titlebar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "border-bottom-color: var(--hairline-strong)",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".footer"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".version-info",
+               ".progress-box"
+            ],
+            "decls": [
+               "border-color: #000000"
+            ]
+         }
+      ],
+      "verify_files": [],
+      "whatsnew": [
+         {
+            "targets": [
+               "#titlebar"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "border-bottom-color: var(--hairline-strong)",
+               "backdrop-filter: none"
+            ]
+         },
+         {
+            "targets": [
+               ".footer"
+            ],
+            "decls": [
+               "background: #f3f3f3",
+               "backdrop-filter: none"
+            ]
+         }
+      ]
+   },
+   "accepted": {
+      "support": {
+         "reason": "transparent drag strip over an already-light body (#f3f3f3); .card paints var(--panel-2) which theme.css turns #f6f6f6 with --ink black. probe --audit-light: CLEAN, card contrast 19.43:1 title / 11.69:1 sub",
+         "declarations": [
+            "#titlebar -> background: #f3f3f3",
+            "#titlebar -> border-bottom-color: var(--hairline-strong)",
+            ".card -> color: #000000",
+            ".card -> border-color: #a8a8a8"
+         ]
+      },
+      "modspack_updates": {
+         "reason": "the only theme.css .veil rule is scoped to .promo-card.news .veil (main_shell), not this page's own card veil; this page's veil is a fixed dark scrim over hero artwork (linear-gradient(...,rgba(0,0,0,.9)) at the text position), unaffected by theme by design — probe --theme light confirms backgroundImage unchanged. .veil is a sibling of .meta, so the probe's ancestor-only contrast walk cannot see it and separately flags hero text at 1.08:1; visually the text sits on the veil's near-black band regardless of theme.",
+         "declarations": [
+            ".veil -> background: none"
+         ]
+      },
+      "misc_form": {
+         "reason": "the .log-line rules need .log-line.error/.warning/.progress/.notice modifier classes plus a nested .msg child — that's main_shell's renderLogSegments() output shape. This page's appendConsole() only ever creates plain <div class=log-line>{msg}</div> with no modifier class and no .msg child, in both the old page and this port, so these declarations are structurally unreachable here, not missing. Verified: probe --theme light --audit-light on the progress console (which is the only .log-line consumer on this page) reports CLEAN.",
+         "declarations": [
+            ".log-line -> color: #cf222e",
+            ".log-line -> color: #9a6700",
+            ".log-line -> color: #0969da",
+            ".log-line -> background: rgba(154, 103, 0, 0.06)",
+            ".log-line -> border-color: rgba(154, 103, 0, 0.35)",
+            ".log-line -> color: #7d5800"
+         ]
+      },
+      "hero_gallery": {
+         "reason": "verified against built HTML: marquee(4)+hc-meta/hc-fav(2) are correct — Vite's CSS minifier re-encodes rgba(...) as 8-digit hex (#e3b34133, #946e148c, #f6ecd200) or drops the leading zero (.1/.16), which the audit's normalize() doesn't canonicalize; log-line(6) is genuinely unreachable — setGenerationLog() renders plain lines with no .error/.warning/.progress/.notice + .msg sub-structure, same call made on other ported pages for this exact rule",
+         "declarations": [
+            ".tb-marquee-inner -> background: rgba(227, 179, 65, 0.2)",
+            ".tb-marquee-inner -> border-color: rgba(148, 110, 20, 0.55)",
+            ".tb-marquee-inner -> background: linear-gradient(90deg, #f6ecd2, rgba(246, 236, 210, 0))",
+            ".tb-marquee-inner -> background: linear-gradient(270deg, #f6ecd2, rgba(246, 236, 210, 0))",
+            ".log-line -> color: #cf222e",
+            ".log-line -> color: #9a6700",
+            ".log-line -> color: #0969da",
+            ".log-line -> background: rgba(154, 103, 0, 0.06)",
+            ".log-line -> border-color: rgba(154, 103, 0, 0.35)",
+            ".log-line -> color: #7d5800",
+            ".hc-meta, .hc-fav -> --accent-dim: rgba(255, 255, 255, 0.1)",
+            ".hc-meta, .hc-fav -> --primary-glow: rgba(255, 255, 255, 0.16)"
+         ]
+      },
+      "dota2_performance": {
+         "reason": "verified by direct measurement: getComputedStyle(#titlebar).backgroundColor -> rgb(243,243,243) under a simulated BuildBootstrapScript light-theme injection (dev/probe --url + manual theme.css/data-theme injection). This page navigates as file:// and gets theme.css via WebViewTheming.BuildBootstrapScript's runtime <style> injection (AddScriptToExecuteOnDocumentCreatedAsync), not HTML string-splicing like every other page, so the built dota2_performance.html file itself never literally contains [data-theme=light] text for a static scan to find -- the rule is delivered and applied correctly at runtime, just invisibly to this audit's file-based check.",
+         "declarations": [
+            "#titlebar -> background: #f3f3f3",
+            "#titlebar -> border-bottom-color: var(--hairline-strong)"
+         ]
+      },
+      "main_shell": {
+         "reason": "minifier reformats these to equivalent hex8/leading-zero-stripped notation (#9a67000f == rgba(154,103,0,.06), .1 == 0.1) — verified by literal computation, same color",
+         "declarations": [
+            ".log-line -> background: rgba(154, 103, 0, 0.06)",
+            ".log-line -> border-color: rgba(154, 103, 0, 0.35)",
+            ".promo-card, .car-arrow, .car-dots -> --accent-dim: rgba(255, 255, 255, 0.1)",
+            ".promo-card, .car-arrow, .car-dots -> --primary-glow: rgba(255, 255, 255, 0.16)"
+         ]
+      }
+   }
+}

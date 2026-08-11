@@ -1,0 +1,146 @@
+:global(body) {
+   border: 0;
+   background-image: none;
+}
+
+.dragArea {
+   position: fixed;
+   top: 0;
+   left: 0;
+   right: 0;
+   height: 32px;
+   cursor: move;
+   z-index: 10;
+}
+
+.container {
+   flex: 1;
+   min-height: 0;
+   display: flex;
+   flex-direction: column;
+   padding: var(--sp-6) 28px var(--sp-5);
+   position: relative;
+   z-index: 1;
+}
+
+@keyframes fadeSlideIn {
+   from {
+      opacity: 0;
+      transform: translateY(8px);
+   }
+   to {
+      opacity: 1;
+      transform: translateY(0);
+   }
+}
+.fadeIn {
+   animation: fadeSlideIn 0.35s var(--ease-out) both;
+}
+
+.header {
+   text-align: center;
+   flex-shrink: 0;
+}
+.headerIcon {
+   margin-bottom: var(--sp-2);
+   color: var(--body);
+}
+.headerIcon svg {
+   width: 30px;
+   height: 30px;
+}
+.title {
+   font-size: 12px;
+   color: var(--body);
+   text-transform: uppercase;
+   letter-spacing: 3px;
+   margin-bottom: var(--sp-1);
+}
+.title::before {
+   content: "[ ";
+   color: var(--mute);
+}
+.title::after {
+   content: " ]";
+   color: var(--mute);
+}
+.subtitle {
+   font-size: 10px;
+   color: var(--body);
+   letter-spacing: 2px;
+   text-transform: uppercase;
+   margin-bottom: 18px;
+   min-height: 13px;
+}
+.subtitle::before {
+   content: "// ";
+   color: var(--mute);
+}
+
+.list {
+   flex: 1;
+   min-height: 0;
+   overflow-y: auto;
+   text-align: left;
+   margin-bottom: var(--sp-4);
+   padding-right: var(--sp-1);
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+   gap: 6px;
+   align-content: start;
+}
+
+.row {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   padding: 6px 10px;
+   background: var(--wash);
+   border: 1px solid var(--hairline);
+}
+.thumb {
+   width: 40px;
+   height: 40px;
+   flex-shrink: 0;
+   object-fit: cover;
+   background: var(--hairline);
+   border: 1px solid var(--hairline-strong);
+}
+.rowInfo {
+   flex: 1;
+   min-width: 0;
+}
+.hero {
+   font-size: 13px;
+   font-weight: 700;
+   color: var(--ink);
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+}
+.set {
+   font-size: 11px;
+   color: var(--body);
+   letter-spacing: 0.5px;
+   margin-top: 3px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+}
+
+.empty {
+   grid-column: 1 / -1;
+   padding: var(--sp-6) 0;
+   text-align: center;
+   font-size: 11px;
+   letter-spacing: 1px;
+   text-transform: uppercase;
+   color: var(--body);
+}
+
+.actions {
+   display: flex;
+   justify-content: center;
+   gap: var(--sp-3);
+   flex-shrink: 0;
+}
