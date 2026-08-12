@@ -31,7 +31,11 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
   `.github/workflows/mirror-r2-to-b2.yml` mirrors the bucket itself and covers every writer at once,
   including hand-uploads. Runs after a release sync, every six hours, and on demand. It uses `sync`
   rather than `copy` so retired release folders do not linger on the fallback, guarded by
-  `--max-delete`; a dataset re-key legitimately trips that guard and is meant to.
+  `--max-delete`; a dataset re-key legitimately trips that guard and is meant to. Talks to B2's
+  native API rather than its S3-compatible one (2314): the S3 layer answers `HeadObject` with 403
+  on this bucket even for a key holding every capability, so listing works but per-object metadata
+  does not, and `sync` stalls on the first existing object it compares. The Worker in front of
+  `cdn2` hits the same wall — its response cache just hides it for hot files.
 - **Multi-CDN infrastructure migrated to R2 Primary and B2 Secondary Fallback**: following the privacy transition of the `ModsPack` repository, public GitHub/jsDelivr CDN fallbacks are replaced with `https://cdn2.ardysamods.my.id/` (Backblaze B2 via Cloudflare Worker proxy). `SmartCdnSelector` and `CdnFallbackService` updated to track latency and statistics for `cdn2`.
 
 ### Added

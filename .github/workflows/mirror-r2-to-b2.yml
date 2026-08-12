@@ -17,10 +17,11 @@
 #
 # Required repository secrets (separate from the Worker's own bindings):
 #   R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_ENDPOINT  — already used by sync-release-to-r2.yml
-#   B2_ACCESS_KEY_ID / B2_SECRET_ACCESS_KEY                — must have WRITE capability. The key
-#     bound to the Worker is read-only by design; do not reuse it here without checking.
-#   B2_ENDPOINT  (e.g. s3.eu-central-003.backblazeb2.com)
-#   B2_REGION    (e.g. eu-central-003)
+#   B2_ACCESS_KEY_ID / B2_SECRET_ACCESS_KEY  — a B2 application key's keyID and applicationKey,
+#     scoped to the mirror bucket, holding listFiles/readFiles/writeFiles/deleteFiles.
+#
+# B2_ENDPOINT and B2_REGION are set on the repo but are NOT read here: this job talks to B2's
+# native API, which needs neither. They belong to the Worker's S3 client. Leave them in place.
 
 name: Mirror R2 to B2
 
@@ -83,15 +84,21 @@ jobs:
               acl = private
               no_check_bucket = true
 
+              # Backblaze's own API, not its S3-compatible one. The S3 layer rejects HeadObject on
+              # this bucket with 403 even for a key holding every capability (listFiles, readFiles,
+              # writeFiles, deleteFiles, no namePrefix) — listing succeeds, per-object metadata does
+              # not — which stalls `sync` on the first existing object it has to compare. The native
+              # backend gets sizes and timestamps out of b2_list_file_names and never issues a
+              # HeadObject, so it sidesteps the whole problem rather than working around it.
+              #
+              # `account` is the keyID and `key` is the applicationKey — the same pair B2 hands out
+              # as the S3 access-key id/secret, so B2_ACCESS_KEY_ID / B2_SECRET_ACCESS_KEY carry over
+              # untouched. B2_ENDPOINT and B2_REGION are unused here; the Worker still needs them.
               [b2]
-              type = s3
-              provider = Other
-              access_key_id = ${{ secrets.B2_ACCESS_KEY_ID }}
-              secret_access_key = ${{ secrets.B2_SECRET_ACCESS_KEY }}
-              endpoint = ${{ secrets.B2_ENDPOINT }}
-              region = ${{ secrets.B2_REGION }}
-              acl = private
-              no_check_bucket = true
+              type = b2
+              account = ${{ secrets.B2_ACCESS_KEY_ID }}
+              key = ${{ secrets.B2_SECRET_ACCESS_KEY }}
+              hard_delete = true
               EOF
 
               echo "Source (R2):"
