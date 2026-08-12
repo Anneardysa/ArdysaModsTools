@@ -155,7 +155,8 @@ namespace ArdysaModsTools.Core.Services
                 string path = Path.Combine(targetPath, DotaPaths.ItemsGameBaseline);
                 var existing = await ReadFileAsync(path, ct).ConfigureAwait(false);
                 
-                var modStamp = VpkStamp.Read(Path.Combine(targetPath, DotaPaths.ModsVpk));
+                string modVpkPath = Path.Combine(targetPath, DotaPaths.ModsVpk);
+                var modStamp = VpkStamp.Read(modVpkPath);
                 if (modStamp == null) return;
 
                 var mergedIds = new HashSet<string>(existing?.PatchedIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
@@ -168,15 +169,26 @@ namespace ArdysaModsTools.Core.Services
                     }
                 }
 
-                if (existing != null && (expectedPreviousStamp == null || existing.ModVpk != expectedPreviousStamp.Value))
-                {
-                    TryDelete(path);
-                    return;
-                }
-
                 if (existing != null)
                 {
-                    await WriteAsync(path, existing with { ModVpk = modStamp.Value, PatchedIds = mergedIds.ToArray() }, ct).ConfigureAwait(false);
+                    await WriteAsync(path, existing with { ModVpk = modStamp.Value, PatchedIds = mergedIds.ToArray(), BuiltUtc = DateTime.UtcNow }, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    string gameVpkPath = Path.Combine(targetPath, DotaPaths.GameVpk.Replace('/', Path.DirectorySeparatorChar));
+                    var vanillaStamp = VpkStamp.Read(gameVpkPath);
+                    if (vanillaStamp != null)
+                    {
+                        var newRecord = new ItemsGameBaseline
+                        {
+                            VanillaVpk = vanillaStamp.Value,
+                            ModVpk = modStamp.Value,
+                            PatchedIds = mergedIds.ToArray(),
+                            AppVersion = SafeAppVersion(),
+                            BuiltUtc = DateTime.UtcNow
+                        };
+                        await WriteAsync(path, newRecord, ct).ConfigureAwait(false);
+                    }
                 }
             }
             catch (OperationCanceledException) { }
