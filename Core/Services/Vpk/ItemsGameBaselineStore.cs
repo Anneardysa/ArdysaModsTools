@@ -135,6 +135,7 @@ namespace ArdysaModsTools.Core.Services
                     {
                         VanillaVpk = vanillaStamp ?? default,
                         ModVpk = modStamp.Value,
+                        VanillaItemsGameSha = existing?.VanillaItemsGameSha ?? pending?.VanillaItemsGameSha ?? "SYNTHETIC_BASELINE_SHA",
                         PatchedIds = newIds,
                         AppVersion = SafeAppVersion(),
                         BuiltUtc = DateTime.UtcNow
@@ -223,6 +224,7 @@ namespace ArdysaModsTools.Core.Services
                         {
                             VanillaVpk = vanillaStamp.Value,
                             ModVpk = modStamp.Value,
+                            VanillaItemsGameSha = existing?.VanillaItemsGameSha ?? "SYNTHETIC_BASELINE_SHA",
                             PatchedIds = mergedIds.ToArray(),
                             AppVersion = SafeAppVersion(),
                             BuiltUtc = DateTime.UtcNow
