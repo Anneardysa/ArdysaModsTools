@@ -45,6 +45,8 @@ namespace ArdysaModsTools.Core.Services
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null);
 
         Dictionary<string, List<string>> GetInstalledFiles();
+
+        IReadOnlyList<string> GetModifiedItemIds();
     }
 
     public sealed class AssetModifierService : IAssetModifier
@@ -55,6 +57,8 @@ namespace ArdysaModsTools.Core.Services
         private readonly Dictionary<string, List<string>> _installedFiles = new();
 
         private readonly List<string> _warnings = new();
+
+        private readonly HashSet<string> _modifiedItemIds = new(StringComparer.OrdinalIgnoreCase);
 
         private MiscExtractionLog? _previousLog;
 
@@ -81,6 +85,47 @@ namespace ArdysaModsTools.Core.Services
 
         public Dictionary<string, List<string>> GetInstalledFiles() => _installedFiles;
 
+        public IReadOnlyList<string> GetModifiedItemIds() => _modifiedItemIds.ToList();
+
+        public static List<string> ResolveItemIdsForSelections(Dictionary<string, string>? selections)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (selections == null || selections.Count == 0)
+                return ids.ToList();
+
+            foreach (var kvp in CategoryItemIds)
+            {
+                if (selections.TryGetValue(kvp.Key, out var val) && !string.IsNullOrEmpty(val) && !string.Equals(val, "default", StringComparison.OrdinalIgnoreCase))
+                {
+                    ids.Add(kvp.Value);
+                }
+            }
+
+            if (selections.TryGetValue("Courier", out var selCourier) && !string.IsNullOrEmpty(selCourier) && !string.Equals(selCourier, "default", StringComparison.OrdinalIgnoreCase))
+            {
+                ids.Add(CourierPatcherService.DefaultCourierItemId);
+                var rawId = ModConfigurationData.GetUrl("Courier", selCourier);
+                if (!string.IsNullOrEmpty(rawId))
+                {
+                    string cid = rawId.Contains(':') ? rawId.Split(':')[0] : rawId;
+                    if (!string.IsNullOrEmpty(cid)) ids.Add(cid);
+                }
+            }
+
+            if (selections.TryGetValue("Ward", out var selWard) && !string.IsNullOrEmpty(selWard) && !string.Equals(selWard, "default", StringComparison.OrdinalIgnoreCase))
+            {
+                ids.Add(WardPatcherService.DefaultWardItemId);
+                var rawId = ModConfigurationData.GetUrl("Ward", selWard);
+                if (!string.IsNullOrEmpty(rawId))
+                {
+                    string wid = rawId.Contains(':') ? rawId.Split(':')[0] : rawId;
+                    if (!string.IsNullOrEmpty(wid)) ids.Add(wid);
+                }
+            }
+
+            return ids.ToList();
+        }
+
         public List<string> GetWarnings() => _warnings;
 
         public void SetPreviousLog(MiscExtractionLog? log) => _previousLog = log;
@@ -94,6 +139,7 @@ namespace ArdysaModsTools.Core.Services
 
             _installedFiles.Clear();
             _warnings.Clear();
+            _modifiedItemIds.Clear();
 
             string itemsGamePath = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
             if (!File.Exists(itemsGamePath))
@@ -169,6 +215,7 @@ namespace ArdysaModsTools.Core.Services
             
             if (didReplace)
             {
+                _modifiedItemIds.Add(itemId);
                 log($"{category} applied.");
             }
             else
@@ -300,6 +347,10 @@ namespace ArdysaModsTools.Core.Services
                 log("Warning: Failed to replace Default Courier block.");
                 return content;
             }
+
+            _modifiedItemIds.Add(CourierPatcherService.DefaultCourierItemId);
+            if (!string.IsNullOrEmpty(courierId))
+                _modifiedItemIds.Add(courierId);
 
             var models = CourierPatcherService.ParseCourierVisuals(selectedBlock, styleIndex);
             var vpkExtractPaths = CourierPatcherService.GetVpkExtractionPaths(models);
@@ -464,6 +515,10 @@ namespace ArdysaModsTools.Core.Services
                 log("Warning: Failed to replace Default Ward block.");
                 return content;
             }
+
+            _modifiedItemIds.Add(WardPatcherService.DefaultWardItemId);
+            if (!string.IsNullOrEmpty(wardId))
+                _modifiedItemIds.Add(wardId);
 
             var models = WardPatcherService.ParseWardVisuals(selectedBlock, styleIndex);
             var vpkExtractPaths = WardPatcherService.GetVpkExtractionPaths(models);
@@ -888,7 +943,11 @@ namespace ArdysaModsTools.Core.Services
             {
                 KeyValuesBlockHelper.TryGetTopLevelValue(authoredBlock, "prefab", out var prefab);
                 content = KeyValuesBlockHelper.ReplaceIdBlock(content, id, authoredBlock, out bool didReplace, requireItemMarkers: true, requirePrefab: prefab);
-                if (!didReplace)
+                if (didReplace)
+                {
+                    _modifiedItemIds.Add(id);
+                }
+                else
                 {
                     var warning = $"{modName}: block ID '{id}' not found in package.";
                     log($"Warning: {warning}");

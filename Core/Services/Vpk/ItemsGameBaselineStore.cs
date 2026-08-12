@@ -141,6 +141,51 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
+        public static async Task RebindAndMergePatchedIdsAsync(
+            string? targetPath,
+            VpkStamp? expectedPreviousStamp,
+            IEnumerable<string>? newPatchedIds,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(targetPath)) return;
+                targetPath = PathUtility.NormalizeTargetPath(targetPath);
+
+                string path = Path.Combine(targetPath, DotaPaths.ItemsGameBaseline);
+                var existing = await ReadFileAsync(path, ct).ConfigureAwait(false);
+                
+                var modStamp = VpkStamp.Read(Path.Combine(targetPath, DotaPaths.ModsVpk));
+                if (modStamp == null) return;
+
+                var mergedIds = new HashSet<string>(existing?.PatchedIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+                if (newPatchedIds != null)
+                {
+                    foreach (var id in newPatchedIds)
+                    {
+                        if (!string.IsNullOrWhiteSpace(id))
+                            mergedIds.Add(id);
+                    }
+                }
+
+                if (existing != null && (expectedPreviousStamp == null || existing.ModVpk != expectedPreviousStamp.Value))
+                {
+                    TryDelete(path);
+                    return;
+                }
+
+                if (existing != null)
+                {
+                    await WriteAsync(path, existing with { ModVpk = modStamp.Value, PatchedIds = mergedIds.ToArray() }, ct).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                FallbackLogger.LogFileOnly($"ItemsGameBaselineStore: RebindAndMergePatchedIds failed: {ex.Message}");
+            }
+        }
+
         public static Task<ItemsGameBaseline?> ReadAsync(string? targetPath, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(targetPath))

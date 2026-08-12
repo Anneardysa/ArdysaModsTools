@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.23-beta] (Builds 2318–2319)
+## [2.2.23-beta] (Builds 2318–2320)
 
 ### Fixed
 
+- **Prevented hero skin corruption when installing Miscellaneous mods or running Play Button repair** (2320): `ItemsGameMergeService` now uses `ItemsGameBlockIndex.FindDifferingItemIds` hash-diffing as a multi-layer guard to automatically preserve all modified cosmetic item blocks (such as Spectre Arcana `"323"`, Lina, Ember Spirit) along with their custom `"visuals"` sections, Arcana skill icons, and passive animations. Corrected asset-only category handling for `"Special"` (LowPolyMap, Shaders) in `AssetModifierService` and synchronized `HeroExtractionLog` state when reset by Clean Generate.
 - **Fixed infinite auto-download and auto-restart loop on update failures** (2319): `DeltaUpdateService` now tracks failed apply attempts so `CanAutoUpdate` suppresses auto-update for versions that failed to apply, unlocking the dialog and falling back to manual download links. Added a handle cleanup grace period and capped backoff retries in `ApplyEngine` to prevent file lock failures from lingering WebView2 processes.
 
 ### Documentation

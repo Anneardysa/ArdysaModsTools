@@ -148,9 +148,15 @@ namespace ArdysaModsTools.Core.Services
                     if (!replaceSuccess)
                         return Fail("VPK replacement failed.", log);
 
-                    await ItemsGameBaselineStore.CommitAsync(targetPath, null, ct).ConfigureAwait(false);
+                    await ItemsGameBaselineStore.CommitAsync(targetPath, _modifier.GetModifiedItemIds(), ct).ConfigureAwait(false);
 
                     ProtectedVpkStore.Clear(targetPath);
+                    var heroLog = HeroExtractionLog.Load(targetPath);
+                    if (heroLog != null && heroLog.InstalledSets.Count > 0)
+                    {
+                        heroLog.InstalledSets.Clear();
+                        heroLog.Save(targetPath);
+                    }
 
                     log("Finalizing...");
                     var extractionLog = new MiscExtractionLog
