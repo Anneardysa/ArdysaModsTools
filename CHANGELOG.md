@@ -35,7 +35,11 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
   native API rather than its S3-compatible one (2314): the S3 layer answers `HeadObject` with 403
   on this bucket even for a key holding every capability, so listing works but per-object metadata
   does not, and `sync` stalls on the first existing object it compares. The Worker in front of
-  `cdn2` hits the same wall — its response cache just hides it for hot files.
+  `cdn2` hits the same wall — its response cache just hides it for hot files. The run's cdn2
+  reachability probe is informational, never a gate (2315): the zone runs Bot Fight Mode, which
+  blocks datacenter ASNs, so those requests are 403 from a GitHub runner and 200 from anywhere
+  else. Gating on it would be a check that can never pass and cannot tell a real outage from the
+  bot rule; the object-and-byte comparison against R2 is the gate that means something.
 - **Multi-CDN infrastructure migrated to R2 Primary and B2 Secondary Fallback**: following the privacy transition of the `ModsPack` repository, public GitHub/jsDelivr CDN fallbacks are replaced with `https://cdn2.ardysamods.my.id/` (Backblaze B2 via Cloudflare Worker proxy). `SmartCdnSelector` and `CdnFallbackService` updated to track latency and statistics for `cdn2`.
 
 ### Added

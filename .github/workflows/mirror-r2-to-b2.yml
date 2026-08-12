@@ -160,19 +160,24 @@ jobs:
                 exit 1
               fi
 
-              # The bucket matching is necessary but not sufficient — it says nothing about whether the
-              # Worker route in front of it still serves. These are the files SmartCdnSelector and
-              # CdnFallbackService benchmark against, so a 200 here is what makes cdn2 usable as a
-              # fallback rather than merely populated.
-              FAILED=0
+              # Informational only — never a gate. Matching buckets say nothing about whether the
+              # Worker route in front of B2 still serves, so probing cdn2 is genuinely worth doing;
+              # it just cannot be done from here. The zone runs Bot Fight Mode (the same feature that
+              # rewrote text/html in transit and broke the delta SHA-256 gate, DL_006), which blocks
+              # datacenter ASNs — so every one of these returns 403 from a GitHub runner while the
+              # identical request from a normal client returns 200. Verified by testing both, and by
+              # ruling out User-Agent: a curl UA from a residential IP is served fine.
+              #
+              # Failing on that would be a red check that can never go green and cannot distinguish
+              # a real cdn2 outage from the bot rule. To actually confirm cdn2 serves, request one of
+              # these from a normal network — prefer an uncached path so the answer comes from B2 and
+              # not the edge (`cf-cache: HIT` proves nothing about the origin).
+              echo "cdn2 reachability (403 expected from CI — see comment):"
               for p in Assets/set_update.json Assets/heroes.json config/misc_config.json releases/releases.json; do
-                CODE=$(curl -s -o /dev/null -w '%{http_code}' "${CDN2_BASE_URL}/${p}")
-                echo "  $CODE  ${CDN2_BASE_URL}/${p}"
-                [ "$CODE" = "200" ] || FAILED=1
+                echo "  $(curl -s -o /dev/null -w '%{http_code}' "${CDN2_BASE_URL}/${p}")  ${CDN2_BASE_URL}/${p}"
               done
-              [ "$FAILED" = "0" ] || { echo "::error::cdn2 did not serve every probe file."; exit 1; }
 
-              echo "✅ B2 mirrors R2 and cdn2 serves it."
+              echo "✅ B2 mirrors R2 object-for-object and byte-for-byte."
 
          - name: Summary
            if: always()
