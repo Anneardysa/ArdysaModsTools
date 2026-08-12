@@ -277,6 +277,31 @@ namespace ArdysaModsTools.Tests.Services
             lines.Clear();
             service.ReportLastApplyOutcome();
             Assert.That(lines, Is.Empty);
+
+            var info = new UpdateInfo { Version = "9.9.9", FilesManifestUrl = "https://cdn.invalid/releases/9.9.9/files.json" };
+            Assert.That(DeltaUpdateService.CanAutoUpdate(InstallationType.Installer, info, service), Is.False);
+            Assert.That(service.HasLastApplyFailedForVersion("9.9.9"), Is.True);
+        }
+
+        [Test]
+        public void CanAutoUpdate_SuppressedWhenPreviousApplyFailed()
+        {
+            string stagingRoot = Path.Combine(_installDir, "stagingRoot");
+            string logPath = Path.Combine(stagingRoot, "2.2.22-beta", "update.log.previous");
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+            File.WriteAllLines(logPath, new[]
+            {
+                "[09:10:59] FAILED: Update failed and was rolled back: Could not install ArdysaModsTools.dll",
+            });
+
+            var service = NewService(stagingRoot, _ => { });
+            var info = new UpdateInfo { Version = "2.2.22-beta", FilesManifestUrl = "https://cdn.invalid/releases/2.2.22-beta/files.json" };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(service.HasLastApplyFailedForVersion("2.2.22-beta"), Is.True);
+                Assert.That(DeltaUpdateService.CanAutoUpdate(InstallationType.Installer, info, service), Is.False);
+            });
         }
 
         [Test]

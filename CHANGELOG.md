@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.23-beta] (Build 2318)
+## [2.2.23-beta] (Builds 2318–2319)
+
+### Fixed
+
+- **Fixed infinite auto-download and auto-restart loop on update failures** (2319): `DeltaUpdateService` now tracks failed apply attempts so `CanAutoUpdate` suppresses auto-update for versions that failed to apply, unlocking the dialog and falling back to manual download links. Added a handle cleanup grace period and capped backoff retries in `ApplyEngine` to prevent file lock failures from lingering WebView2 processes.
+
+### Documentation
+
+- **Added troubleshooting guide for incremental update failures** (2319): updated `docs/TROUBLESHOOTING.md` with causes, automatic safety mechanisms, and step-by-step resolution options for "Incremental update failed" errors.
 
 ### Security
 

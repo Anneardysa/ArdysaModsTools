@@ -213,6 +213,64 @@ report it with the log.
 
 ---
 
+## 🔄 Update & Auto-Update Issues
+
+### "Incremental update failed"
+
+**Symptoms:**
+
+- An error banner or notification appears saying `"Incremental update failed"` or `"Update failed and was rolled back"`.
+- AMT restarts on the previous version without applying the new update.
+- Log contains: `Incremental update failed: <reason>` or `The last update could not be applied and the app was restarted on the previous version`.
+
+**How Incremental (Delta) Update Works:**
+
+1. AMT compares local files against the release's `files.json` manifest published on the CDN.
+2. Downloads changed/missing files into staging (`%LocalAppData%\ArdysaModsTools\update\<version>\`).
+3. Verifies SHA-256 integrity of all staged files and writes `.staged-ok` marker.
+4. Launches `AMT.Updater.exe` (`tools/updater/AMT.Updater.exe`) and shuts down AMT.
+5. `AMT.Updater.exe` re-verifies staged files, performs atomic file swap (`.amtbak` / `.amtnew`), and restarts AMT.
+
+**Causes:**
+
+1. **File Locks / Process not exiting:** Background processes (e.g., WebView2/Chromium renderer instances, search indexer, or antivirus scanner) holding locks on application binaries when `AMT.Updater.exe` attempts file swaps.
+2. **Permission / UAC Issues:** AMT is installed in a protected location (`C:\Program Files\`) and administrator permissions/UAC prompt was declined.
+3. **Antivirus Interference:** Antivirus/Windows Defender blocked `AMT.Updater.exe` or flagged the staging directory file swap as suspicious.
+4. **Staging / Hash Mismatch (`DL_006`):** Network interruption, timeout, or manifest mismatch causing file download or SHA-256 verification failure.
+5. **Missing `.staged-ok` marker:** Download/staging process was interrupted before all files could be verified.
+
+> [!NOTE]
+> **Automatic Loop Protection:**
+> If an incremental update fails, `AMT.Updater.exe` logs `FAILED: <reason>` into `%LocalAppData%\ArdysaModsTools\update\<version>\update.log`.
+> AMT detects this on the next startup (`HasLastApplyFailedForVersion`) and **automatically suppresses incremental auto-updates for that specific release version** to prevent infinite download/restart loops. The update dialog will revert to showing full manual download links.
+
+**Solutions & Resolution Options:**
+
+1. **Option 1: Manual Direct Download / Installer (Fastest Fallback)**
+   - Download the latest installer `.exe` or portable `.zip` directly from [GitHub Releases](https://github.com/Anneardysa/ArdysaModsTools/releases) or [ardysamods.my.id](https://ardysamods.my.id).
+   - Run the installer or extract the `.zip` over your existing installation.
+
+2. **Option 2: Clear Staging Directory & Retry**
+   - Close ArdysaModsTools.
+   - Delete the update staging folder: `%LocalAppData%\ArdysaModsTools\update\`.
+   - Relaunch AMT and check for updates again.
+
+3. **Option 3: Run as Administrator & Close Lock Processes**
+   - Close ArdysaModsTools and verify in Task Manager that no `ArdysaModsTools.exe` or `msedgewebview2.exe` processes remain.
+   - Right-click `ArdysaModsTools.exe` and select **Run as Administrator**.
+   - Attempt the update again and accept any UAC prompt for `AMT.Updater.exe`.
+
+4. **Option 4: Antivirus Exclusion**
+   - Add an exclusion in Windows Defender or your antivirus for:
+     - `%LocalAppData%\ArdysaModsTools\`
+     - Your AMT installation folder.
+
+5. **Option 5: Inspect Update Logs**
+   - Open `%LocalAppData%\ArdysaModsTools\ardysa_fallback.log` for app-level update logs.
+   - Open `%LocalAppData%\ArdysaModsTools\update\<version>\update.log` (or `update.log.previous`) to see the exact `FAILED: <reason>` message recorded by the applier engine.
+
+---
+
 ## 📁 File Issues
 
 ### "Access Denied" Errors
@@ -258,6 +316,7 @@ Check console in main window for detailed logs. Copy with the "Copy" button.
 | File                      | Where                                                                       |
 | ------------------------- | --------------------------------------------------------------------------- |
 | `ardysa_fallback.log`     | Installer builds: `%LocalAppData%\ArdysaModsTools\` · portable: next to the exe. **This is the one to attach to a bug report.** |
+| `update.log`              | `%LocalAppData%\ArdysaModsTools\update\<version>\update.log` (or `.previous`). Written by `AMT.Updater.exe` when an update fails or rolls back. |
 | `startup_log.txt`         | Next to `ArdysaModsTools.exe`. For when AMT won't start at all — overwritten every launch, so grab it right after a failed start. |
 | `generation_report_*.txt` | `<Dota 2 folder>\game\_ArdysaMods\_temp\`. Skin Selector / Miscellaneous bugs. Already sanitized — safe to post as-is. |
 

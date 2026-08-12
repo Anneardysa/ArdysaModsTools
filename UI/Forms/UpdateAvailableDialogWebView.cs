@@ -70,7 +70,7 @@ namespace ArdysaModsTools.UI.Forms
             _updateInfo = updateInfo;
             _installationType = installationType;
             _delta = delta;
-            _deltaPending = delta != null && DeltaUpdateService.CanAutoUpdate(installationType, updateInfo);
+            _deltaPending = delta != null && DeltaUpdateService.CanAutoUpdate(installationType, updateInfo, delta);
             _locked = _deltaPending;
 
             InitializeComponent();
@@ -173,6 +173,11 @@ namespace ArdysaModsTools.UI.Forms
                     await _webView.CoreWebView2.ExecuteScriptAsync(WebViewLocalizer.BuildBootstrapScript(Loc.Service));
 
                 await SetUpdateInfoAsync();
+
+                if (_delta != null && (_delta.HasLastApplyFailedForVersion(_updateInfo.Version) || _delta.HasAnyRecentApplyFailed()))
+                {
+                    await CallJsAsync("setUpdateFailed", Loc.T("updateAvail.failed"));
+                }
 
                 _ = PrepareDeltaAsync();
             }

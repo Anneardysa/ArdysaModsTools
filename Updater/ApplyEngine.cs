@@ -31,7 +31,7 @@ namespace ArdysaModsTools.Updater
         public const string StagedOkMarker = ".staged-ok";
         public const string PlanFileName = "apply.json";
 
-        private const int MaxAttempts = 7;
+        private const int MaxAttempts = 8;
         private const int BaseDelayMs = 200;
 
         public static ApplyResult Run(
@@ -86,6 +86,9 @@ namespace ArdysaModsTools.Updater
 
             if (waitPid > 0 && !WaitForExit(waitPid, waitTimeoutMs, log))
                 return new ApplyResult(false, "The application is still running — update aborted.", null);
+
+            if (waitPid > 0)
+                Thread.Sleep(500);
 
             return Swap(plan, targetDir, filesRoot, relaunch, log);
         }
@@ -281,7 +284,8 @@ namespace ArdysaModsTools.Updater
                 }
                 catch (Exception) when (attempt < MaxAttempts)
                 {
-                    Thread.Sleep(BaseDelayMs * (int)Math.Pow(2, attempt - 1));
+                    int delay = Math.Min(1000, BaseDelayMs * (int)Math.Pow(2, attempt - 1));
+                    Thread.Sleep(delay);
                 }
                 catch (Exception ex)
                 {

@@ -62,6 +62,7 @@ namespace ArdysaModsTools.Core.Services.Update
         private readonly Logger _logger;
         private readonly string _installDir;
         private readonly string _stagingRoot;
+        private readonly HashSet<string> _failedVersions = new(StringComparer.OrdinalIgnoreCase);
 
         public DeltaUpdateService(Logger logger, string? installDir = null, string? stagingRoot = null)
         {
@@ -74,8 +75,83 @@ namespace ArdysaModsTools.Core.Services.Update
 
         #region Prepare
 
-        public static bool CanAutoUpdate(InstallationType type, UpdateInfo? info) =>
-            type == InstallationType.Installer && !string.IsNullOrWhiteSpace(info?.FilesManifestUrl);
+        public bool HasLastApplyFailedForVersion(string? version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+                return false;
+
+            if (_failedVersions.Contains(version))
+                return true;
+
+            try
+            {
+                string dir = Path.Combine(_stagingRoot, version);
+                if (!Directory.Exists(dir))
+                    return false;
+
+                foreach (var name in new[] { ApplierLogFile, ApplierLogFile + ".previous" })
+                {
+                    string path = Path.Combine(dir, name);
+                    if (File.Exists(path))
+                    {
+                        if (File.ReadLines(path).Any(line => line.Contains(ApplierFailureTag, StringComparison.Ordinal)))
+                        {
+                            _failedVersions.Add(version);
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
+        }
+
+        public bool HasAnyRecentApplyFailed()
+        {
+            if (_failedVersions.Count > 0)
+                return true;
+
+            try
+            {
+                if (!Directory.Exists(_stagingRoot))
+                    return false;
+
+                foreach (var name in new[] { ApplierLogFile, ApplierLogFile + ".previous" })
+                {
+                    foreach (var logPath in Directory.EnumerateFiles(_stagingRoot, name, SearchOption.AllDirectories))
+                    {
+                        if (File.ReadLines(logPath).Any(line => line.Contains(ApplierFailureTag, StringComparison.Ordinal)))
+                        {
+                            string? versionDir = Path.GetFileName(Path.GetDirectoryName(logPath));
+                            if (!string.IsNullOrWhiteSpace(versionDir))
+                            {
+                                _failedVersions.Add(versionDir);
+                            }
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
+        }
+
+        public static bool CanAutoUpdate(InstallationType type, UpdateInfo? info, DeltaUpdateService? delta = null)
+        {
+            if (type != InstallationType.Installer || string.IsNullOrWhiteSpace(info?.FilesManifestUrl))
+                return false;
+
+            if (delta != null && ((!string.IsNullOrWhiteSpace(info?.Version) && delta.HasLastApplyFailedForVersion(info.Version)) || delta.HasAnyRecentApplyFailed()))
+                return false;
+
+            return true;
+        }
 
         public async Task<DeltaPlan?> PrepareAsync(UpdateInfo info, CancellationToken ct = default)
         {
@@ -403,6 +479,12 @@ namespace ArdysaModsTools.Core.Services.Update
 
                     if (failure != null)
                     {
+                        string? versionDir = Path.GetFileName(Path.GetDirectoryName(logPath));
+                        if (!string.IsNullOrWhiteSpace(versionDir))
+                        {
+                            _failedVersions.Add(versionDir);
+                        }
+
                         int reasonAt = failure.IndexOf(ApplierFailureTag, StringComparison.Ordinal)
                                        + ApplierFailureTag.Length;
                         _logger.Log("The last update could not be applied and the app was restarted on the " +
