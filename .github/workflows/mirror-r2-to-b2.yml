@@ -132,8 +132,12 @@ jobs:
               rclone sync "r2:${R2_BUCKET}" "b2:${B2_BUCKET}" \
                 $DRY \
                 --max-delete "$MAX_DELETE" \
-                --transfers 16 \
-                --checkers 32 \
+                --transfers 4 \
+                --checkers 16 \
+                --timeout 30s \
+                --contimeout 15s \
+                --low-level-retries 10 \
+                --b2-chunk-size 32M \
                 --fast-list \
                 --check-first \
                 --retries 3 \
