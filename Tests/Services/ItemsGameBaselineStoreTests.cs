@@ -90,7 +90,7 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public async Task Commit_WithoutPending_DropsAnyStaleRecord_AndDoesNotThrow()
+        public async Task Commit_WithoutPending_PreservesOrCreatesRecord_AndDoesNotThrow()
         {
             var (gameVpk, itemsGame) = BuildTree();
             await ItemsGameBaselineStore.WritePendingAsync(_root, gameVpk, itemsGame);
@@ -99,7 +99,7 @@ namespace ArdysaModsTools.Tests.Services
 
             await ItemsGameBaselineStore.CommitAsync(_root, null);
 
-            Assert.That(await ItemsGameBaselineStore.ReadAsync(_root), Is.Null);
+            Assert.That(await ItemsGameBaselineStore.ReadAsync(_root), Is.Not.Null);
         }
 
         [Test]
