@@ -313,9 +313,29 @@ namespace ArdysaModsTools.UI.Forms
             if (e.Data?.GetDataPresent(DataFormats.FileDrop) != true)
                 return null;
             var files = (string[])e.Data.GetData(DataFormats.FileDrop)!;
-            if (files.Length != 1)
+            if (files == null || files.Length != 1)
                 return null;
-            return files[0].EndsWith(".vpk", StringComparison.OrdinalIgnoreCase) ? files[0] : null;
+
+            string filePath = files[0]?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                return null;
+
+            string ext = Path.GetExtension(filePath);
+            if (!string.Equals(ext, ".vpk", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            string fileName = Path.GetFileName(filePath);
+            if (fileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                fileName.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) ||
+                fileName.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase) ||
+                fileName.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase) ||
+                fileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) ||
+                fileName.EndsWith(".vbs", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return filePath;
         }
 
         private void OnDragEnter(object? sender, DragEventArgs e)

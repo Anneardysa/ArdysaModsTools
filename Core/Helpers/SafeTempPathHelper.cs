@@ -67,6 +67,37 @@ namespace ArdysaModsTools.Core.Helpers
             catch {  }
         }
 
+        public static bool IsSafeExtractionPath(string targetDirectory, string relativePathOrFileName, out string safeDestinationPath)
+        {
+            safeDestinationPath = string.Empty;
+            if (string.IsNullOrWhiteSpace(targetDirectory) || string.IsNullOrWhiteSpace(relativePathOrFileName))
+                return false;
+
+            try
+            {
+                string fullTargetDir = Path.GetFullPath(targetDirectory);
+                if (!fullTargetDir.EndsWith(Path.DirectorySeparatorChar.ToString(), StringComparison.Ordinal))
+                {
+                    fullTargetDir += Path.DirectorySeparatorChar;
+                }
+
+                string combinedPath = Path.Combine(targetDirectory, relativePathOrFileName);
+                string fullDestPath = Path.GetFullPath(combinedPath);
+
+                if (fullDestPath.StartsWith(fullTargetDir, StringComparison.OrdinalIgnoreCase))
+                {
+                    safeDestinationPath = fullDestPath;
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return false;
+        }
+
         private static bool IsAsciiOnly(string text)
         {
             return text.All(c => c <= 127);

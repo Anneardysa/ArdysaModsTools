@@ -14,6 +14,8 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 ### Security
 
 - **Fixed security vulnerability in URL and protocol execution** (2318): `UIHelpers.OpenUrl` and all WebView2 `openUrl` IPC handlers now strictly sanitize and whitelist URL schemes (`http`, `https`, `steam`) using absolute `Uri` parsing, preventing arbitrary protocol or process execution (`file://`, local binaries).
+- **Enforced strict Drag and Drop file validation** (2318): `InstallMethodDialogWebView` now verifies file existence, enforces `.vpk` extensions, and rejects dangerous binary extensions (`.exe`, `.bat`, `.cmd`, `.ps1`, `.dll`, `.vbs`).
+- **Added ZipSlip path traversal protection to archive extractions** (2318): `SafeTempPathHelper.IsSafeExtractionPath` canonicalizes extraction paths to prevent malicious archives from writing entries outside target staging directories.
 
 ## [2.2.22-beta] (Build 2317)
 

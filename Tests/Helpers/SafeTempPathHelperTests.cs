@@ -72,5 +72,30 @@ namespace ArdysaModsTools.Tests.Helpers
             Assert.DoesNotThrow(() =>
                 SafeTempPathHelper.HideDirectory(Path.Combine(_dir, "does-not-exist")));
         }
+
+        [Test]
+        [TestCase("subfolder/file.txt")]
+        [TestCase("textures/models/hero.vtf")]
+        [TestCase("items_game.txt")]
+        public void IsSafeExtractionPath_ValidRelativePaths_ReturnsTrueAndResolvedPath(string relativePath)
+        {
+            bool safe = SafeTempPathHelper.IsSafeExtractionPath(_dir, relativePath, out var safePath);
+
+            Assert.That(safe, Is.True);
+            Assert.That(safePath, Does.StartWith(Path.GetFullPath(_dir)));
+        }
+
+        [Test]
+        [TestCase("../evil.dll")]
+        [TestCase("../../Windows/System32/cmd.exe")]
+        [TestCase("subfolder/../../outside.txt")]
+        [TestCase(@"..\..\..\AppData\Roaming\malicious.exe")]
+        public void IsSafeExtractionPath_ZipSlipTraversalPaths_ReturnsFalse(string traversalPath)
+        {
+            bool safe = SafeTempPathHelper.IsSafeExtractionPath(_dir, traversalPath, out var safePath);
+
+            Assert.That(safe, Is.False, $"Traversal path '{traversalPath}' must be blocked.");
+            Assert.That(safePath, Is.Empty);
+        }
     }
 }

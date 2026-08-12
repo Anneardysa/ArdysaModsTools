@@ -835,11 +835,17 @@ namespace ArdysaModsTools.Core.Services
                         }
                         else if (copyToRoot)
                         {
-                            string destPath = Path.Combine(extractDir, relativePath);
-                            Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                            entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
-                            TrackInstalledFile(category, relativePath);
-                            copied++;
+                            if (SafeTempPathHelper.IsSafeExtractionPath(extractDir, relativePath, out var destPath))
+                            {
+                                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                                entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
+                                TrackInstalledFile(category, relativePath);
+                                copied++;
+                            }
+                            else
+                            {
+                                _logger?.Log($"[ZipSlip] Blocked extraction of path traversal entry: '{relativePath}'");
+                            }
                         }
                     }
                 }
@@ -983,10 +989,16 @@ namespace ArdysaModsTools.Core.Services
                     if (entry.IsDirectory) continue;
 
                     string relativePath = entry.Key ?? string.Empty;
-                    string destPath = Path.Combine(extractDir, relativePath);
-                    Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                    entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
-                    extractedFiles.Add(relativePath);
+                    if (SafeTempPathHelper.IsSafeExtractionPath(extractDir, relativePath, out var destPath))
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                        entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
+                        extractedFiles.Add(relativePath);
+                    }
+                    else
+                    {
+                        _logger?.Log($"[ZipSlip] Blocked extraction of path traversal entry: '{relativePath}'");
+                    }
                 }
             }
 
