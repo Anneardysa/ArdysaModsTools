@@ -183,12 +183,7 @@ namespace ArdysaModsTools.UI.Forms
 
         private static void OpenUrl(string? url)
         {
-            if (string.IsNullOrWhiteSpace(url)) return;
-            if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
-                !url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-                return;
-            try { Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true }); }
-            catch {  }
+            ArdysaModsTools.Helpers.UIHelpers.OpenUrl(url);
         }
     }
 }

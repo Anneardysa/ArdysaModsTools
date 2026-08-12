@@ -570,6 +570,18 @@ To free up disk space:
 
 ---
 
+#### Issue: Could Not Read Game Data
+
+**Error**: "Could not read game data from your Dota 2 installation"
+
+**Solutions**:
+
+1. **Check Path**: Check the path first and make sure it's pointing to the correct Dota 2 game folder (`...\steamapps\common\dota 2 beta`).
+2. **Verify Game Files**: If the path is correct, the issue could also be caused by corrupted game files. Verify the integrity of the game files through Steam (**Steam Library → Right-click Dota 2 → Properties → Installed Files → Verify integrity of game files**) and then try again.
+3. **Steam Background Downloads**: Make sure Steam is not actively patching or updating Dota 2 in the background.
+
+---
+
 #### Issue: Installation Fails
 
 **Error**: Various installation errors

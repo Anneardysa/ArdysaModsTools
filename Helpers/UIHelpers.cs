@@ -63,7 +63,7 @@ namespace ArdysaModsTools.Helpers
 
         #region URL Handling
 
-        public static bool OpenUrl(string url, Action<string>? errorCallback = null)
+        public static bool OpenUrl(string? url, Action<string>? errorCallback = null)
         {
             if (string.IsNullOrWhiteSpace(url))
             {
@@ -71,29 +71,45 @@ namespace ArdysaModsTools.Helpers
                 return false;
             }
 
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                errorCallback?.Invoke($"Invalid URL format: '{url}'");
+                return false;
+            }
+
+            string scheme = uri.Scheme.ToLowerInvariant();
+            if (scheme != Uri.UriSchemeHttp &&
+                scheme != Uri.UriSchemeHttps &&
+                scheme != "steam")
+            {
+                errorCallback?.Invoke($"Blocked opening URL with untrusted scheme '{uri.Scheme}': '{url}'");
+                return false;
+            }
+
             try
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = url,
+                    FileName = uri.AbsoluteUri,
                     UseShellExecute = true
                 });
                 return true;
             }
             catch (Exception ex)
             {
-                errorCallback?.Invoke($"Failed to open URL: {ex.Message}");
+                errorCallback?.Invoke($"Failed to open URL '{url}': {ex.Message}");
                 return false;
             }
         }
 
-        public static void OpenUrlWithErrorDialog(string url, string urlName, Action<string>? errorCallback = null)
+        public static void OpenUrlWithErrorDialog(string? url, string urlName, Action<string>? errorCallback = null)
         {
             if (!OpenUrl(url, errorCallback))
             {
                 ShowError(Loc.T("error.openLink", new { name = urlName }));
             }
         }
+
 
         private const string DiscordInviteUrl = "https://discord.gg/5xKg4fyumv";
 

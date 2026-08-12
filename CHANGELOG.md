@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
+## [2.2.23-beta] (Build 2318)
+
+### Security
+
+- **Fixed security vulnerability in URL and protocol execution** (2318): `UIHelpers.OpenUrl` and all WebView2 `openUrl` IPC handlers now strictly sanitize and whitelist URL schemes (`http`, `https`, `steam`) using absolute `Uri` parsing, preventing arbitrary protocol or process execution (`file://`, local binaries).
+
 ## [2.2.22-beta] (Build 2317)
 
 ### Fixed
