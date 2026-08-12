@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.21-beta] (Builds 2297–2317)
+## [2.2.22-beta] (Build 2317)
 
 ### Fixed
 
@@ -17,6 +17,15 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
   repository went private, GitHub Releases API returned 404. Added CDN manifest fallback
   (`modspack-releases.json`) on Cloudflare R2 and Backblaze B2 so ModsPack download URL resolution and
   multi-CDN downloading work seamlessly without GitHub API access.
+- **Optimized Cloudflare R2 to Backblaze B2 bucket mirroring pipeline** (2317): updated
+  `.github/workflows/mirror-r2-to-b2.yml` with `--b2-disable-checksum`, `--b2-upload-cutoff 15M`,
+  `--b2-chunk-size 15M`, `--buffer-size 32M`, and tuned concurrency/timeouts to eliminate B2
+  server-side SHA-1 readback delays and TCP socket stalls.
+
+## [2.2.21-beta] (Builds 2297–2316)
+
+### Fixed
+
 - **The install progress preview panel no longer reads from a private repo** (2312): it listed hero
   thumbnails through the GitHub Contents API on `Anneardysa/ArdysaMods` and built each image URL
   against `raw.githubusercontent.com`. Both return 404 since that repo went private and the site
