@@ -305,6 +305,29 @@ report it with the log.
 
 ---
 
+## 🎮 Hero Skins & Miscellaneous Mods (Play Button & Package Sync)
+
+### Spectre Arcana / Hero Skins Reverted to Default Skin (Broken Skill Icons or Animations)
+
+**Symptoms:**
+
+- Spectre Arcana (or other hero skins) lose custom skill icons, passive animations, or kill effects after installing Miscellaneous mods (like Low Poly Map, Weather, etc.) or clicking Play Button.
+- Item definition block in `items_game.txt` loses its custom `"visuals"` section.
+
+**Causes:**
+
+1. **Incomplete Baseline Tracking**: `items_game_baseline.json` record was missing or incomplete for installed custom hero sets.
+2. **Scope Skipping during Repair**: Play Button repair previously skipped item blocks (such as Spectre Arcana `"323"`) if they were not present in `patchedIds`, reverting them to vanilla Dota 2 definitions.
+3. **Clean Generate Mode Usage**: Using "Clean Generate" mode in Miscellaneous tab rebuilds the VPK from clean base, which resets hero skins.
+
+**Solutions:**
+
+1. **Update to Build 2320+**: Update to **v2.2.23-beta (Build 2320)** or newer. AMT now implements `ItemsGameBlockIndex.FindDifferingItemIds` multi-layer hash-diffing, which automatically detects all modified hero cosmetic blocks and preserves Arcana `"visuals"` sections and skill icons during Play Button repair.
+2. **Use "Add to Current" Mode**: When installing Miscellaneous mods while hero skins are active, choose **Add to Current** mode instead of "Clean Generate".
+3. **Re-run Play Button Repair**: Click **Play Dota 2** in the sidebar or run **Package Sync** repair. AMT will analyze `moddedText` against vanilla data, automatically include all custom hero blocks, and restore full Arcana visuals and skill icons.
+
+---
+
 ## 💡 Debugging Tips
 
 ### Enable Verbose Logging

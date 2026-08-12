@@ -426,6 +426,9 @@ Customize additional game elements beyond hero skins.
 | **Clean Generate** | First time, or reset all changes   | Extracts fresh VPK, applies only selected mods |
 | **Add to Current** | Adding more mods to existing setup | Uses existing extraction, adds new mods        |
 
+> [!IMPORTANT]
+> If you have custom Hero Skins installed, always choose **Add to Current** mode when applying Miscellaneous mods. **Add to Current** preserves your active hero skins and merges your selected Miscellaneous options cleanly.
+
 > [!NOTE]
 > Clean Generate takes longer but ensures a clean slate. Use Add to Current for quick additions.
 
