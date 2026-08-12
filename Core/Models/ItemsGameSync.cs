@@ -29,7 +29,7 @@ namespace ArdysaModsTools.Core.Models
         Stale
     }
 
-    public readonly record struct VpkStamp(long Length, DateTime LastWriteUtc)
+    public readonly record struct VpkStamp(long Length, DateTime LastWriteUtc) : IEquatable<VpkStamp>
     {
         public static VpkStamp? Read(string? path)
         {
@@ -46,6 +46,14 @@ namespace ArdysaModsTools.Core.Models
                 return null;
             }
         }
+
+        public bool Equals(VpkStamp other)
+        {
+            if (Length != other.Length) return false;
+            return Math.Abs((LastWriteUtc - other.LastWriteUtc).TotalSeconds) < 2.0;
+        }
+
+        public override int GetHashCode() => HashCode.Combine(Length, (int)(LastWriteUtc.Ticks / (TimeSpan.TicksPerSecond * 2)));
 
         public bool IsEmpty => Length == 0 && LastWriteUtc == default;
     }
