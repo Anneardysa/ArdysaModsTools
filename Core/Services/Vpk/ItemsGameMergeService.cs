@@ -145,12 +145,11 @@ namespace ArdysaModsTools.Core.Services
                         if (!string.IsNullOrWhiteSpace(id)) combinedPatchedIds.Add(id);
                 }
 
-                var heroLog = HeroExtractionLog.Load(root);
-                if (!recordApplies || combinedPatchedIds.Count == 0 || (heroLog?.InstalledSets != null && heroLog.InstalledSets.Count > 0))
+                var diffIds = ItemsGameBlockIndex.FindDifferingItemIds(vanillaText, moddedText);
+                foreach (var id in diffIds)
                 {
-                    var diffIds = ItemsGameBlockIndex.FindDifferingItemIds(vanillaText, moddedText);
-                    foreach (var id in diffIds)
-                        if (!string.IsNullOrWhiteSpace(id)) combinedPatchedIds.Add(id);
+                    if (!string.IsNullOrWhiteSpace(id))
+                        combinedPatchedIds.Add(id);
                 }
 
                 var patchedIds = combinedPatchedIds.Count > 0 ? (IReadOnlyCollection<string>)combinedPatchedIds : null;
