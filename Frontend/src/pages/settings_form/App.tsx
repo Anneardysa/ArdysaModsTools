@@ -203,6 +203,10 @@ export function App() {
       patchSetting("theme", v);
       send("themeChanged", { value: v });
    };
+   const changeCdnServer = (code: string) => {
+      patchSetting("cdnServer", code);
+      send("cdnServerChanged", { value: code });
+   };
 
    const checkUpdates = () => {
       store.set({ checkUpdatesBusy: true });
@@ -326,6 +330,34 @@ export function App() {
                            >
                               <option value="dark">{t("settings.theme.dark", "Dark")}</option>
                               <option value="light">{t("settings.theme.light", "Light")}</option>
+                           </select>
+                        </SelectRow>
+                     </div>
+                  </div>
+
+                  <div className={css.section}>
+                     <div className={css.sectionHeader}>
+                        <span className={css.sectionTitle}>
+                           <T k="settings.section.network">Network &amp; CDN</T>
+                        </span>
+                        <div className={css.sectionLine} />
+                     </div>
+                     <div className={`${css.settingsCard} panel`}>
+                        <SelectRow
+                           labelKey="settings.cdnServer.label"
+                           label="Download Server"
+                           descKey="settings.cdnServer.desc"
+                           desc="Select preferred CDN server location for mod downloads"
+                        >
+                           <select
+                              className={css.langSelect}
+                              data-no-drag
+                              value={settings.cdnServer || "auto"}
+                              onChange={(e) => changeCdnServer(e.target.value)}
+                           >
+                              <option value="auto">{t("settings.cdnServer.auto", "Auto (Smart Selection)")}</option>
+                              <option value="asia">{t("settings.cdnServer.asia", "Asia (Cloudflare R2)")}</option>
+                              <option value="eu_us">{t("settings.cdnServer.eu_us", "EU / US (Backblaze B2)")}</option>
                            </select>
                         </SelectRow>
                      </div>

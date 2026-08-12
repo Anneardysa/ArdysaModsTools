@@ -45,6 +45,8 @@ namespace ArdysaModsTools.Core.Constants
 
         public static bool IsR2Enabled { get; set; } = true;
 
+        public static string CdnServerPreference { get; set; } = "auto";
+
         public const int TimeoutSeconds = 30;
 
         public const int MaxRetryPerCdn = 2;
@@ -84,19 +86,17 @@ namespace ArdysaModsTools.Core.Constants
 
         public static string[] GetCdnBaseUrls()
         {
-            if (IsR2Enabled)
+            if (!IsR2Enabled)
             {
-                return
-                [
-                    R2BaseUrl,
-                    Cdn2BaseUrl
-                ];
+                return [Cdn2BaseUrl];
             }
 
-            return
-            [
-                Cdn2BaseUrl
-            ];
+            if (string.Equals(CdnServerPreference, "eu_us", StringComparison.OrdinalIgnoreCase))
+            {
+                return [Cdn2BaseUrl, R2BaseUrl];
+            }
+
+            return [R2BaseUrl, Cdn2BaseUrl];
         }
 
         private static readonly string[] LegacyBaseUrls =

@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services.Config
@@ -41,6 +42,7 @@ namespace ArdysaModsTools.Core.Services.Config
                 Directory.CreateDirectory(_defaultDir);
 
             _data = LoadConfig();
+            CdnConfig.CdnServerPreference = CdnServerPreference;
         }
 
         private class ConfigData
@@ -98,6 +100,7 @@ namespace ArdysaModsTools.Core.Services.Config
         private const string KeyAutoDetectOnStartup = "AutoDetectOnStartup";
         private const string KeyLanguage = "Language";
         private const string KeySupportPromptSnoozeDate = "SupportPromptSnoozeDate";
+        private const string KeyCdnServerPreference = "CdnServerPreference";
 
         public bool MinimizeToTray
         {
@@ -133,6 +136,17 @@ namespace ArdysaModsTools.Core.Services.Config
         {
             get => GetValue<string?>(KeySupportPromptSnoozeDate, null);
             set { SetValue(KeySupportPromptSnoozeDate, value); Save(); }
+        }
+
+        public string CdnServerPreference
+        {
+            get => GetValue(KeyCdnServerPreference, "auto");
+            set
+            {
+                SetValue(KeyCdnServerPreference, value);
+                CdnConfig.CdnServerPreference = value;
+                Save();
+            }
         }
 
         public void Save()

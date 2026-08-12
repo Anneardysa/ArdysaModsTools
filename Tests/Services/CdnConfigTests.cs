@@ -27,6 +27,33 @@ namespace ArdysaModsTools.Tests.Services
         public void SetUp()
         {
             CdnConfig.IsR2Enabled = true;
+            CdnConfig.CdnServerPreference = "auto";
+        }
+
+        [Test]
+        public void GetCdnBaseUrls_WhenEuUsPreference_PrioritizesCdn2B2()
+        {
+            CdnConfig.CdnServerPreference = "eu_us";
+
+            var urls = CdnConfig.GetCdnBaseUrls();
+
+            Assert.That(urls, Is.Not.Null);
+            Assert.That(urls.Length, Is.EqualTo(2));
+            Assert.That(urls[0], Is.EqualTo("https://cdn2.ardysamods.my.id"));
+            Assert.That(urls[1], Is.EqualTo("https://cdn.ardysamods.my.id"));
+        }
+
+        [Test]
+        public void GetCdnBaseUrls_WhenAsiaOrAutoPreference_PrioritizesR2()
+        {
+            CdnConfig.CdnServerPreference = "asia";
+            var asiaUrls = CdnConfig.GetCdnBaseUrls();
+
+            CdnConfig.CdnServerPreference = "auto";
+            var autoUrls = CdnConfig.GetCdnBaseUrls();
+
+            Assert.That(asiaUrls[0], Is.EqualTo("https://cdn.ardysamods.my.id"));
+            Assert.That(autoUrls[0], Is.EqualTo("https://cdn.ardysamods.my.id"));
         }
 
         [Test]

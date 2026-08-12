@@ -10,6 +10,7 @@ export type Settings = {
    language: string;
    uiScale: number;
    theme: string;
+   cdnServer: string;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -22,6 +23,7 @@ const DEFAULT_SETTINGS: Settings = {
    language: "en",
    uiScale: 1,
    theme: "dark",
+   cdnServer: "auto",
 };
 
 export const store = createStore<{

@@ -133,16 +133,17 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
             if (CdnConfig.IsR2Enabled)
             {
-                var r2 = CdnConfig.R2BaseUrl;
-                bool r2Present = baseOrder.Any(u =>
-                    string.Equals(u, r2, StringComparison.OrdinalIgnoreCase));
+                string preferredBase = string.Equals(CdnConfig.CdnServerPreference, "eu_us", StringComparison.OrdinalIgnoreCase)
+                    ? CdnConfig.Cdn2BaseUrl
+                    : CdnConfig.R2BaseUrl;
 
-                if (r2Present && !string.Equals(baseOrder[0], r2, StringComparison.OrdinalIgnoreCase))
+                bool present = baseOrder.Any(u => string.Equals(u, preferredBase, StringComparison.OrdinalIgnoreCase));
+                if (present && !string.Equals(baseOrder[0], preferredBase, StringComparison.OrdinalIgnoreCase))
                 {
                     var rest = baseOrder
-                        .Where(u => !string.Equals(u, r2, StringComparison.OrdinalIgnoreCase))
+                        .Where(u => !string.Equals(u, preferredBase, StringComparison.OrdinalIgnoreCase))
                         .ToArray();
-                    baseOrder = new[] { r2 }.Concat(rest).ToArray();
+                    baseOrder = new[] { preferredBase }.Concat(rest).ToArray();
                 }
             }
 

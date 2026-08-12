@@ -31,6 +31,7 @@ namespace ArdysaModsTools.Tests.Services
         [SetUp]
         public void Setup()
         {
+            CdnConfig.CdnServerPreference = "auto";
             _selector = SmartCdnSelector.Instance;
             ClearAllPenalties();
 
@@ -41,6 +42,7 @@ namespace ArdysaModsTools.Tests.Services
         [TearDown]
         public void TearDown()
         {
+            CdnConfig.CdnServerPreference = "auto";
             ClearAllPenalties();
         }
 
@@ -54,6 +56,16 @@ namespace ArdysaModsTools.Tests.Services
         public void GetOrderedCdnUrls_NoPenalties_ReturnsNaturalOrder()
         {
             Assert.That(_selector.GetOrderedCdnUrls(), Is.EqualTo(_naturalOrder));
+        }
+
+        [Test]
+        public void GetOrderedCdnUrls_WhenEuUsPreference_PinsCdn2First()
+        {
+            CdnConfig.CdnServerPreference = "eu_us";
+
+            var ordered = _selector.GetOrderedCdnUrls();
+
+            Assert.That(ordered[0], Is.EqualTo("https://cdn2.ardysamods.my.id"));
         }
 
         [Test]

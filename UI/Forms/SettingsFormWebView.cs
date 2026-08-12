@@ -20,6 +20,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Services.App;
@@ -198,7 +199,8 @@ namespace ArdysaModsTools.UI.Forms
                 dotaPath = _configService.GetLastTargetPath() ?? "",
                 language = _loc?.CurrentCode ?? "en",
                 uiScale = _configService.GetValue("uiScale", 1.0),
-                theme = _configService.GetValue("theme", "dark")
+                theme = _configService.GetValue("theme", "dark"),
+                cdnServer = _configService.CdnServerPreference
             };
 
             var json = JsonSerializer.Serialize(settings);
@@ -235,6 +237,10 @@ namespace ArdysaModsTools.UI.Forms
 
                     case "languageChanged":
                         await HandleLanguageChanged(message);
+                        break;
+
+                    case "cdnServerChanged":
+                        await HandleCdnServerChanged(message);
                         break;
 
                     case "uiScaleChanged":
@@ -343,6 +349,21 @@ namespace ArdysaModsTools.UI.Forms
 
                 await ExecuteScriptAsync(WebViewLocalizer.BuildApplyScript(_loc));
                 await ToastAsync("toast.language.changed", "success");
+            }
+            catch (Exception ex)
+            {
+                await ToastAsync("toast.error", "error", new { error = ex.Message });
+            }
+        }
+
+        private async Task HandleCdnServerChanged(JsonElement message)
+        {
+            try
+            {
+                var value = message.GetProperty("value").GetString() ?? "auto";
+                _configService.CdnServerPreference = value;
+                CdnConfig.CdnServerPreference = value;
+                await ToastAsync("toast.cdnServer.changed", "success");
             }
             catch (Exception ex)
             {

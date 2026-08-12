@@ -38,6 +38,8 @@ namespace ArdysaModsTools.Core.Interfaces
 
         string? SupportPromptSnoozeDate { get; set; }
 
+        string CdnServerPreference { get; set; }
+
         void Save();
     }
 }
