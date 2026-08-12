@@ -137,6 +137,7 @@ jobs:
                 --buffer-size 32M \
                 --b2-upload-cutoff 15M \
                 --b2-chunk-size 15M \
+                --b2-disable-checksum \
                 --min-rate 100k \
                 --min-rate-time 15s \
                 --timeout 30s \
