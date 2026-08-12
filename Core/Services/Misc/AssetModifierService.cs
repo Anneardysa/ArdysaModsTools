@@ -74,7 +74,19 @@ namespace ArdysaModsTools.Core.Services
             { "RadiantSiege", "34462" },
             { "DireSiege", "34463" },
             { "RadiantTower", "677" },
-            { "DireTower", "678" }
+            { "DireTower", "678" },
+            { "Courier", "595" },
+            { "Ward", "594" },
+            { "Announcer", "586" },
+            { "announcer", "586" },
+            { "MegaKill", "589" },
+            { "mega_kills", "589" },
+            { "Roshan", "962" },
+            { "roshan", "962" },
+            { "Cursor", "604" },
+            { "cursor", "604" },
+            { "KillStreak", "1026" },
+            { "kill_streak", "1026" }
         };
 
         public AssetModifierService(HttpClient? httpClient = null, IAppLogger? logger = null)
@@ -121,6 +133,12 @@ namespace ArdysaModsTools.Core.Services
                     string wid = rawId.Contains(':') ? rawId.Split(':')[0] : rawId;
                     if (!string.IsNullOrEmpty(wid)) ids.Add(wid);
                 }
+            }
+
+            if (selections.TryGetValue("Ancient", out var selAncient) && !string.IsNullOrEmpty(selAncient) && !string.Equals(selAncient, "default", StringComparison.OrdinalIgnoreCase))
+            {
+                ids.Add("679");
+                ids.Add("680");
             }
 
             return ids.ToList();
@@ -175,8 +193,9 @@ namespace ArdysaModsTools.Core.Services
             content = await ApplyZipModAsync(content, extractDir, selections, "announcer", "Announcer", copyToRoot: true, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
             content = await ApplyZipModAsync(content, extractDir, selections, "cursor", "Cursor", copyToRoot: false, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
             content = await ApplyZipModAsync(content, extractDir, selections, "ancient", "Ancient", copyToRoot: true, mergeTxt: false, log, ct, speedProgress).ConfigureAwait(false);
-            content = await ApplyZipModAsync(content, extractDir, selections, "roshan", "Roshan", copyToRoot: true, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
             content = await ApplyZipModAsync(content, extractDir, selections, "kill_streak", "Kill Streak", copyToRoot: false, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
+
+            _modifiedItemIds.UnionWith(ResolveItemIdsForSelections(selections));
 
             await File.WriteAllTextAsync(itemsGamePath, content, ct).ConfigureAwait(false);
             log("Modification completed.");
