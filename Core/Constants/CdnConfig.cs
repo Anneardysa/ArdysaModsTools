@@ -69,6 +69,8 @@ namespace ArdysaModsTools.Core.Constants
 
         public const string ReleaseManifestUrl = R2BaseUrl + "/releases/releases.json";
 
+        public const string ModsPackReleasesManifestUrl = R2BaseUrl + "/modspack-releases/modspack-releases.json";
+
         public const string BannerManifestUrl = R2BaseUrl + "/config/banner.json";
 
         public const string ModsDownloadManifestUrl = R2BaseUrl + "/config/mods_download.json";

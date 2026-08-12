@@ -61,21 +61,25 @@ namespace ArdysaModsTools.Core.Services
         private readonly HttpClient _httpClient;
         private readonly ModsPackDataService _dataService;
 
-        private static readonly Lazy<string[]> _gameInfoUrls = new(() => new[]
-        {
-            $"{CdnConfig.R2BaseUrl}/remote/gameinfo_branchspecific.gi",
-            EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific.gi"),
-            $"{EnvironmentConfig.RawGitHubBase}/remote/gameinfo_branchspecific.gi"
-        });
-        private static string[] GameInfoUrls => _gameInfoUrls.Value;
+        private static string[] GameInfoUrls => SmartCdnSelector.Instance.GetOrderedCdnUrls()
+            .Select(b => $"{b.TrimEnd('/')}/remote/gameinfo_branchspecific.gi")
+            .Concat(new[]
+            {
+                EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific.gi"),
+                $"{EnvironmentConfig.RawGitHubBase}/remote/gameinfo_branchspecific.gi"
+            })
+            .Distinct()
+            .ToArray();
         
-        private static readonly Lazy<string[]> _disableGameInfoUrls = new(() => new[]
-        {
-            $"{CdnConfig.R2BaseUrl}/remote/gameinfo_branchspecific_disable.gi",
-            EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific_disable.gi"),
-            $"{EnvironmentConfig.RawGitHubBase}/remote/gameinfo_branchspecific_disable.gi"
-        });
-        private static string[] DisableGameInfoUrls => _disableGameInfoUrls.Value;
+        private static string[] DisableGameInfoUrls => SmartCdnSelector.Instance.GetOrderedCdnUrls()
+            .Select(b => $"{b.TrimEnd('/')}/remote/gameinfo_branchspecific_disable.gi")
+            .Concat(new[]
+            {
+                EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific_disable.gi"),
+                $"{EnvironmentConfig.RawGitHubBase}/remote/gameinfo_branchspecific_disable.gi"
+            })
+            .Distinct()
+            .ToArray();
 
         private const string RequiredModFilePath = DotaPaths.ModsVpk;
 
@@ -286,13 +290,15 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private static readonly Lazy<string[]> _modsPackHashUrls = new(() => new[]
-        {
-            $"{CdnConfig.R2BaseUrl}/remote/ModsPack.hash",
-            EnvironmentConfig.BuildRawUrl("remote/ModsPack.hash"),
-            $"{EnvironmentConfig.RawGitHubBase}/remote/ModsPack.hash"
-        });
-        private static string[] ModsPackHashUrls => _modsPackHashUrls.Value;
+        private static string[] ModsPackHashUrls => SmartCdnSelector.Instance.GetOrderedCdnUrls()
+            .Select(b => $"{b.TrimEnd('/')}/remote/ModsPack.hash")
+            .Concat(new[]
+            {
+                EnvironmentConfig.BuildRawUrl("remote/ModsPack.hash"),
+                $"{EnvironmentConfig.RawGitHubBase}/remote/ModsPack.hash"
+            })
+            .Distinct()
+            .ToArray();
 
         private async Task<string?> DownloadRemoteHashAsync(CancellationToken ct = default)
         {
@@ -535,8 +541,21 @@ namespace ArdysaModsTools.Core.Services
                             statusCallback?.Invoke(msg);
                         }
 
+                        string[] candidateUrls;
+                        if (CdnConfig.IsModsPackUrl(url))
+                        {
+                            candidateUrls = SmartCdnSelector.Instance.GetOrderedCdnUrls()
+                                .Select(b => CdnConfig.ConvertToCdn(url, b))
+                                .Distinct()
+                                .ToArray();
+                        }
+                        else
+                        {
+                            candidateUrls = new[] { url };
+                        }
+
                         await ResumableDownloadService.Instance.DownloadAsync(
-                            new[] { url },
+                            candidateUrls,
                             downloadPath,
                             logMsg,
                             progress,
@@ -1237,32 +1256,31 @@ namespace ArdysaModsTools.Core.Services
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 cts.CancelAfter(TimeSpan.FromSeconds(60));
                 using var response = await _httpClient.GetAsync(api, cts.Token).ConfigureAwait(false);
-                if (!response.IsSuccessStatusCode)
+                if (response.IsSuccessStatusCode)
+                {
+                    using var stream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
+                    using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cts.Token).ConfigureAwait(false);
+
+                    if (json.RootElement.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var asset in assets.EnumerateArray())
+                        {
+                            if (!asset.TryGetProperty("name", out var vName)) continue;
+                            if (!asset.TryGetProperty("browser_download_url", out var vUrl)) continue;
+
+                            var name = vName.GetString() ?? "";
+                            var url = vUrl.GetString() ?? "";
+
+                            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(url)) continue;
+                            if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                                return (true, url);
+                        }
+                    }
+                }
+                else
                 {
                     FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync: GitHub API returned {response.StatusCode}");
-                    return (false, string.Empty);
                 }
-
-                using var stream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
-                using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cts.Token).ConfigureAwait(false);
-
-                if (!json.RootElement.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
-                    return (false, string.Empty);
-
-                foreach (var asset in assets.EnumerateArray())
-                {
-                    if (!asset.TryGetProperty("name", out var vName)) continue;
-                    if (!asset.TryGetProperty("browser_download_url", out var vUrl)) continue;
-
-                    var name = vName.GetString() ?? "";
-                    var url = vUrl.GetString() ?? "";
-
-                    if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(url)) continue;
-                    if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                        return (true, url);
-                }
-
-                return (false, string.Empty);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -1270,9 +1288,59 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync exception: {ex.Message}");
-                return (false, string.Empty);
+                FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync GitHub exception: {ex.Message}");
             }
+
+            try
+            {
+                string manifestUrl = CdnConfig.ModsPackReleasesManifestUrl;
+                using var cts2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts2.CancelAfter(TimeSpan.FromSeconds(30));
+                using var manifestResponse = await _httpClient.GetAsync(manifestUrl, cts2.Token).ConfigureAwait(false);
+                if (manifestResponse.IsSuccessStatusCode)
+                {
+                    using var manifestStream = await manifestResponse.Content.ReadAsStreamAsync(cts2.Token).ConfigureAwait(false);
+                    using var manifestJson = await JsonDocument.ParseAsync(manifestStream, cancellationToken: cts2.Token).ConfigureAwait(false);
+                    var root = manifestJson.RootElement;
+
+                    if (root.TryGetProperty("latest", out var latestProp))
+                    {
+                        string? latestVersion = latestProp.GetString();
+                        if (!string.IsNullOrWhiteSpace(latestVersion)
+                            && root.TryGetProperty("releases", out var releases)
+                            && releases.TryGetProperty(latestVersion, out var release)
+                            && release.TryGetProperty("assets", out var manifestAssets)
+                            && manifestAssets.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var asset in manifestAssets.EnumerateArray())
+                            {
+                                var assetName = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                                var assetUrl = asset.TryGetProperty("url", out var u) ? u.GetString() ?? "" : "";
+
+                                if (!string.IsNullOrEmpty(assetUrl) && assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync: resolved from CDN manifest → {assetUrl}");
+                                    return (true, assetUrl);
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync: CDN manifest returned {manifestResponse.StatusCode}");
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync CDN manifest exception: {ex.Message}");
+            }
+
+            return (false, string.Empty);
         }
     }
 }

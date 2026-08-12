@@ -9,10 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.21-beta] (Builds 2297–2316)
+## [2.2.21-beta] (Builds 2297–2317)
 
 ### Fixed
 
+- **Resolved ModsPack download failure following private repo transition** (2317): when the ModsPack
+  repository went private, GitHub Releases API returned 404. Added CDN manifest fallback
+  (`modspack-releases.json`) on Cloudflare R2 and Backblaze B2 so ModsPack download URL resolution and
+  multi-CDN downloading work seamlessly without GitHub API access.
 - **The install progress preview panel no longer reads from a private repo** (2312): it listed hero
   thumbnails through the GitHub Contents API on `Anneardysa/ArdysaMods` and built each image URL
   against `raw.githubusercontent.com`. Both return 404 since that repo went private and the site
