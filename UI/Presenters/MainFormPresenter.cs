@@ -950,71 +950,24 @@ namespace ArdysaModsTools.UI.Presenters
                 _view.SetModsStatus(false, Loc.T("status.error.text"));
             }
 
-            _ = _itemsGameSync?.RefreshAsync(_targetPath, _lifetimeCts.Token);
         }
 
         private const string PackageSyncLogKey = "packageSync";
 
         private void PushPackageSyncNotice(SetupVerificationResult verification)
         {
-            var sync = verification.Checks.FirstOrDefault(c => c.Id == SetupCheckId.ItemsGameInSync);
-
-            if (sync?.State == SetupCheckState.Fail)
-                _view.ShowStickyLog(PackageSyncLogKey, Loc.T("play.sync.outOfDate"), "warning");
-            else
-                _view.ClearStickyLog(PackageSyncLogKey);
+            _view.ClearStickyLog(PackageSyncLogKey);
         }
 
         private void PushPlayState(ModStatusInfo statusInfo)
         {
-            if (_dotaRunning)
-            {
-                _view.SetPlayState(false, "play.reason.running");
-                return;
-            }
-
-            if (IsOperationRunning || _launchPresenter?.IsRunning == true)
-            {
-                _view.SetPlayState(false, "play.reason.busy");
-                return;
-            }
-
-            if (!CanLaunch(statusInfo))
-            {
-                _view.SetPlayState(false, statusInfo.Status == ModStatus.NotInstalled
-                    ? "play.reason.notInstalled"
-                    : "play.reason.notReady");
-                return;
-            }
-
-            bool needsRepair = statusInfo.SetupFailure == SetupCheckId.ItemsGameInSync
-                               || statusInfo.Status == ModStatus.NeedUpdate;
-
-            _view.SetPlayState(true, needsRepair ? "play.reason.willRepair" : "play.reason.ready");
+            _view.SetPlayState(false, "play.reason.disabled");
         }
 
         public async Task LaunchDotaAsync()
         {
-            if (string.IsNullOrEmpty(_targetPath) || _launchPresenter == null)
-            {
-                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.blocked"), "warning");
-                return;
-            }
-
-            if (!CanLaunch(_currentStatus))
-            {
-                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.blocked"), "warning");
-                return;
-            }
-
-            if (_currentStatus?.SetupFailure is SetupCheckId.SignatureMatchesGameInfo
-                                             or SetupCheckId.SearchPathsMounted)
-            {
-                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.needsPatchFirst"), "warning");
-                return;
-            }
-
-            await RunLaunchFlowAsync(() => _launchPresenter.LaunchAsync(_targetPath));
+            _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.reason.disabled"), "warning");
+            await Task.CompletedTask;
         }
 
         private async Task RunLaunchFlowAsync(Func<Task> flow)
@@ -1039,13 +992,8 @@ namespace ArdysaModsTools.UI.Presenters
 
         public async Task RepairPackageAsync()
         {
-            if (string.IsNullOrEmpty(_targetPath) || _launchPresenter == null)
-            {
-                _view.ShowShellToast(Loc.T("verify.chip.sync"), Loc.T("play.blocked"), "warning");
-                return;
-            }
-
-            await RunLaunchFlowAsync(() => _launchPresenter.RepairOnlyAsync(_targetPath));
+            _view.ShowShellToast(Loc.T("verify.chip.sync"), Loc.T("play.reason.disabled"), "warning");
+            await Task.CompletedTask;
         }
 
         private static bool CanLaunch(ModStatusInfo? status) =>

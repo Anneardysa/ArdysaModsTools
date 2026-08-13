@@ -251,6 +251,7 @@
   "play.reason.notReady": "Règle le statut ci-dessous avant de lancer",
   "play.reason.notInstalled": "Installe d'abord le ModsPack",
   "play.reason.busy": "Attends la fin de l'opération en cours",
+  "play.reason.disabled": "Play feature is temporarily disabled",
   "play.blocked": "Ton installation n'est pas prête à être lancée — vérifie le panneau de statut.",
   "play.needsPatchFirst": "Lance d'abord Patch Update — la configuration du jeu doit être restaurée avant que tes mods puissent se charger.",
   "play.alreadyRunning": "Dota 2 est déjà lancé.",

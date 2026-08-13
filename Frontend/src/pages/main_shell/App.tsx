@@ -12,7 +12,6 @@ import { PathFoundBanner } from "./PathFoundBanner";
 import { PromoCards } from "./PromoCards";
 import { Sidebar } from "./Sidebar";
 import { closeInstallLogModal, closeNewsModal, closePatchMenu, finishOnboarding, onboardNext, onboardPrev, store } from "./store";
-import { SyncModal } from "./SyncModal";
 import { TitleBar } from "./TitleBar";
 import { ToastHost } from "./ToastHost";
 import { UpdatesStrip } from "./UpdatesStrip";
@@ -81,7 +80,6 @@ export function App() {
          <PatchMenuDropdown />
          <NewsModal />
          <ConfirmModal />
-         <SyncModal />
          <ElevationModal />
          <LaunchModal />
          <FailureModal />

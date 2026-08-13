@@ -75,7 +75,6 @@ export function Sidebar() {
    const { t } = useLocale();
    const buttons = store.use((s) => s.buttons);
    const patchButton = store.use((s) => s.patchButton);
-   const playState = store.use((s) => s.playState);
    const dotaRunning = store.use((s) => s.dotaRunning);
 
    const highlight = !!buttons.detectHighlight;
@@ -220,20 +219,6 @@ export function Sidebar() {
 
          <div className={css.sbSpacer} />
 
-         <button
-            id="btn-play"
-            type="button"
-            data-no-drag
-            className={`${css.playBtn} ${!playState.enabled ? css.isDisabled : ""}`}
-            disabled={!playState.enabled}
-            title={playState.reason}
-            onClick={() => playState.enabled && send("playDota")}
-         >
-            <svg className={css.ico} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-               <polygon points="7 4 20 12 7 20" />
-            </svg>
-            <span>{playState.label || t("play.button", "PLAY DOTA 2")}</span>
-         </button>
 
          <VerifyPanel />
 

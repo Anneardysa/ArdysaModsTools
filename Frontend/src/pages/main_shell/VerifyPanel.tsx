@@ -10,10 +10,11 @@ export function VerifyPanel() {
    const checks = store.use((s) => s.verifyChecks);
    const dotaRunning = store.use((s) => s.dotaRunning);
 
-   if (!checks || checks.checks.length === 0) return null;
+   const activeChecks = checks ? checks.checks.filter((c) => c.id !== "ItemsGameInSync") : [];
+   if (!checks || activeChecks.length === 0) return null;
 
-   const failed = checks.checks.some((c) => c.state === "fail");
-   const advisory = !failed && checks.checks.some((c) => c.state === "advisory");
+   const failed = activeChecks.some((c) => c.state === "fail");
+   const advisory = !failed && activeChecks.some((c) => c.state === "advisory");
    const headKind: BadgeKind = failed ? "danger" : advisory ? "warning" : "success";
 
    return (
@@ -22,7 +23,7 @@ export function VerifyPanel() {
             <span className={css.vheadLabel}>{checks.title || "Setup Verification"}</span>
             <StatusBadge kind={headKind} showLabel={false} small />
          </div>
-         {checks.checks.map((c) => (
+         {activeChecks.map((c) => (
             <button
                key={c.id}
                type="button"

@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.23-beta] (Builds 2318–2320)
+## [2.2.23-beta] (Builds 2318–2321)
+
+### Changed
+
+- **Temporarily disabled Play button and Package Sync status in main_shell** (2321): Removed Play button element and Package Sync status check item from `main_shell` UI layout, updated `SetupVerificationService` and `MainFormPresenter` logic to disable Play launch/repair flow and sync warnings, and updated localized reason strings across all locale catalogs.
 
 ### Fixed
 

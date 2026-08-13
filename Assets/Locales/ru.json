@@ -251,6 +251,7 @@
   "play.reason.notReady": "Сначала устрани проблему в статусе ниже",
   "play.reason.notInstalled": "Сначала установи ModsPack",
   "play.reason.busy": "Дождись завершения текущей операции",
+  "play.reason.disabled": "Play feature is temporarily disabled",
   "play.blocked": "Установка не готова к запуску — проверь панель статуса.",
   "play.needsPatchFirst": "Сначала запусти Patch Update — конфигурацию игры нужно восстановить, иначе моды не загрузятся.",
   "play.alreadyRunning": "Dota 2 уже запущена.",

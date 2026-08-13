@@ -251,6 +251,7 @@
   "play.reason.notReady": "啟動前請先解決下方的狀態問題",
   "play.reason.notInstalled": "請先安裝 ModsPack",
   "play.reason.busy": "請等待目前的操作完成",
+  "play.reason.disabled": "Play feature is temporarily disabled",
   "play.blocked": "你的安裝尚未就緒，無法啟動——請查看狀態面板。",
   "play.needsPatchFirst": "請先執行 Patch Update —— 需要先回復 game config，你的 Mod 才能載入。",
   "play.alreadyRunning": "Dota 2 已在執行。",
