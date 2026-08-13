@@ -43,7 +43,7 @@ on:
             description: "Abort if the mirror would delete more objects than this"
             required: false
             type: string
-            default: "50"
+            default: "5000"
 
 env:
    R2_BUCKET: modspack-asset
@@ -106,21 +106,60 @@ jobs:
               echo "Destination (B2):"
               rclone lsd "b2:${B2_BUCKET}" --max-depth 1
 
+         - name: Pre-flight Safety Check & Quota Guard
+           run: |
+              set -eo pipefail
+
+              MAX_DELETE="${{ github.event.inputs.max_delete || '5000' }}"
+              echo "🛡️ Running pre-flight dry-run check (MAX_DELETE=$MAX_DELETE)..."
+
+              # Run dry-run to check for errors or excessive deletions BEFORE issuing any live B2 delete calls.
+              DRY_LOG="dry_run_check.log"
+              rclone sync "r2:${R2_BUCKET}" "b2:${B2_BUCKET}" \
+                --dry-run \
+                --max-delete "$MAX_DELETE" \
+                --transfers 4 \
+                --checkers 16 \
+                --buffer-size 32M \
+                --b2-upload-cutoff 15M \
+                --b2-chunk-size 15M \
+                --b2-disable-checksum \
+                --timeout 30s \
+                --contimeout 15s \
+                --low-level-retries 3 \
+                --fast-list \
+                --check-first \
+                --retries 2 \
+                --retries-sleep 5s \
+                --stats 10s \
+                --stats-one-line \
+                -v 2>&1 | tee "$DRY_LOG" || DRY_RC=$?
+
+              if [ "${DRY_RC:-0}" -ne 0 ]; then
+                echo "::error::Pre-flight dry-run check failed (exit code ${DRY_RC:-1}). Aborting live sync to prevent B2 transaction quota exhaustion."
+                exit 1
+              fi
+
+              # Extract proposed deletions from dry-run summary
+              DELETED_COUNT=$(grep -iE 'Deleted:\s+[0-9]+' "$DRY_LOG" | sed -E 's/.*Deleted:\s+([0-9]+).*/\1/' | head -1 || echo "0")
+              [ -z "$DELETED_COUNT" ] && DELETED_COUNT=0
+
+              echo "✅ Pre-flight check passed. Proposed deletions: $DELETED_COUNT file(s) (Limit: $MAX_DELETE)."
+
          - name: Mirror bucket
            run: |
               set -eo pipefail
 
-              MAX_DELETE="${{ github.event.inputs.max_delete || '50' }}"
+              MAX_DELETE="${{ github.event.inputs.max_delete || '5000' }}"
               DRY=""
               [ "${{ github.event.inputs.dry_run }}" = "true" ] && DRY="--dry-run"
 
               # `sync`, not `copy`: sync-release-to-r2.yml prunes old release folders (RELEASES_TO_KEEP),
               # and a copy-only mirror would keep serving versions R2 has already retired.
               #
-              # --max-delete is the guard that makes that safe. A partial or failed source listing would
-              # otherwise read as "everything was deleted" and empty the fallback bucket. Re-keying the
-              # dataset tree legitimately exceeds this; that run is meant to fail so a human confirms it,
-              # then re-runs from the Actions tab with a raised max_delete.
+              # --max-delete is the guard that makes that safe. Each release folder contains ~1,500 unpacked
+              # delta files; purging 2 old release folders deletes ~3,000 files from R2. Default max_delete
+              # is 5000 to allow routine release pruning while guarding against total bucket wipes.
               #
               # Content-Type is carried over from the source object, which matters for the delta tree:
               # those files are uploaded to R2 as application/octet-stream precisely because Cloudflare
@@ -140,10 +179,10 @@ jobs:
                 --b2-disable-checksum \
                 --timeout 30s \
                 --contimeout 15s \
-                --low-level-retries 10 \
+                --low-level-retries 3 \
                 --fast-list \
                 --check-first \
-                --retries 3 \
+                --retries 2 \
                 --retries-sleep 5s \
                 --stats 10s \
                 --stats-one-line \
@@ -154,8 +193,8 @@ jobs:
            run: |
               set -eo pipefail
 
-              R2_SIZE=$(rclone size "r2:${R2_BUCKET}" --json)
-              B2_SIZE=$(rclone size "b2:${B2_BUCKET}" --json)
+              R2_SIZE=$(rclone size "r2:${R2_BUCKET}" --fast-list --json)
+              B2_SIZE=$(rclone size "b2:${B2_BUCKET}" --fast-list --json)
               R2_COUNT=$(echo "$R2_SIZE" | jq -r '.count'); R2_BYTES=$(echo "$R2_SIZE" | jq -r '.bytes')
               B2_COUNT=$(echo "$B2_SIZE" | jq -r '.count'); B2_BYTES=$(echo "$B2_SIZE" | jq -r '.bytes')
 

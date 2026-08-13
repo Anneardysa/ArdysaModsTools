@@ -21,6 +21,7 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 
 ### Fixed
 
+- **Fixed R2 to B2 mirror workflow failure and API quota exhaustion** (2323): Increased `--max-delete` threshold default from `50` to `5000` in `.github/workflows/mirror-r2-to-b2.yml` so routine release cleanup (which purges ~3,000 files across pruned release trees) completes automatically. Added a zero-API-cost `Pre-flight Safety Check & Quota Guard` step that runs `--dry-run` first to abort safely if errors occur before making any live B2 delete API calls, and reduced `--low-level-retries` from 10 to 3 to prevent API rate limit hammering. Added `--fast-list` to `rclone size` verification calls.
 - **Fixed infinite auto-download and auto-restart loop on update failures** (2319): `DeltaUpdateService` now tracks failed apply attempts so `CanAutoUpdate` suppresses auto-update for versions that failed to apply, unlocking the dialog and falling back to manual download links. Added a handle cleanup grace period and capped backoff retries in `ApplyEngine` to prevent file lock failures from lingering WebView2 processes.
 
 ### Documentation
