@@ -618,15 +618,6 @@ namespace ArdysaModsTools.UI.Forms
             {
                 await AppendConsoleAsync($"Mode: {modeText}");
                 await AppendConsoleAsync($"Options: {_selections.Count} selected");
-
-                if (selectedMode == MiscGenerationMode.GenerateOnly && !string.IsNullOrEmpty(_targetPath))
-                {
-                    var heroLog = HeroExtractionLog.Load(_targetPath);
-                    if (heroLog?.InstalledSets != null && heroLog.InstalledSets.Count > 0)
-                    {
-                        await AppendConsoleAsync("Notice: Clean Generate rebuilds the package from scratch. Installed hero skins will be reset. Use 'Add to Current' to preserve active hero skins.");
-                    }
-                }
                 await AppendConsoleAsync("");
 
                 await SaveSelectionsAsync();

@@ -1104,6 +1104,8 @@ namespace ArdysaModsTools.Core.Helpers
 
                 if (baseIndent.Length > 0 && line.StartsWith(baseIndent, StringComparison.Ordinal))
                     line = line.Substring(baseIndent.Length);
+                else
+                    line = line.TrimStart('\t', ' ');
 
                 sb.Append(targetIndent).Append(line);
                 if (i < lines.Length - 1) sb.Append('\n');

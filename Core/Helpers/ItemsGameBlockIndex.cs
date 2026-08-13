@@ -36,37 +36,6 @@ namespace ArdysaModsTools.Core.Helpers
             return result;
         }
 
-        public static HashSet<string> FindDifferingItemIds(string? vanillaText, string? moddedText)
-        {
-            var differing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (string.IsNullOrWhiteSpace(vanillaText) || string.IsNullOrWhiteSpace(moddedText))
-                return differing;
-
-            var vanillaSpans = IndexSpans(vanillaText);
-            var moddedSpans = IndexSpans(moddedText);
-
-            foreach (var kvp in moddedSpans)
-            {
-                var moddedSpan = moddedText.AsSpan(kvp.Value.Start, kvp.Value.Length);
-                if (!ItemsGameMerger.IsCosmeticItem(moddedSpan)) continue;
-
-                if (vanillaSpans.TryGetValue(kvp.Key, out var vanillaPos))
-                {
-                    var vanillaSpan = vanillaText.AsSpan(vanillaPos.Start, vanillaPos.Length);
-                    if (!CanonicalEquals(vanillaSpan, moddedSpan))
-                    {
-                        differing.Add(kvp.Key);
-                    }
-                }
-                else
-                {
-                    differing.Add(kvp.Key);
-                }
-            }
-
-            return differing;
-        }
-
         public static Dictionary<string, (int Start, int Length)> IndexSpans(string? text)
         {
             var result = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);

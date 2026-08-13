@@ -118,7 +118,7 @@ namespace ArdysaModsTools.Core.Services
                     if (!await _replacer.ReplaceAsync(targetPath, newVpk, log, ct).ConfigureAwait(false))
                         return Fail("Could not install the rebuilt mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
 
-                    await ItemsGameBaselineStore.RebindAndMergePatchedIdsAsync(targetPath, packageBeforeRebuild, _modifier.GetModifiedItemIds(), ct).ConfigureAwait(false);
+                    await ItemsGameBaselineStore.RebindAsync(targetPath, packageBeforeRebuild, ct).ConfigureAwait(false);
 
                     log("Finalizing...");
                     var extractionLog = new MiscExtractionLog

@@ -90,7 +90,7 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public async Task Commit_WithoutPending_PreservesOrCreatesRecord_AndDoesNotThrow()
+        public async Task Commit_WithoutPending_DropsAnyStaleRecord_AndDoesNotThrow()
         {
             var (gameVpk, itemsGame) = BuildTree();
             await ItemsGameBaselineStore.WritePendingAsync(_root, gameVpk, itemsGame);
@@ -99,7 +99,7 @@ namespace ArdysaModsTools.Tests.Services
 
             await ItemsGameBaselineStore.CommitAsync(_root, null);
 
-            Assert.That(await ItemsGameBaselineStore.ReadAsync(_root), Is.Not.Null);
+            Assert.That(await ItemsGameBaselineStore.ReadAsync(_root), Is.Null);
         }
 
         [Test]
@@ -145,22 +145,6 @@ namespace ArdysaModsTools.Tests.Services
                 Assert.That(after.ModVpk, Is.Not.EqualTo(before!.ModVpk));
                 Assert.That(after.VanillaItemsGameSha, Is.EqualTo(before.VanillaItemsGameSha));
             });
-        }
-
-        [Test]
-        public async Task RebindAndMergePatchedIds_CombinesExistingAndNewPatchedIds()
-        {
-            var (gameVpk, itemsGame) = BuildTree();
-            await ItemsGameBaselineStore.WritePendingAsync(_root, gameVpk, itemsGame);
-            await ItemsGameBaselineStore.CommitAsync(_root, new[] { "101", "121" });
-            var stampBeforeRepack = VpkStamp.Read(Path.Combine(_root, DotaPaths.ModsVpk));
-
-            Write(DotaPaths.ModsVpk, "a rebuilt mod vpk with misc mods added");
-            await ItemsGameBaselineStore.RebindAndMergePatchedIdsAsync(_root, stampBeforeRepack, new[] { "590", "555" });
-
-            var record = await ItemsGameBaselineStore.ReadAsync(_root);
-            Assert.That(record, Is.Not.Null);
-            Assert.That(record!.PatchedIds, Is.EquivalentTo(new[] { "101", "121", "590", "555" }));
         }
 
         [Test]

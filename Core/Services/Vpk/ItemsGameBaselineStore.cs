@@ -83,67 +83,26 @@ namespace ArdysaModsTools.Core.Services
                 targetPath = PathUtility.NormalizeTargetPath(targetPath);
 
                 string pendingPath = Path.Combine(targetPath, DotaPaths.ItemsGameBaselinePending);
-                string baselinePath = Path.Combine(targetPath, DotaPaths.ItemsGameBaseline);
-
                 var pending = await ReadFileAsync(pendingPath, ct).ConfigureAwait(false);
-                var existing = await ReadFileAsync(baselinePath, ct).ConfigureAwait(false);
+                if (pending == null)
+                {
+                    TryDelete(Path.Combine(targetPath, DotaPaths.ItemsGameBaseline));
+                    return;
+                }
 
                 var modStamp = VpkStamp.Read(Path.Combine(targetPath, DotaPaths.ModsVpk));
                 if (modStamp == null) return;
 
-                string gameVpkPath = Path.Combine(targetPath, DotaPaths.GameVpk.Replace('/', Path.DirectorySeparatorChar));
-                var vanillaStamp = VpkStamp.Read(gameVpkPath);
-
-                ItemsGameBaseline committed;
-
-                if (pending != null)
+                var committed = pending with
                 {
-                    var mergedIds = new HashSet<string>(pending.PatchedIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-                    if (patchedIds != null)
-                    {
-                        foreach (var id in patchedIds)
-                            if (!string.IsNullOrWhiteSpace(id)) mergedIds.Add(id);
-                    }
+                    ModVpk = modStamp.Value,
+                    PatchedIds = patchedIds?.ToArray() ?? Array.Empty<string>(),
+                    BuiltUtc = DateTime.UtcNow
+                };
 
-                    committed = pending with
-                    {
-                        ModVpk = modStamp.Value,
-                        PatchedIds = mergedIds.ToArray(),
-                        BuiltUtc = DateTime.UtcNow
-                    };
-                }
-                else if (existing != null)
-                {
-                    var mergedIds = new HashSet<string>(existing.PatchedIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-                    if (patchedIds != null)
-                    {
-                        foreach (var id in patchedIds)
-                            if (!string.IsNullOrWhiteSpace(id)) mergedIds.Add(id);
-                    }
-
-                    committed = existing with
-                    {
-                        ModVpk = modStamp.Value,
-                        PatchedIds = mergedIds.ToArray(),
-                        BuiltUtc = DateTime.UtcNow
-                    };
-                }
-                else
-                {
-                    var newIds = patchedIds?.Where(id => !string.IsNullOrWhiteSpace(id)).ToArray() ?? Array.Empty<string>();
-                    committed = new ItemsGameBaseline
-                    {
-                        VanillaVpk = vanillaStamp ?? default,
-                        ModVpk = modStamp.Value,
-                        VanillaItemsGameSha = existing?.VanillaItemsGameSha ?? pending?.VanillaItemsGameSha ?? "SYNTHETIC_BASELINE_SHA",
-                        PatchedIds = newIds,
-                        AppVersion = SafeAppVersion(),
-                        BuiltUtc = DateTime.UtcNow
-                    };
-                }
-
-                await WriteAsync(baselinePath, committed, ct).ConfigureAwait(false);
-                if (pending != null) TryDelete(pendingPath);
+                await WriteAsync(Path.Combine(targetPath, DotaPaths.ItemsGameBaseline), committed, ct)
+                    .ConfigureAwait(false);
+                TryDelete(pendingPath);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
@@ -179,64 +138,6 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 FallbackLogger.LogFileOnly($"ItemsGameBaselineStore: Rebind failed: {ex.Message}");
-            }
-        }
-
-        public static async Task RebindAndMergePatchedIdsAsync(
-            string? targetPath,
-            VpkStamp? expectedPreviousStamp,
-            IEnumerable<string>? newPatchedIds,
-            CancellationToken ct = default)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(targetPath)) return;
-                targetPath = PathUtility.NormalizeTargetPath(targetPath);
-
-                string path = Path.Combine(targetPath, DotaPaths.ItemsGameBaseline);
-                var existing = await ReadFileAsync(path, ct).ConfigureAwait(false);
-                
-                string modVpkPath = Path.Combine(targetPath, DotaPaths.ModsVpk);
-                var modStamp = VpkStamp.Read(modVpkPath);
-                if (modStamp == null) return;
-
-                var mergedIds = new HashSet<string>(existing?.PatchedIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-                if (newPatchedIds != null)
-                {
-                    foreach (var id in newPatchedIds)
-                    {
-                        if (!string.IsNullOrWhiteSpace(id))
-                            mergedIds.Add(id);
-                    }
-                }
-
-                if (existing != null)
-                {
-                    await WriteAsync(path, existing with { ModVpk = modStamp.Value, PatchedIds = mergedIds.ToArray(), BuiltUtc = DateTime.UtcNow }, ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    string gameVpkPath = Path.Combine(targetPath, DotaPaths.GameVpk.Replace('/', Path.DirectorySeparatorChar));
-                    var vanillaStamp = VpkStamp.Read(gameVpkPath);
-                    if (vanillaStamp != null)
-                    {
-                        var newRecord = new ItemsGameBaseline
-                        {
-                            VanillaVpk = vanillaStamp.Value,
-                            ModVpk = modStamp.Value,
-                            VanillaItemsGameSha = existing?.VanillaItemsGameSha ?? "SYNTHETIC_BASELINE_SHA",
-                            PatchedIds = mergedIds.ToArray(),
-                            AppVersion = SafeAppVersion(),
-                            BuiltUtc = DateTime.UtcNow
-                        };
-                        await WriteAsync(path, newRecord, ct).ConfigureAwait(false);
-                    }
-                }
-            }
-            catch (OperationCanceledException) { }
-            catch (Exception ex)
-            {
-                FallbackLogger.LogFileOnly($"ItemsGameBaselineStore: RebindAndMergePatchedIds failed: {ex.Message}");
             }
         }
 

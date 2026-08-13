@@ -129,30 +129,7 @@ namespace ArdysaModsTools.Core.Services
                 string vanillaText = await File.ReadAllTextAsync(vanillaPath, ct).ConfigureAwait(false);
                 string moddedText = await File.ReadAllTextAsync(moddedProbe, ct).ConfigureAwait(false);
 
-                var combinedPatchedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                if (recordApplies && record!.PatchedIds != null && record.PatchedIds.Count > 0)
-                {
-                    foreach (var id in record.PatchedIds)
-                        if (!string.IsNullOrWhiteSpace(id)) combinedPatchedIds.Add(id);
-                }
-
-                var miscLog = MiscExtractionLog.Load(root);
-                if (miscLog?.Selections != null && miscLog.Selections.Count > 0)
-                {
-                    var miscIds = AssetModifierService.ResolveItemIdsForSelections(miscLog.Selections);
-                    foreach (var id in miscIds)
-                        if (!string.IsNullOrWhiteSpace(id)) combinedPatchedIds.Add(id);
-                }
-
-                var diffIds = ItemsGameBlockIndex.FindDifferingItemIds(vanillaText, moddedText);
-                foreach (var id in diffIds)
-                {
-                    if (!string.IsNullOrWhiteSpace(id))
-                        combinedPatchedIds.Add(id);
-                }
-
-                var patchedIds = combinedPatchedIds.Count > 0 ? (IReadOnlyCollection<string>)combinedPatchedIds : null;
+                var patchedIds = recordApplies ? record!.PatchedIds : null;
 
                 var merged = await Task.Run(() => ItemsGameMerger.Merge(vanillaText, moddedText, patchedIds), ct)
                     .ConfigureAwait(false);
@@ -166,7 +143,7 @@ namespace ArdysaModsTools.Core.Services
                 {
                     _logger?.Log("[MERGE] Package already matches the game's item data — nothing to rebuild.");
                     await ItemsGameBaselineStore.WritePendingAsync(root, gameVpk, vanillaPath, ct).ConfigureAwait(false);
-                    await ItemsGameBaselineStore.CommitAsync(root, patchedIds, ct).ConfigureAwait(false);
+                    await ItemsGameBaselineStore.CommitAsync(root, record?.PatchedIds, ct).ConfigureAwait(false);
                     percent?.Report(100);
                     return new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.AlreadyCurrent };
                 }
@@ -210,7 +187,7 @@ namespace ArdysaModsTools.Core.Services
                     return ItemsGameMergeResult.Fail("play.merge.installFailed", "package replacement failed");
 
                 await ItemsGameBaselineStore.WritePendingAsync(root, gameVpk, vanillaPath, ct).ConfigureAwait(false);
-                await ItemsGameBaselineStore.CommitAsync(root, patchedIds, ct).ConfigureAwait(false);
+                await ItemsGameBaselineStore.CommitAsync(root, record?.PatchedIds, ct).ConfigureAwait(false);
 
                 percent?.Report(100);
                 return new ItemsGameMergeResult
