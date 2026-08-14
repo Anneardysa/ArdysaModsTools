@@ -919,7 +919,8 @@ namespace ArdysaModsTools
                     _cacheService,
                     updaterService,
                     _trayService,
-                    _assetPreloadService);
+                    _assetPreloadService,
+                    _serviceProvider.GetService<IConnectionTestService>());
 
                 settingsForm.ShowGuideRequested += (s, e) => ResetAndShowOnboarding();
                 settingsForm.ChangeDotaPathHandler = () => _presenter.ChangeTargetPathAsync();

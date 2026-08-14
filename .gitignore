@@ -16,8 +16,9 @@
 
 # ─── AI assistant workspaces ────────────────────────────────────────────────
 .claude/
-.agent/
+.agents/
 .impeccable/
+skills-lock.json
 
 # ─── Build & publish output ─────────────────────────────────────────────────
 bin/
@@ -29,6 +30,7 @@ delta/
 protected/
 installer_output/
 build/Installer/Output/
+Installer/payload.zip
 
 # ─── Logs & diagnostics ─────────────────────────────────────────────────────
 *.log

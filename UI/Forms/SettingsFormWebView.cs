@@ -43,6 +43,8 @@ namespace ArdysaModsTools.UI.Forms
         private readonly UpdaterService _updaterService;
         private readonly TrayService? _trayService;
         private readonly IAssetPreloadService? _assetPreloadService;
+        private readonly IConnectionTestService _connectionTestService;
+        private CancellationTokenSource? _testCts;
 
         private readonly ILocalizationService? _loc = Loc.Service;
 
@@ -65,7 +67,8 @@ namespace ArdysaModsTools.UI.Forms
             CacheCleaningService cacheService,
             UpdaterService updaterService,
             TrayService? trayService,
-            IAssetPreloadService? assetPreloadService = null)
+            IAssetPreloadService? assetPreloadService = null,
+            IConnectionTestService? connectionTestService = null)
         {
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _lifecycleService = lifecycleService ?? throw new ArgumentNullException(nameof(lifecycleService));
@@ -73,6 +76,7 @@ namespace ArdysaModsTools.UI.Forms
             _updaterService = updaterService ?? throw new ArgumentNullException(nameof(updaterService));
             _trayService = trayService;
             _assetPreloadService = assetPreloadService;
+            _connectionTestService = connectionTestService ?? new Core.Services.Cdn.ConnectionTestService();
 
             InitializeComponent();
             SetupForm();
@@ -261,6 +265,18 @@ namespace ArdysaModsTools.UI.Forms
 
                     case "clearCache":
                         await HandleClearCacheAsync();
+                        break;
+
+                    case "testConnection":
+                        await HandleTestConnectionAsync();
+                        break;
+
+                    case "cancelConnectionTest":
+                        HandleCancelConnectionTest();
+                        break;
+
+                    case "applyRecommendedServer":
+                        await HandleApplyRecommendedServer(message);
                         break;
 
                     case "close":
@@ -497,6 +513,95 @@ namespace ArdysaModsTools.UI.Forms
             {
                 await ExecuteScriptAsync("resetClearCacheButton()");
             }
+        }
+
+        private async Task HandleTestConnectionAsync()
+        {
+            _testCts?.Cancel();
+            _testCts?.Dispose();
+            _testCts = new CancellationTokenSource();
+            var ct = _testCts.Token;
+
+            try
+            {
+                var progress = new Progress<Core.Models.ConnectionTestProgress>(async p =>
+                {
+                    if (this.IsDisposed || _webView?.CoreWebView2 == null) return;
+                    var json = JsonSerializer.Serialize(p);
+                    await ExecuteScriptAsync($"setConnectionTestProgress({json})");
+                });
+
+                var report = await _connectionTestService.RunBenchmarkAsync(progress, ct);
+
+                if (!ct.IsCancellationRequested && !this.IsDisposed && _webView?.CoreWebView2 != null)
+                {
+                    var json = JsonSerializer.Serialize(report);
+                    await ExecuteScriptAsync($"setConnectionTestResults({json})");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                if (!this.IsDisposed && _webView?.CoreWebView2 != null)
+                {
+                    await ToastAsync("toast.error", "error", new { error = ex.Message });
+                    await ExecuteScriptAsync("resetConnectionTestButton()");
+                }
+            }
+            finally
+            {
+                if (!this.IsDisposed && _webView?.CoreWebView2 != null)
+                {
+                    await ExecuteScriptAsync("resetConnectionTestButton()");
+                }
+            }
+        }
+
+        private void HandleCancelConnectionTest()
+        {
+            try
+            {
+                _testCts?.Cancel();
+            }
+            catch
+            {
+            }
+        }
+
+        private async Task HandleApplyRecommendedServer(JsonElement message)
+        {
+            try
+            {
+                var serverKey = message.GetProperty("value").GetString() ?? "auto";
+                _configService.CdnServerPreference = serverKey;
+                CdnConfig.CdnServerPreference = serverKey;
+
+                await ExecuteScriptAsync($"initSettings({JsonSerializer.Serialize(new { cdnServer = serverKey })})");
+                await ToastAsync("toast.testConnection.applied", "success");
+            }
+            catch (Exception ex)
+            {
+                await ToastAsync("toast.error", "error", new { error = ex.Message });
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                try
+                {
+                    _testCts?.Cancel();
+                    _testCts?.Dispose();
+                }
+                catch
+                {
+                }
+                _webView?.Dispose();
+            }
+            base.Dispose(disposing);
         }
 
         private static string EscapeJs(string text)

@@ -15,6 +15,9 @@ expose({
    showToast: (message: string, type: string) => store.set({ toast: { message, type: type === "error" ? "error" : "success" } }),
    resetCheckUpdatesButton: () => store.set({ checkUpdatesBusy: false }),
    resetClearCacheButton: () => store.set({ clearCacheBusy: false }),
+   setConnectionTestProgress: (progress: any) => store.set({ connectionTestProgress: progress, connectionTestBusy: true, isConnectionModalOpen: true }),
+   setConnectionTestResults: (report: any) => store.set({ connectionTestReport: report, connectionTestBusy: false, isConnectionModalOpen: true }),
+   resetConnectionTestButton: () => store.set({ connectionTestBusy: false }),
 });
 
 createRoot(document.getElementById("root")!).render(<App />);

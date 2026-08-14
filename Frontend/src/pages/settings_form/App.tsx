@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { send, startDragUnlessInteractive } from "../../bridge/host";
 import { T, translate, useLocale } from "../../bridge/i18n";
 import { store, type Settings } from "./store";
+import { ConnectionTestModal } from "./ConnectionTestModal";
 import css from "./settings.module.css";
 
 
@@ -181,6 +182,8 @@ export function App() {
    const cacheSize = store.use((s) => s.cacheSize);
    const checkUpdatesBusy = store.use((s) => s.checkUpdatesBusy);
    const clearCacheBusy = store.use((s) => s.clearCacheBusy);
+   const connectionTestBusy = store.use((s) => s.connectionTestBusy);
+   const connectionTestReport = store.use((s) => s.connectionTestReport);
 
    const close = () => send("close");
 
@@ -215,6 +218,13 @@ export function App() {
    const clearCache = () => {
       store.set({ clearCacheBusy: true });
       send("clearCache");
+   };
+   const openConnectionTest = () => {
+      store.set({ isConnectionModalOpen: true });
+      if (!connectionTestReport && !connectionTestBusy) {
+         store.set({ connectionTestBusy: true, connectionTestProgress: null });
+         send("testConnection");
+      }
    };
 
    return (
@@ -356,10 +366,46 @@ export function App() {
                               onChange={(e) => changeCdnServer(e.target.value)}
                            >
                               <option value="auto">{t("settings.cdnServer.auto", "Auto (Smart Selection)")}</option>
-                              <option value="asia">{t("settings.cdnServer.asia", "Asia (Cloudflare R2)")}</option>
-                              <option value="eu_us">{t("settings.cdnServer.eu_us", "EU / US (Backblaze B2)")}</option>
+                              <option value="asia">{t("settings.cdnServer.asia", "Cloudflare R2")}</option>
+                              <option value="eu_us">{t("settings.cdnServer.eu_us", "Backblaze B2")}</option>
                            </select>
                         </SelectRow>
+                        <div className={css.connectionTestRow}>
+                           <div className={css.toggleInfo}>
+                              <span className={css.toggleLabel}>
+                                 <T k="settings.testConnection.title">Server Connection Test</T>
+                              </span>
+                              <span className={css.toggleDesc}>
+                                 {connectionTestReport ? (
+                                    <span>
+                                       {connectionTestReport.recommendedServerName} ({connectionTestReport.servers.find((s) => s.isRecommended)?.latencyMs ?? 0}ms)
+                                    </span>
+                                 ) : (
+                                    <T k="settings.testConnection.subtitle">Benchmark latency and speed to find the best server</T>
+                                 )}
+                              </span>
+                           </div>
+                           <button
+                              type="button"
+                              data-no-drag
+                              className={css.testConnBtn}
+                              disabled={connectionTestBusy}
+                              onClick={openConnectionTest}
+                           >
+                              {connectionTestBusy ? (
+                                 <span className={css.spinner} aria-hidden="true" />
+                              ) : (
+                                 <>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                                    </svg>
+                                    <span>
+                                       <T k="settings.testConnection.btn">Test Connection</T>
+                                    </span>
+                                 </>
+                              )}
+                           </button>
+                        </div>
                      </div>
                   </div>
                </div>
@@ -460,6 +506,7 @@ export function App() {
             </button>
          </div>
 
+         <ConnectionTestModal />
          <Toast />
       </>
    );

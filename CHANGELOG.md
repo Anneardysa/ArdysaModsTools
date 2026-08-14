@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.2.24-beta] (Build 2324)
+## [2.2.24-beta] (Builds 2324–2325)
+
+### Added
+
+- **Added real-time CDN connection benchmark tool with dynamic latest ModsPack streaming** (2325): Added an interactive connection test tool in Settings that runs a 6-second continuous sustained throughput stream, 3-probe latency and jitter calculation (`±X ms`), network stability scoring (%), and peak rate detection. The engine dynamically resolves and streams from the latest active ModsPack release manifest (`modspack-releases.json`) with one-click server selection and recommendations.
+
+### Changed
+
+- **Refined server naming, localization, and modal ergonomics** (2325): Cleaned up server display names to "Cloudflare R2" and "Backblaze B2" across the entire app, expanded modal width to 780px with full responsive spacing, eliminated action button text-wrapping, and localized all telemetry and connection strings across 8 supported languages (`en`, `de`, `es`, `fr`, `pt`, `ru`, `zh-Hans`, `zh-Hant`).
 
 ### Fixed
 

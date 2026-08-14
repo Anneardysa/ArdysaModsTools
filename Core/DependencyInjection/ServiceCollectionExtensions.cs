@@ -64,6 +64,8 @@ namespace ArdysaModsTools.Core.DependencyInjection
 
             services.AddSingleton<IAssetPreloadService, Services.Cache.AssetPreloadService>();
 
+            services.AddTransient<IConnectionTestService, Services.Cdn.ConnectionTestService>();
+
             return services;
         }
 
