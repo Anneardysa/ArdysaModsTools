@@ -317,15 +317,93 @@ namespace ArdysaModsTools.Tests.Services
             });
 
             var lines = new List<string>();
-            NewService(stagingRoot, lines.Add).ReportLastApplyOutcome();
+            NewService(stagingRoot, lines.Add, new AppVersion("9.9.9", 0)).ReportLastApplyOutcome();
 
             Assert.That(lines, Is.Empty);
+        }
+
+        [Test]
+        public void ReportLastApplyOutcome_SuccessfulApply_OldAppVersion_SuppressesLoopAndLogsWarning()
+        {
+            string stagingRoot = Path.Combine(_installDir, "stagingRoot");
+            string logPath = Path.Combine(stagingRoot, "9.9.9", "update.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+            File.WriteAllLines(logPath, new[]
+            {
+                "[09:10:59] OK: Updated to v9.9.9.",
+                "[09:11:00] Relaunched C:\\App\\ArdysaModsTools.exe",
+            });
+
+            var lines = new List<string>();
+            var service = NewService(stagingRoot, lines.Add, new AppVersion("1.0.0", 0));
+            service.ReportLastApplyOutcome();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(lines, Has.Exactly(1).Contains("Auto-update suppressed for v9.9.9 to prevent restart loop"));
+                Assert.That(service.HasLastApplyFailedForVersion("9.9.9"), Is.True);
+                var info = new UpdateInfo { Version = "9.9.9", FilesManifestUrl = "https://cdn.invalid/releases/9.9.9/files.json" };
+                Assert.That(DeltaUpdateService.CanAutoUpdate(InstallationType.Installer, info, service), Is.False);
+            });
+        }
+
+        [Test]
+        public void MarkVersionFailed_PersistsAcrossRestarts()
+        {
+            string stagingRoot = Path.Combine(_installDir, "stagingRoot");
+            var service1 = NewService(stagingRoot, _ => { });
+            service1.MarkVersionFailed("3.0.0", "Hash mismatch DL_006");
+
+            var service2 = NewService(stagingRoot, _ => { });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(service2.HasLastApplyFailedForVersion("3.0.0"), Is.True);
+                Assert.That(service2.HasLastApplyFailedForVersion("v3.0.0"), Is.True, "Normalized version matching works");
+                var info = new UpdateInfo { Version = "3.0.0", FilesManifestUrl = "https://cdn.invalid/releases/3.0.0/files.json" };
+                Assert.That(DeltaUpdateService.CanAutoUpdate(InstallationType.Installer, info, service2), Is.False);
+            });
+        }
+
+        [Test]
+        public void IsAutoUpdateLoopGuarded_SuppressesWhenAttemptCountExceeded()
+        {
+            string stagingRoot = Path.Combine(_installDir, "stagingRoot");
+            var service = NewService(stagingRoot, _ => { }, new AppVersion("1.0.0", 0));
+
+            Assert.That(service.IsAutoUpdateLoopGuarded("2.0.0"), Is.False);
+
+            service.MarkVersionAttempted("2.0.0");
+
+            Assert.That(service.IsAutoUpdateLoopGuarded("2.0.0"), Is.True);
+            var info = new UpdateInfo { Version = "2.0.0", FilesManifestUrl = "https://cdn.invalid/releases/2.0.0/files.json" };
+            Assert.That(DeltaUpdateService.CanAutoUpdate(InstallationType.Installer, info, service), Is.False);
+
+            service.ClearFailedVersion("2.0.0");
+            Assert.That(service.IsAutoUpdateLoopGuarded("2.0.0"), Is.False);
+        }
+
+        [Test]
+        public void GetFailureReason_ReturnsRecordedReasonWithNormalization()
+        {
+            string stagingRoot = Path.Combine(_installDir, "stagingRoot");
+            var service = NewService(stagingRoot, _ => { });
+
+            Assert.That(service.GetFailureReason("4.0.0"), Is.Null);
+
+            service.MarkVersionFailed("4.0.0", "Hash mismatch DL_006");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(service.GetFailureReason("4.0.0"), Is.EqualTo("Hash mismatch DL_006"));
+                Assert.That(service.GetFailureReason("v4.0.0"), Is.EqualTo("Hash mismatch DL_006"));
+            });
         }
 
         private DeltaUpdateService NewService() =>
             new(new ArdysaModsTools.Core.Services.Logger((_, _) => { }), _installDir);
 
-        private DeltaUpdateService NewService(string stagingRoot, Action<string> log) =>
-            new(new ArdysaModsTools.Core.Services.Logger((message, _) => log(message)), _installDir, stagingRoot);
+        private DeltaUpdateService NewService(string stagingRoot, Action<string> log, AppVersion? currentVersion = null) =>
+            new(new ArdysaModsTools.Core.Services.Logger((message, _) => log(message)), _installDir, stagingRoot, currentVersion);
     }
 }

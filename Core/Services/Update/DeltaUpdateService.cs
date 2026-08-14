@@ -60,19 +60,220 @@ namespace ArdysaModsTools.Core.Services.Update
             WriteIndented = true
         };
 
+        private const string StateFileName = "update_state.json";
+
+        internal sealed class UpdateState
+        {
+            public HashSet<string> FailedVersions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+            public Dictionary<string, int> AttemptCounts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+            public Dictionary<string, string> FailureReasons { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        }
+
         private readonly Logger _logger;
         private readonly string _installDir;
         private readonly string _stagingRoot;
+        private readonly AppVersion _currentVersion;
         private readonly HashSet<string> _failedVersions = new(StringComparer.OrdinalIgnoreCase);
+        private readonly UpdateState _state = new();
+        private readonly object _stateLock = new();
 
-        public DeltaUpdateService(Logger logger, string? installDir = null, string? stagingRoot = null)
+        public string? LastReportedFailure { get; private set; }
+
+        public DeltaUpdateService(
+            Logger logger,
+            string? installDir = null,
+            string? stagingRoot = null,
+            AppVersion? currentVersion = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _installDir = (installDir ?? AppContext.BaseDirectory).TrimEnd(Path.DirectorySeparatorChar);
             _stagingRoot = stagingRoot ?? Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "ArdysaModsTools", "update");
+            _currentVersion = currentVersion ?? AppVersion.Current;
+
+            LoadState();
         }
+
+        #region State Persistence
+
+        private static string NormalizeVersion(string version) =>
+            version.Trim().TrimStart('v', 'V');
+
+        private void LoadState()
+        {
+            lock (_stateLock)
+            {
+                try
+                {
+                    string statePath = Path.Combine(_stagingRoot, StateFileName);
+                    if (File.Exists(statePath))
+                    {
+                        string json = File.ReadAllText(statePath);
+                        var loaded = JsonSerializer.Deserialize<UpdateState>(json, PlanJsonOptions);
+                        if (loaded != null)
+                        {
+                            if (loaded.FailedVersions != null)
+                            {
+                                foreach (var v in loaded.FailedVersions)
+                                {
+                                    if (!string.IsNullOrWhiteSpace(v))
+                                    {
+                                        _state.FailedVersions.Add(v);
+                                        _failedVersions.Add(v);
+                                    }
+                                }
+                            }
+                            if (loaded.AttemptCounts != null)
+                            {
+                                foreach (var (k, val) in loaded.AttemptCounts)
+                                {
+                                    _state.AttemptCounts[k] = val;
+                                }
+                            }
+                            if (loaded.FailureReasons != null)
+                            {
+                                foreach (var (k, val) in loaded.FailureReasons)
+                                {
+                                    _state.FailureReasons[k] = val;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        private void SaveState()
+        {
+            lock (_stateLock)
+            {
+                try
+                {
+                    Directory.CreateDirectory(_stagingRoot);
+                    string statePath = Path.Combine(_stagingRoot, StateFileName);
+                    string json = JsonSerializer.Serialize(_state, PlanJsonOptions);
+                    File.WriteAllText(statePath, json);
+                }
+                catch
+                {
+                }
+            }
+        }
+
+        public void MarkVersionFailed(string? version, string? reason = null, bool log = true)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+                return;
+
+            string vNorm = NormalizeVersion(version);
+            lock (_stateLock)
+            {
+                _failedVersions.Add(version);
+                _failedVersions.Add(vNorm);
+
+                _state.FailedVersions.Add(version);
+                _state.FailedVersions.Add(vNorm);
+                if (!string.IsNullOrWhiteSpace(reason))
+                {
+                    _state.FailureReasons[version] = reason;
+                    _state.FailureReasons[vNorm] = reason;
+                }
+
+                SaveState();
+            }
+
+            if (log)
+            {
+                _logger.Log($"Incremental auto-update suppressed for v{version}{(string.IsNullOrWhiteSpace(reason) ? "" : $": {reason}")}");
+            }
+        }
+
+        public void MarkVersionAttempted(string? version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+                return;
+
+            string vNorm = NormalizeVersion(version);
+            lock (_stateLock)
+            {
+                int current = _state.AttemptCounts.TryGetValue(version, out int c1) ? c1 : 0;
+                int currentNorm = _state.AttemptCounts.TryGetValue(vNorm, out int c2) ? c2 : 0;
+                int next = Math.Max(current, currentNorm) + 1;
+
+                _state.AttemptCounts[version] = next;
+                _state.AttemptCounts[vNorm] = next;
+                SaveState();
+            }
+        }
+
+        public string? GetFailureReason(string? version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+                return null;
+
+            string vNorm = NormalizeVersion(version);
+            lock (_stateLock)
+            {
+                if (_state.FailureReasons.TryGetValue(version, out var r1) && !string.IsNullOrWhiteSpace(r1))
+                    return r1;
+                if (_state.FailureReasons.TryGetValue(vNorm, out var r2) && !string.IsNullOrWhiteSpace(r2))
+                    return r2;
+            }
+
+            return null;
+        }
+
+        public void ClearFailedVersion(string? version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+                return;
+
+            string vNorm = NormalizeVersion(version);
+            lock (_stateLock)
+            {
+                _failedVersions.Remove(version);
+                _failedVersions.Remove(vNorm);
+                _state.FailedVersions.Remove(version);
+                _state.FailedVersions.Remove(vNorm);
+                _state.AttemptCounts.Remove(version);
+                _state.AttemptCounts.Remove(vNorm);
+                _state.FailureReasons.Remove(version);
+                _state.FailureReasons.Remove(vNorm);
+                SaveState();
+            }
+        }
+
+        public bool IsAutoUpdateLoopGuarded(string? version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+                return false;
+
+            if (HasLastApplyFailedForVersion(version))
+                return true;
+
+            string vNorm = NormalizeVersion(version);
+            lock (_stateLock)
+            {
+                int attempts = Math.Max(
+                    _state.AttemptCounts.TryGetValue(version, out int a1) ? a1 : 0,
+                    _state.AttemptCounts.TryGetValue(vNorm, out int a2) ? a2 : 0);
+
+                if (attempts >= 1)
+                {
+                    var target = new AppVersion(version, 0);
+                    if (_currentVersion.ShouldUpdateTo(target))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        #endregion
 
         #region Prepare
 
@@ -81,24 +282,34 @@ namespace ArdysaModsTools.Core.Services.Update
             if (string.IsNullOrWhiteSpace(version))
                 return false;
 
-            if (_failedVersions.Contains(version))
-                return true;
+            string vNorm = NormalizeVersion(version);
+            lock (_stateLock)
+            {
+                if (_failedVersions.Contains(version) || _failedVersions.Contains(vNorm) ||
+                    _state.FailedVersions.Contains(version) || _state.FailedVersions.Contains(vNorm))
+                {
+                    return true;
+                }
+            }
 
             try
             {
-                string dir = Path.Combine(_stagingRoot, version);
-                if (!Directory.Exists(dir))
-                    return false;
-
-                foreach (var name in new[] { ApplierLogFile, ApplierLogFile + ".previous" })
+                foreach (var dirName in new[] { version, vNorm })
                 {
-                    string path = Path.Combine(dir, name);
-                    if (File.Exists(path))
+                    string dir = Path.Combine(_stagingRoot, dirName);
+                    if (!Directory.Exists(dir))
+                        continue;
+
+                    foreach (var name in new[] { ApplierLogFile, ApplierLogFile + ".previous" })
                     {
-                        if (File.ReadLines(path).Any(line => line.Contains(ApplierFailureTag, StringComparison.Ordinal)))
+                        string path = Path.Combine(dir, name);
+                        if (File.Exists(path))
                         {
-                            _failedVersions.Add(version);
-                            return true;
+                            if (File.ReadLines(path).Any(line => line.Contains(ApplierFailureTag, StringComparison.Ordinal)))
+                            {
+                                MarkVersionFailed(version, "Found failure tag in updater log");
+                                return true;
+                            }
                         }
                     }
                 }
@@ -112,8 +323,11 @@ namespace ArdysaModsTools.Core.Services.Update
 
         public bool HasAnyRecentApplyFailed()
         {
-            if (_failedVersions.Count > 0)
-                return true;
+            lock (_stateLock)
+            {
+                if (_failedVersions.Count > 0 || _state.FailedVersions.Count > 0)
+                    return true;
+            }
 
             try
             {
@@ -129,7 +343,7 @@ namespace ArdysaModsTools.Core.Services.Update
                             string? versionDir = Path.GetFileName(Path.GetDirectoryName(logPath));
                             if (!string.IsNullOrWhiteSpace(versionDir))
                             {
-                                _failedVersions.Add(versionDir);
+                                MarkVersionFailed(versionDir, "Found failure tag in updater log");
                             }
                             return true;
                         }
@@ -145,11 +359,18 @@ namespace ArdysaModsTools.Core.Services.Update
 
         public static bool CanAutoUpdate(InstallationType type, UpdateInfo? info, DeltaUpdateService? delta = null)
         {
-            if (type != InstallationType.Installer || string.IsNullOrWhiteSpace(info?.FilesManifestUrl))
+            if (type != InstallationType.Installer || string.IsNullOrWhiteSpace(info?.FilesManifestUrl) || string.IsNullOrWhiteSpace(info?.Version))
                 return false;
 
-            if (delta != null && ((!string.IsNullOrWhiteSpace(info?.Version) && delta.HasLastApplyFailedForVersion(info.Version)) || delta.HasAnyRecentApplyFailed()))
-                return false;
+            if (delta != null)
+            {
+                if (delta.HasLastApplyFailedForVersion(info.Version) ||
+                    delta.IsAutoUpdateLoopGuarded(info.Version) ||
+                    delta.HasAnyRecentApplyFailed())
+                {
+                    return false;
+                }
+            }
 
             return true;
         }
@@ -491,18 +712,42 @@ namespace ArdysaModsTools.Core.Services.Update
                     string? failure = File.ReadLines(logPath)
                         .LastOrDefault(line => line.Contains(ApplierFailureTag, StringComparison.Ordinal));
 
+                    string? versionDir = Path.GetFileName(Path.GetDirectoryName(logPath));
+
                     if (failure != null)
                     {
-                        string? versionDir = Path.GetFileName(Path.GetDirectoryName(logPath));
-                        if (!string.IsNullOrWhiteSpace(versionDir))
-                        {
-                            _failedVersions.Add(versionDir);
-                        }
-
                         int reasonAt = failure.IndexOf(ApplierFailureTag, StringComparison.Ordinal)
                                        + ApplierFailureTag.Length;
+                        string reason = failure[reasonAt..];
+
+                        if (!string.IsNullOrWhiteSpace(versionDir))
+                        {
+                            MarkVersionFailed(versionDir, reason, log: false);
+                        }
+
+                        LastReportedFailure = $"Update to v{versionDir} failed: {reason}";
+
                         _logger.Log("The last update could not be applied and the app was restarted on the " +
-                                    $"previous version — {failure[reasonAt..]} (details: {logPath})");
+                                    $"previous version — {reason} (details: {logPath})");
+                    }
+                    else
+                    {
+                        string? okLine = File.ReadLines(logPath)
+                            .LastOrDefault(line => line.Contains("OK: Updated to v", StringComparison.Ordinal));
+
+                        if (okLine != null && !string.IsNullOrWhiteSpace(versionDir))
+                        {
+                            var targetVer = new AppVersion(versionDir, 0);
+
+                            if (_currentVersion.ShouldUpdateTo(targetVer))
+                            {
+                                LastReportedFailure = $"Update to v{versionDir} was applied, but app version remained {_currentVersion}. Auto-update suppressed.";
+
+                                _logger.Log($"Warning: The update to v{versionDir} was applied, but the running app version is still {_currentVersion}. " +
+                                            $"Auto-update suppressed for v{versionDir} to prevent restart loop.");
+                                MarkVersionFailed(versionDir, $"App version unchanged after apply ({_currentVersion})", log: false);
+                            }
+                        }
                     }
 
                     try { File.Move(logPath, logPath + ".previous", overwrite: true); } catch {  }
@@ -586,7 +831,20 @@ namespace ArdysaModsTools.Core.Services.Update
             try
             {
                 if (Directory.Exists(_stagingRoot))
-                    Directory.Delete(_stagingRoot, recursive: true);
+                {
+                    foreach (var dir in Directory.EnumerateDirectories(_stagingRoot))
+                    {
+                        try { Directory.Delete(dir, recursive: true); } catch { }
+                    }
+
+                    foreach (var file in Directory.EnumerateFiles(_stagingRoot))
+                    {
+                        if (file.EndsWith(StateFileName, StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        try { File.Delete(file); } catch { }
+                    }
+                }
             }
             catch (Exception ex)
             {

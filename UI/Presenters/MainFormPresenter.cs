@@ -156,6 +156,15 @@ namespace ArdysaModsTools.UI.Presenters
                 if (await _updater.CheckForUpdatesAsync())
                     return;
 
+                if (!string.IsNullOrEmpty(_updater.LastApplyOutcome))
+                {
+                    _view.ShowShellToast(
+                        Loc.T("update.available.title"),
+                        _updater.LastApplyOutcome,
+                        "warning",
+                        8000);
+                }
+
                 await UpdateVersionAsync();
 
                 if (!string.IsNullOrEmpty(_targetPath))

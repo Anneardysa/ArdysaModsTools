@@ -49,6 +49,8 @@ namespace ArdysaModsTools.Core.Services.Update
 
         public DeltaUpdateService Delta => _delta;
 
+        public string? LastApplyOutcome => _delta.LastReportedFailure;
+
         public UpdaterService(Logger logger)
         {
             _logger = logger;

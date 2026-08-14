@@ -237,11 +237,17 @@
 
 .errorLine {
    width: 100%;
-   font-size: 10px;
+   font-size: 10.5px;
    color: var(--danger);
+   background: rgba(239, 68, 68, 0.08);
+   border: 1px solid rgba(239, 68, 68, 0.25);
+   padding: 8px 12px;
    text-align: center;
    margin-bottom: var(--sp-3);
    letter-spacing: 0.3px;
+   line-height: 1.4;
+   white-space: pre-line;
+   word-break: break-word;
 }
 
 .footer {

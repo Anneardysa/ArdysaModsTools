@@ -176,7 +176,11 @@ namespace ArdysaModsTools.UI.Forms
 
                 if (_delta != null && (_delta.HasLastApplyFailedForVersion(_updateInfo.Version) || _delta.HasAnyRecentApplyFailed()))
                 {
-                    await CallJsAsync("setUpdateFailed", Loc.T("updateAvail.failed"));
+                    string? reason = _delta.GetFailureReason(_updateInfo.Version) ?? _delta.LastReportedFailure;
+                    string errorMsg = string.IsNullOrWhiteSpace(reason)
+                        ? Loc.T("updateAvail.failed")
+                        : $"{Loc.T("updateAvail.failed")} ({reason})";
+                    await CallJsAsync("setUpdateFailed", errorMsg);
                 }
 
                 _ = PrepareDeltaAsync();
@@ -266,8 +270,9 @@ namespace ArdysaModsTools.UI.Forms
             {
                 FallbackLogger.Log($"Delta prepare failed, offering full download only: {ex.Message}");
                 _locked = false;
+                _delta?.MarkVersionFailed(_updateInfo.Version, $"Prepare failed: {ex.Message}");
                 if (!IsDisposed && !_cts.IsCancellationRequested)
-                    await CallJsAsync("setDeltaUnavailable");
+                    await CallJsAsync("setUpdateFailed", $"{Loc.T("updateAvail.failed")} ({ex.Message})");
             }
         }
 
@@ -297,10 +302,13 @@ namespace ArdysaModsTools.UI.Forms
 
                 await CallJsAsync("setUpdateStatus", Loc.T("updateAvail.restarting"));
 
+                _delta.MarkVersionAttempted(_plan.Version);
+
                 if (!await _delta.LaunchApplierAsync(_plan, _cts.Token).ConfigureAwait(true))
                 {
                     _applying = false;
-                    await CallJsAsync("setUpdateFailed", Loc.T("updateAvail.failed"));
+                    _delta.MarkVersionFailed(_plan.Version, "Launch applier declined or failed integrity check");
+                    await CallJsAsync("setUpdateFailed", $"{Loc.T("updateAvail.failed")} (UAC declined or updater launch failed)");
                     return;
                 }
 
@@ -315,8 +323,9 @@ namespace ArdysaModsTools.UI.Forms
             catch (Exception ex)
             {
                 _applying = false;
+                _delta?.MarkVersionFailed(_updateInfo.Version, $"Staging failed: {ex.Message}");
                 FallbackLogger.Log($"Incremental update failed: {ex.Message}");
-                await CallJsAsync("setUpdateFailed", Loc.T("updateAvail.failed"));
+                await CallJsAsync("setUpdateFailed", $"{Loc.T("updateAvail.failed")} ({ex.Message})");
             }
         }
 

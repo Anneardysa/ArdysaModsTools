@@ -219,9 +219,11 @@ report it with the log.
 
 **Symptoms:**
 
-- An error banner or notification appears saying `"Incremental update failed"` or `"Update failed and was rolled back"`.
+- An error banner or notification appears in the update dialog or main window:
+  - `"Update failed. Use a download link below. (<specific error reason>)"`
+  - In-shell toast notification: `Update Available - Update to vX.Y.Z failed: <reason>`
 - AMT restarts on the previous version without applying the new update.
-- Log contains: `Incremental update failed: <reason>` or `The last update could not be applied and the app was restarted on the previous version`.
+- Log contains: `Incremental update failed: <reason>` or `The last update could not be applied and the app was restarted on the previous version — <reason>`.
 
 **How Incremental (Delta) Update Works:**
 
@@ -234,40 +236,70 @@ report it with the log.
 **Causes:**
 
 1. **File Locks / Process not exiting:** Background processes (e.g., WebView2/Chromium renderer instances, search indexer, or antivirus scanner) holding locks on application binaries when `AMT.Updater.exe` attempts file swaps.
-2. **Permission / UAC Issues:** AMT is installed in a protected location (`C:\Program Files\`) and administrator permissions/UAC prompt was declined.
-3. **Antivirus Interference:** Antivirus/Windows Defender blocked `AMT.Updater.exe` or flagged the staging directory file swap as suspicious.
-4. **Staging / Hash Mismatch (`DL_006`):** Network interruption, timeout, or manifest mismatch causing file download or SHA-256 verification failure.
+2. **Permission / UAC Issues:** AMT is installed in a protected location (e.g., `C:\Program Files\`) and administrator permissions/UAC elevation prompt was declined or timed out.
+3. **Antivirus Interference:** Antivirus or Windows Defender blocked `AMT.Updater.exe` or flagged the staging directory file swap as suspicious.
+4. **Staging / Hash Mismatch (`DL_006`):** Network interruption, timeout, or CDN cache inconsistency causing file download or SHA-256 verification failure.
 5. **Missing `.staged-ok` marker:** Download/staging process was interrupted before all files could be verified.
+6. **Post-Apply Version Stagnation:** The updater swapped files but the running binary version remained unchanged (e.g. locked `.exe` reverted).
 
 > [!NOTE]
 > **Automatic Loop Protection:**
-> If an incremental update fails, `AMT.Updater.exe` logs `FAILED: <reason>` into `%LocalAppData%\ArdysaModsTools\update\<version>\update.log`.
-> AMT detects this on the next startup (`HasLastApplyFailedForVersion`) and **automatically suppresses incremental auto-updates for that specific release version** to prevent infinite download/restart loops. The update dialog will revert to showing full manual download links.
+> AMT employs multi-layered loop guards across memory and persistent state (`%LocalAppData%\ArdysaModsTools\update\update_state.json`):
+> 1. **Staging & Launch Protection:** If file download, hash verification, or updater execution fails/is declined, the version is immediately recorded as failed and auto-update is suppressed on subsequent startups.
+> 2. **Applier Rollback & Outcome Tracking:** If `AMT.Updater.exe` fails or rolls back, it logs `FAILED: <reason>` into `%LocalAppData%\ArdysaModsTools\update\<version>\update.log`. AMT imports this on startup and suppresses delta auto-update for that version.
+> 3. **Stale Post-Apply Version Guard:** If `AMT.Updater.exe` runs but the application version does not advance after restart, AMT detects this mismatch and halts further automatic re-apply attempts.
+> When suppressed, the update dialog falls back to showing direct manual download links (Installer and Portable) with a red error notice showing the exact failure reason.
 
-**Solutions & Resolution Options:**
+---
 
-1. **Option 1: Manual Direct Download / Installer (Fastest Fallback)**
-   - Download the latest installer `.exe` or portable `.zip` directly from [GitHub Releases](https://github.com/Anneardysa/ArdysaModsTools/releases) or [ardysamods.my.id](https://ardysamods.my.id).
-   - Run the installer or extract the `.zip` over your existing installation.
+### Step-by-Step Fixes:
 
-2. **Option 2: Clear Staging Directory & Retry**
-   - Close ArdysaModsTools.
-   - Delete the update staging folder: `%LocalAppData%\ArdysaModsTools\update\`.
-   - Relaunch AMT and check for updates again.
+#### Fix 1: Manual Direct Download / Installer (Recommended & Fastest)
+If an automatic incremental update fails, you can update manually without losing your mods, presets, or settings:
+1. Open the Update Dialog or visit [ardysamods.my.id](https://ardysamods.my.id) or [GitHub Releases](https://github.com/Anneardysa/ArdysaModsTools/releases).
+2. Click **CDN Server** or **Download from Website** to download the latest installer (`.exe`) or portable package (`.zip`).
+3. Run the installer or extract the `.zip` directly over your existing ArdysaModsTools folder.
+4. Launch AMT. Your configuration and active mods are preserved.
 
-3. **Option 3: Run as Administrator & Close Lock Processes**
-   - Close ArdysaModsTools and verify in Task Manager that no `ArdysaModsTools.exe` or `msedgewebview2.exe` processes remain.
-   - Right-click `ArdysaModsTools.exe` and select **Run as Administrator**.
-   - Attempt the update again and accept any UAC prompt for `AMT.Updater.exe`.
+#### Fix 2: Reset Update State & Clear Staging Cache (To Retry Auto-Update)
+If you want to re-trigger the incremental auto-update clean:
+1. Close ArdysaModsTools completely.
+2. Press <kbd>Win</kbd> + <kbd>R</kbd>, paste the following path, and press <kbd>Enter</kbd>:
+   ```text
+   %LocalAppData%\ArdysaModsTools\update
+   ```
+3. Delete the folder contents (or delete `update_state.json` to clear failure suppression).
+4. Launch ArdysaModsTools.
+5. Go to **Settings** ➔ click **Check for Updates** to retry the update with fresh files.
 
-4. **Option 4: Antivirus Exclusion**
-   - Add an exclusion in Windows Defender or your antivirus for:
-     - `%LocalAppData%\ArdysaModsTools\`
-     - Your AMT installation folder.
+#### Fix 3: Resolve File Locks & Background Processes
+If the log mentions `Could not install ... (locked by another process)`:
+1. Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Esc</kbd> to open **Task Manager**.
+2. Under the **Processes** and **Details** tabs, look for any leftover instances of:
+   - `ArdysaModsTools.exe`
+   - `AMT.Updater.exe`
+   - `msedgewebview2.exe`
+3. Right-click and select **End Task** on any matching processes.
+4. Right-click `ArdysaModsTools.exe` and select **Run as Administrator**.
+5. Retry the update.
 
-5. **Option 5: Inspect Update Logs**
-   - Open `%LocalAppData%\ArdysaModsTools\ardysa_fallback.log` for app-level update logs.
-   - Open `%LocalAppData%\ArdysaModsTools\update\<version>\update.log` (or `update.log.previous`) to see the exact `FAILED: <reason>` message recorded by the applier engine.
+#### Fix 4: Accept UAC Elevation Prompt & Configure Antivirus Exclusions
+If the update fails with `UAC prompt declined or updater launch failed`:
+1. When prompted by Windows User Account Control (*"Do you want to allow this app to make changes to your device?"* for `AMT.Updater.exe`), click **Yes**.
+2. If Windows Defender or your antivirus blocks the updater:
+   - Open **Windows Security** ➔ **Virus & threat protection**.
+   - Under **Virus & threat protection settings**, click **Manage settings**.
+   - Under **Exclusions**, click **Add or remove exclusions**.
+   - Add the following exclusions:
+     - **Folder:** `%LocalAppData%\ArdysaModsTools`
+     - **Folder:** Your AMT installation directory (e.g. `C:\Program Files\ArdysaModsTools` or custom path).
+3. Retry the update.
+
+#### Fix 5: Inspect Update Diagnostic Logs
+To see the exact technical failure reason:
+- **App-level log:** Open `%LocalAppData%\ArdysaModsTools\ardysa_fallback.log`.
+- **Updater engine log:** Open `%LocalAppData%\ArdysaModsTools\update\<version>\update.log` (or `update.log.previous`).
+- **Update state tracker:** Open `%LocalAppData%\ArdysaModsTools\update\update_state.json` to inspect `FailedVersions` and `FailureReasons`.
 
 ---
 
