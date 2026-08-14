@@ -26,6 +26,7 @@ using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Services.Update.Models;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Services.Cdn;
 
 namespace ArdysaModsTools.Core.Services.Update
 {
@@ -115,7 +116,7 @@ namespace ArdysaModsTools.Core.Services.Update
             var updateInfo = await TryGetUpdateFromR2ManifestAsync();
             if (updateInfo != null)
             {
-                _logger.Log($"Got update info from R2 CDN: v{updateInfo.Version}");
+                _logger.Log($"Got update info from CDN: v{updateInfo.Version}");
                 return updateInfo;
             }
 
@@ -127,26 +128,20 @@ namespace ArdysaModsTools.Core.Services.Update
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                using var response = await _httpClient.GetAsync(CdnConfig.ReleaseManifestUrl, cts.Token).ConfigureAwait(false);
+                var content = await CdnFallbackService.Instance
+                    .DownloadStringWithFallbackAsync(CdnConfig.ReleaseManifestUrl, cts.Token)
+                    .ConfigureAwait(false);
 
-                if (!response.IsSuccessStatusCode)
-                {
-                    _logger.Log($"R2 manifest not available (HTTP {(int)response.StatusCode})");
-                    return null;
-                }
-
-                var content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                
                 if (string.IsNullOrWhiteSpace(content))
                 {
-                    _logger.Log("R2 manifest is empty, using GitHub API fallback");
+                    _logger.Log("CDN release manifest unavailable, using GitHub API fallback");
                     return null;
                 }
 
                 content = content.TrimStart();
                 if (!content.StartsWith("{") && !content.StartsWith("["))
                 {
-                    _logger.Log("R2 manifest is not valid JSON, using GitHub API fallback");
+                    _logger.Log("CDN manifest is not valid JSON, using GitHub API fallback");
                     return null;
                 }
 
@@ -224,7 +219,7 @@ namespace ArdysaModsTools.Core.Services.Update
             }
             catch (Exception ex)
             {
-                _logger.Log($"R2 CDN unavailable: {ex.Message}");
+                _logger.Log($"CDN unavailable: {ex.Message}");
                 return null;
             }
         }

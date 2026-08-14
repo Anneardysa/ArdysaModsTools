@@ -22,7 +22,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Helpers;
 
@@ -89,8 +91,16 @@ namespace ArdysaModsTools.Core.Services
                 using var feedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 feedCts.CancelAfter(TimeSpan.FromSeconds(5));
 
+                string url = EnvironmentConfig.WhatsNewFeedUrl;
+                if (CdnConfig.IsModsPackUrl(url))
+                {
+                    return await ArdysaModsTools.Core.Services.Cdn.CdnFallbackService.Instance
+                        .DownloadStringWithFallbackAsync(url, feedCts.Token)
+                        .ConfigureAwait(false);
+                }
+
                 using var resp = await _http
-                    .GetAsync(EnvironmentConfig.WhatsNewFeedUrl, HttpCompletionOption.ResponseHeadersRead, feedCts.Token)
+                    .GetAsync(url, HttpCompletionOption.ResponseHeadersRead, feedCts.Token)
                     .ConfigureAwait(false);
 
                 return resp.IsSuccessStatusCode

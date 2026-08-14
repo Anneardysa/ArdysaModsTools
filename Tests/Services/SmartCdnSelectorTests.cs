@@ -69,6 +69,16 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public void GetOrderedCdnUrls_WhenAsiaPreference_PinsR2First()
+        {
+            CdnConfig.CdnServerPreference = "asia";
+
+            var ordered = _selector.GetOrderedCdnUrls();
+
+            Assert.That(ordered[0], Is.EqualTo("https://cdn.ardysamods.my.id"));
+        }
+
+        [Test]
         public void ReportFailure_BelowThreshold_DoesNotDemote()
         {
             for (int i = 0; i < CdnConfig.CdnFailureThreshold - 1; i++)

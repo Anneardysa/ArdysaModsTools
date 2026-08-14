@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
+## [2.2.24-beta] (Build 2324)
+
+### Fixed
+
+- **Fixed ModsPack download failures and R2 HTTP 403 errors with multi-CDN fallback** (2324): `ModInstallerService` and `UpdaterService` now resolve release manifests and packages using `CdnFallbackService`, seamlessly failing over between Cloudflare R2 and Backblaze B2 (`cdn2.ardysamods.my.id`) when private repo GitHub APIs or individual CDN endpoints return 403 or become unreachable.
+- **Fixed Smart CDN Selection for EU/US and global users** (2324): Fixed a bug in `SmartCdnSelector` where the default `auto` preference forced Cloudflare R2 (Asia) at position 0, ignoring latency and download speed benchmark rankings. Users in EU/US now automatically connect to the fastest server (Backblaze B2), while manual `eu_us` and `asia` preferences are strictly honored across all download pipelines.
+- **Enabled multi-CDN resilience for delta updates and What's New feeds** (2324): `DeltaUpdateService` and `WhatsNewService` now route manifest and feed queries through multi-CDN fallback, preventing update checks or in-app changelogs from failing on network hiccups.
+
 ## [2.2.23-beta] (Builds 2318–2323)
 
 ### Reverted

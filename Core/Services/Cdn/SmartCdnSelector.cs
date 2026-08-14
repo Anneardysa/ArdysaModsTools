@@ -133,17 +133,22 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
             if (CdnConfig.IsR2Enabled)
             {
-                string preferredBase = string.Equals(CdnConfig.CdnServerPreference, "eu_us", StringComparison.OrdinalIgnoreCase)
-                    ? CdnConfig.Cdn2BaseUrl
-                    : CdnConfig.R2BaseUrl;
+                string? preferredBase = null;
+                if (string.Equals(CdnConfig.CdnServerPreference, "eu_us", StringComparison.OrdinalIgnoreCase))
+                    preferredBase = CdnConfig.Cdn2BaseUrl;
+                else if (string.Equals(CdnConfig.CdnServerPreference, "asia", StringComparison.OrdinalIgnoreCase))
+                    preferredBase = CdnConfig.R2BaseUrl;
 
-                bool present = baseOrder.Any(u => string.Equals(u, preferredBase, StringComparison.OrdinalIgnoreCase));
-                if (present && !string.Equals(baseOrder[0], preferredBase, StringComparison.OrdinalIgnoreCase))
+                if (preferredBase != null)
                 {
-                    var rest = baseOrder
-                        .Where(u => !string.Equals(u, preferredBase, StringComparison.OrdinalIgnoreCase))
-                        .ToArray();
-                    baseOrder = new[] { preferredBase }.Concat(rest).ToArray();
+                    bool present = baseOrder.Any(u => string.Equals(u, preferredBase, StringComparison.OrdinalIgnoreCase));
+                    if (present && !string.Equals(baseOrder[0], preferredBase, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var rest = baseOrder
+                            .Where(u => !string.Equals(u, preferredBase, StringComparison.OrdinalIgnoreCase))
+                            .ToArray();
+                        baseOrder = new[] { preferredBase }.Concat(rest).ToArray();
+                    }
                 }
             }
 

@@ -1248,18 +1248,65 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private async Task<(bool Success, string Url)> TryGetModsPackAssetUrlAsync(CancellationToken cancellationToken = default)
+        internal async Task<(bool Success, string Url)> TryGetModsPackAssetUrlAsync(CancellationToken cancellationToken = default)
         {
             try
             {
-                string api = EnvironmentConfig.ModsPackReleasesApi;
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(TimeSpan.FromSeconds(60));
-                using var response = await _httpClient.GetAsync(api, cts.Token).ConfigureAwait(false);
+                cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+                string? manifestJson = await CdnFallbackService.Instance
+                    .DownloadStringWithFallbackAsync(CdnConfig.ModsPackReleasesManifestUrl, cts.Token)
+                    .ConfigureAwait(false);
+
+                if (!string.IsNullOrWhiteSpace(manifestJson))
+                {
+                    using var doc = JsonDocument.Parse(manifestJson);
+                    var root = doc.RootElement;
+
+                    if (root.TryGetProperty("latest", out var latestProp))
+                    {
+                        string? latestVersion = latestProp.GetString();
+                        if (!string.IsNullOrWhiteSpace(latestVersion)
+                            && root.TryGetProperty("releases", out var releases)
+                            && releases.TryGetProperty(latestVersion, out var release)
+                            && release.TryGetProperty("assets", out var manifestAssets)
+                            && manifestAssets.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var asset in manifestAssets.EnumerateArray())
+                            {
+                                var assetName = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                                var assetUrl = asset.TryGetProperty("url", out var u) ? u.GetString() ?? "" : "";
+
+                                if (!string.IsNullOrEmpty(assetUrl) && assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync: resolved from CDN manifest → {assetUrl}");
+                                    return (true, assetUrl);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync CDN manifest exception: {ex.Message}");
+            }
+
+            try
+            {
+                string api = EnvironmentConfig.ModsPackReleasesApi;
+                using var cts2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts2.CancelAfter(TimeSpan.FromSeconds(30));
+                using var response = await _httpClient.GetAsync(api, cts2.Token).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
                 {
-                    using var stream = await response.Content.ReadAsStreamAsync(cts.Token).ConfigureAwait(false);
-                    using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cts.Token).ConfigureAwait(false);
+                    using var stream = await response.Content.ReadAsStreamAsync(cts2.Token).ConfigureAwait(false);
+                    using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cts2.Token).ConfigureAwait(false);
 
                     if (json.RootElement.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
                     {
@@ -1289,55 +1336,6 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync GitHub exception: {ex.Message}");
-            }
-
-            try
-            {
-                string manifestUrl = CdnConfig.ModsPackReleasesManifestUrl;
-                using var cts2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts2.CancelAfter(TimeSpan.FromSeconds(30));
-                using var manifestResponse = await _httpClient.GetAsync(manifestUrl, cts2.Token).ConfigureAwait(false);
-                if (manifestResponse.IsSuccessStatusCode)
-                {
-                    using var manifestStream = await manifestResponse.Content.ReadAsStreamAsync(cts2.Token).ConfigureAwait(false);
-                    using var manifestJson = await JsonDocument.ParseAsync(manifestStream, cancellationToken: cts2.Token).ConfigureAwait(false);
-                    var root = manifestJson.RootElement;
-
-                    if (root.TryGetProperty("latest", out var latestProp))
-                    {
-                        string? latestVersion = latestProp.GetString();
-                        if (!string.IsNullOrWhiteSpace(latestVersion)
-                            && root.TryGetProperty("releases", out var releases)
-                            && releases.TryGetProperty(latestVersion, out var release)
-                            && release.TryGetProperty("assets", out var manifestAssets)
-                            && manifestAssets.ValueKind == JsonValueKind.Array)
-                        {
-                            foreach (var asset in manifestAssets.EnumerateArray())
-                            {
-                                var assetName = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                                var assetUrl = asset.TryGetProperty("url", out var u) ? u.GetString() ?? "" : "";
-
-                                if (!string.IsNullOrEmpty(assetUrl) && assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync: resolved from CDN manifest → {assetUrl}");
-                                    return (true, assetUrl);
-                                }
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync: CDN manifest returned {manifestResponse.StatusCode}");
-                }
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                FallbackLogger.LogFileOnly($"TryGetModsPackAssetUrlAsync CDN manifest exception: {ex.Message}");
             }
 
             return (false, string.Empty);

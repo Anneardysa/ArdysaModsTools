@@ -23,6 +23,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Services.Update.Models;
 using ArdysaModsTools.Helpers;
@@ -313,8 +314,21 @@ namespace ArdysaModsTools.Core.Services.Update
                     var fileProgress = new Progress<int>(percent =>
                         UpdateProgress(i, file.Size * Math.Clamp(percent, 0, 100) / 100));
 
+                    string[] candidateUrls;
+                    if (CdnConfig.IsModsPackUrl(url))
+                    {
+                        candidateUrls = SmartCdnSelector.Instance.GetOrderedCdnUrls()
+                            .Select(b => CdnConfig.ConvertToCdn(url, b))
+                            .Distinct()
+                            .ToArray();
+                    }
+                    else
+                    {
+                        candidateUrls = new[] { url };
+                    }
+
                     await ResumableDownloadService.Instance.DownloadAsync(
-                        new[] { url },
+                        candidateUrls,
                         destPath,
                         log: null,
                         progress: fileProgress,
@@ -523,15 +537,32 @@ namespace ArdysaModsTools.Core.Services.Update
 
             try
             {
-                using var response = await HttpClientProvider.Client.GetAsync(url, cts.Token).ConfigureAwait(false);
-                if (!response.IsSuccessStatusCode)
+                string? json;
+                if (CdnConfig.IsModsPackUrl(url))
                 {
-                    if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
-                        _logger.Log($"File manifest unavailable (HTTP {(int)response.StatusCode}): {url}");
+                    json = await CdnFallbackService.Instance
+                        .DownloadStringWithFallbackAsync(url, cts.Token)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    using var response = await HttpClientProvider.Client.GetAsync(url, cts.Token).ConfigureAwait(false);
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        if (response.StatusCode != System.Net.HttpStatusCode.NotFound)
+                            _logger.Log($"File manifest unavailable (HTTP {(int)response.StatusCode}): {url}");
+                        return null;
+                    }
+
+                    json = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
+                }
+
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    _logger.Log($"File manifest unavailable: {url}");
                     return null;
                 }
 
-                string json = await response.Content.ReadAsStringAsync(cts.Token).ConfigureAwait(false);
                 var parsed = AssetHashManifestService.ParseManifest(json);
                 if (parsed == null)
                     _logger.Log($"File manifest could not be parsed: {url}");
