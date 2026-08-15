@@ -953,6 +953,85 @@ namespace ArdysaModsTools.Tests.Helpers
             Assert.That(found, Is.False);
         }
 
+        [Test]
+        public void OverlayBlockKeepingVanillaLayout_WithModArcanaBlock_PreservesAuthoredKeyStructureAndIndentation()
+        {
+            const string vanillaBlock =
+                "\t\t\"830\"\n" +
+                "\t\t{\n" +
+                "\t\t\t\"name\"\t\t\"Ogre Magi's Base\"\n" +
+                "\t\t\t\"prefab\"\t\t\"default_item\"\n" +
+                "\t\t\t\"item_rarity\"\t\t\"default\"\n" +
+                "\t\t\t\"item_slot\"\t\t\"hero_base\"\n" +
+                "\t\t\t\"used_by_heroes\"\n" +
+                "\t\t\t{\n" +
+                "\t\t\t\t\"npc_dota_hero_ogre_magi\"\t\t\"1\"\n" +
+                "\t\t\t}\n" +
+                "\t\t}";
+
+            const string moddedBlock =
+                "\t\t\"830\"\n" +
+                "\t\t{\n" +
+                "\t\t\t\"name\"\t\t\"Ogre Magi's Base\"\n" +
+                "\t\t\t\"prefab\"\t\t\"default_item\"\n" +
+                "\t\t\t\"creation_date\"\t\t\"2019-12-18\"\n" +
+                "\t\t\t\"image_inventory\"\t\t\"econ/items/ogre_magi/ogre_magi_arcana/ogre_magi_arcana_head_style1\"\n" +
+                "\t\t\t\"item_description\"\t\t\"Modded description\"\n" +
+                "\t\t\t\"item_name\"\t\t\"#DOTA_Item_Flockhearts_Gamble\"\n" +
+                "\t\t\t\"item_rarity\"\t\t\"arcana\"\n" +
+                "\t\t\t\"item_slot\"\t\t\"hero_base\"\n" +
+                "\t\t\t\"portraits\"\n" +
+                "\t\t\t{\n" +
+                "\t\t\t\t\"icon\"\n" +
+                "\t\t\t\t{\n" +
+                "\t\t\t\t\t\"PortraitFOV\"\t\t\"14\"\n" +
+                "\t\t\t\t}\n" +
+                "\t\t\t}\n" +
+                "\t\t\t\"used_by_heroes\"\n" +
+                "\t\t\t{\n" +
+                "\t\t\t\t\"npc_dota_hero_ogre_magi\"\t\t\"1\"\n" +
+                "\t\t\t}\n" +
+                "\t\t\t\"visuals\"\n" +
+                "\t\t\t{\n" +
+                "\t\t\t\t\"asset_modifier\"\n" +
+                "\t\t\t\t{\n" +
+                "\t\t\t\t\t\"type\"\t\t\"arcana_level\"\n" +
+                "\t\t\t\t\t\"level\"\t\t\"2\"\n" +
+                "\t\t\t\t}\n" +
+                "\t\t\t}\n" +
+                "\t\t}";
+
+            string result = KeyValuesBlockHelper.OverlayBlockKeepingVanillaLayout(vanillaBlock, moddedBlock);
+
+            Assert.Multiple(() =>
+            {
+                int idxCreationDate = result.IndexOf("\"creation_date\"", StringComparison.Ordinal);
+                int idxImageInventory = result.IndexOf("\"image_inventory\"", StringComparison.Ordinal);
+                int idxItemDesc = result.IndexOf("\"item_description\"", StringComparison.Ordinal);
+                int idxItemName = result.IndexOf("\"item_name\"", StringComparison.Ordinal);
+                int idxItemRarity = result.IndexOf("\"item_rarity\"", StringComparison.Ordinal);
+                int idxItemSlot = result.IndexOf("\"item_slot\"", StringComparison.Ordinal);
+                int idxPortraits = result.IndexOf("\"portraits\"", StringComparison.Ordinal);
+                int idxUsedByHeroes = result.IndexOf("\"used_by_heroes\"", StringComparison.Ordinal);
+                int idxVisuals = result.IndexOf("\"visuals\"", StringComparison.Ordinal);
+
+                Assert.That(idxCreationDate, Is.GreaterThan(0));
+                Assert.That(idxImageInventory, Is.GreaterThan(idxCreationDate));
+                Assert.That(idxItemDesc, Is.GreaterThan(idxImageInventory));
+                Assert.That(idxItemName, Is.GreaterThan(idxItemDesc));
+                Assert.That(idxItemRarity, Is.GreaterThan(idxItemName));
+                Assert.That(idxItemSlot, Is.GreaterThan(idxItemRarity));
+                Assert.That(idxPortraits, Is.GreaterThan(idxItemSlot));
+                Assert.That(idxUsedByHeroes, Is.GreaterThan(idxPortraits));
+                Assert.That(idxVisuals, Is.GreaterThan(idxUsedByHeroes));
+
+                Assert.That(result, Does.Contain("\"arcana\""));
+                Assert.That(result, Does.Contain("\"arcana_level\""));
+                Assert.That(result, Does.Contain("\"level\"\t\t\"2\""));
+                Assert.That(result, Does.Not.Contain("\r"));
+            });
+        }
+
         #endregion
     }
 }

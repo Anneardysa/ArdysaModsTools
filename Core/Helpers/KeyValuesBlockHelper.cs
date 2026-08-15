@@ -906,35 +906,20 @@ namespace ArdysaModsTools.Core.Helpers
 
             string childIndent = LeadingWhitespace(vanillaChildren[0].RawText);
 
-            var moddedByKey = new Dictionary<string, List<TopLevelChild>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var child in moddedChildren)
-            {
-                if (!moddedByKey.TryGetValue(child.Key, out var list))
-                    moddedByKey[child.Key] = list = new List<TopLevelChild>();
-                list.Add(child);
-            }
-
             var sb = new System.Text.StringBuilder(vanillaLf.Length + moddedLf.Length);
 
             sb.Append(vanillaLf, 0, braceStart + 1);
             if (!EndsWithNewline(sb)) sb.Append('\n');
 
             var consumed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var child in vanillaChildren)
-            {
-                if (moddedByKey.TryGetValue(child.Key, out var replacements))
-                {
-                    if (!consumed.Add(child.Key)) continue;
-                    foreach (var replacement in replacements)
-                        sb.Append(ReindentChild(replacement.RawText, childIndent)).Append('\n');
-                }
-                else
-                {
-                    sb.Append(ReindentChild(child.RawText, childIndent)).Append('\n');
-                }
-            }
 
             foreach (var child in moddedChildren)
+            {
+                consumed.Add(child.Key);
+                sb.Append(ReindentChild(child.RawText, childIndent)).Append('\n');
+            }
+
+            foreach (var child in vanillaChildren)
             {
                 if (consumed.Contains(child.Key)) continue;
                 consumed.Add(child.Key);
@@ -1104,8 +1089,6 @@ namespace ArdysaModsTools.Core.Helpers
 
                 if (baseIndent.Length > 0 && line.StartsWith(baseIndent, StringComparison.Ordinal))
                     line = line.Substring(baseIndent.Length);
-                else
-                    line = line.TrimStart('\t', ' ');
 
                 sb.Append(targetIndent).Append(line);
                 if (i < lines.Length - 1) sb.Append('\n');

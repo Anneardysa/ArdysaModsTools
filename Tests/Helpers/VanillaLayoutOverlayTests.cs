@@ -117,13 +117,13 @@ namespace ArdysaModsTools.Tests.Helpers
         }
 
         [Test]
-        public void TheGamesKeyOrder_IsPreserved()
+        public void TheModdedKeyOrder_IsPreserved()
         {
             var merged = TopKeys(Merge());
-            var vanilla = TopKeys(Vanilla);
+            var pkgKeys = TopKeys(Package);
 
-            var shared = merged.Where(vanilla.Contains).ToList();
-            Assert.That(shared, Is.EqualTo(vanilla));
+            var modInMerged = merged.Where(pkgKeys.Contains).ToList();
+            Assert.That(modInMerged, Is.EqualTo(pkgKeys));
         }
 
         [Test]
@@ -136,12 +136,11 @@ namespace ArdysaModsTools.Tests.Helpers
         }
 
         [Test]
-        public void KeysOnlyThePackageDefines_AreAppended()
+        public void KeysOnlyThePackageDefines_ArePreserved()
         {
             var keys = TopKeys(Merge());
 
             Assert.That(keys, Does.Contain("visuals"));
-            Assert.That(keys.Last(), Is.EqualTo("visuals"), "mod additions go after the game's own keys");
         }
 
         [Test]

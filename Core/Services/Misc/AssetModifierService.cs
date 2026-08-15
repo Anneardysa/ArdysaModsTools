@@ -45,6 +45,10 @@ namespace ArdysaModsTools.Core.Services
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null);
 
         Dictionary<string, List<string>> GetInstalledFiles();
+
+        IReadOnlyCollection<string> GetModifiedItemIds() => Array.Empty<string>();
+
+        IReadOnlyCollection<string> GetUnpatchedItemIds() => Array.Empty<string>();
     }
 
     public sealed class AssetModifierService : IAssetModifier
@@ -56,22 +60,146 @@ namespace ArdysaModsTools.Core.Services
 
         private readonly List<string> _warnings = new();
 
+        private readonly HashSet<string> _modifiedItemIds = new(StringComparer.OrdinalIgnoreCase);
+
+        private readonly HashSet<string> _unpatchedItemIds = new(StringComparer.OrdinalIgnoreCase);
+
         private MiscExtractionLog? _previousLog;
 
-        private static readonly Dictionary<string, string> CategoryItemIds = new()
+        private static readonly Dictionary<string, string> FixedBlockCategoryItemIds = new(StringComparer.OrdinalIgnoreCase)
         {
             { "Weather", "555" },
             { "Map", "590" },
+            { "Terrain", "590" },
             { "Music", "588" },
             { "HUD", "587" },
             { "Versus", "12970" },
             { "RadiantCreep", "660" },
+            { "RadiantCreeps", "660" },
             { "DireCreep", "661" },
+            { "DireCreeps", "661" },
             { "RadiantSiege", "34462" },
             { "DireSiege", "34463" },
             { "RadiantTower", "677" },
-            { "DireTower", "678" }
+            { "RadiantTowers", "677" },
+            { "DireTower", "678" },
+            { "DireTowers", "678" }
         };
+
+        private static readonly Dictionary<string, string> AllCategoryItemIds = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "Weather", "555" },
+            { "Map", "590" },
+            { "Terrain", "590" },
+            { "Music", "588" },
+            { "HUD", "587" },
+            { "Versus", "12970" },
+            { "RadiantCreep", "660" },
+            { "RadiantCreeps", "660" },
+            { "DireCreep", "661" },
+            { "DireCreeps", "661" },
+            { "RadiantSiege", "34462" },
+            { "DireSiege", "34463" },
+            { "RadiantTower", "677" },
+            { "RadiantTowers", "677" },
+            { "DireTower", "678" },
+            { "DireTowers", "678" },
+            { "Courier", "595" },
+            { "Ward", "596" },
+            { "Announcer", "11173" },
+            { "MegaKill", "586" },
+            { "mega_kills", "586" },
+            { "Roshan", "801" },
+            { "Cursor", "202" },
+            { "KillStreak", "1026" },
+            { "kill_streak", "1026" }
+        };
+
+        public static readonly IReadOnlySet<string> KnownMiscDefaultItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "202",
+            "555",
+            "586",
+            "587",
+            "588",
+            "590",
+            "595",
+            "596",
+            "660",
+            "661",
+            "677",
+            "678",
+            "679",
+            "680",
+            "801",
+            "1026",
+            "11173",
+            "12970",
+            "34462",
+            "34463"
+        };
+
+        private const string DefaultTerrainBlock = """"
+		"590"
+		{
+			"name"		"Default Terrain"
+			"prefab"		"terrain"
+			"creation_date"		"2015-12-01"
+			"baseitem"		"1"
+			"image_inventory"		"econ/terrain/default_terrain"
+			"item_name"		"#DOTA_Item_Default_Terrain"
+			"visuals"
+			{
+				"asset_modifier0"
+				{
+					"type"		"portrait_background_map"
+					"asset"		"maps/terrain_previews/dota_default_preview.vmap"
+					"style"		"0"
+				}
+				"asset_modifier1"
+				{
+					"type"		"map_override"
+					"asset"		"maps/hero_demo_main.vmap"
+					"modifier"		"maps/hero_demo_main.vmap"
+					"style"		"0"
+				}
+			}
+		}
+"""";
+
+        private const string DefaultCourierBlock = """"
+		"595"
+		{
+			"name"		"Default Courier"
+			"prefab"		"courier"
+			"creation_date"		"2015-12-01"
+			"baseitem"		"1"
+			"image_inventory"		"econ/courier/default_courier"
+			"item_name"		"#DOTA_Item_Default_Courier"
+			"model_player"		"models/props_gameplay/default_courier.vmdl"
+			"visuals"
+			{
+				"skin"		"0"
+			}
+		}
+"""";
+
+        private const string DefaultWardBlock = """"
+		"596"
+		{
+			"name"		"Default Ward"
+			"prefab"		"ward"
+			"creation_date"		"2015-12-01"
+			"baseitem"		"1"
+			"image_inventory"		"econ/wards/default_ward"
+			"item_name"		"#DOTA_Item_Default_Ward"
+			"model_player"		"models/props_gameplay/default_ward.vmdl"
+			"visuals"
+			{
+				"skin"		"0"
+			}
+		}
+"""";
 
         public AssetModifierService(HttpClient? httpClient = null, IAppLogger? logger = null)
         {
@@ -82,6 +210,88 @@ namespace ArdysaModsTools.Core.Services
         public Dictionary<string, List<string>> GetInstalledFiles() => _installedFiles;
 
         public List<string> GetWarnings() => _warnings;
+
+        public IReadOnlyCollection<string> GetModifiedItemIds() => _modifiedItemIds;
+
+        public IReadOnlyCollection<string> GetUnpatchedItemIds() => _unpatchedItemIds;
+
+        public static List<string> ResolveItemIdsForSelections(Dictionary<string, string>? selections)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (selections == null || selections.Count == 0) return ids.ToList();
+
+            bool isSpecialActive = (selections.TryGetValue("Special", out var selSpecial) || selections.TryGetValue("special", out selSpecial)) &&
+                !string.IsNullOrWhiteSpace(selSpecial) &&
+                !selSpecial.StartsWith("Disable", StringComparison.OrdinalIgnoreCase) &&
+                !selSpecial.StartsWith("Default", StringComparison.OrdinalIgnoreCase);
+
+            foreach (var (category, selectedKey) in selections)
+            {
+                if (string.IsNullOrWhiteSpace(selectedKey)) continue;
+
+                if (selectedKey.StartsWith("Default", StringComparison.OrdinalIgnoreCase) ||
+                    selectedKey.StartsWith("Disable", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(selectedKey, "default", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.Equals(category, "Courier", StringComparison.OrdinalIgnoreCase) &&
+                        selections.TryGetValue("CourierEthereal", out var eth) && !string.IsNullOrWhiteSpace(eth))
+                    {
+                        ids.Add(CourierPatcherService.DefaultCourierItemId);
+                    }
+                    continue;
+                }
+
+                if (isSpecialActive && (string.Equals(category, "Map", StringComparison.OrdinalIgnoreCase) ||
+                                       string.Equals(category, "Terrain", StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                if (AllCategoryItemIds.TryGetValue(category, out var itemId))
+                {
+                    ids.Add(itemId);
+                }
+
+                if (string.Equals(category, "Announcer", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(category, "announcer", StringComparison.OrdinalIgnoreCase))
+                {
+                    ids.Add("11173");
+                    ids.Add("586");
+                }
+
+                string keyCandidate = selectedKey.Contains(':') ? selectedKey.Split(':')[0] : selectedKey;
+                if (int.TryParse(keyCandidate, out _))
+                {
+                    ids.Add(keyCandidate);
+                }
+
+                var raw = ModConfigurationData.GetUrl(category, selectedKey);
+                if (!string.IsNullOrEmpty(raw))
+                {
+                    string candidate = raw.Contains(':') ? raw.Split(':')[0] : raw;
+                    if (int.TryParse(candidate, out _))
+                    {
+                        ids.Add(candidate);
+                    }
+                }
+            }
+
+            if (selections.TryGetValue("Ancient", out var selAncient) &&
+                !string.IsNullOrEmpty(selAncient) &&
+                !string.Equals(selAncient, "default", StringComparison.OrdinalIgnoreCase) &&
+                !selAncient.StartsWith("Disable", StringComparison.OrdinalIgnoreCase))
+            {
+                ids.Add("679");
+                ids.Add("680");
+            }
+
+            if (isSpecialActive)
+            {
+                ids.Remove("590");
+            }
+
+            return ids.ToList();
+        }
 
         public void SetPreviousLog(MiscExtractionLog? log) => _previousLog = log;
 
@@ -94,6 +304,8 @@ namespace ArdysaModsTools.Core.Services
 
             _installedFiles.Clear();
             _warnings.Clear();
+            _modifiedItemIds.Clear();
+            _unpatchedItemIds.Clear();
 
             string itemsGamePath = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
             if (!File.Exists(itemsGamePath))
@@ -109,7 +321,20 @@ namespace ArdysaModsTools.Core.Services
                 content = KeyValuesBlockHelper.PrettifyKvText(content);
             }
 
-            foreach (var kvp in CategoryItemIds)
+            bool isSpecialActive = TryGetSelection(selections, "Special", out var selSpecial) &&
+                                   !string.IsNullOrWhiteSpace(selSpecial) &&
+                                   !selSpecial.StartsWith("Disable", StringComparison.OrdinalIgnoreCase) &&
+                                   !selSpecial.StartsWith("Default", StringComparison.OrdinalIgnoreCase);
+
+            if (isSpecialActive)
+            {
+                selections.Remove("Map");
+                selections.Remove("Terrain");
+                content = KeyValuesBlockHelper.ReplaceIdBlock(content, "590", DefaultTerrainBlock, out _, requireItemMarkers: true, requirePrefab: "terrain");
+                _unpatchedItemIds.Add("590");
+            }
+
+            foreach (var kvp in FixedBlockCategoryItemIds)
             {
                 ct.ThrowIfCancellationRequested();
                 content = await ApplyBlockModAsync(content, selections, kvp.Key, kvp.Value, log, ct, speedProgress).ConfigureAwait(false);
@@ -132,6 +357,8 @@ namespace ArdysaModsTools.Core.Services
             content = await ApplyZipModAsync(content, extractDir, selections, "roshan", "Roshan", copyToRoot: true, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
             content = await ApplyZipModAsync(content, extractDir, selections, "kill_streak", "Kill Streak", copyToRoot: false, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
 
+            _modifiedItemIds.UnionWith(ResolveItemIdsForSelections(selections));
+
             await File.WriteAllTextAsync(itemsGamePath, content, ct).ConfigureAwait(false);
             log("Modification completed.");
             return true;
@@ -145,6 +372,12 @@ namespace ArdysaModsTools.Core.Services
             
             if (!selections.TryGetValue(category, out var selectedKey) || string.IsNullOrEmpty(selectedKey))
                 return content;
+
+            if (selectedKey.StartsWith("Default", StringComparison.OrdinalIgnoreCase) ||
+                selectedKey.StartsWith("Disable", StringComparison.OrdinalIgnoreCase))
+            {
+                _unpatchedItemIds.Add(itemId);
+            }
 
             var rawUrl = ModConfigurationData.GetUrl(category, selectedKey);
             var url = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
@@ -194,6 +427,7 @@ namespace ArdysaModsTools.Core.Services
             if (selCourier == "Default Courier")
             {
                 log("Restoring Default Courier...");
+                content = KeyValuesBlockHelper.ReplaceIdBlock(content, CourierPatcherService.DefaultCourierItemId, DefaultCourierBlock, out _, requireItemMarkers: true, requirePrefab: "courier");
 
                 if (selections.TryGetValue("CourierEthereal", out var defEthereal) && !string.IsNullOrEmpty(defEthereal))
                 {
@@ -219,11 +453,15 @@ namespace ArdysaModsTools.Core.Services
                                 string updatedBlock = defBlock.Replace(visualsBlock, updatedVisuals);
 
                                 content = KeyValuesBlockHelper.ReplaceIdBlock(content,
-                                    CourierPatcherService.DefaultCourierItemId, updatedBlock, out _, requireItemMarkers: true);
+                                    CourierPatcherService.DefaultCourierItemId, updatedBlock, out _, requireItemMarkers: true, requirePrefab: "courier");
                                 log($"Ethereal effects applied to Default Courier ({effectPaths.Count} effect{(effectPaths.Count > 1 ? "s" : "")}).");
                             }
                         }
                     }
+                }
+                else
+                {
+                    _unpatchedItemIds.Add(CourierPatcherService.DefaultCourierItemId);
                 }
 
                 return content;
@@ -417,6 +655,8 @@ namespace ArdysaModsTools.Core.Services
             if (selWard == "Default Ward")
             {
                 log("Restoring Default Ward...");
+                content = KeyValuesBlockHelper.ReplaceIdBlock(content, WardPatcherService.DefaultWardItemId, DefaultWardBlock, out _, requireItemMarkers: true, requirePrefab: "ward");
+                _unpatchedItemIds.Add(WardPatcherService.DefaultWardItemId);
                 return content;
             }
 
@@ -773,6 +1013,38 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
+        private static bool TryGetSelection(Dictionary<string, string> selections, string category, out string value)
+        {
+            if (selections.TryGetValue(category, out value!) && !string.IsNullOrEmpty(value))
+                return true;
+
+            foreach (var kvp in selections)
+            {
+                if (string.Equals(kvp.Key, category, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(kvp.Value))
+                {
+                    value = kvp.Value;
+                    return true;
+                }
+            }
+
+            string? alias = category.ToLowerInvariant() switch
+            {
+                "mega_kills" or "megakill" => selections.ContainsKey("mega_kills") ? "mega_kills" : selections.ContainsKey("MegaKill") ? "MegaKill" : selections.ContainsKey("Mega-Kills") ? "Mega-Kills" : null,
+                "kill_streak" or "killstreak" => selections.ContainsKey("kill_streak") ? "kill_streak" : selections.ContainsKey("KillStreak") ? "KillStreak" : selections.ContainsKey("Kill Streak") ? "Kill Streak" : null,
+                "announcer" => selections.ContainsKey("announcer") ? "announcer" : selections.ContainsKey("Announcer") ? "Announcer" : null,
+                "cursor" => selections.ContainsKey("cursor") ? "cursor" : selections.ContainsKey("Cursor") ? "Cursor" : null,
+                "ancient" => selections.ContainsKey("ancient") ? "ancient" : selections.ContainsKey("Ancient") ? "Ancient" : null,
+                "roshan" => selections.ContainsKey("roshan") ? "roshan" : selections.ContainsKey("Roshan") ? "Roshan" : null,
+                _ => null
+            };
+
+            if (alias != null && selections.TryGetValue(alias, out value!) && !string.IsNullOrEmpty(value))
+                return true;
+
+            value = string.Empty;
+            return false;
+        }
+
         private async Task<string> ApplyZipModAsync(string content, string extractDir,
             Dictionary<string, string> selections, string category, string modName,
             bool copyToRoot, bool mergeTxt, Action<string> log, CancellationToken ct,
@@ -780,7 +1052,7 @@ namespace ArdysaModsTools.Core.Services
         {
             await CleanupCategoryFilesAsync(category, extractDir, ct).ConfigureAwait(false);
 
-            if (!selections.TryGetValue(category, out var selection) || string.IsNullOrEmpty(selection))
+            if (!TryGetSelection(selections, category, out var selection) || string.IsNullOrEmpty(selection))
                 return content;
 
             var rawUrl = ModConfigurationData.GetUrl(category, selection);
@@ -788,6 +1060,8 @@ namespace ArdysaModsTools.Core.Services
             if (string.IsNullOrEmpty(url))
             {
                 log($"Restoring default {modName}...");
+                if (AllCategoryItemIds.TryGetValue(category, out var zipId))
+                    _unpatchedItemIds.Add(zipId);
                 return content;
             }
 
@@ -835,6 +1109,14 @@ namespace ArdysaModsTools.Core.Services
                         }
                         else if (copyToRoot)
                         {
+                            string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
+                            if (normalizedRel.Equals("scripts/items/items_game.txt", StringComparison.OrdinalIgnoreCase) ||
+                                normalizedRel.EndsWith("/items_game.txt", StringComparison.OrdinalIgnoreCase))
+                            {
+                                _logger?.Log($"[AssetModifier] Blocked items_game.txt from non-merge archive '{category}': '{relativePath}'");
+                                continue;
+                            }
+
                             if (SafeTempPathHelper.IsSafeExtractionPath(extractDir, relativePath, out var destPath))
                             {
                                 Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
@@ -989,6 +1271,14 @@ namespace ArdysaModsTools.Core.Services
                     if (entry.IsDirectory) continue;
 
                     string relativePath = entry.Key ?? string.Empty;
+                    string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
+                    if (normalizedRel.Equals("scripts/items/items_game.txt", StringComparison.OrdinalIgnoreCase) ||
+                        normalizedRel.EndsWith("/items_game.txt", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger?.Log($"[AssetModifier] Blocked items_game.txt from file-based archive '{category}': '{relativePath}'");
+                        continue;
+                    }
+
                     if (SafeTempPathHelper.IsSafeExtractionPath(extractDir, relativePath, out var destPath))
                     {
                         Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);

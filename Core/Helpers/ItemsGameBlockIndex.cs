@@ -127,6 +127,35 @@ namespace ArdysaModsTools.Core.Helpers
             return new IdDiff(added, removed, changed, sample);
         }
 
+        public static HashSet<string> FindDifferingItemIds(string? vanillaText, string? moddedText)
+        {
+            var diffIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrEmpty(vanillaText) || string.IsNullOrEmpty(moddedText))
+                return diffIds;
+
+            var vanillaSpans = IndexSpans(vanillaText);
+            var moddedSpans = IndexSpans(moddedText);
+
+            foreach (var (id, moddedRange) in moddedSpans)
+            {
+                var moddedSpan = moddedText.AsSpan(moddedRange.Start, moddedRange.Length);
+                if (vanillaSpans.TryGetValue(id, out var vanillaRange))
+                {
+                    var vanillaSpan = vanillaText.AsSpan(vanillaRange.Start, vanillaRange.Length);
+                    if (!CanonicalEquals(vanillaSpan, moddedSpan))
+                    {
+                        diffIds.Add(id);
+                    }
+                }
+                else
+                {
+                    diffIds.Add(id);
+                }
+            }
+
+            return diffIds;
+        }
+
         private static string HashBlock(ReadOnlySpan<char> block)
         {
             char[] rented = ArrayPool<char>.Shared.Rent(block.Length);

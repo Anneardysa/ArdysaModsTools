@@ -32,16 +32,11 @@ namespace ArdysaModsTools.Core.Helpers
 
         internal static bool IsCosmeticItem(ReadOnlySpan<char> block)
         {
-            if (block.IndexOf("\"level\"".AsSpan(), StringComparison.OrdinalIgnoreCase) >= 0) return false;
-            int typeNameIdx = block.IndexOf("\"type_name\"".AsSpan(), StringComparison.OrdinalIgnoreCase);
-            if (typeNameIdx >= 0)
-            {
-                if (typeNameIdx < 5 || !block.Slice(typeNameIdx - 5, 5).Equals("item_".AsSpan(), StringComparison.OrdinalIgnoreCase))
-                    return false;
-            }
-
             foreach (var marker in ItemMarkers)
-                if (block.IndexOf(marker.AsSpan(), StringComparison.OrdinalIgnoreCase) >= 0) return true;
+            {
+                if (block.IndexOf(marker.AsSpan(), StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
             return false;
         }
 

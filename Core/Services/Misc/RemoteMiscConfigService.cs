@@ -111,7 +111,7 @@ namespace ArdysaModsTools.Core.Services.Misc
         public static string? GetUrl(string optionId, string choiceName)
         {
             var config = _cachedConfig ?? GetConfigSync();
-            var option = config.Options.FirstOrDefault(o => o.Id == optionId);
+            var option = config.Options.FirstOrDefault(o => string.Equals(o.Id, optionId, StringComparison.OrdinalIgnoreCase));
             return option?.GetChoiceUrl(choiceName);
         }
 

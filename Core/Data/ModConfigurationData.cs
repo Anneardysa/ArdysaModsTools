@@ -41,6 +41,12 @@ namespace ArdysaModsTools.Core.Data
                 "DireTower" => "DireTower",
                 "Effect" => "Effect",
                 "Special" => "Special",
+                "MegaKill" or "mega_kills" or "Mega-Kills" => "mega_kills",
+                "KillStreak" or "kill_streak" or "Kill Streak" => "kill_streak",
+                "Announcer" or "announcer" => "announcer",
+                "Cursor" or "cursor" => "cursor",
+                "Ancient" or "ancient" => "ancient",
+                "Roshan" or "roshan" => "roshan",
                 _ => category
             };
 

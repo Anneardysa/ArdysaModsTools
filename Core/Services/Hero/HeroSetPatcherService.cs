@@ -369,8 +369,8 @@ namespace ArdysaModsTools.Core.Services
                 return (false, $"ID {expectedId} not found in replacement block");
             }
 
-            bool existingHasHero = existingBlock.Contains("\"used_by_heroes\"") && 
-                                    existingBlock.Contains($"\"{heroId}\"");
+            bool existingHasHero = (existingBlock.Contains("\"used_by_heroes\"") && existingBlock.Contains($"\"{heroId}\"")) ||
+                                   (HeroDefaultItemRegistry.TryGetItem(expectedId, out var def) && def.HeroId.Equals(heroId, StringComparison.OrdinalIgnoreCase));
             
             if (!existingHasHero)
             {
