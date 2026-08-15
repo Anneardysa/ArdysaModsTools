@@ -9,14 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.3.0-beta] (Builds 2327–2331)
+## [2.3.0-beta] (Builds 2327–2333)
 
 ### Added
 
+- **Added protected VPK pipeline for Miscellaneous assets with encrypted payload decryption and path tracking** (2332): Extended AES-256-GCM encrypted asset support to `Assets/misc` mods in `AssetModifierService`. Extracted protectable files are tracked via `_protectedPaths` and deployed into the superhidden `ProtectedVpkStore` in both clean generation (`MiscCleanGenerationService`) and incremental generation (`MiscGenerationService`), mirroring hero protection logic.
 - **Added detailed Package Sync inspector modal with category filtering and item search** (2330): Introduced a dedicated, full-featured item diff breakdown modal (`SyncDetailModal.tsx`) allowing users to inspect new Dota 2 items, modified mod definitions, and schema errors with segmented filter tabs, search filtering, and clipboard export.
+- **Added Package Sync details reporting and baseline unpatched ID tracking** (2328): Implemented `ItemsGameSyncService.GetSyncDetailsAsync` and `ItemsGameBaselineStore` tracking to report granular per-item diffs between game baseline and active modifications.
 
 ### Changed
 
+- **Restored Play button and integrated Setup Verification workflow in main shell** (2329, 2330): Re-enabled the primary Play / Launch Dota 2 action in `main_shell` with live Setup Verification gating, automated repair flows, and real-time status telemetry.
 - **Polished Package Sync verification UI/UX and streamlined clipboard controls** (2330): Redesigned the package sync status cards with status indicator badges, squircle hero glows, non-overlapping header copy buttons, and an interactive `#ID` badge for single-click copying.
 
 ### Fixed
