@@ -890,5 +890,19 @@
   "verify.sync.modal.step1": "Reads the package from Dota 2 folder.",
   "verify.sync.modal.step2": "Rebuilds your package on top of it, keeping your mods and everything the update added.",
   "verify.sync.modal.step3": "Reinstalls the package. This takes a few minutes and nothing changes until it succeeds.",
-  "verify.sync.modal.fix": "Rebuild Package"
+  "verify.sync.modal.fix": "Rebuild Package",
+  "verify.sync.modal.viewDetails": "View Details",
+  "verify.sync.details.title": "Package Sync Details & Preview",
+  "verify.sync.details.sub": "Breakdown of items_game.txt item definitions between vanilla Dota 2 and your installed mod package.",
+  "verify.sync.tab.new": "New in Game",
+  "verify.sync.tab.modified": "Modified Mods",
+  "verify.sync.tab.errors": "Errors",
+  "verify.sync.searchPlaceholder": "Search by ID, hero, or category (e.g. 555, weather, axe)...",
+  "verify.sync.noMatches": "No matching item definitions found.",
+  "verify.sync.status.new": "New in Game",
+  "verify.sync.status.modified": "Mod Applied",
+  "verify.sync.status.error": "Error",
+  "verify.sync.copy": "Copy",
+  "verify.sync.copyIds": "IDs",
+  "verify.sync.modal.copiedNotice": "Item IDs copied to clipboard."
 }

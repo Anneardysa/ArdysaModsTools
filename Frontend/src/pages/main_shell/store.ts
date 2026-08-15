@@ -12,6 +12,7 @@ import type {
    PlayStatePayload,
    SetupChecksPayload,
    StatusPayload,
+   SyncDetailsPayload,
    ToastPayload,
    UpdateCard,
 } from "./types";
@@ -41,8 +42,10 @@ export const store = createStore<{
    elevationFixLabel: string;
    syncDetail: string;
    syncNeedsFix: boolean;
+   syncDetails: SyncDetailsPayload | null;
    elevationModalOpen: boolean;
    syncModalOpen: boolean;
+   syncDetailsModalOpen: boolean;
    elevationRechecking: boolean;
 
    playState: PlayStatePayload;
@@ -85,8 +88,10 @@ export const store = createStore<{
    elevationFixLabel: "",
    syncDetail: "",
    syncNeedsFix: false,
+   syncDetails: null,
    elevationModalOpen: false,
    syncModalOpen: false,
+   syncDetailsModalOpen: false,
    elevationRechecking: false,
 
    playState: { enabled: false, label: "", reason: "" },
@@ -158,6 +163,10 @@ export function setSetupChecks(p: SetupChecksPayload) {
    });
 }
 
+export function setSyncDetails(p: SyncDetailsPayload) {
+   store.set({ syncDetails: p });
+}
+
 export function openElevationModal() {
    store.set((s) => ({ elevationModalOpen: true, elevationRechecking: !!s.elevationDetail }));
 }
@@ -169,6 +178,12 @@ export function openSyncModal() {
 }
 export function closeSyncModal() {
    store.set({ syncModalOpen: false });
+}
+export function openSyncDetailsModal() {
+   store.set({ syncModalOpen: false, syncDetailsModalOpen: true });
+}
+export function closeSyncDetailsModal() {
+   store.set({ syncDetailsModalOpen: false });
 }
 
 

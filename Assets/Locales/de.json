@@ -890,5 +890,19 @@
   "verify.sync.modal.step1": "Liest die Item-Daten, die deine Dota-2-Installation aktuell ausliefert.",
   "verify.sync.modal.step2": "Baut dein Paket darauf neu auf und behält deine Mods sowie alles, was das Update hinzugefügt hat.",
   "verify.sync.modal.step3": "Installiert das Paket neu. Das dauert ein paar Minuten, und bis es klappt ändert sich nichts.",
-  "verify.sync.modal.fix": "Paket neu bauen"
+  "verify.sync.modal.fix": "Paket neu bauen",
+  "verify.sync.modal.viewDetails": "Details anzeigen",
+  "verify.sync.details.title": "Paket-Synchronisierungsdetails & Vorschau",
+  "verify.sync.details.sub": "Aufschlüsselung der items_game.txt-Definitionen zwischen Standard-Dota 2 und deinem Mod-Paket.",
+  "verify.sync.tab.new": "Neu im Spiel",
+  "verify.sync.tab.modified": "Geänderte Mods",
+  "verify.sync.tab.errors": "Fehler",
+  "verify.sync.searchPlaceholder": "Nach ID, Held oder Kategorie suchen (z. B. 555, weather, axe)...",
+  "verify.sync.noMatches": "Keine passenden Item-Definitionen gefunden.",
+  "verify.sync.status.new": "Neu im Spiel",
+  "verify.sync.status.modified": "Mod angewendet",
+  "verify.sync.status.error": "Fehler",
+  "verify.sync.copy": "Kopieren",
+  "verify.sync.copyIds": "IDs",
+  "verify.sync.modal.copiedNotice": "Objekt-IDs in die Zwischenablage kopiert."
 }

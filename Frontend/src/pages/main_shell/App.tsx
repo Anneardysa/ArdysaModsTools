@@ -11,7 +11,9 @@ import { PatchMenuDropdown } from "./PatchMenuDropdown";
 import { PathFoundBanner } from "./PathFoundBanner";
 import { PromoCards } from "./PromoCards";
 import { Sidebar } from "./Sidebar";
-import { closeInstallLogModal, closeNewsModal, closePatchMenu, finishOnboarding, onboardNext, onboardPrev, store } from "./store";
+import { closeInstallLogModal, closeNewsModal, closePatchMenu, closeSyncDetailsModal, closeSyncModal, finishOnboarding, onboardNext, onboardPrev, store } from "./store";
+import { SyncModal } from "./SyncModal";
+import { SyncDetailModal } from "./SyncDetailModal";
 import { TitleBar } from "./TitleBar";
 import { ToastHost } from "./ToastHost";
 import { UpdatesStrip } from "./UpdatesStrip";
@@ -31,6 +33,16 @@ export function App() {
                e.preventDefault();
                resolveShellConfirm(true);
             }
+            return;
+         }
+
+         if (s.syncDetailsModalOpen) {
+            if (e.key === "Escape") closeSyncDetailsModal();
+            return;
+         }
+
+         if (s.syncModalOpen) {
+            if (e.key === "Escape") closeSyncModal();
             return;
          }
 
@@ -81,6 +93,8 @@ export function App() {
          <NewsModal />
          <ConfirmModal />
          <ElevationModal />
+         <SyncModal />
+         <SyncDetailModal />
          <LaunchModal />
          <FailureModal />
          <ToastHost />

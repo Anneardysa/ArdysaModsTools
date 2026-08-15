@@ -10,7 +10,7 @@ export function VerifyPanel() {
    const checks = store.use((s) => s.verifyChecks);
    const dotaRunning = store.use((s) => s.dotaRunning);
 
-   const activeChecks = checks ? checks.checks.filter((c) => c.id !== "ItemsGameInSync") : [];
+   const activeChecks = checks ? checks.checks : [];
    if (!checks || activeChecks.length === 0) return null;
 
    const failed = activeChecks.some((c) => c.state === "fail");
@@ -31,11 +31,13 @@ export function VerifyPanel() {
                className={css.verifyItem}
                title={c.detail || ""}
                onClick={() => {
-                  if (!c.hasOwnDialog) send("patchViewStatus");
-                  else if (c.id === "ItemsGameInSync") openSyncModal();
-                  else {
+                  if (c.id === "ItemsGameInSync") {
+                     openSyncModal();
+                  } else if (c.hasOwnDialog) {
                      openElevationModal();
                      send("refreshStatus");
+                  } else {
+                     send("patchViewStatus");
                   }
                }}
             >

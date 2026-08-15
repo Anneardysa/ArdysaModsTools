@@ -890,5 +890,19 @@
   "verify.sync.modal.step1": "Lee los datos de objetos que tu instalación de Dota 2 usa actualmente.",
   "verify.sync.modal.step2": "Reconstruye tu paquete sobre ellos, conservando tus mods y todo lo que añadió la actualización.",
   "verify.sync.modal.step3": "Reinstala el paquete. Tarda unos minutos y nada cambia hasta que termine bien.",
-  "verify.sync.modal.fix": "Reconstruir paquete"
+  "verify.sync.modal.fix": "Reconstruir paquete",
+  "verify.sync.modal.viewDetails": "Ver detalles",
+  "verify.sync.details.title": "Detalles y vista previa de sincronización",
+  "verify.sync.details.sub": "Desglose de definiciones de items_game.txt entre Dota 2 vanilla y tu paquete de mods.",
+  "verify.sync.tab.new": "Nuevos en el juego",
+  "verify.sync.tab.modified": "Mods modificados",
+  "verify.sync.tab.errors": "Errores",
+  "verify.sync.searchPlaceholder": "Buscar por ID, héroe o categoría (ej. 555, weather, axe)...",
+  "verify.sync.noMatches": "No se encontraron definiciones de objetos coincidentes.",
+  "verify.sync.status.new": "Nuevo en el juego",
+  "verify.sync.status.modified": "Mod aplicado",
+  "verify.sync.status.error": "Error",
+  "verify.sync.copy": "Copiar",
+  "verify.sync.copyIds": "IDs",
+  "verify.sync.modal.copiedNotice": "IDs de ítems copiados al portapapeles."
 }

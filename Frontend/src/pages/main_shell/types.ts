@@ -26,6 +26,23 @@ export type SetupChecksPayload = {
    canFix: boolean;
 };
 
+export type SyncItemDetail = {
+   id: string;
+   name: string;
+   category: string;
+   status: "new" | "modified" | "error";
+   description?: string;
+};
+
+export type SyncDetailsPayload = {
+   isStale: boolean;
+   addedCount: number;
+   modifiedCount: number;
+   errorCount: number;
+   summary: string;
+   items: SyncItemDetail[];
+};
+
 export type PlayStatePayload = { enabled: boolean; label: string; reason: string };
 
 export type LaunchPanelPayload = {

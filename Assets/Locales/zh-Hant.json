@@ -890,5 +890,19 @@
   "verify.sync.modal.step1": "讀取你的 Dota 2 安裝目前提供的物品資料。",
   "verify.sync.modal.step2": "在其之上重建你的套件，保留你的 Mod 以及更新新增的全部內容。",
   "verify.sync.modal.step3": "重新安裝該套件。需要幾分鐘，成功之前不會變動任何東西。",
-  "verify.sync.modal.fix": "重建 Mod 套件"
+  "verify.sync.modal.fix": "重建 Mod 套件",
+  "verify.sync.modal.viewDetails": "檢視詳情",
+  "verify.sync.details.title": "模組套件同步詳情與預覽",
+  "verify.sync.details.sub": "原版 Dota 2 與已安裝模組套件之間 items_game.txt 物品定義的對比細目。",
+  "verify.sync.tab.new": "遊戲新增",
+  "verify.sync.tab.modified": "模組修改",
+  "verify.sync.tab.errors": "錯誤",
+  "verify.sync.searchPlaceholder": "按 ID、英雄或類別搜尋（如 555、weather、axe）...",
+  "verify.sync.noMatches": "未找到相符的物品定義。",
+  "verify.sync.status.new": "遊戲新增",
+  "verify.sync.status.modified": "模組已套用",
+  "verify.sync.status.error": "錯誤",
+  "verify.sync.copy": "複製",
+  "verify.sync.copyIds": "IDs",
+  "verify.sync.modal.copiedNotice": "物品ID已複製到剪貼簿。"
 }

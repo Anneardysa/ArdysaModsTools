@@ -21,6 +21,7 @@ import {
    setPatchButtonStatus,
    setPlayState,
    setSetupChecks,
+   setSyncDetails,
    setStatus,
    showChecking,
    showInstallLog,
@@ -43,6 +44,7 @@ import type {
    PlayStatePayload,
    SetupChecksPayload,
    StatusPayload,
+   SyncDetailsPayload,
    ToastPayload,
    UpdateCard,
 } from "./types";
@@ -73,6 +75,7 @@ expose({
    setLaunchPanel: (payload: LaunchPanelPayload | string | null) => setLaunchPanel(payload == null ? null : parseJson(payload)),
 
    setSetupChecks: (payload: SetupChecksPayload | string) => setSetupChecks(parseJson(payload)),
+   setSyncDetails: (payload: SyncDetailsPayload | string) => setSyncDetails(parseJson(payload)),
    setPatchButton: (status: string | null, isError: boolean) => setPatchButtonStatus((status as "ready" | "needUpdate" | null) ?? null, !!isError),
    setButtonStates: (payload: ButtonStates | string) => setButtonStates(parseJson(payload)),
    setDotaWarning: (on: boolean | string) => setDotaRunningState(on === true || on === "true"),

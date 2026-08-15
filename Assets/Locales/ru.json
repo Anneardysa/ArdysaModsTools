@@ -890,5 +890,19 @@
   "verify.sync.modal.step1": "Читает данные предметов, которые сейчас поставляет твоя установка Dota 2.",
   "verify.sync.modal.step2": "Пересобирает пакет поверх них, сохраняя твои моды и всё, что добавило обновление.",
   "verify.sync.modal.step3": "Переустанавливает пакет. Это занимает несколько минут, и до успеха ничего не меняется.",
-  "verify.sync.modal.fix": "Пересобрать пакет"
+  "verify.sync.modal.fix": "Пересобрать пакет",
+  "verify.sync.modal.viewDetails": "Подробнее",
+  "verify.sync.details.title": "Детали и предпросмотр синхронизации",
+  "verify.sync.details.sub": "Сравнение определений items_game.txt между чистой Dota 2 и установленным пакетом модов.",
+  "verify.sync.tab.new": "Новые в игре",
+  "verify.sync.tab.modified": "Измененные моды",
+  "verify.sync.tab.errors": "Ошибки",
+  "verify.sync.searchPlaceholder": "Поиск по ID, герою или категории (напр. 555, weather, axe)...",
+  "verify.sync.noMatches": "Совпадающих предметов не найдено.",
+  "verify.sync.status.new": "Новый в игре",
+  "verify.sync.status.modified": "Мод применен",
+  "verify.sync.status.error": "Ошибка",
+  "verify.sync.copy": "Копировать",
+  "verify.sync.copyIds": "ID",
+  "verify.sync.modal.copiedNotice": "ID предметов скопированы в буфер обмена."
 }
