@@ -331,5 +331,37 @@ namespace ArdysaModsTools.Tests.Services
                 try { Directory.Delete(dir, true); } catch { }
             }
         }
+
+        [Test]
+        public void IsEncrypted_ByteArrayAndSpan_DetectsCorrectly()
+        {
+            byte[] container = AssetCipher.Encrypt(SampleZip(), AssetPath);
+            byte[] plain = SampleZip();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(AssetCipher.IsEncrypted(container), Is.True);
+                Assert.That(AssetCipher.IsEncrypted(container.AsSpan()), Is.True);
+
+                Assert.That(AssetCipher.IsEncrypted(plain), Is.False);
+                Assert.That(AssetCipher.IsEncrypted(plain.AsSpan()), Is.False);
+
+                Assert.That(AssetCipher.IsEncrypted((byte[]?)null), Is.False);
+                Assert.That(AssetCipher.IsEncrypted(new byte[] { 1, 2 }), Is.False);
+                Assert.That(AssetCipher.IsEncrypted(ReadOnlySpan<byte>.Empty), Is.False);
+            });
+        }
+
+        [Test]
+        public void IsAssetTooNew_ClassifiesExceptionsAccurately()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(AssetCipher.IsAssetTooNew(new AssetVersionException(2, 1)), Is.True);
+                Assert.That(AssetCipher.IsAssetTooNew(new AuthenticationTagMismatchException()), Is.True);
+                Assert.That(AssetCipher.IsAssetTooNew(new CryptographicException("General error")), Is.False);
+                Assert.That(AssetCipher.IsAssetTooNew(new IOException("Disk error")), Is.False);
+            });
+        }
     }
 }

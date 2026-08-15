@@ -49,6 +49,12 @@ namespace ArdysaModsTools.Core.Services
         IReadOnlyCollection<string> GetModifiedItemIds() => Array.Empty<string>();
 
         IReadOnlyCollection<string> GetUnpatchedItemIds() => Array.Empty<string>();
+
+        IReadOnlyCollection<string> GetProtectedPaths() => Array.Empty<string>();
+
+        List<string> GetWarnings() => new();
+
+        void SetPreviousLog(MiscExtractionLog? log) { }
     }
 
     public sealed class AssetModifierService : IAssetModifier
@@ -63,6 +69,8 @@ namespace ArdysaModsTools.Core.Services
         private readonly HashSet<string> _modifiedItemIds = new(StringComparer.OrdinalIgnoreCase);
 
         private readonly HashSet<string> _unpatchedItemIds = new(StringComparer.OrdinalIgnoreCase);
+
+        private readonly HashSet<string> _protectedPaths = new(StringComparer.OrdinalIgnoreCase);
 
         private MiscExtractionLog? _previousLog;
 
@@ -215,6 +223,8 @@ namespace ArdysaModsTools.Core.Services
 
         public IReadOnlyCollection<string> GetUnpatchedItemIds() => _unpatchedItemIds;
 
+        public IReadOnlyCollection<string> GetProtectedPaths() => _protectedPaths;
+
         public static List<string> ResolveItemIdsForSelections(Dictionary<string, string>? selections)
         {
             var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -306,6 +316,7 @@ namespace ArdysaModsTools.Core.Services
             _warnings.Clear();
             _modifiedItemIds.Clear();
             _unpatchedItemIds.Clear();
+            _protectedPaths.Clear();
 
             string itemsGamePath = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
             if (!File.Exists(itemsGamePath))
@@ -842,8 +853,36 @@ namespace ArdysaModsTools.Core.Services
                     u => GetByteArrayWithProgressAsync(u, ct, speedProgress), fallbacks).ConfigureAwait(false);
                 if (data != null)
                 {
+                    bool isEncrypted = false;
+                    if (AssetCipher.IsEncrypted(data))
+                    {
+                        var assetPath = Constants.CdnConfig.ExtractAssetPath(url);
+                        if (!string.IsNullOrWhiteSpace(assetPath))
+                        {
+                            try
+                            {
+                                data = AssetCipher.Decrypt(data, assetPath);
+                                isEncrypted = true;
+                            }
+                            catch (Exception ex) when (AssetCipher.IsAssetTooNew(ex))
+                            {
+                                var warning = "Emblems: requires a newer version of the application — please update.";
+                                log($"Warning: {warning}");
+                                _warnings.Add(warning);
+                                return;
+                            }
+                            catch (Exception ex)
+                            {
+                                var warning = $"Emblems: decryption failed ({ex.Message}).";
+                                log($"Warning: {warning}");
+                                _warnings.Add(warning);
+                                return;
+                            }
+                        }
+                    }
+
                     await File.WriteAllBytesAsync(Path.Combine(emblemDir, "selected_ring.vpcf_c"), data, ct).ConfigureAwait(false);
-                    TrackInstalledFile(category, relativePath);
+                    TrackInstalledFile(category, relativePath, isEncrypted);
                     log("Emblem applied.");
                 }
                 else
@@ -889,8 +928,36 @@ namespace ArdysaModsTools.Core.Services
                     u => GetByteArrayWithProgressAsync(u, ct, speedProgress), fallbacks).ConfigureAwait(false);
                 if (data != null)
                 {
+                    bool isEncrypted = false;
+                    if (AssetCipher.IsEncrypted(data))
+                    {
+                        var assetPath = Constants.CdnConfig.ExtractAssetPath(url);
+                        if (!string.IsNullOrWhiteSpace(assetPath))
+                        {
+                            try
+                            {
+                                data = AssetCipher.Decrypt(data, assetPath);
+                                isEncrypted = true;
+                            }
+                            catch (Exception ex) when (AssetCipher.IsAssetTooNew(ex))
+                            {
+                                var warning = "Shader: requires a newer version of the application — please update.";
+                                log($"Warning: {warning}");
+                                _warnings.Add(warning);
+                                return;
+                            }
+                            catch (Exception ex)
+                            {
+                                var warning = $"Shader: decryption failed ({ex.Message}).";
+                                log($"Warning: {warning}");
+                                _warnings.Add(warning);
+                                return;
+                            }
+                        }
+                    }
+
                     await File.WriteAllBytesAsync(Path.Combine(shaderDir, "deferred_post_process.vmat_c"), data, ct).ConfigureAwait(false);
-                    TrackInstalledFile(category, relativePath);
+                    TrackInstalledFile(category, relativePath, isEncrypted);
                     log("Shader applied.");
                 }
                 else
@@ -1086,73 +1153,113 @@ namespace ArdysaModsTools.Core.Services
             if (!await VerifyBufferedAssetAsync(url, memoryStream, modName, log, ct).ConfigureAwait(false))
                 return content;
 
-            var txtBuffer = new System.Text.StringBuilder();
-            int copied = 0;
+            bool isEncrypted = false;
+            Stream archiveStream = memoryStream;
+            MemoryStream? decryptedStream = null;
 
-            if (TryOpenArchive(memoryStream, out var archive))
+            if (AssetCipher.IsEncrypted(memoryStream.GetBuffer().AsSpan(0, (int)memoryStream.Length)))
             {
-                using (archive)
+                var assetPath = Constants.CdnConfig.ExtractAssetPath(url);
+                if (!string.IsNullOrWhiteSpace(assetPath))
                 {
-                    foreach (var entry in archive.Entries)
+                    try
                     {
-                        ct.ThrowIfCancellationRequested();
-                        if (entry.IsDirectory) continue;
+                        byte[] decryptedBytes = AssetCipher.Decrypt(memoryStream.ToArray(), assetPath);
+                        decryptedStream = new MemoryStream(decryptedBytes);
+                        archiveStream = decryptedStream;
+                        isEncrypted = true;
+                    }
+                    catch (Exception ex) when (AssetCipher.IsAssetTooNew(ex))
+                    {
+                        var warning = $"{modName}: requires a newer version of the application — please update.";
+                        log($"Warning: {warning}");
+                        _warnings.Add(warning);
+                        return content;
+                    }
+                    catch (Exception ex)
+                    {
+                        var warning = $"{modName}: decryption failed ({ex.Message}).";
+                        log($"Warning: {warning}");
+                        _warnings.Add(warning);
+                        return content;
+                    }
+                }
+            }
 
-                        string relativePath = entry.Key ?? string.Empty;
-                        bool isTxt = relativePath.EndsWith(".txt", StringComparison.OrdinalIgnoreCase);
+            try
+            {
+                var txtBuffer = new System.Text.StringBuilder();
+                int copied = 0;
 
-                        if (isTxt && mergeTxt)
+                if (TryOpenArchive(archiveStream, out var archive))
+                {
+                    using (archive)
+                    {
+                        foreach (var entry in archive.Entries)
                         {
-                            using var es = entry.OpenEntryStream();
-                            using var sr = new StreamReader(es);
-                            txtBuffer.AppendLine(await sr.ReadToEndAsync().ConfigureAwait(false));
-                        }
-                        else if (copyToRoot)
-                        {
-                            string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
-                            if (normalizedRel.Equals("scripts/items/items_game.txt", StringComparison.OrdinalIgnoreCase) ||
-                                normalizedRel.EndsWith("/items_game.txt", StringComparison.OrdinalIgnoreCase))
-                            {
-                                _logger?.Log($"[AssetModifier] Blocked items_game.txt from non-merge archive '{category}': '{relativePath}'");
-                                continue;
-                            }
+                            ct.ThrowIfCancellationRequested();
+                            if (entry.IsDirectory) continue;
 
-                            if (SafeTempPathHelper.IsSafeExtractionPath(extractDir, relativePath, out var destPath))
+                            string relativePath = entry.Key ?? string.Empty;
+                            bool isTxt = relativePath.EndsWith(".txt", StringComparison.OrdinalIgnoreCase);
+
+                            if (isTxt && mergeTxt)
                             {
-                                Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                                entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
-                                TrackInstalledFile(category, relativePath);
-                                copied++;
+                                using var es = entry.OpenEntryStream();
+                                using var sr = new StreamReader(es);
+                                txtBuffer.AppendLine(await sr.ReadToEndAsync().ConfigureAwait(false));
                             }
-                            else
+                            else if (copyToRoot)
                             {
-                                _logger?.Log($"[ZipSlip] Blocked extraction of path traversal entry: '{relativePath}'");
+                                string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
+                                if (normalizedRel.Equals("scripts/items/items_game.txt", StringComparison.OrdinalIgnoreCase) ||
+                                    normalizedRel.EndsWith("/items_game.txt", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _logger?.Log($"[AssetModifier] Blocked items_game.txt from non-merge archive '{category}': '{relativePath}'");
+                                    continue;
+                                }
+
+                                if (SafeTempPathHelper.IsSafeExtractionPath(extractDir, relativePath, out var destPath))
+                                {
+                                    Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                                    entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
+                                    TrackInstalledFile(category, relativePath, isEncrypted);
+                                    copied++;
+                                }
+                                else
+                                {
+                                    _logger?.Log($"[ZipSlip] Blocked extraction of path traversal entry: '{relativePath}'");
+                                }
                             }
                         }
                     }
                 }
-            }
-            else if (mergeTxt)
-            {
-                memoryStream.Position = 0;
-                using var sr = new StreamReader(memoryStream);
-                txtBuffer.AppendLine(await sr.ReadToEndAsync().ConfigureAwait(false));
-            }
-            else
-            {
-                var warning = $"{modName}: downloaded asset is not a valid archive.";
-                log($"Warning: {warning}");
-                _warnings.Add(warning);
+                else if (mergeTxt)
+                {
+                    archiveStream.Position = 0;
+                    using var sr = new StreamReader(archiveStream);
+                    txtBuffer.AppendLine(await sr.ReadToEndAsync().ConfigureAwait(false));
+                }
+                else
+                {
+                    var warning = $"{modName}: downloaded asset is not a valid archive.";
+                    log($"Warning: {warning}");
+                    _warnings.Add(warning);
+                    return content;
+                }
+
+                if (mergeTxt && txtBuffer.Length > 0)
+                    content = MergeBlocksIntoItemsGame(content, txtBuffer.ToString(), modName, log);
+
+                if (copied > 0 || txtBuffer.Length > 0)
+                    log($"{modName} applied.");
+
                 return content;
             }
-
-            if (mergeTxt && txtBuffer.Length > 0)
-                content = MergeBlocksIntoItemsGame(content, txtBuffer.ToString(), modName, log);
-
-            if (copied > 0 || txtBuffer.Length > 0)
-                log($"{modName} applied.");
-
-            return content;
+            finally
+            {
+                decryptedStream?.Dispose();
+            }
         }
 
         private string MergeBlocksIntoItemsGame(string content, string txt, string modName, Action<string> log)
@@ -1217,7 +1324,7 @@ namespace ArdysaModsTools.Core.Services
         private static bool VerifyBuffer(MemoryStream buffer, AssetHashEntry expected) =>
             AssetHashVerifier.Verify(buffer.GetBuffer().AsSpan(0, (int)buffer.Length), expected);
 
-        private static bool TryOpenArchive(MemoryStream ms, out IArchive archive)
+        private static bool TryOpenArchive(Stream ms, out IArchive archive)
         {
             long pos = ms.Position;
             try
@@ -1260,44 +1367,84 @@ namespace ArdysaModsTools.Core.Services
             if (!await VerifyBufferedAssetAsync(url, memoryStream, modName, log, ct).ConfigureAwait(false))
                 return;
 
-            var extractedFiles = new List<string>();
-            var readerOptions = new SharpCompress.Readers.ReaderOptions();
-            
-            using (var archive = ArchiveFactory.OpenArchive(memoryStream, readerOptions))
+            bool isEncrypted = false;
+            Stream archiveStream = memoryStream;
+            MemoryStream? decryptedStream = null;
+
+            if (AssetCipher.IsEncrypted(memoryStream.GetBuffer().AsSpan(0, (int)memoryStream.Length)))
             {
-                foreach (var entry in archive.Entries)
+                var assetPath = Constants.CdnConfig.ExtractAssetPath(url);
+                if (!string.IsNullOrWhiteSpace(assetPath))
                 {
-                    ct.ThrowIfCancellationRequested();
-                    if (entry.IsDirectory) continue;
-
-                    string relativePath = entry.Key ?? string.Empty;
-                    string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
-                    if (normalizedRel.Equals("scripts/items/items_game.txt", StringComparison.OrdinalIgnoreCase) ||
-                        normalizedRel.EndsWith("/items_game.txt", StringComparison.OrdinalIgnoreCase))
+                    try
                     {
-                        _logger?.Log($"[AssetModifier] Blocked items_game.txt from file-based archive '{category}': '{relativePath}'");
-                        continue;
+                        byte[] decryptedBytes = AssetCipher.Decrypt(memoryStream.ToArray(), assetPath);
+                        decryptedStream = new MemoryStream(decryptedBytes);
+                        archiveStream = decryptedStream;
+                        isEncrypted = true;
                     }
-
-                    if (SafeTempPathHelper.IsSafeExtractionPath(extractDir, relativePath, out var destPath))
+                    catch (Exception ex) when (AssetCipher.IsAssetTooNew(ex))
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
-                        entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
-                        extractedFiles.Add(relativePath);
+                        var warning = $"{modName}: requires a newer version of the application — please update.";
+                        log($"Warning: {warning}");
+                        _warnings.Add(warning);
+                        return;
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        _logger?.Log($"[ZipSlip] Blocked extraction of path traversal entry: '{relativePath}'");
+                        var warning = $"{modName}: decryption failed ({ex.Message}).";
+                        log($"Warning: {warning}");
+                        _warnings.Add(warning);
+                        return;
                     }
                 }
             }
 
-            foreach (var file in extractedFiles)
+            try
             {
-                TrackInstalledFile(category, file);
-            }
+                var extractedFiles = new List<string>();
+                var readerOptions = new SharpCompress.Readers.ReaderOptions();
+                
+                using (var archive = ArchiveFactory.OpenArchive(archiveStream, readerOptions))
+                {
+                    foreach (var entry in archive.Entries)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        if (entry.IsDirectory) continue;
 
-            log($"{modName} applied.");
+                        string relativePath = entry.Key ?? string.Empty;
+                        string normalizedRel = relativePath.Replace('\\', '/').TrimStart('/');
+                        if (normalizedRel.Equals("scripts/items/items_game.txt", StringComparison.OrdinalIgnoreCase) ||
+                            normalizedRel.EndsWith("/items_game.txt", StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logger?.Log($"[AssetModifier] Blocked items_game.txt from file-based archive '{category}': '{relativePath}'");
+                            continue;
+                        }
+
+                        if (SafeTempPathHelper.IsSafeExtractionPath(extractDir, relativePath, out var destPath))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                            entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
+                            extractedFiles.Add(relativePath);
+                        }
+                        else
+                        {
+                            _logger?.Log($"[ZipSlip] Blocked extraction of path traversal entry: '{relativePath}'");
+                        }
+                    }
+                }
+
+                foreach (var file in extractedFiles)
+                {
+                    TrackInstalledFile(category, file, isEncrypted);
+                }
+
+                log($"{modName} applied.");
+            }
+            finally
+            {
+                decryptedStream?.Dispose();
+            }
         }
 
         private string? FindExtractedModel(string tempDir, string sourcePath)
@@ -1349,12 +1496,17 @@ namespace ArdysaModsTools.Core.Services
             catch { }
         }
 
-        private void TrackInstalledFile(string category, string relativePath)
+        private void TrackInstalledFile(string category, string relativePath, bool isEncrypted = false)
         {
             if (!_installedFiles.ContainsKey(category))
                 _installedFiles[category] = new List<string>();
             
             _installedFiles[category].Add(relativePath);
+
+            if (isEncrypted && ProtectedVpkStore.IsProtectable(relativePath))
+            {
+                _protectedPaths.Add(relativePath.Replace('\\', '/').TrimStart('/'));
+            }
         }
 
         private async Task CleanupCategoryFilesAsync(string category, string extractDir, CancellationToken ct)

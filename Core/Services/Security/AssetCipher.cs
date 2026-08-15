@@ -53,15 +53,24 @@ namespace ArdysaModsTools.Core.Services.Security
                 using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
                 Span<byte> head = stackalloc byte[4];
                 int read = fs.Read(head);
-                return read == 4
-                    && head[0] == Magic[0] && head[1] == Magic[1]
-                    && head[2] == Magic[2] && head[3] == Magic[3];
+                return read == 4 && IsEncrypted(head);
             }
             catch
             {
                 return false;
             }
         }
+
+        public static bool IsEncrypted(byte[]? bytes) =>
+            bytes != null && bytes.Length >= 4 && IsEncrypted(bytes.AsSpan(0, 4));
+
+        public static bool IsEncrypted(ReadOnlySpan<byte> head) =>
+            head.Length >= 4
+            && head[0] == Magic[0] && head[1] == Magic[1]
+            && head[2] == Magic[2] && head[3] == Magic[3];
+
+        public static bool IsAssetTooNew(Exception ex) =>
+            ex is AssetVersionException || ex is AuthenticationTagMismatchException;
 
         public static async Task<string> DecryptToTempAsync(string encPath, string assetPath, CancellationToken ct = default)
         {

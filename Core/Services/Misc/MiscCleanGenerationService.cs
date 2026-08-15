@@ -31,7 +31,7 @@ namespace ArdysaModsTools.Core.Services
     public sealed class MiscCleanGenerationService
     {
         private readonly IOriginalVpkProvider _originalProvider;
-        private readonly AssetModifierService _modifier;
+        private readonly IAssetModifier _modifier;
         private readonly IVpkRecompiler _recompiler;
         private readonly IVpkReplacer _replacer;
         private readonly IGameItemsGameExtractor _itemsGameExtractor;
@@ -45,7 +45,7 @@ namespace ArdysaModsTools.Core.Services
 
         public MiscCleanGenerationService(
             IOriginalVpkProvider? originalProvider = null,
-            AssetModifierService? modifier = null,
+            IAssetModifier? modifier = null,
             IVpkRecompiler? recompiler = null,
             IVpkReplacer? replacer = null,
             IGameItemsGameExtractor? itemsGameExtractor = null,
@@ -127,6 +127,23 @@ namespace ArdysaModsTools.Core.Services
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
 
+                    string protectedDir = Path.Combine(tempRoot, "protected");
+                    int protectedMoved = 0;
+                    var protectedPaths = _modifier.GetProtectedPaths();
+                    if (protectedPaths.Count > 0 && ProtectedVpkStore.IsMounted(targetPath))
+                    {
+                        ProtectedVpkStore.Ensure(targetPath);
+                        protectedMoved = ProtectedVpkStore.MoveProtected(
+                            extractDir, protectedDir, protectedPaths, _logger, ct);
+                    }
+                    else if (protectedPaths.Count > 0)
+                    {
+                        _logger?.LogDebug("Protected split skipped: the installed game config does not mount the second package yet.");
+                    }
+
+                    if (protectedMoved > 0)
+                        _logger?.LogDebug($"Protected split: {protectedMoved} file(s) moved out of the main package into game/mod.");
+
                     log("Building VPK...");
                     var newVpkPath = await _recompiler.RecompileAsync(
                         vpkToolPath, extractDir, buildDir, tempRoot, 
@@ -141,6 +158,24 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
+                    string? newProtectedVpkPath = null;
+                    if (protectedMoved > 0)
+                    {
+                        newProtectedVpkPath = await _recompiler.RecompileAsync(
+                            vpkToolPath, protectedDir, buildDir, tempRoot,
+                            vpkLog => _logger?.LogDebug($"[VPK] {vpkLog}"),
+                            ct, speedProgress).ConfigureAwait(false);
+
+                        if (string.IsNullOrWhiteSpace(newProtectedVpkPath) ||
+                            string.Equals(newProtectedVpkPath, newVpkPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            log("[VPK] Protected package build returned null - check logs above for details");
+                            return Fail("VPK recompilation failed.", log);
+                        }
+                    }
+
+                    ct.ThrowIfCancellationRequested();
+
                     log("Installing...");
                     var replaceSuccess = await _replacer.ReplaceAsync(
                         targetPath, newVpkPath, log, ct).ConfigureAwait(false);
@@ -150,7 +185,9 @@ namespace ArdysaModsTools.Core.Services
 
                     await ItemsGameBaselineStore.CommitAsync(targetPath, _modifier.GetModifiedItemIds(), ct).ConfigureAwait(false);
 
-                    ProtectedVpkStore.Clear(targetPath);
+                    if (!await ProtectedVpkStore.DeployAsync(
+                            targetPath, newProtectedVpkPath, log, CancellationToken.None, _logger).ConfigureAwait(false))
+                        return Fail("VPK replacement failed.", log);
 
                     log("Finalizing...");
                     var extractionLog = new MiscExtractionLog

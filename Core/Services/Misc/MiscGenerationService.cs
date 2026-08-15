@@ -31,14 +31,14 @@ namespace ArdysaModsTools.Core.Services
     public class MiscGenerationService
     {
         private readonly IVpkExtractor _extractor;
-        private readonly AssetModifierService _modifier;
+        private readonly IAssetModifier _modifier;
         private readonly IVpkRecompiler _recompiler;
         private readonly IVpkReplacer _replacer;
         private readonly IAppLogger? _logger;
 
         public MiscGenerationService(
             IVpkExtractor? extractor = null,
-            AssetModifierService? modifier = null,
+            IAssetModifier? modifier = null,
             IVpkRecompiler? recompiler = null,
             IVpkReplacer? replacer = null,
             IAppLogger? logger = null)
@@ -82,8 +82,10 @@ namespace ArdysaModsTools.Core.Services
                 string tempRoot = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), $"ArdysaMods_{Guid.NewGuid():N}");
                 string extractDir = Path.Combine(tempRoot, "extract");
                 string buildDir = Path.Combine(tempRoot, "build");
+                string protectedDir = Path.Combine(tempRoot, "protected");
                 Directory.CreateDirectory(extractDir);
                 Directory.CreateDirectory(buildDir);
+                Directory.CreateDirectory(protectedDir);
 
                 try
                 {
@@ -96,13 +98,59 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
+                    string protectedVpkPath = ProtectedVpkStore.VpkPath(targetPath);
+                    bool hadExistingProtected = File.Exists(protectedVpkPath);
+                    if (hadExistingProtected)
+                    {
+                        try
+                        {
+                            await _extractor.ExtractAsync(hlExtractPath, protectedVpkPath, protectedDir, _ => { }, ct).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogDebug($"Could not extract existing protected package: {ex.Message}");
+                        }
+                    }
+
                     var previousLog = MiscExtractionLog.Load(targetPath);
                     _modifier.SetPreviousLog(previousLog);
+
+                    if (hadExistingProtected && previousLog != null)
+                    {
+                        foreach (var kvp in previousLog.InstalledFiles)
+                        {
+                            foreach (var rel in kvp.Value)
+                            {
+                                try
+                                {
+                                    string p = Path.Combine(protectedDir, rel.Replace('/', Path.DirectorySeparatorChar));
+                                    if (File.Exists(p)) File.Delete(p);
+                                }
+                                catch { }
+                            }
+                        }
+                    }
 
                     if (!await _modifier.ApplyModificationsAsync(vpkPath, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false))
                         return Fail("Modification failed.", log, ErrorCodes.MISC_APPLY_FAILED);
 
                     ct.ThrowIfCancellationRequested();
+
+                    int protectedMoved = 0;
+                    var protectedPaths = _modifier.GetProtectedPaths();
+                    if (protectedPaths.Count > 0 && ProtectedVpkStore.IsMounted(targetPath))
+                    {
+                        ProtectedVpkStore.Ensure(targetPath);
+                        protectedMoved = ProtectedVpkStore.MoveProtected(
+                            extractDir, protectedDir, protectedPaths, _logger, ct);
+                    }
+                    else if (protectedPaths.Count > 0)
+                    {
+                        _logger?.LogDebug("Protected split skipped: the installed game config does not mount the second package yet.");
+                    }
+
+                    if (protectedMoved > 0)
+                        _logger?.LogDebug($"Protected split: {protectedMoved} file(s) moved out of the main package into game/mod.");
 
                     log("Building...");
                     string? newVpk = await _recompiler.RecompileAsync(
@@ -114,11 +162,34 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
+                    string? newProtectedVpk = null;
+                    bool hasProtectedFiles = Directory.Exists(protectedDir) && Directory.EnumerateFiles(protectedDir, "*", SearchOption.AllDirectories).Any();
+                    if (hasProtectedFiles)
+                    {
+                        newProtectedVpk = await _recompiler.RecompileAsync(
+                            vpkToolPath, protectedDir, buildDir, tempRoot,
+                            vpkLog => _logger?.LogDebug($"[VPK] {vpkLog}"),
+                            ct, speedProgress).ConfigureAwait(false);
+
+                        if (string.IsNullOrWhiteSpace(newProtectedVpk) ||
+                            string.Equals(newProtectedVpk, newVpk, StringComparison.OrdinalIgnoreCase))
+                        {
+                            _logger?.LogDebug("[VPK] Protected package build returned null or collided with main package.");
+                            return Fail("Could not rebuild the protected mod package.", log, ErrorCodes.VPK_RECOMPILE_FAILED);
+                        }
+                    }
+
+                    ct.ThrowIfCancellationRequested();
+
                     log("Installing...");
                     if (!await _replacer.ReplaceAsync(targetPath, newVpk, log, ct).ConfigureAwait(false))
                         return Fail("Could not install the rebuilt mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
 
                     await ItemsGameBaselineStore.RebindAndMergePatchedIdsAsync(targetPath, packageBeforeRebuild, _modifier.GetModifiedItemIds(), _modifier.GetUnpatchedItemIds(), ct).ConfigureAwait(false);
+
+                    if (!await ProtectedVpkStore.DeployAsync(
+                            targetPath, newProtectedVpk, log, CancellationToken.None, _logger).ConfigureAwait(false))
+                        return Fail("Could not install the rebuilt protected mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
 
                     log("Finalizing...");
                     var extractionLog = new MiscExtractionLog

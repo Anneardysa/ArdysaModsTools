@@ -172,6 +172,14 @@ namespace ArdysaModsTools.Core.Services.Misc
             }
         }
 
+        internal static void SetLoadedConfigForTesting(RemoteMiscConfig? config)
+        {
+            lock (_lock)
+            {
+                _cachedConfig = config;
+            }
+        }
+
         public static long DeleteCache()
         {
             long freed = 0;
