@@ -29,7 +29,7 @@ namespace ArdysaModsTools.Core.Models
         Stale
     }
 
-    public readonly record struct VpkStamp(long Length, DateTime LastWriteUtc)
+    public readonly record struct VpkStamp(long Length, DateTime LastWriteUtc) : IEquatable<VpkStamp>
     {
         public static VpkStamp? Read(string? path)
         {
@@ -47,6 +47,14 @@ namespace ArdysaModsTools.Core.Models
             }
         }
 
+        public bool Equals(VpkStamp other)
+        {
+            if (Length != other.Length) return false;
+            return Math.Abs((LastWriteUtc - other.LastWriteUtc).TotalSeconds) < 2.0;
+        }
+
+        public override int GetHashCode() => HashCode.Combine(Length, (int)(LastWriteUtc.Ticks / (TimeSpan.TicksPerSecond * 2)));
+
         public bool IsEmpty => Length == 0 && LastWriteUtc == default;
     }
 
@@ -63,6 +71,25 @@ namespace ArdysaModsTools.Core.Models
         public string AppVersion { get; init; } = "";
 
         public DateTime BuiltUtc { get; init; }
+    }
+
+    public record SyncItemDetail
+    {
+        public string Id { get; init; } = "";
+        public string Name { get; init; } = "";
+        public string Category { get; init; } = "";
+        public string Status { get; init; } = "modified";
+        public string Description { get; init; } = "";
+    }
+
+    public record SyncDetailsReport
+    {
+        public bool IsStale { get; init; }
+        public int AddedCount { get; init; }
+        public int ModifiedCount { get; init; }
+        public int ErrorCount { get; init; }
+        public string Summary { get; init; } = "";
+        public IReadOnlyList<SyncItemDetail> Items { get; init; } = Array.Empty<SyncItemDetail>();
     }
 
     public record ItemsGameSyncVerdict

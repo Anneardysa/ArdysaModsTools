@@ -215,5 +215,61 @@ namespace ArdysaModsTools.Tests.Services
 
             Assert.That(result.Outcome, Is.EqualTo(ItemsGameMergeOutcome.Failed));
         }
+
+        [Test]
+        public async Task Merge_PreservesMiscModsAndDifferingBlocks_DuringRebuild()
+        {
+            const string vanillaWithMisc =
+                "\"items_game\"\n{\n\t\"items\"\n\t{\n" +
+                "\t\t\"101\"\n\t\t{\n\t\t\t\"prefab\"\t\"wearable\"\n\t\t\t\"used_by_heroes\"\t{ \"npc_dota_hero_axe\" \"1\" }\n\t\t\t\"model_player\"\t\"models/vanilla_axe.vmdl\"\n\t\t}\n" +
+                "\t\t\"555\"\n\t\t{\n\t\t\t\"prefab\"\t\"weather\"\n\t\t\t\"model_player\"\t\"particles/vanilla_weather.vpcf\"\n\t\t}\n" +
+                "\t\t\"103\"\n\t\t{\n\t\t\t\"prefab\"\t\"wearable\"\n\t\t\t\"used_by_heroes\"\t{ \"npc_dota_hero_lina\" \"1\" }\n\t\t\t\"model_player\"\t\"models/vanilla_lina.vmdl\"\n\t\t}\n" +
+                "\t}\n}\n";
+
+            const string moddedWithMisc =
+                "\"items_game\"\n{\n\t\"items\"\n\t{\n" +
+                "\t\t\"101\"\n\t\t{\n\t\t\t\"prefab\"\t\"wearable\"\n\t\t\t\"used_by_heroes\"\t{ \"npc_dota_hero_axe\" \"1\" }\n\t\t\t\"model_player\"\t\"models/MODDED_axe.vmdl\"\n\t\t}\n" +
+                "\t\t\"555\"\n\t\t{\n\t\t\t\"prefab\"\t\"weather\"\n\t\t\t\"model_player\"\t\"particles/MODDED_weather.vpcf\"\n\t\t}\n" +
+                "\t}\n}\n";
+
+            SetupItemData(vanillaWithMisc, moddedWithMisc);
+
+            var miscLog = new MiscExtractionLog
+            {
+                Selections = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { "Weather", "Ash" }
+                }
+            };
+            miscLog.Save(_root);
+
+            _vpk.Setup(v => v.ExtractAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<Action<string>>(), It.IsAny<CancellationToken>(),
+                    It.IsAny<IProgress<SpeedMetrics>>(), It.IsAny<bool>()))
+                .Returns((string _, string __, string dir, Action<string> ___, CancellationToken ____,
+                          IProgress<SpeedMetrics> _____, bool ______) =>
+                {
+                    var p = Path.Combine(dir, "scripts", "items", "items_game.txt");
+                    Directory.CreateDirectory(Path.GetDirectoryName(p)!);
+                    File.WriteAllText(p, moddedWithMisc);
+                    return Task.FromResult(true);
+                });
+
+            var result = await NewService().MergeAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(ItemsGameMergeOutcome.Merged));
+                Assert.That(result.Applied, Is.EqualTo(2), "both axe skin and weather mod must be kept");
+            });
+
+            var baseline = await ItemsGameBaselineStore.ReadAsync(_root);
+            Assert.Multiple(() =>
+            {
+                Assert.That(baseline, Is.Not.Null);
+                Assert.That(baseline!.PatchedIds, Does.Contain("101"));
+                Assert.That(baseline.PatchedIds, Does.Contain("555"));
+            });
+        }
     }
 }

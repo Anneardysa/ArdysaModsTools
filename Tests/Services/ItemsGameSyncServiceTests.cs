@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
@@ -372,6 +373,72 @@ namespace ArdysaModsTools.Tests.Services
             await service.RefreshAsync(_root);
 
             Assert.That(seen, Is.EqualTo(new[] { ItemsGameSyncState.Stale, ItemsGameSyncState.InSync }));
+        }
+
+
+        [Test]
+        public async Task GetSyncDetailsReportAsync_WithNewAndModifiedItems_ReturnsCategorizedReport()
+        {
+            BuildPackages();
+            SetupExtractor(VanillaItemsAfterUpdate, ModdedItems);
+
+            var service = NewService();
+            var report = await service.GetSyncDetailsReportAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(report.IsStale, Is.True);
+                Assert.That(report.AddedCount, Is.EqualTo(1));
+                Assert.That(report.ModifiedCount, Is.EqualTo(1));
+                Assert.That(report.ErrorCount, Is.EqualTo(0));
+                Assert.That(report.Items, Has.Count.EqualTo(2));
+                Assert.That(report.Items.Any(i => i.Id == "103" && i.Status == "new"), Is.True);
+                Assert.That(report.Items.Any(i => i.Id == "101" && i.Status == "modified"), Is.True);
+            });
+        }
+
+        [Test]
+        public async Task GetSyncDetailsReportAsync_WithArcanaBlockContainingLevel_CorrectlyClassifiesAsModified()
+        {
+            BuildPackages();
+
+            const string vanillaWithArcana =
+                "\"DOTAEconomyItems\"\n{\n\t\"items\"\n\t{\n" +
+                "\t\t\"830\"\n\t\t{\n\t\t\t\"name\"\t\"Ogre Magi's Base\"\n\t\t\t\"prefab\"\t\"default_item\"\n\t\t}\n" +
+                "\t}\n}";
+
+            const string moddedWithArcanaLevel =
+                "\"DOTAEconomyItems\"\n{\n\t\"items\"\n\t{\n" +
+                "\t\t\"830\"\n\t\t{\n\t\t\t\"name\"\t\"Ogre Magi's Base\"\n\t\t\t\"prefab\"\t\"default_item\"\n\t\t\t\"item_slot\"\t\"hero_base\"\n\t\t\t\"visuals\"\n\t\t\t{\n\t\t\t\t\"asset_modifier\"\n\t\t\t\t{\n\t\t\t\t\t\"type\"\t\"arcana_level\"\n\t\t\t\t\t\"level\"\t\"2\"\n\t\t\t\t}\n\t\t\t}\n\t\t}\n" +
+                "\t}\n}";
+
+            SetupExtractor(vanillaWithArcana, moddedWithArcanaLevel);
+
+            var service = NewService();
+            var report = await service.GetSyncDetailsReportAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(report.AddedCount, Is.EqualTo(0), "Arcana block with 'level' must NOT be classified as missing in mod");
+                Assert.That(report.ModifiedCount, Is.EqualTo(1), "Arcana block with 'level' must be classified as modified mod");
+                Assert.That(report.Items, Has.Count.EqualTo(1));
+                Assert.That(report.Items[0].Id, Is.EqualTo("830"));
+                Assert.That(report.Items[0].Status, Is.EqualTo("modified"));
+                Assert.That(report.Items[0].Category, Does.Contain("Ogre Magi"));
+            });
+        }
+
+        [Test]
+        public async Task GetSyncDetailsReportAsync_WhenNullOrInvalidPath_ReturnsEmptyReport()
+        {
+            var service = NewService();
+            var report = await service.GetSyncDetailsReportAsync(null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(report.IsStale, Is.False);
+                Assert.That(report.Items, Is.Empty);
+            });
         }
     }
 }

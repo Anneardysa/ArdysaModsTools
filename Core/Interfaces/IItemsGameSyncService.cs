@@ -27,6 +27,8 @@ namespace ArdysaModsTools.Core.Interfaces
 
         Task<ItemsGameSyncVerdict> RefreshAsync(string? targetPath, CancellationToken ct = default);
 
+        Task<SyncDetailsReport> GetSyncDetailsReportAsync(string? targetPath, CancellationToken ct = default);
+
         event Action<ItemsGameSyncVerdict>? Changed;
     }
 }

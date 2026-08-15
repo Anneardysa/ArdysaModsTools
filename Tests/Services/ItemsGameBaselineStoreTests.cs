@@ -90,16 +90,19 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public async Task Commit_WithoutPending_DropsAnyStaleRecord_AndDoesNotThrow()
+        public async Task Commit_WithoutPending_PreservesOrCreatesRecord_AndDoesNotThrow()
         {
             var (gameVpk, itemsGame) = BuildTree();
             await ItemsGameBaselineStore.WritePendingAsync(_root, gameVpk, itemsGame);
-            await ItemsGameBaselineStore.CommitAsync(_root, null);
+            await ItemsGameBaselineStore.CommitAsync(_root, new[] { "101" });
             Assert.That(await ItemsGameBaselineStore.ReadAsync(_root), Is.Not.Null, "precondition");
 
-            await ItemsGameBaselineStore.CommitAsync(_root, null);
+            await ItemsGameBaselineStore.CommitAsync(_root, new[] { "555" });
 
-            Assert.That(await ItemsGameBaselineStore.ReadAsync(_root), Is.Null);
+            var after = await ItemsGameBaselineStore.ReadAsync(_root);
+            Assert.That(after, Is.Not.Null);
+            Assert.That(after!.PatchedIds, Does.Contain("555"));
+            Assert.That(after.PatchedIds, Does.Contain("101"));
         }
 
         [Test]
@@ -148,6 +151,27 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public async Task RebindAndMergePatchedIds_MergesIds_AndUpdatesStamp()
+        {
+            var (gameVpk, itemsGame) = BuildTree();
+            await ItemsGameBaselineStore.WritePendingAsync(_root, gameVpk, itemsGame);
+            await ItemsGameBaselineStore.CommitAsync(_root, new[] { "101" });
+            var stampBefore = VpkStamp.Read(Path.Combine(_root, DotaPaths.ModsVpk));
+
+            Write(DotaPaths.ModsVpk, "a rebuilt mod vpk with misc mods added");
+            await ItemsGameBaselineStore.RebindAndMergePatchedIdsAsync(_root, stampBefore, new[] { "555", "590" });
+
+            var after = await ItemsGameBaselineStore.ReadAsync(_root);
+            Assert.Multiple(() =>
+            {
+                Assert.That(after, Is.Not.Null);
+                Assert.That(after!.PatchedIds, Does.Contain("101"));
+                Assert.That(after.PatchedIds, Does.Contain("555"));
+                Assert.That(after.PatchedIds, Does.Contain("590"));
+            });
+        }
+
+        [Test]
         public async Task Rebind_WhenTheRecordDescribedADifferentPackage_DropsIt()
         {
             var (gameVpk, itemsGame) = BuildTree();
@@ -185,6 +209,22 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public async Task RebindAndMergePatchedIds_RemovesUnpatchedIds()
+        {
+            var (gameVpk, itemsGame) = BuildTree();
+            await ItemsGameBaselineStore.WritePendingAsync(_root, gameVpk, itemsGame);
+            await ItemsGameBaselineStore.CommitAsync(_root, new[] { "101", "590", "595" });
+
+            var before = await ItemsGameBaselineStore.ReadAsync(_root);
+            Assert.That(before!.PatchedIds, Is.EquivalentTo(new[] { "101", "590", "595" }));
+
+            await ItemsGameBaselineStore.RebindAndMergePatchedIdsAsync(_root, before.ModVpk, new[] { "555" }, new[] { "590" });
+
+            var after = await ItemsGameBaselineStore.ReadAsync(_root);
+            Assert.That(after!.PatchedIds, Is.EquivalentTo(new[] { "101", "595", "555" }));
+        }
+
+        [Test]
         public void EveryEntryPoint_SwallowsBadInput()
         {
             Assert.DoesNotThrowAsync(async () =>
@@ -193,6 +233,7 @@ namespace ArdysaModsTools.Tests.Services
                 await ItemsGameBaselineStore.WritePendingAsync(_root, "no/such.vpk", "no/such.txt");
                 await ItemsGameBaselineStore.CommitAsync(null, null);
                 await ItemsGameBaselineStore.RebindAsync(null, null);
+                await ItemsGameBaselineStore.RebindAndMergePatchedIdsAsync(null, null, null);
                 await ItemsGameBaselineStore.RestampVanillaAsync(null, default);
             });
         }
@@ -203,6 +244,23 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(VpkStamp.Read(Path.Combine(_root, "nope.vpk")), Is.Null);
             Assert.That(VpkStamp.Read(null), Is.Null);
             Assert.That(VpkStamp.Read("   "), Is.Null);
+        }
+
+        [Test]
+        public void VpkStamp_Equals_AllowsUpToTwoSecondsTimestampJitter()
+        {
+            var now = DateTime.UtcNow;
+            var stampA = new VpkStamp(1024, now);
+            var stampB = new VpkStamp(1024, now.AddSeconds(1.5));
+            var stampC = new VpkStamp(1024, now.AddSeconds(3.0));
+            var stampD = new VpkStamp(2048, now);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stampA.Equals(stampB), Is.True, "within 2 seconds tolerance");
+                Assert.That(stampA.Equals(stampC), Is.False, "exceeds 2 seconds");
+                Assert.That(stampA.Equals(stampD), Is.False, "different length");
+            });
         }
     }
 }

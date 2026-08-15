@@ -248,6 +248,226 @@ namespace ArdysaModsTools.Core.Services
             Diagnostic = diagnostic
         };
 
+        public async Task<SyncDetailsReport> GetSyncDetailsReportAsync(string? targetPath, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(targetPath) || !Directory.Exists(targetPath))
+            {
+                return new SyncDetailsReport
+                {
+                    IsStale = false,
+                    Summary = "No Dota 2 directory selected",
+                    Items = Array.Empty<SyncItemDetail>()
+                };
+            }
+
+            string root = Path.GetFullPath(targetPath);
+            string gameVpk = Path.Combine(root, ToNative(DotaPaths.GameVpk));
+            string modVpk = Path.Combine(root, ToNative(DotaPaths.ModsVpk));
+
+            if (!File.Exists(gameVpk))
+            {
+                return new SyncDetailsReport
+                {
+                    IsStale = false,
+                    Summary = "Game package pak01_dir.vpk not found",
+                    Items = Array.Empty<SyncItemDetail>()
+                };
+            }
+
+            if (!File.Exists(modVpk))
+            {
+                return new SyncDetailsReport
+                {
+                    IsStale = false,
+                    Summary = "Mod package not installed",
+                    Items = Array.Empty<SyncItemDetail>()
+                };
+            }
+
+            string workDir = Path.Combine(SafeTempPathHelper.GetSafeTempPath(), $"ArdysaSyncReport_{Guid.NewGuid():N}");
+            try
+            {
+                Directory.CreateDirectory(workDir);
+                string vanillaCopy = Path.Combine(workDir, "vanilla_items_game.txt");
+                string modCopy = Path.Combine(workDir, "mod_items_game.txt");
+
+                bool gotVanilla = await _extractor.ExtractItemsGameAsync(gameVpk, vanillaCopy, null, ct).ConfigureAwait(false);
+                bool gotMod = await _extractor.ExtractItemsGameAsync(modVpk, modCopy, null, ct).ConfigureAwait(false);
+
+                if (!gotVanilla || !gotMod)
+                {
+                    return new SyncDetailsReport
+                    {
+                        IsStale = _current.State == ItemsGameSyncState.Stale,
+                        Summary = "Could not extract items_game.txt from packages",
+                        Items = Array.Empty<SyncItemDetail>()
+                    };
+                }
+
+                string vanillaText = await File.ReadAllTextAsync(vanillaCopy, ct).ConfigureAwait(false);
+                string modText = await File.ReadAllTextAsync(modCopy, ct).ConfigureAwait(false);
+
+                var (items, addedCount, modifiedCount, errorCount) = BuildSyncItems(vanillaText, modText);
+
+                bool isStale = addedCount > 0 || _current.State == ItemsGameSyncState.Stale;
+                string summary = $"{addedCount} new in game, {modifiedCount} modified in mods, {errorCount} errors";
+
+                return new SyncDetailsReport
+                {
+                    IsStale = isStale,
+                    AddedCount = addedCount,
+                    ModifiedCount = modifiedCount,
+                    ErrorCount = errorCount,
+                    Summary = summary,
+                    Items = items
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"[SYNC] Failed to build detailed sync report: {ex.Message}");
+                return new SyncDetailsReport
+                {
+                    IsStale = _current.State == ItemsGameSyncState.Stale,
+                    Summary = $"Sync report error: {ex.Message}",
+                    Items = Array.Empty<SyncItemDetail>()
+                };
+            }
+            finally
+            {
+                try { if (Directory.Exists(workDir)) Directory.Delete(workDir, true); } catch { }
+                LargeWorkMemory.Release();
+            }
+        }
+
+        private static (List<SyncItemDetail> Items, int AddedCount, int ModifiedCount, int ErrorCount) BuildSyncItems(string vanillaText, string modText)
+        {
+            var vanillaSpans = ItemsGameBlockIndex.IndexSpans(vanillaText);
+            var modSpans = ItemsGameBlockIndex.IndexSpans(modText);
+
+            var items = new List<SyncItemDetail>();
+            int addedCount = 0;
+            int modifiedCount = 0;
+            int errorCount = 0;
+
+            foreach (var (id, vRange) in vanillaSpans)
+            {
+                if (!modSpans.ContainsKey(id))
+                {
+                    addedCount++;
+                    string block = vanillaText.Substring(vRange.Start, vRange.Length);
+                    string name = ExtractBlockProperty(block, "name");
+                    string slot = ExtractBlockProperty(block, "item_slot");
+
+                    if (string.IsNullOrEmpty(name) && HeroDefaultItemRegistry.TryGetItem(id, out var defaultItem))
+                    {
+                        name = defaultItem.TechnicalName;
+                    }
+
+                    string category = DetermineCategory(id, name, slot, block);
+
+                    items.Add(new SyncItemDetail
+                    {
+                        Id = id,
+                        Name = string.IsNullOrEmpty(name) ? $"Item #{id}" : name,
+                        Category = category,
+                        Status = "new",
+                        Description = "New item added in Dota 2 update (missing in mod package)"
+                    });
+                }
+            }
+
+            foreach (var (id, mRange) in modSpans)
+            {
+                if (vanillaSpans.TryGetValue(id, out var vRange))
+                {
+                    var mSpan = modText.AsSpan(mRange.Start, mRange.Length);
+                    var vSpan = vanillaText.AsSpan(vRange.Start, vRange.Length);
+
+                    if (!ItemsGameBlockIndex.CanonicalEquals(mSpan, vSpan))
+                    {
+                        modifiedCount++;
+                        string mBlock = modText.Substring(mRange.Start, mRange.Length);
+                        string name = ExtractBlockProperty(mBlock, "name");
+                        string slot = ExtractBlockProperty(mBlock, "item_slot");
+
+                        if (string.IsNullOrEmpty(name) && HeroDefaultItemRegistry.TryGetItem(id, out var defaultItem))
+                        {
+                            name = defaultItem.TechnicalName;
+                        }
+
+                        string category = DetermineCategory(id, name, slot, mBlock);
+
+                        items.Add(new SyncItemDetail
+                        {
+                            Id = id,
+                            Name = string.IsNullOrEmpty(name) ? $"Modified #{id}" : name,
+                            Category = category,
+                            Status = "modified",
+                            Description = "Custom cosmetic definition applied by mods"
+                        });
+                    }
+                }
+            }
+
+            return (items, addedCount, modifiedCount, errorCount);
+        }
+
+        private static string ExtractBlockProperty(string block, string propertyName)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(block, $@"""{propertyName}""\s+""([^""]*)""", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            return match.Success ? match.Groups[1].Value : "";
+        }
+
+        private static string ExtractUsedByHero(string block)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(block, @"""used_by_heroes""\s*\{\s*""([^""]+)""\s+""[0-9]+""", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            return match.Success ? match.Groups[1].Value : "";
+        }
+
+        private static string DetermineCategory(string id, string name, string slot, string block = "")
+        {
+            if (HeroDefaultItemRegistry.TryGetItem(id, out var heroDefault))
+            {
+                return string.IsNullOrEmpty(heroDefault.SlotDisplayName) || heroDefault.SlotDisplayName == "Default"
+                    ? heroDefault.HeroName
+                    : $"{heroDefault.HeroName} [{heroDefault.SlotDisplayName}]";
+            }
+
+            if (id == "555") return "Weather";
+            if (id == "590") return "Terrain";
+            if (id == "588") return "Music";
+            if (id == "587") return "HUD";
+            if (id == "595") return "Courier";
+            if (id == "596") return "Ward";
+            if (id == "11173" || id == "586") return "Announcer";
+            if (id == "801" || id == "962") return "Roshan";
+            if (id == "202") return "Cursor";
+            if (id == "12970") return "Versus";
+            if (id == "660" || id == "661") return "Creeps";
+            if (id == "677" || id == "678") return "Towers";
+            if (id == "34462" || id == "34463") return "Siege";
+
+            if (!string.IsNullOrEmpty(block))
+            {
+                string heroId = ExtractUsedByHero(block);
+                if (!string.IsNullOrEmpty(heroId))
+                {
+                    string heroName = HeroDefaultItemRegistry.FormatHeroName(heroId);
+                    string slotDisplay = HeroDefaultItemRegistry.FormatSlotDisplayName(slot);
+                    return string.IsNullOrEmpty(slotDisplay) || slotDisplay == "Default"
+                        ? heroName
+                        : $"{heroName} [{slotDisplay}]";
+                }
+            }
+
+            if (!string.IsNullOrEmpty(slot))
+            {
+                return HeroDefaultItemRegistry.FormatSlotDisplayName(slot);
+            }
+
+            return "Item Definition";
+        }
+
         private static string ToNative(string relative) => relative.Replace('/', Path.DirectorySeparatorChar);
     }
 }

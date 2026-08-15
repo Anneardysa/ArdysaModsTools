@@ -440,10 +440,40 @@ namespace ArdysaModsTools.Core.Services
             const SetupCheckId id = SetupCheckId.ItemsGameInSync;
 
             var verdict = _itemsGameSync?.Current;
-            if (verdict == null || verdict.State == ItemsGameSyncState.Unknown)
-                return Unknown(id, verdict?.DetailKey ?? "verify.sync.unknown", verdict?.Diagnostic ?? "package sync service not available");
+            if (verdict == null)
+                return Unknown(id, "verify.sync.unknown", "package sync service not available");
 
-            return Pass(id, "verify.sync.pass");
+            return verdict.State switch
+            {
+                ItemsGameSyncState.InSync => new SetupCheck
+                {
+                    Id = id,
+                    State = SetupCheckState.Pass,
+                    DetailKey = verdict.DetailKey,
+                    HasOwnDialog = true
+                },
+
+                ItemsGameSyncState.Stale => new SetupCheck
+                {
+                    Id = id,
+                    State = SetupCheckState.Fail,
+                    DetailKey = verdict.DetailKey,
+                    DetailVars = verdict.DetailVars,
+                    Diagnostic = verdict.Diagnostic,
+                    HasOwnDialog = true,
+                    FailStatus = ModStatus.NeedUpdate,
+                    FailAction = RecommendedAction.Play
+                },
+
+                _ => new SetupCheck
+                {
+                    Id = id,
+                    State = SetupCheckState.Unknown,
+                    DetailKey = verdict.DetailKey,
+                    Diagnostic = verdict.Diagnostic,
+                    HasOwnDialog = true
+                }
+            };
         }
 
         #endregion

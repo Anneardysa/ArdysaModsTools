@@ -83,26 +83,67 @@ namespace ArdysaModsTools.Core.Services
                 targetPath = PathUtility.NormalizeTargetPath(targetPath);
 
                 string pendingPath = Path.Combine(targetPath, DotaPaths.ItemsGameBaselinePending);
+                string baselinePath = Path.Combine(targetPath, DotaPaths.ItemsGameBaseline);
+
                 var pending = await ReadFileAsync(pendingPath, ct).ConfigureAwait(false);
-                if (pending == null)
-                {
-                    TryDelete(Path.Combine(targetPath, DotaPaths.ItemsGameBaseline));
-                    return;
-                }
+                var existing = await ReadFileAsync(baselinePath, ct).ConfigureAwait(false);
 
                 var modStamp = VpkStamp.Read(Path.Combine(targetPath, DotaPaths.ModsVpk));
                 if (modStamp == null) return;
 
-                var committed = pending with
-                {
-                    ModVpk = modStamp.Value,
-                    PatchedIds = patchedIds?.ToArray() ?? Array.Empty<string>(),
-                    BuiltUtc = DateTime.UtcNow
-                };
+                string gameVpkPath = Path.Combine(targetPath, DotaPaths.GameVpk.Replace('/', Path.DirectorySeparatorChar));
+                var vanillaStamp = VpkStamp.Read(gameVpkPath);
 
-                await WriteAsync(Path.Combine(targetPath, DotaPaths.ItemsGameBaseline), committed, ct)
-                    .ConfigureAwait(false);
-                TryDelete(pendingPath);
+                ItemsGameBaseline committed;
+
+                if (pending != null)
+                {
+                    var mergedIds = new HashSet<string>(pending.PatchedIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+                    if (patchedIds != null)
+                    {
+                        foreach (var id in patchedIds)
+                            if (!string.IsNullOrWhiteSpace(id)) mergedIds.Add(id);
+                    }
+
+                    committed = pending with
+                    {
+                        ModVpk = modStamp.Value,
+                        PatchedIds = mergedIds.ToArray(),
+                        BuiltUtc = DateTime.UtcNow
+                    };
+                }
+                else if (existing != null)
+                {
+                    var mergedIds = new HashSet<string>(existing.PatchedIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+                    if (patchedIds != null)
+                    {
+                        foreach (var id in patchedIds)
+                            if (!string.IsNullOrWhiteSpace(id)) mergedIds.Add(id);
+                    }
+
+                    committed = existing with
+                    {
+                        ModVpk = modStamp.Value,
+                        PatchedIds = mergedIds.ToArray(),
+                        BuiltUtc = DateTime.UtcNow
+                    };
+                }
+                else
+                {
+                    var newIds = patchedIds?.Where(id => !string.IsNullOrWhiteSpace(id)).ToArray() ?? Array.Empty<string>();
+                    committed = new ItemsGameBaseline
+                    {
+                        VanillaVpk = vanillaStamp ?? default,
+                        VanillaItemsGameSha = "",
+                        ModVpk = modStamp.Value,
+                        PatchedIds = newIds,
+                        AppVersion = SafeAppVersion(),
+                        BuiltUtc = DateTime.UtcNow
+                    };
+                }
+
+                await WriteAsync(baselinePath, committed, ct).ConfigureAwait(false);
+                if (pending != null) TryDelete(pendingPath);
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)
@@ -138,6 +179,61 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 FallbackLogger.LogFileOnly($"ItemsGameBaselineStore: Rebind failed: {ex.Message}");
+            }
+        }
+
+        public static async Task RebindAndMergePatchedIdsAsync(
+            string? targetPath,
+            VpkStamp? expectedPreviousStamp,
+            IEnumerable<string>? newPatchedIds,
+            IEnumerable<string>? unpatchedIds = null,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(targetPath)) return;
+                targetPath = PathUtility.NormalizeTargetPath(targetPath);
+
+                string path = Path.Combine(targetPath, DotaPaths.ItemsGameBaseline);
+                var existing = await ReadFileAsync(path, ct).ConfigureAwait(false);
+
+                var modStamp = VpkStamp.Read(Path.Combine(targetPath, DotaPaths.ModsVpk));
+                if (modStamp == null) return;
+
+                var mergedIds = new HashSet<string>(existing?.PatchedIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+                if (newPatchedIds != null)
+                {
+                    foreach (var id in newPatchedIds)
+                    {
+                        if (!string.IsNullOrWhiteSpace(id))
+                            mergedIds.Add(id);
+                    }
+                }
+
+                if (unpatchedIds != null)
+                {
+                    foreach (var id in unpatchedIds)
+                    {
+                        if (!string.IsNullOrWhiteSpace(id))
+                            mergedIds.Remove(id);
+                    }
+                }
+
+                if (existing != null && (expectedPreviousStamp == null || existing.ModVpk != expectedPreviousStamp.Value))
+                {
+                    TryDelete(path);
+                    return;
+                }
+
+                if (existing != null)
+                {
+                    await WriteAsync(path, existing with { ModVpk = modStamp.Value, PatchedIds = mergedIds.ToArray() }, ct).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                FallbackLogger.LogFileOnly($"ItemsGameBaselineStore: RebindAndMergePatchedIds failed: {ex.Message}");
             }
         }
 

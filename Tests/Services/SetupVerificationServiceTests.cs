@@ -107,6 +107,16 @@ namespace ArdysaModsTools.Tests.Services
                 RefreshCalls++;
                 return Task.FromResult(Current);
             }
+
+            public Task<SyncDetailsReport> GetSyncDetailsReportAsync(string? targetPath, System.Threading.CancellationToken ct = default)
+            {
+                return Task.FromResult(new SyncDetailsReport
+                {
+                    IsStale = Current.State == ItemsGameSyncState.Stale,
+                    Summary = "Stub sync report",
+                    Items = Array.Empty<SyncItemDetail>()
+                });
+            }
         }
 
         [Test]
@@ -123,7 +133,14 @@ namespace ArdysaModsTools.Tests.Services
             var result = await new SetupVerificationService(null, sync).VerifyAsync(_root);
             var check = Check(result, SetupCheckId.ItemsGameInSync);
 
-            Assert.That(check.State, Is.EqualTo(SetupCheckState.Pass));
+            Assert.Multiple(() =>
+            {
+                Assert.That(check.State, Is.EqualTo(SetupCheckState.Fail));
+                Assert.That(check.FailStatus, Is.EqualTo(ModStatus.NeedUpdate));
+                Assert.That(check.FailAction, Is.EqualTo(RecommendedAction.Play));
+                Assert.That(check.HasOwnDialog, Is.True);
+                Assert.That(result.AllPassed, Is.False);
+            });
         }
 
         [Test]
