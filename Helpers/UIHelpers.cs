@@ -63,15 +63,16 @@ namespace ArdysaModsTools.Helpers
 
         #region URL Handling
 
-        public static bool OpenUrl(string? url, Action<string>? errorCallback = null)
+        public static bool IsValidExternalUrl(string? url, out Uri? uri, Action<string>? errorCallback = null)
         {
+            uri = null;
             if (string.IsNullOrWhiteSpace(url))
             {
                 errorCallback?.Invoke("URL is empty or null.");
                 return false;
             }
 
-            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            if (!Uri.TryCreate(url, UriKind.Absolute, out uri))
             {
                 errorCallback?.Invoke($"Invalid URL format: '{url}'");
                 return false;
@@ -83,6 +84,17 @@ namespace ArdysaModsTools.Helpers
                 scheme != "steam")
             {
                 errorCallback?.Invoke($"Blocked opening URL with untrusted scheme '{uri.Scheme}': '{url}'");
+                uri = null;
+                return false;
+            }
+
+            return true;
+        }
+
+        public static bool OpenUrl(string? url, Action<string>? errorCallback = null)
+        {
+            if (!IsValidExternalUrl(url, out var uri, errorCallback) || uri == null)
+            {
                 return false;
             }
 

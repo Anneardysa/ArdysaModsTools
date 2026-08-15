@@ -959,24 +959,95 @@ namespace ArdysaModsTools.UI.Presenters
                 _view.SetModsStatus(false, Loc.T("status.error.text"));
             }
 
+            _ = _itemsGameSync?.RefreshAsync(_targetPath, _lifetimeCts.Token);
         }
 
         private const string PackageSyncLogKey = "packageSync";
 
         private void PushPackageSyncNotice(SetupVerificationResult verification)
         {
-            _view.ClearStickyLog(PackageSyncLogKey);
+            var sync = verification.Checks.FirstOrDefault(c => c.Id == SetupCheckId.ItemsGameInSync);
+
+            if (sync?.State == SetupCheckState.Fail)
+                _view.ShowStickyLog(PackageSyncLogKey, Loc.T("play.sync.outOfDate"), "warning");
+            else
+                _view.ClearStickyLog(PackageSyncLogKey);
+        }
+
+        public async Task PushSyncDetailsAsync()
+        {
+            if (_itemsGameSync == null || string.IsNullOrWhiteSpace(_targetPath))
+            {
+                _view.SetSyncDetails(new SyncDetailsReport
+                {
+                    IsStale = false,
+                    Summary = Loc.T("verify.sync.noPackage"),
+                    Items = Array.Empty<SyncItemDetail>()
+                });
+                return;
+            }
+
+            try
+            {
+                var report = await _itemsGameSync.GetSyncDetailsReportAsync(_targetPath).ConfigureAwait(false);
+                _view.SetSyncDetails(report);
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"[SYNC] Error pushing sync details: {ex.Message}");
+            }
         }
 
         private void PushPlayState(ModStatusInfo statusInfo)
         {
-            _view.SetPlayState(false, "play.reason.disabled");
+            if (_dotaRunning)
+            {
+                _view.SetPlayState(false, "play.reason.running");
+                return;
+            }
+
+            if (IsOperationRunning || _launchPresenter?.IsRunning == true)
+            {
+                _view.SetPlayState(false, "play.reason.busy");
+                return;
+            }
+
+            if (!CanLaunch(statusInfo))
+            {
+                _view.SetPlayState(false, statusInfo.Status == ModStatus.NotInstalled
+                    ? "play.reason.notInstalled"
+                    : "play.reason.notReady");
+                return;
+            }
+
+            bool needsRepair = statusInfo.SetupFailure == SetupCheckId.ItemsGameInSync
+                               || statusInfo.Status == ModStatus.NeedUpdate;
+
+            _view.SetPlayState(true, needsRepair ? "play.reason.willRepair" : "play.reason.ready");
         }
 
         public async Task LaunchDotaAsync()
         {
-            _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.reason.disabled"), "warning");
-            await Task.CompletedTask;
+            if (string.IsNullOrEmpty(_targetPath) || _launchPresenter == null)
+            {
+                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.blocked"), "warning");
+                return;
+            }
+
+            if (!CanLaunch(_currentStatus))
+            {
+                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.blocked"), "warning");
+                return;
+            }
+
+            if (_currentStatus?.SetupFailure is SetupCheckId.SignatureMatchesGameInfo
+                                             or SetupCheckId.SearchPathsMounted)
+            {
+                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.needsPatchFirst"), "warning");
+                return;
+            }
+
+            await RunLaunchFlowAsync(() => _launchPresenter.LaunchAsync(_targetPath));
         }
 
         private async Task RunLaunchFlowAsync(Func<Task> flow)
@@ -1001,8 +1072,13 @@ namespace ArdysaModsTools.UI.Presenters
 
         public async Task RepairPackageAsync()
         {
-            _view.ShowShellToast(Loc.T("verify.chip.sync"), Loc.T("play.reason.disabled"), "warning");
-            await Task.CompletedTask;
+            if (string.IsNullOrEmpty(_targetPath) || _launchPresenter == null)
+            {
+                _view.ShowShellToast(Loc.T("verify.chip.sync"), Loc.T("play.blocked"), "warning");
+                return;
+            }
+
+            await RunLaunchFlowAsync(() => _launchPresenter.RepairOnlyAsync(_targetPath));
         }
 
         private static bool CanLaunch(ModStatusInfo? status) =>

@@ -787,6 +787,9 @@ namespace ArdysaModsTools
                     case "fixPackageSync":
                         await _presenter.RepairPackageAsync();
                         break;
+                    case "getSyncDetails":
+                        await _presenter.PushSyncDetailsAsync();
+                        break;
 
                     case "support":
                         ShowSupportDialog();
@@ -1062,6 +1065,34 @@ namespace ArdysaModsTools
             }, _jsonOptions);
 
             Js("verify", $"setSetupChecks({payload})");
+        }
+
+        public void SetSyncDetails(SyncDetailsReport report)
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() => SetSyncDetails(report)));
+                return;
+            }
+
+            var payload = JsonSerializer.Serialize(new
+            {
+                isStale = report.IsStale,
+                addedCount = report.AddedCount,
+                modifiedCount = report.ModifiedCount,
+                errorCount = report.ErrorCount,
+                summary = report.Summary,
+                items = report.Items.Select(it => new
+                {
+                    id = it.Id,
+                    name = it.Name,
+                    category = it.Category,
+                    status = it.Status,
+                    description = it.Description
+                }).ToArray()
+            }, _jsonOptions);
+
+            Js("syncDetails", $"setSyncDetails({payload})");
         }
 
         public void SetPlayState(bool enabled, string reasonKey)

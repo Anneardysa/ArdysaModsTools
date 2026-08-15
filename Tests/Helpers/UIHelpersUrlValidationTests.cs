@@ -27,12 +27,13 @@ namespace ArdysaModsTools.Tests.Helpers
         [TestCase(null)]
         [TestCase("")]
         [TestCase("   ")]
-        public void OpenUrl_NullOrEmptyUrl_ReturnsFalseAndLogsError(string? invalidUrl)
+        public void IsValidExternalUrl_NullOrEmptyUrl_ReturnsFalseAndLogsError(string? invalidUrl)
         {
             var logs = new List<string>();
-            bool result = UIHelpers.OpenUrl(invalidUrl, msg => logs.Add(msg));
+            bool result = UIHelpers.IsValidExternalUrl(invalidUrl, out var uri, msg => logs.Add(msg));
 
             Assert.That(result, Is.False);
+            Assert.That(uri, Is.Null);
             Assert.That(logs, Has.Count.EqualTo(1));
             Assert.That(logs[0], Does.Contain("empty or null"));
         }
@@ -46,12 +47,13 @@ namespace ArdysaModsTools.Tests.Helpers
         [TestCase("data:text/html,<script>alert(1)</script>")]
         [TestCase("ms-settings:privacy")]
         [TestCase("relative/path/file.exe")]
-        public void OpenUrl_UntrustedOrDangerousScheme_BlocksExecutionAndReturnsFalse(string dangerousUrl)
+        public void IsValidExternalUrl_UntrustedOrDangerousScheme_BlocksExecutionAndReturnsFalse(string dangerousUrl)
         {
             var logs = new List<string>();
-            bool result = UIHelpers.OpenUrl(dangerousUrl, msg => logs.Add(msg));
+            bool result = UIHelpers.IsValidExternalUrl(dangerousUrl, out var uri, msg => logs.Add(msg));
 
             Assert.That(result, Is.False, $"URL '{dangerousUrl}' should be blocked for security.");
+            Assert.That(uri, Is.Null);
             Assert.That(logs, Has.Count.AtLeast(1));
             Assert.That(logs[0], Does.Contain("Invalid URL format").Or.Contain("Blocked opening URL with untrusted scheme"));
         }
@@ -61,17 +63,18 @@ namespace ArdysaModsTools.Tests.Helpers
         [TestCase("https://ardysamods.my.id")]
         [TestCase("https://github.com/Anneardysa/ArdysaModsTools")]
         [TestCase("steam://rungameid/570")]
-        public void OpenUrl_WhitelistedScheme_ValidatesSuccessfully(string validUrl)
+        public void IsValidExternalUrl_WhitelistedScheme_ValidatesSuccessfullyWithoutSpawningProcess(string validUrl)
         {
             var logs = new List<string>();
             
-            bool result = UIHelpers.OpenUrl(validUrl, msg => logs.Add(msg));
+            bool result = UIHelpers.IsValidExternalUrl(validUrl, out var uri, msg => logs.Add(msg));
 
-            if (!result)
+            Assert.Multiple(() =>
             {
-                Assert.That(logs, Has.None.Matches<string>(m => m.Contains("Blocked opening URL with untrusted scheme") || m.Contains("Invalid URL format")),
-                    $"URL '{validUrl}' should pass scheme validation.");
-            }
+                Assert.That(result, Is.True, $"URL '{validUrl}' should pass scheme validation.");
+                Assert.That(uri, Is.Not.Null);
+                Assert.That(logs, Is.Empty);
+            });
         }
     }
 }
