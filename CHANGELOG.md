@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
+## [2.3.0-beta] (Builds 2327–2331)
+
+### Added
+
+- **Added detailed Package Sync inspector modal with category filtering and item search** (2330): Introduced a dedicated, full-featured item diff breakdown modal (`SyncDetailModal.tsx`) allowing users to inspect new Dota 2 items, modified mod definitions, and schema errors with segmented filter tabs, search filtering, and clipboard export.
+
+### Changed
+
+- **Polished Package Sync verification UI/UX and streamlined clipboard controls** (2330): Redesigned the package sync status cards with status indicator badges, squircle hero glows, non-overlapping header copy buttons, and an interactive `#ID` badge for single-click copying.
+
+### Fixed
+
+- **Fixed vanilla default item block bleeding into items_game.txt on low-poly skin selections** (2327): Isolated function logic from `items_game.txt` modifications by introducing `HeroDefaultItemRegistry` and enforcing clean baseline restoration. When selecting default/low-poly skins, vanilla item definitions are now cleanly preserved without generating duplicate or malformed blocks.
+- **Fixed Package Sync inspector transition and runtime variable collisions** (2330): Resolved modal transition overlap between summary and detail modals and normalized clipboard state handling to guarantee smooth opening and zero runtime exceptions.
+
 ## [2.2.24-beta] (Builds 2324–2326)
 
 ### Added
