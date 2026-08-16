@@ -9,12 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.3.1-beta] (Build 2334)
+## [2.3.1-beta] (Builds 2334–2335)
 
 ### Fixed
 
 - **Play now auto-restores the game config instead of blocking the user** (2334): A Dota 2 update can revert `dota.signatures` / `gameinfo_branchspecific.gi`, the two files that mount the mod search path. Previously Play refused to launch and told the user to run Patch Update by hand first; `LaunchPresenter` now runs that restore itself (before the repair, so the rebuilt package actually loads) and only then repairs and launches.
 - **Closed an Install/Disable race window on Play and Repair-only** (2334): Their confirmation dialogs run before `StartOperation()` disables the Play button, so the disabled state alone didn't close the window. `MainFormPresenter.LaunchDotaAsync`/repair-only now also check the in-flight command flag before proceeding.
+
+### Documentation
+
+- **Fixed stale paths and rule gaps in the project dev guide** (2335): `.agents/skills/` links had drifted to the old singular `.agent/skills/`, and the WebView2 rule still pointed at hand-writing raw HTML with a live CDN Tailwind script — both wrong since the Frontend React/Vite migration. Documented the repo's other three projects (Installer, Updater, Frontend) and the DI/async rules' existing sanctioned exceptions, and fixed a stray nullable-reference warning in `HeroIndexProvider`.
 
 ## [2.3.0-beta] (Builds 2327–2333)
 

@@ -74,7 +74,7 @@ namespace ArdysaModsTools.Core.Services
             }
 
             string hash = expected.Sha256.Trim();
-            string indexAssetPath = DeriveIndexPath(assetPath, hash);
+            string? indexAssetPath = DeriveIndexPath(assetPath, hash);
             if (indexAssetPath == null)
             {
                 _logger?.LogDebug($"[IndexProvider] Could not derive index path from {assetPath}");
