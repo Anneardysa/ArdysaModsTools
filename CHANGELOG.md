@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
+## [2.3.1-beta] (Build 2334)
+
+### Fixed
+
+- **Play now auto-restores the game config instead of blocking the user** (2334): A Dota 2 update can revert `dota.signatures` / `gameinfo_branchspecific.gi`, the two files that mount the mod search path. Previously Play refused to launch and told the user to run Patch Update by hand first; `LaunchPresenter` now runs that restore itself (before the repair, so the rebuilt package actually loads) and only then repairs and launches.
+- **Closed an Install/Disable race window on Play and Repair-only** (2334): Their confirmation dialogs run before `StartOperation()` disables the Play button, so the disabled state alone didn't close the window. `MainFormPresenter.LaunchDotaAsync`/repair-only now also check the in-flight command flag before proceeding.
+
 ## [2.3.0-beta] (Builds 2327–2333)
 
 ### Added

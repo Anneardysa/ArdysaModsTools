@@ -37,6 +37,7 @@ namespace ArdysaModsTools.UI.Presenters
         private readonly IMainFormView _view;
         private readonly Logger _logger;
         private readonly IItemsGameMergeService _merge;
+        private readonly IModInstallerService _modInstaller;
         private readonly ISteamAppStateService _steam;
 
         private readonly Func<string, bool> _launcher;
@@ -48,12 +49,13 @@ namespace ArdysaModsTools.UI.Presenters
         private volatile TaskCompletionSource<bool>? _confirmWaiter;
 
         public LaunchPresenter(IMainFormView view, Logger logger,
-            IItemsGameMergeService merge, ISteamAppStateService steam,
+            IItemsGameMergeService merge, IModInstallerService modInstaller, ISteamAppStateService steam,
             Func<string, bool>? launcher = null)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _merge = merge ?? throw new ArgumentNullException(nameof(merge));
+            _modInstaller = modInstaller ?? throw new ArgumentNullException(nameof(modInstaller));
             _steam = steam ?? throw new ArgumentNullException(nameof(steam));
             _launcher = launcher ?? (url => UIHelpers.OpenUrl(url, _logger.Log));
         }
@@ -76,7 +78,7 @@ namespace ArdysaModsTools.UI.Presenters
             try { _cts?.Cancel(); } catch {  }
         }
 
-        public async Task LaunchAsync(string? targetPath)
+        public async Task LaunchAsync(string? targetPath, bool needsPatch = false)
         {
             if (IsRunning) return;
 
@@ -91,7 +93,7 @@ namespace ArdysaModsTools.UI.Presenters
 
             try
             {
-                await RunAsync(targetPath, cts.Token).ConfigureAwait(false);
+                await RunAsync(targetPath, needsPatch, cts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -147,12 +149,15 @@ namespace ArdysaModsTools.UI.Presenters
             }
         }
 
-        private async Task RunAsync(string? targetPath, CancellationToken ct)
+        private async Task RunAsync(string? targetPath, bool needsPatch, CancellationToken ct)
         {
             Show("play.panel.checking", "play.panel.checkingDetail", percent: null);
             bool updated = await WaitForSteamUpdateAsync(targetPath, ct).ConfigureAwait(false);
 
             if (GameStartedWithoutUs(Loc.T("play.button")))
+                return;
+
+            if (needsPatch && !await PatchAsync(targetPath, ct).ConfigureAwait(false))
                 return;
 
             if (!await RepairAsync(targetPath, ct).ConfigureAwait(false))
@@ -224,6 +229,28 @@ namespace ArdysaModsTools.UI.Presenters
             }
         }
 
+        private async Task<bool> PatchAsync(string? targetPath, CancellationToken ct)
+        {
+            Show("play.panel.patching", "play.panel.patchingDetail", percent: null, canCancel: true);
+
+            var result = await _modInstaller.UpdatePatcherAsync(targetPath!, null, ct).ConfigureAwait(false);
+
+            if (result == PatchResult.Cancelled)
+                throw new OperationCanceledException(ct);
+
+            if (result == PatchResult.Failed)
+            {
+                _logger.Log(Loc.T("patch.failed.body"));
+                ShowError("play.panel.failed", "patch.failed.body");
+                return false;
+            }
+
+            if (result == PatchResult.Success)
+                _logger.Log(Loc.T("patch.complete.body"));
+
+            return true;
+        }
+
         private async Task<bool> RepairAsync(string? targetPath, CancellationToken ct)
         {
             var statusKey = "play.merge.reading";
@@ -285,6 +312,7 @@ namespace ArdysaModsTools.UI.Presenters
 
                     if (_dotaRunning) continue;
 
+                    if (!await PatchAsync(targetPath, ct).ConfigureAwait(false)) return;
                     if (!await RepairAsync(targetPath, ct).ConfigureAwait(false)) return;
 
                     if (!await WaitForLaunchConfirmationAsync(ct).ConfigureAwait(false))

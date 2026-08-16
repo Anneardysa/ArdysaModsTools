@@ -40,6 +40,7 @@ namespace ArdysaModsTools.Tests.Presenters
         private Logger _logger = null!;
         private Mock<IMainFormView> _view = null!;
         private Mock<IItemsGameMergeService> _merge = null!;
+        private Mock<IModInstallerService> _modInstaller = null!;
         private Mock<ISteamAppStateService> _steam = null!;
         private List<string> _launched = null!;
         private List<LaunchPanelState?> _panels = null!;
@@ -51,6 +52,7 @@ namespace ArdysaModsTools.Tests.Presenters
             _logger = new Logger(_console);
             _view = new Mock<IMainFormView>();
             _merge = new Mock<IItemsGameMergeService>();
+            _modInstaller = new Mock<IModInstallerService>();
             _steam = new Mock<ISteamAppStateService>();
             _launched = new List<string>();
             _panels = new List<LaunchPanelState?>();
@@ -64,19 +66,23 @@ namespace ArdysaModsTools.Tests.Presenters
             _merge.Setup(m => m.MergeAsync(It.IsAny<string>(), It.IsAny<IProgress<string>>(),
                                            It.IsAny<IProgress<int>>(), It.IsAny<CancellationToken>()))
                   .ReturnsAsync(new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.AlreadyCurrent });
+
+            _modInstaller.Setup(m => m.UpdatePatcherAsync(It.IsAny<string>(), It.IsAny<Action<string>>(),
+                                                           It.IsAny<CancellationToken>()))
+                         .ReturnsAsync(PatchResult.Success);
         }
 
         [TearDown]
         public void TearDown() => _console?.Dispose();
 
         private LaunchPresenter NewPresenter() =>
-            new(_view.Object, _logger, _merge.Object, _steam.Object,
+            new(_view.Object, _logger, _merge.Object, _modInstaller.Object, _steam.Object,
                 url => { _launched.Add(url); return true; });
 
         private LaunchPresenter NewPresenterThatSeesTheGameStart()
         {
             LaunchPresenter presenter = null!;
-            presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _steam.Object,
+            presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _modInstaller.Object, _steam.Object,
                 url =>
                 {
                     _launched.Add(url);
@@ -96,7 +102,7 @@ namespace ArdysaModsTools.Tests.Presenters
                   .ReturnsAsync(new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.Merged, Applied = 5 });
 
             LaunchPresenter presenter = null!;
-            presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _steam.Object,
+            presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _modInstaller.Object, _steam.Object,
                 url => { order.Add("launch"); _launched.Add(url); presenter.NotifyDotaRunning(true); return true; });
 
             await presenter.LaunchAsync(Target);
@@ -106,6 +112,58 @@ namespace ArdysaModsTools.Tests.Presenters
                 Assert.That(order, Is.EqualTo(new[] { "merge", "launch" }),
                     "the package must be repaired BEFORE the game is asked for");
                 Assert.That(_launched, Is.EqualTo(new[] { "steam://rungameid/570" }));
+            });
+        }
+
+        [Test]
+        public async Task Launch_WhenNothingSaysAPatchIsNeeded_NeverCallsThePatcher()
+        {
+            await NewPresenterThatSeesTheGameStart().LaunchAsync(Target);
+
+            _modInstaller.Verify(m => m.UpdatePatcherAsync(It.IsAny<string>(), It.IsAny<Action<string>>(),
+                                                            It.IsAny<CancellationToken>()), Times.Never,
+                "patching on every launch would cost a network round-trip nobody asked for");
+        }
+
+        [Test]
+        public async Task Launch_WhenAPatchIsNeeded_PatchesBeforeRepairingAndLaunching()
+        {
+            var order = new List<string>();
+            _modInstaller.Setup(m => m.UpdatePatcherAsync(It.IsAny<string>(), It.IsAny<Action<string>>(),
+                                                           It.IsAny<CancellationToken>()))
+                         .Callback(() => order.Add("patch"))
+                         .ReturnsAsync(PatchResult.Success);
+            _merge.Setup(m => m.MergeAsync(It.IsAny<string>(), It.IsAny<IProgress<string>>(),
+                                           It.IsAny<IProgress<int>>(), It.IsAny<CancellationToken>()))
+                  .Callback(() => order.Add("merge"))
+                  .ReturnsAsync(new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.Merged });
+
+            LaunchPresenter presenter = null!;
+            presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _modInstaller.Object, _steam.Object,
+                url => { order.Add("launch"); _launched.Add(url); presenter.NotifyDotaRunning(true); return true; });
+
+            await presenter.LaunchAsync(Target, needsPatch: true);
+
+            Assert.That(order, Is.EqualTo(new[] { "patch", "merge", "launch" }));
+        }
+
+        [Test]
+        public async Task Launch_WhenThePatchFails_NeitherRepairsNorLaunches()
+        {
+            _modInstaller.Setup(m => m.UpdatePatcherAsync(It.IsAny<string>(), It.IsAny<Action<string>>(),
+                                                           It.IsAny<CancellationToken>()))
+                         .ReturnsAsync(PatchResult.Failed);
+
+            var presenter = NewPresenter();
+            await presenter.LaunchAsync(Target, needsPatch: true);
+
+            Assert.Multiple(() =>
+            {
+                _merge.Verify(m => m.MergeAsync(It.IsAny<string>(), It.IsAny<IProgress<string>>(),
+                                                It.IsAny<IProgress<int>>(), It.IsAny<CancellationToken>()),
+                              Times.Never, "repairing on top of a failed config restore is wasted work");
+                Assert.That(_launched, Is.Empty);
+                _view.Verify(v => v.SetLaunchPanel(It.Is<LaunchPanelState>(s => s.IsError)), Times.AtLeastOnce);
             });
         }
 
@@ -362,7 +420,7 @@ namespace ArdysaModsTools.Tests.Presenters
         [Test]
         public async Task Launch_WhenSteamRefusesTheRequest_ReportsItInsteadOfWaitingForever()
         {
-            var presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _steam.Object,
+            var presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _modInstaller.Object, _steam.Object,
                 _ => false);
 
             await presenter.LaunchAsync(Target);

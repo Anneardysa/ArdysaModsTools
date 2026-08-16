@@ -131,7 +131,7 @@ namespace ArdysaModsTools.UI.Presenters
 
             if (mergeService != null)
             {
-                _launchPresenter = new LaunchPresenter(_view, _logger, mergeService,
+                _launchPresenter = new LaunchPresenter(_view, _logger, mergeService, _modInstaller,
                     steamAppState ?? new SteamAppStateService(_logger));
 
                 _launchPresenter.PackageRepaired += () =>
@@ -1034,20 +1034,21 @@ namespace ArdysaModsTools.UI.Presenters
                 return;
             }
 
+            if (_commandInFlight || IsOperationRunning)
+            {
+                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.blocked"), "warning");
+                return;
+            }
+
             if (!CanLaunch(_currentStatus))
             {
                 _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.blocked"), "warning");
                 return;
             }
 
-            if (_currentStatus?.SetupFailure is SetupCheckId.SignatureMatchesGameInfo
-                                             or SetupCheckId.SearchPathsMounted)
-            {
-                _view.ShowShellToast(Loc.T("play.button"), Loc.T("play.needsPatchFirst"), "warning");
-                return;
-            }
+            bool needsPatch = _currentStatus?.Status == ModStatus.NeedUpdate;
 
-            await RunLaunchFlowAsync(() => _launchPresenter.LaunchAsync(_targetPath));
+            await RunLaunchFlowAsync(() => _launchPresenter.LaunchAsync(_targetPath, needsPatch));
         }
 
         private async Task RunLaunchFlowAsync(Func<Task> flow)
@@ -1073,6 +1074,12 @@ namespace ArdysaModsTools.UI.Presenters
         public async Task RepairPackageAsync()
         {
             if (string.IsNullOrEmpty(_targetPath) || _launchPresenter == null)
+            {
+                _view.ShowShellToast(Loc.T("verify.chip.sync"), Loc.T("play.blocked"), "warning");
+                return;
+            }
+
+            if (_commandInFlight || IsOperationRunning)
             {
                 _view.ShowShellToast(Loc.T("verify.chip.sync"), Loc.T("play.blocked"), "warning");
                 return;
