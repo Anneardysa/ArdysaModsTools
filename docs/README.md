@@ -40,9 +40,9 @@ docs/
 
 > [!NOTE]
 > **Maintainers:** the internal documentation tree — `docs/developer/` (architecture, API
-> reference), `docs/adr/` (Architecture Decision Records), and `docs/dev/INSTALLER.md` — is
-> listed in [`.mirrorignore`](../.mirrorignore) and exists **only in the private upstream
-> repository**. It is deliberately not linked from here, because those links resolve to 404
+> reference), `docs/adr/` (Architecture Decision Records), and `docs/dev/` — exists **only in
+> the private upstream repository**; the mirror publishes an explicit allowlist and those trees
+> are not on it. It is deliberately not linked from here, because those links resolve to 404
 > on the public GitHub mirror. See [CONTRIBUTING.md](../.github/CONTRIBUTING.md#how-this-repository-works)
 > for how the mirror works.
 

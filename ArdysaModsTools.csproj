@@ -40,8 +40,8 @@
   <!-- ============================================== -->
   <PropertyGroup>
     <Version>2.3.1-beta</Version>
-    <AssemblyVersion>2.3.1.2336</AssemblyVersion>
-    <FileVersion>2.3.1.2336</FileVersion>
+    <AssemblyVersion>2.3.1.2337</AssemblyVersion>
+    <FileVersion>2.3.1.2337</FileVersion>
     <InformationalVersion>2.3.1-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
@@ -133,7 +133,7 @@
   <!-- ============================================== -->
   <!-- NATIVE LIBRARIES (VPK Tools)                   -->
   <!-- ============================================== -->
-  <!-- Condition: the public GitHub mirror excludes tools/ (.mirrorignore), and an explicit
+  <!-- Condition: the public GitHub mirror excludes tools/ (not in .mirrorpublic), and an explicit
        Content Include of a missing file fails the copy step with MSB3030. Guarding the group
        lets the mirror compile and run its tests; a tree WITH tools/ is unaffected. -->
   <ItemGroup Condition="Exists('tools')">
