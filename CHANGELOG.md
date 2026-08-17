@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.3.1-beta] (Builds 2334–2335)
+## [2.3.1-beta] (Builds 2334–2336)
 
 ### Fixed
 
@@ -19,6 +19,7 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 ### Documentation
 
 - **Fixed stale paths and rule gaps in the project dev guide** (2335): `.agents/skills/` links had drifted to the old singular `.agent/skills/`, and the WebView2 rule still pointed at hand-writing raw HTML with a live CDN Tailwind script — both wrong since the Frontend React/Vite migration. Documented the repo's other three projects (Installer, Updater, Frontend) and the DI/async rules' existing sanctioned exceptions, and fixed a stray nullable-reference warning in `HeroIndexProvider`.
+- **Added an in-repo agent knowledge base (`.understory/`) that stays current through `/commit`** (2336): 72 [OKF](https://github.com/thecodacus/understory)-format concept files ground coding sessions in the project's real architecture, subsystems, ADR history, and known pitfalls instead of re-deriving them each time. `/commit` now edits the matching concept whenever a change is durable enough to remember, so the bundle stays in sync on either side of the dev machine's Windows/Linux dual-boot without depending on a local LLM being reachable.
 
 ## [2.3.0-beta] (Builds 2327–2333)
 
