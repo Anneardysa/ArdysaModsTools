@@ -71,7 +71,7 @@ namespace ArdysaModsTools.Core.Services
 
             if (!File.Exists(gameVpkPath))
             {
-                log("Dota 2 game files (pak01_dir.vpk) not found. Re-run Detect and try again.");
+                log("Dota 2 game files (pak01_dir.vpk) not found — verify game files in Steam.");
                 _logger?.Log($"GameItemsGameExtractor: game VPK missing at {gameVpkPath}");
                 return false;
             }

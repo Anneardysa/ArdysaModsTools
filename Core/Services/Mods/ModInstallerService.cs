@@ -669,7 +669,7 @@ namespace ArdysaModsTools.Core.Services
                     percent: progress).ConfigureAwait(false);
                 if (!dataOk)
                 {
-                    _logger?.Log("ERROR: Failed to build the ModsPack package.");
+                    _logger?.Log($"ERROR: Failed to build the ModsPack package. {LastFailReason()}".TrimEnd());
                     InstallReport.Fail("Package build failed — your previous install was restored.");
                     return (false, false);
                 }
@@ -793,6 +793,12 @@ namespace ArdysaModsTools.Core.Services
                 FallbackLogger.LogFileOnly($"DisableModsAsync exception: {ex.Message}");
                 return false;
             }
+        }
+
+        private static string LastFailReason()
+        {
+            var reason = InstallReport.Snapshot().LastOrDefault(l => l.Category == InstallReport.Error).Text;
+            return string.IsNullOrWhiteSpace(reason) ? string.Empty : $"({reason})";
         }
 
         internal static string[]? TrimAfterDigest(string[] lines)
@@ -1075,7 +1081,7 @@ namespace ArdysaModsTools.Core.Services
                         cancellationToken).ConfigureAwait(false);
                     if (!dataOk)
                     {
-                        _logger?.Log("ERROR: Failed to build the ModsPack package.");
+                        _logger?.Log($"ERROR: Failed to build the ModsPack package. {LastFailReason()}".TrimEnd());
                         InstallReport.Fail("Package build failed — your previous install was restored.");
                         return false;
                     }

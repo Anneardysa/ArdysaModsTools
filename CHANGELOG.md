@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.3.1-beta] (Builds 2334–2340)
+## [2.3.1-beta] (Builds 2334–2341)
 
 ### Fixed
 
@@ -17,6 +17,7 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 - **Closed an Install/Disable race window on Play and Repair-only** (2334): Their confirmation dialogs run before `StartOperation()` disables the Play button, so the disabled state alone didn't close the window. `MainFormPresenter.LaunchDotaAsync`/repair-only now also check the in-flight command flag before proceeding.
 - **Install failures after "Files extracted" now name a cause instead of "Unexpected error"** (2340): Every catch-all on the install path — both in `ModInstallerService` and the one in `ModsPackDataService.RebuildVpkAsync`, which covers the long repack stretch where most of these failures actually land — now routes through a shared `InstallErrorMessage.Describe`, mapping a locked game file, a full disk, an access denial or a failed download to plain advice. The file-only log also records the full stack instead of just `ex.Message`.
 - **A backup that could not be taken is now reported where it happens** (2340): `InstallSnapshot.Capture` is best-effort and swallowed its own failure, so a `pak01_dir.vpk` still held open by a running Dota 2 stayed silent until the copy that followed threw. The snapshot now writes its own report line — a warning when the move-aside failed, nothing at all on a first-ever install — shared by the automatic and manual install paths.
+- **The console's "Failed to build the ModsPack package." line now says why** (2341): `RebuildVpkAsync`'s non-exceptional failure branches (bad download, missing game VPK, index/hero mismatch, ...) already wrote a specific reason to the in-shell failure card, but the plain console only ever got the generic line. `ModInstallerService` now reads the last reason back off `InstallReport` and appends it to the console log too. Also fixed a stale "Re-run Detect and try again" hint for a missing game VPK — the real fix is verifying game files in Steam.
 
 ### Documentation
 
