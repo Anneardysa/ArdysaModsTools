@@ -628,6 +628,7 @@ namespace ArdysaModsTools.Core.Services
                 string installedVpk = Path.Combine(modsDir, "pak01_dir.vpk");
 
                 using var snapshot = InstallSnapshot.Capture(installedVpk);
+                snapshot.Report();
 
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -655,6 +656,7 @@ namespace ArdysaModsTools.Core.Services
                     await transaction.ExecuteAsync(cancellationToken).ConfigureAwait(false);
                     transaction.Commit();
                 }
+                InstallReport.Step("Files installed to game directory.");
 
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -697,8 +699,8 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 _logger?.Log($"Installation failed: {ex.Message}");
-                FallbackLogger.LogFileOnly($"InstallModsAsync unexpected exception: {ex.Message}");
-                InstallReport.Fail("Unexpected error — please try again.");
+                FallbackLogger.LogFileOnly($"InstallModsAsync unexpected exception: {ex}");
+                InstallReport.Fail(InstallErrorMessage.Describe(ex));
                 return (false, false);
             }
             finally
@@ -1017,6 +1019,7 @@ namespace ArdysaModsTools.Core.Services
                 string destVpkPath = Path.Combine(modsDir, "pak01_dir.vpk");
 
                 using var snapshot = InstallSnapshot.Capture(destVpkPath);
+                snapshot.Report();
 
                 progress?.Report(10);
 
@@ -1175,8 +1178,8 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                FallbackLogger.LogFileOnly($"ManualInstallModsAsync unexpected exception: {ex.Message}");
-                InstallReport.Fail("Unexpected error — please try again.");
+                FallbackLogger.LogFileOnly($"ManualInstallModsAsync unexpected exception: {ex}");
+                InstallReport.Fail(InstallErrorMessage.Describe(ex));
                 return false;
             }
         }
@@ -1216,6 +1219,16 @@ namespace ArdysaModsTools.Core.Services
                     FallbackLogger.LogFileOnly($"InstallSnapshot.Capture failed: {ex.Message}");
                 }
                 return s;
+            }
+
+            public bool BackupFailed => (_hadVpk && !_vpkCaptured) || (_hadHash && !_hashCaptured);
+
+            public void Report()
+            {
+                if (BackupFailed)
+                    InstallReport.Warn("Could not back up the current install — Dota 2 may still be running.");
+                else if (_hadVpk || _hadHash)
+                    InstallReport.Step("Backing up current install.");
             }
 
             public void Commit()

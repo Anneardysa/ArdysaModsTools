@@ -194,7 +194,7 @@ namespace ArdysaModsTools.Core.Services
             {
                 status("Failed to build ModsPack package.");
                 FallbackLogger.LogFileOnly($"ModsPackData: RebuildVpkAsync exception: {ex}");
-                InstallReport.Fail("Package build hit an unexpected error — please try again.");
+                InstallReport.Fail(InstallErrorMessage.Describe(ex));
                 return false;
             }
             finally
