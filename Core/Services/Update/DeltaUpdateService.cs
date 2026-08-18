@@ -535,18 +535,17 @@ namespace ArdysaModsTools.Core.Services.Update
                     var fileProgress = new Progress<int>(percent =>
                         UpdateProgress(i, file.Size * Math.Clamp(percent, 0, 100) / 100));
 
-                    string[] candidateUrls;
-                    if (CdnConfig.IsModsPackUrl(url))
-                    {
-                        candidateUrls = SmartCdnSelector.Instance.GetOrderedCdnUrls()
+                    string pathSuffix = "/" + EncodePath(file.RelPath);
+                    string[] candidateUrls = CdnConfig.IsModsPackUrl(url)
+                        ? SmartCdnSelector.Instance.GetOrderedCdnUrls()
                             .Select(b => CdnConfig.ConvertToCdn(url, b))
+                            .Where(u => u.EndsWith(pathSuffix, StringComparison.OrdinalIgnoreCase))
                             .Distinct()
-                            .ToArray();
-                    }
-                    else
-                    {
-                        candidateUrls = new[] { url };
-                    }
+                            .ToArray()
+                        : new[] { url };
+
+                    if (!candidateUrls.Contains(url, StringComparer.OrdinalIgnoreCase))
+                        candidateUrls = candidateUrls.Append(url).ToArray();
 
                     await ResumableDownloadService.Instance.DownloadAsync(
                         candidateUrls,

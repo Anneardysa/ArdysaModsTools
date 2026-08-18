@@ -115,33 +115,24 @@ namespace ArdysaModsTools.Core.Constants
             if (string.IsNullOrEmpty(url))
                 return null;
 
-            int assetsIndex = url.IndexOf(AssetsMarker, StringComparison.OrdinalIgnoreCase);
-            if (assetsIndex != -1)
-            {
-                var raw = url.Substring(assetsIndex + 1);
-                int q = raw.IndexOf('?');
-                return q >= 0 ? raw.Substring(0, q) : raw;
-            }
-
-            var baseUrls = GetCdnBaseUrls()
-                .Concat(LegacyBaseUrls)
-                .OrderByDescending(b => b.Length)
-                .ToList();
-            
             int queryIndex = url.IndexOf('?');
             string urlWithoutQuery = queryIndex != -1 ? url.Substring(0, queryIndex) : url;
 
-            foreach (var baseUrl in baseUrls)
+            foreach (var baseUrl in GetCdnBaseUrls()
+                         .Concat(LegacyBaseUrls)
+                         .OrderByDescending(b => b.Length))
             {
                 if (urlWithoutQuery.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase))
                 {
-                    string path = url.Substring(baseUrl.Length).TrimStart('/');
-                    int qp = path.IndexOf('?');
-                    if (qp >= 0) path = path.Substring(0, qp);
+                    string path = urlWithoutQuery.Substring(baseUrl.Length).TrimStart('/');
                     if (!string.IsNullOrEmpty(path))
                         return path;
                 }
             }
+
+            int assetsIndex = urlWithoutQuery.IndexOf(AssetsMarker, StringComparison.OrdinalIgnoreCase);
+            if (assetsIndex != -1)
+                return urlWithoutQuery.Substring(assetsIndex + 1);
 
             return null;
         }

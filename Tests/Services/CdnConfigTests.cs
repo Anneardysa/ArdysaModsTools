@@ -92,6 +92,25 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public void ExtractAssetPath_PathContainingAssetsFolder_KeepsFullPath()
+        {
+            string deltaFileUrl = "https://cdn.ardysamods.my.id/releases/2.3.1-beta/files/Assets/Locales/en.json";
+
+            Assert.That(CdnConfig.ExtractAssetPath(deltaFileUrl),
+                Is.EqualTo("releases/2.3.1-beta/files/Assets/Locales/en.json"));
+            Assert.That(CdnConfig.ConvertToCdn(deltaFileUrl, CdnConfig.Cdn2BaseUrl),
+                Is.EqualTo("https://cdn2.ardysamods.my.id/releases/2.3.1-beta/files/Assets/Locales/en.json"));
+        }
+
+        [Test]
+        public void ExtractAssetPath_UnknownHost_FallsBackToAssetsMarker()
+        {
+            string unknownHostUrl = "https://pub-abc123.r2.dev/Assets/models/hero.zip?v=2";
+
+            Assert.That(CdnConfig.ExtractAssetPath(unknownHostUrl), Is.EqualTo("Assets/models/hero.zip"));
+        }
+
+        [Test]
         public void ExtractBaseUrl_ValidUrls_ReturnsMatchingBaseUrl()
         {
             string primaryUrl = "https://cdn.ardysamods.my.id/Assets/models/hero.zip";
