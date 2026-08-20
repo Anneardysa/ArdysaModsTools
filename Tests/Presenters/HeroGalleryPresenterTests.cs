@@ -52,7 +52,7 @@ namespace ArdysaModsTools.Tests.Presenters
             _view.Setup(v => v.SaveSelectionsAsync()).Returns(Task.CompletedTask);
             _view.Setup(v => v.ShowAlertAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
             _view.Setup(v => v.ShowGenerationAlertAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()))
-                 .Returns(Task.CompletedTask);
+                 .ReturnsAsync(false);
             _view.Setup(v => v.ConfirmBaseNoSetAsync(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
             _view.Setup(v => v.ShowGenerationPreview(It.IsAny<IReadOnlyList<(HeroModel, string, string?)>>()))
                  .Returns(true);
@@ -305,6 +305,18 @@ namespace ArdysaModsTools.Tests.Presenters
             _view.Verify(v => v.ShowGenerationAlertAsync("hero.complete.title", It.IsAny<string>(), false, It.IsAny<string?>()), Times.Once);
             _view.Verify(v => v.StoreResult(It.Is<ModGenerationResult>(r => r.Success && r.Type == GenerationType.SkinSelector)), Times.Once);
             _view.Verify(v => v.CloseWithSuccess(), Times.Once);
+        }
+
+        [Test]
+        public async Task GenerateAsync_Success_PlayRequestedFromAlert_StoresPlayRequestedTrue()
+        {
+            SetupGenerationResult(new OperationResult { Success = true, Message = "Done", SuccessCount = 1 });
+            _view.Setup(v => v.ShowGenerationAlertAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()))
+                 .ReturnsAsync(true);
+
+            await _presenter.GenerateAsync(new[] { Hero("h1", "SetA") }, Sel("h1", set: 0));
+
+            _view.Verify(v => v.StoreResult(It.Is<ModGenerationResult>(r => r.PlayRequested)), Times.Once);
         }
 
         [Test]

@@ -190,6 +190,11 @@ export function App() {
       send("alertDismissed");
    };
 
+   const playFromAlert = () => {
+      store.set((s) => ({ alert: { ...s.alert, visible: false } }));
+      send("alertPlay");
+   };
+
    const chooseMode = (mode: "clean" | "add" | null) => {
       store.set({ modeModalOpen: false });
       send("modeSelected", { mode });
@@ -272,6 +277,7 @@ export function App() {
                hasLog={alert.hasLog}
                onClose={closeAlert}
                onShowLog={() => setLogModalOpen(true)}
+               onPlay={playFromAlert}
             />
          )}
 

@@ -565,6 +565,7 @@
 .dialogMsg { font-size: 11px; line-height: 1.618; color: var(--body); white-space: pre-line; }
 .dialogMsg strong { color: var(--ink); font-weight: 700; }
 .dialogActions { display: flex; justify-content: flex-end; gap: var(--sp-2); padding: 0 var(--sp-5) var(--sp-5); }
+.actionsLead { margin-right: auto; }
 
 .logDialog { width: 620px; }
 .logModalConsole { position: relative; height: 320px; overflow-y: auto; padding: var(--sp-3); margin-top: var(--sp-2); background: var(--canvas); border: 1px solid var(--hairline-strong); font-family: var(--mono); font-size: 10px; line-height: 1.65; color: var(--body); }

@@ -23,12 +23,15 @@ using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
+using ArdysaModsTools.Core.Services.Security;
 
 namespace ArdysaModsTools.Core.Services
 {
     public static class ProtectedVpkStore
     {
         private static readonly string[] StaysWithPackage = { "scripts", "resource" };
+
+        private const string CipherAssetPath = "local/protected/pak01_dir.vpk";
 
         public static string Dir(string targetPath)
             => Path.Combine(targetPath, "game", "mod");
@@ -94,8 +97,109 @@ namespace ArdysaModsTools.Core.Services
             Action<string> log, CancellationToken ct = default, IAppLogger? logger = null)
         {
             Ensure(targetPath);
-            return await VpkReplacerService.DeployVpkAsync(
+            bool ok = await VpkReplacerService.DeployVpkAsync(
                 VpkPath(targetPath), newVpkPath, hideOutput: true, log, ct, logger).ConfigureAwait(false);
+
+            if (ok && newVpkPath != null)
+                EncryptAtRest(targetPath, logger);
+
+            return ok;
+        }
+
+        public static bool IsEncryptedAtRest(string targetPath)
+            => AssetCipher.IsEncrypted(VpkPath(targetPath));
+
+        public static bool EncryptAtRest(string targetPath, IAppLogger? logger = null)
+        {
+            string vpk = VpkPath(targetPath);
+            try
+            {
+                if (!File.Exists(vpk) || AssetCipher.IsEncrypted(vpk))
+                    return true;
+
+                byte[] plaintext = File.ReadAllBytes(vpk);
+                byte[] container = AssetCipher.Encrypt(plaintext, CipherAssetPath);
+                return SwapInPlace(vpk, container, logger, "encrypt");
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError($"ProtectedVpkStore.EncryptAtRest failed: {ex.Message}", ex);
+                return false;
+            }
+        }
+
+        public static bool DecryptForPlay(string targetPath, IAppLogger? logger = null)
+        {
+            string vpk = VpkPath(targetPath);
+            try
+            {
+                if (!File.Exists(vpk) || !AssetCipher.IsEncrypted(vpk))
+                    return true;
+
+                byte[] container = File.ReadAllBytes(vpk);
+                byte[] plaintext = AssetCipher.Decrypt(container, CipherAssetPath);
+                return SwapInPlace(vpk, plaintext, logger, "decrypt");
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError($"ProtectedVpkStore.DecryptForPlay failed: {ex.Message}", ex);
+                return false;
+            }
+        }
+
+        private static bool SwapInPlace(string vpk, byte[] newContent, IAppLogger? logger, string op)
+        {
+            string backup = vpk + ".bak";
+            string temp = vpk + ".tmp";
+
+            try { if (File.Exists(backup)) File.Delete(backup); } catch { }
+            try { if (File.Exists(temp)) File.Delete(temp); } catch { }
+
+            try
+            {
+                File.WriteAllBytes(temp, newContent);
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError($"ProtectedVpkStore.SwapInPlace ({op}) write failed: {ex.Message}", ex);
+                try { File.Delete(temp); } catch { }
+                return false;
+            }
+
+            bool hasBackup = false;
+            try
+            {
+                File.Move(vpk, backup);
+                hasBackup = true;
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError($"ProtectedVpkStore.SwapInPlace ({op}) rename-aside failed: {ex.Message}", ex);
+                try { File.Delete(temp); } catch { }
+                return false;
+            }
+
+            try
+            {
+                File.Move(temp, vpk);
+                try { File.SetAttributes(vpk, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                try { File.Delete(backup); } catch { }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger?.LogError($"ProtectedVpkStore.SwapInPlace ({op}) commit failed: {ex.Message}", ex);
+                if (hasBackup)
+                {
+                    try { File.Move(backup, vpk, overwrite: true); }
+                    catch (Exception restoreEx)
+                    {
+                        logger?.LogError($"ProtectedVpkStore.SwapInPlace ({op}) restore failed: {restoreEx.Message}", restoreEx);
+                    }
+                }
+                try { File.Delete(temp); } catch { }
+                return false;
+            }
         }
 
         public static bool IsProtectable(string relativePath)

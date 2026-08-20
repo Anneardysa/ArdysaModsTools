@@ -161,6 +161,10 @@ export function App() {
                   setLogModalOpen(true);
                   send("generationLogOpened");
                }}
+               onPlay={() => {
+                  store.set((s) => ({ alert: { ...s.alert, visible: false } }));
+                  send("alertPlay");
+               }}
             />
          )}
 

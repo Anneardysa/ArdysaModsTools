@@ -269,6 +269,8 @@
   "verify.fix.none": "Nichts zu ändern — es sind keine erhöhten Rechte gesetzt.",
   "verify.fix.error": "Die Rechte-Einstellung konnte nicht geändert werden: {message}",
   "play.button": "DOTA 2 SPIELEN",
+  "play.postGenerate.button": "Dota 2 spielen",
+  "play.postGenerate.note": "Starte Dota 2 über diese App, damit deine Mods richtig funktionieren.",
   "play.reason.ready": "Dota 2 mit deinen Mods starten",
   "play.reason.willRepair": "Baut dein Mod-Paket für die aktuelle Spielversion neu und startet dann",
   "play.reason.notReady": "Behebe zuerst den Status unten",

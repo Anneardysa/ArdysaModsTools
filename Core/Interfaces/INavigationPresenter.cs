@@ -36,6 +36,8 @@ namespace ArdysaModsTools.Core.Interfaces
 
         event Func<Task>? PatchRequested;
 
+        event Func<Task>? PlayRequested;
+
         #endregion
 
         #region Form Navigation

@@ -24,26 +24,47 @@ namespace ArdysaModsTools.Core.Services
     public class Dota2Monitor
     {
         private readonly System.Timers.Timer _timer;
+        private readonly Func<bool> _isRunningCheck;
 
         public event Action<bool>? OnDota2StateChanged;
         private bool _lastState = false;
+        private bool _pendingState = false;
+        private int _pendingCount = 0;
 
-        public Dota2Monitor()
+        private const int SettleChecks = 2;
+
+        public Dota2Monitor(Func<bool>? isRunningCheck = null)
         {
+            _isRunningCheck = isRunningCheck ?? (() => Process.GetProcessesByName("dota2").Any());
             _timer = new System.Timers.Timer(1500);
-            _timer.Elapsed += CheckProcess;
+            _timer.Elapsed += (s, e) => Evaluate();
         }
 
         public void Start() => _timer.Start();
         public void Stop() => _timer.Stop();
 
-        private void CheckProcess(object? sender, ElapsedEventArgs e)
+        internal void Evaluate()
         {
-            bool isRunning = Process.GetProcessesByName("dota2").Any();
+            bool isRunning = _isRunningCheck();
 
-            if (isRunning != _lastState)
+            if (isRunning == _lastState)
+            {
+                _pendingCount = 0;
+                return;
+            }
+
+            if (isRunning == _pendingState)
+                _pendingCount++;
+            else
+            {
+                _pendingState = isRunning;
+                _pendingCount = 1;
+            }
+
+            if (_pendingCount >= SettleChecks)
             {
                 _lastState = isRunning;
+                _pendingCount = 0;
                 OnDota2StateChanged?.Invoke(isRunning);
             }
         }

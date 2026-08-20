@@ -33,6 +33,8 @@ namespace ArdysaModsTools.Core.Models
         public string? ErrorMessage { get; init; }
         
         public string? Details { get; init; }
+
+        public bool PlayRequested { get; init; }
     }
 
     public enum GenerationType

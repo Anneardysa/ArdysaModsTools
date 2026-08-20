@@ -17,6 +17,7 @@ export function AlertModal({
    hasLog,
    onClose,
    onShowLog,
+   onPlay,
 }: {
    title: string;
    message: string;
@@ -24,7 +25,9 @@ export function AlertModal({
    hasLog: boolean;
    onClose: () => void;
    onShowLog: () => void;
+   onPlay?: () => void;
 }) {
+   const showPlay = type === "success" && !!onPlay;
    return (
       <div id="alertModal" className={css.ov}>
          <div className={css.ovScrim} onClick={onClose} />
@@ -42,15 +45,25 @@ export function AlertModal({
                   <p id="alertMessage" className={css.dialogMsg}>
                      {message}
                   </p>
+                  {showPlay && (
+                     <p className={css.dialogMsg}>
+                        <T k="play.postGenerate.note">Launch Dota 2 through this app for your mods to work correctly.</T>
+                     </p>
+                  )}
                </div>
             </div>
             <div className={css.dialogActions}>
+               {showPlay && (
+                  <button type="button" data-no-drag id="alertPlayButton" className={`${css.btn} ${css.primary} ${css.actionsLead}`} onClick={onPlay}>
+                     <T k="play.postGenerate.button">Play Dota 2</T>
+                  </button>
+               )}
                {hasLog && (
                   <button type="button" data-no-drag id="alertLogButton" className={`${css.btn} ${css.ghost}`} onClick={onShowLog}>
                      <T k="hero.log.button">Show Log</T>
                   </button>
                )}
-               <button type="button" data-no-drag id="alertOkButton" className={`${css.btn} ${css.primary}`} onClick={onClose}>
+               <button type="button" data-no-drag id="alertOkButton" className={`${css.btn} ${showPlay ? css.ghost : css.primary}`} onClick={onClose}>
                   <T k="common.ok">OK</T>
                </button>
             </div>

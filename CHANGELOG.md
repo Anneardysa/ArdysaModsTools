@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
+## [2.3.4-beta] (Build 2354)
+
+### Added
+
+- **Added a "Play Dota 2" button to every post-generation completion screen** (2354): Install ModsPack, Skin Selector, and Miscellaneous all previously left the user to launch Dota 2 themselves after a successful generation — through Steam, a desktop shortcut, or anything else — even though the mod package only decrypts correctly when launched through AMT's own `LaunchPresenter`. Each completion alert now offers a Play button with a note that Dota 2 must be started through the app for the mods to work, wired back through a new `PlayRequested` hand-back (`ModGenerationResult` → `NavigationPresenter` → `MainFormPresenter`) into the single existing launch path — no new launch logic. The Play button always renders first/leftmost in the action row, with OK and Show Log (when present) grouped on the right.
+
+### Fixed
+
+- **Fixed a race condition that could corrupt `pak01_dir.vpk` at Dota 2 launch** (2354): `Dota2Monitor` polled `Process.GetProcessesByName("dota2")` every 1.5s with no debounce, and Source 2's own bootstrap can briefly show zero `dota2` processes while relaunching itself mid-start — not because the game actually exited. A poll landing in that gap fired the "Dota exited" event early, and `MainFormPresenter`'s handler re-encrypted the just-decrypted VPK while the real engine process was still trying to mount it, corrupting the file. `Dota2Monitor` now requires two consecutive consistent readings before raising its event, matching the debounce `GameSessionWatcher` already used for the same signal.
+
+## [2.3.3-beta] (Build 2353)
+
+### Build
+
+- **Ignored the local-only hero-assets dev-tooling folder** (2353): `scripts/dataset/hero_assets/` is a developer-only dataset tool, never shipped or read by the app; it's now excluded via `.gitignore` instead of staying tracked as noise.
+
 ## [2.3.2-beta] (Builds 2342–2352)
 
 ### Fixed

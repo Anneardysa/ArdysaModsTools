@@ -45,6 +45,7 @@ namespace ArdysaModsTools.UI.Forms
         private WebView2? _webView;
         private bool _initialized;
         private TaskCompletionSource<bool>? _alertDismissed;
+        private bool _playRequestedFromAlert;
         private TaskCompletionSource<bool>? _confirmBaseNoSet;
 
         private int _generationLogViews;
@@ -541,6 +542,11 @@ namespace ArdysaModsTools.UI.Forms
                         _alertDismissed?.TrySetResult(true);
                         break;
 
+                    case "alertPlay":
+                        _playRequestedFromAlert = true;
+                        _alertDismissed?.TrySetResult(true);
+                        break;
+
                     case "generationLogOpened":
                         _generationLogViews++;
                         break;
@@ -701,10 +707,11 @@ namespace ArdysaModsTools.UI.Forms
             return await _confirmBaseNoSet.Task;
         }
 
-        public async Task ShowGenerationAlertAsync(string title, string message, bool hasFailures, string? logText = null)
+        public async Task<bool> ShowGenerationAlertAsync(string title, string message, bool hasFailures, string? logText = null)
         {
-            if (_webView?.CoreWebView2 == null) return;
+            if (_webView?.CoreWebView2 == null) return false;
 
+            _playRequestedFromAlert = false;
             var iconType = hasFailures ? "warning" : "success";
 
             if (logText != null)
@@ -722,6 +729,8 @@ namespace ArdysaModsTools.UI.Forms
                 if (completed == _alertDismissed.Task || _generationLogViews == viewsBefore)
                     break;
             }
+
+            return _playRequestedFromAlert;
         }
 
         public async Task ShowAlertAsync(string title, string message)

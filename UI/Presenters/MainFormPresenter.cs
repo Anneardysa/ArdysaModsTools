@@ -147,6 +147,7 @@ namespace ArdysaModsTools.UI.Presenters
         {
             _navigationPresenter.StatusRefreshRequested += async () => await RefreshStatusAsync();
             _navigationPresenter.PatchRequested += async () => await ExecutePatchAsync();
+            _navigationPresenter.PlayRequested += async () => await LaunchDotaAsync();
         }
 
         public async Task InitializeAsync()
@@ -169,6 +170,12 @@ namespace ArdysaModsTools.UI.Presenters
 
                 if (!string.IsNullOrEmpty(_targetPath))
                 {
+                    if (System.Diagnostics.Process.GetProcessesByName("dota2").Length == 0
+                        && !ProtectedVpkStore.IsEncryptedAtRest(_targetPath))
+                    {
+                        ProtectedVpkStore.EncryptAtRest(_targetPath, _logger);
+                    }
+
                     await CheckModsStatusAsync();
                     await StartPatchWatcherAsync(_targetPath);
                     _view.EnableAllButtons();
@@ -1194,6 +1201,8 @@ namespace ArdysaModsTools.UI.Presenters
                     {
                         _view.EnableAllButtons();
                         _ = CheckModsStatusAsync();
+
+                        ProtectedVpkStore.EncryptAtRest(_targetPath, _logger);
                     }
                     else
                     {

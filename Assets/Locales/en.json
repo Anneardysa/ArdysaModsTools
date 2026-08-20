@@ -269,6 +269,8 @@
   "verify.fix.none": "Nothing to change — no elevation setting is active.",
   "verify.fix.error": "The elevation setting could not be changed: {message}",
   "play.button": "PLAY DOTA 2",
+  "play.postGenerate.button": "Play Dota 2",
+  "play.postGenerate.note": "Launch Dota 2 through this app for your mods to work correctly.",
   "play.reason.ready": "Launch Dota 2 with your mods",
   "play.reason.willRepair": "Rebuilds your mod package against the current game version, then launches",
   "play.reason.notReady": "Resolve the status below before launching",

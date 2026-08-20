@@ -269,6 +269,8 @@
   "verify.fix.none": "無需變更 — 目前未啟用提權設定。",
   "verify.fix.error": "無法修改權限設定：{message}",
   "play.button": "開始 DOTA 2",
+  "play.postGenerate.button": "開始 Dota 2",
+  "play.postGenerate.note": "請透過本應用程式啟動 Dota 2，以確保模組正常運作。",
   "play.reason.ready": "帶著你的 Mod 啟動 Dota 2",
   "play.reason.willRepair": "先依目前遊戲版本重建你的 Mod 套件，然後啟動",
   "play.reason.notReady": "啟動前請先解決下方的狀態問題",

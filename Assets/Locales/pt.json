@@ -269,6 +269,8 @@
   "verify.fix.none": "Nada a mudar — nenhum ajuste de elevação está ativo.",
   "verify.fix.error": "Não foi possível alterar o ajuste de elevação: {message}",
   "play.button": "JOGAR DOTA 2",
+  "play.postGenerate.button": "Jogar Dota 2",
+  "play.postGenerate.note": "Inicia o Dota 2 através desta app para que os teus mods funcionem corretamente.",
   "play.reason.ready": "Iniciar o Dota 2 com seus mods",
   "play.reason.willRepair": "Reconstrói seu pacote de mods para a versão atual do jogo e depois inicia",
   "play.reason.notReady": "Resolva o status abaixo antes de iniciar",

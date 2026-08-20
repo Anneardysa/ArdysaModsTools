@@ -1206,6 +1206,9 @@
    gap: var(--sp-2);
    padding: 0 var(--sp-5) var(--sp-5);
 }
+.actionsLead {
+   margin-right: auto;
+}
 .logDialog {
    width: 620px;
 }

@@ -269,6 +269,8 @@
   "verify.fix.none": "无需更改 — 当前未启用提权设置。",
   "verify.fix.error": "无法修改权限设置：{message}",
   "play.button": "开始 DOTA 2",
+  "play.postGenerate.button": "开始 Dota 2",
+  "play.postGenerate.note": "请通过本应用启动 Dota 2，以确保模组正常运作。",
   "play.reason.ready": "带着你的 Mod 启动 Dota 2",
   "play.reason.willRepair": "先按当前游戏版本重建你的 Mod 包，然后启动",
   "play.reason.notReady": "启动前请先解决下方的状态问题",

@@ -43,6 +43,7 @@ namespace ArdysaModsTools.UI.Forms
         private bool _isGenerating;
         private CancellationTokenSource? _generationCts;
         private TaskCompletionSource<bool>? _alertDismissed;
+        private bool _playRequestedFromAlert;
         private TaskCompletionSource<string?>? _modeSelected;
 
         private readonly string? _targetPath;
@@ -473,6 +474,11 @@ namespace ArdysaModsTools.UI.Forms
                         _alertDismissed?.TrySetResult(true);
                         break;
 
+                    case "alertPlay":
+                        _playRequestedFromAlert = true;
+                        _alertDismissed?.TrySetResult(true);
+                        break;
+
                     case "cancelGeneration":
                         _generationCts?.Cancel();
                         break;
@@ -706,11 +712,14 @@ namespace ArdysaModsTools.UI.Forms
                         successMessage = "All mods have been successfully applied!";
                     }
 
+                    _playRequestedFromAlert = false;
                     _alertDismissed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     await ExecuteScriptAsync($"showAlert('Generation Complete', '{successMessage}', 'success')");
-                    
+
                     await Task.WhenAny(_alertDismissed.Task, Task.Delay(60000));
-                    
+
+                    GenerationResult = GenerationResult! with { PlayRequested = _playRequestedFromAlert };
+
                     this.DialogResult = DialogResult.OK;
                     this.Close();
                 }

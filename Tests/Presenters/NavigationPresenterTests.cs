@@ -144,6 +144,15 @@ namespace ArdysaModsTools.Tests.Presenters
             Assert.That(eventRaised, Is.False);
         }
 
+        [Test]
+        public void PlayRequested_Event_CanBeSubscribed()
+        {
+            bool eventRaised = false;
+            _presenter.PlayRequested += async () => { eventRaised = true; await Task.CompletedTask; };
+
+            Assert.That(eventRaised, Is.False);
+        }
+
         #endregion
     }
 }

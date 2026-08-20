@@ -59,6 +59,8 @@ namespace ArdysaModsTools.UI.Presenters
 
         public event Func<Task>? PatchRequested;
 
+        public event Func<Task>? PlayRequested;
+
         #endregion
 
         #region Constructor
@@ -100,6 +102,9 @@ namespace ArdysaModsTools.UI.Presenters
                     await Task.Delay(500);
                     await ShowPatchRequiredIfNeededAsync(Loc.T("nav.install.successMisc"));
                 }
+
+                if (generationResult?.PlayRequested == true)
+                    await RaisePlayRequestedAsync();
             }
         }
 
@@ -178,6 +183,9 @@ namespace ArdysaModsTools.UI.Presenters
                     await ShowPatchRequiredIfNeededAsync(Loc.T("nav.install.success"));
                 }
             }
+
+            if (generationResult?.PlayRequested == true)
+                await RaisePlayRequestedAsync();
         }
 
         public void ShowStatusDetails()
@@ -330,6 +338,14 @@ namespace ArdysaModsTools.UI.Presenters
             if (StatusRefreshRequested != null)
             {
                 await StatusRefreshRequested.Invoke();
+            }
+        }
+
+        private async Task RaisePlayRequestedAsync()
+        {
+            if (PlayRequested != null)
+            {
+                await PlayRequested.Invoke();
             }
         }
 

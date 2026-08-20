@@ -39,10 +39,10 @@
   <!-- APPLICATION METADATA                           -->
   <!-- ============================================== -->
   <PropertyGroup>
-    <Version>2.3.3-beta</Version>
-    <AssemblyVersion>2.3.3.2353</AssemblyVersion>
-    <FileVersion>2.3.3.2353</FileVersion>
-    <InformationalVersion>2.3.1-beta</InformationalVersion>
+    <Version>2.3.4-beta</Version>
+    <AssemblyVersion>2.3.4.2354</AssemblyVersion>
+    <FileVersion>2.3.4.2354</FileVersion>
+    <InformationalVersion>2.3.3-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
     <Authors>Ardysa</Authors>

@@ -82,6 +82,11 @@ export function FailureModal() {
                <div id="failure-text" className={css.confirmText}>
                   {payload.body}
                </div>
+               {ok && (
+                  <div className={css.confirmText}>
+                     <T k="play.postGenerate.note">Launch Dota 2 through this app for your mods to work correctly.</T>
+                  </div>
+               )}
                {!revealed ? (
                   <button id="failure-showlog" type="button" data-no-drag className={`${css.obBtn} ${css.ghost}`} onClick={() => setRevealed(true)}>
                      <T k="shell.toast.showLog">Show Log</T>
@@ -109,12 +114,26 @@ export function FailureModal() {
                )}
             </div>
             <div className={css.confirmActions}>
+               {ok && (
+                  <button
+                     id="failure-play"
+                     type="button"
+                     data-no-drag
+                     className={`${css.obBtn} ${css.primary}`}
+                     onClick={() => {
+                        send("playDota");
+                        closeInstallLogModal();
+                     }}
+                  >
+                     <T k="play.postGenerate.button">Play Dota 2</T>
+                  </button>
+               )}
                {revealed && (
                   <button id="failure-copy" type="button" data-no-drag className={`${css.obBtn} ${css.ghost}`} onClick={copyLog}>
                      {t("shell.failure.copy", "Copy Log")}
                   </button>
                )}
-               <button ref={closeRef} id="failure-close" type="button" data-no-drag className={`${css.obBtn} ${css.primary}`} onClick={closeInstallLogModal}>
+               <button ref={closeRef} id="failure-close" type="button" data-no-drag className={`${css.obBtn} ${ok ? css.ghost : css.primary}`} onClick={closeInstallLogModal}>
                   {t(ok ? "common.done" : "common.close", ok ? "Done" : "Close")}
                </button>
             </div>

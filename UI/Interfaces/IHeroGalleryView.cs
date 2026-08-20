@@ -30,7 +30,7 @@ namespace ArdysaModsTools.UI.Interfaces
 
         Task<bool> ConfirmBaseNoSetAsync(string title, string htmlMessage);
 
-        Task ShowGenerationAlertAsync(string title, string message, bool hasFailures, string? logText = null);
+        Task<bool> ShowGenerationAlertAsync(string title, string message, bool hasFailures, string? logText = null);
 
         Task ShowAlertAsync(string title, string message);
 

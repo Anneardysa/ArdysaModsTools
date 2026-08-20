@@ -257,7 +257,7 @@ namespace ArdysaModsTools.UI.Presenters
                     ? string.Join(Environment.NewLine, operationResult.LogLines)
                     : null;
 
-                await _view.ShowGenerationAlertAsync(
+                var playRequested = await _view.ShowGenerationAlertAsync(
                     Loc.T("hero.complete.title"),
                     message.ToString().TrimEnd(),
                     hasFailures || hasWarnings,
@@ -270,7 +270,8 @@ namespace ArdysaModsTools.UI.Presenters
                     OptionsCount = heroCount,
                     Duration = DateTime.Now - startTime,
                     Details = $"{heroCount} hero set(s)" +
-                              (hasFailures ? $", {operationResult.FailedItems!.Count} failed" : string.Empty)
+                              (hasFailures ? $", {operationResult.FailedItems!.Count} failed" : string.Empty),
+                    PlayRequested = playRequested
                 });
 
                 _view.CloseWithSuccess();

@@ -269,6 +269,8 @@
   "verify.fix.none": "Менять нечего — повышение прав не включено.",
   "verify.fix.error": "Не удалось изменить настройку прав: {message}",
   "play.button": "ИГРАТЬ В DOTA 2",
+  "play.postGenerate.button": "Играть в Dota 2",
+  "play.postGenerate.note": "Запускай Dota 2 через это приложение, чтобы моды работали корректно.",
   "play.reason.ready": "Запустить Dota 2 с модами",
   "play.reason.willRepair": "Пересоберёт пакет модов под текущую версию игры и запустит",
   "play.reason.notReady": "Сначала устрани проблему в статусе ниже",
