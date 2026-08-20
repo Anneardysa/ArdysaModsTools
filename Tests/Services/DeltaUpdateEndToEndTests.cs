@@ -17,6 +17,7 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Services.Update;
 using ArdysaModsTools.Core.Services.Update.Models;
 using ArdysaModsTools.Updater;
@@ -313,6 +314,49 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(File.Exists(Path.Combine(plan!.StagingDir, DeltaUpdateService.StagedOkMarker)), Is.False,
                 "a rejected download must never produce an appliable staging folder");
             Assert.That(Read(_installDir, "ArdysaModsTools.exe"), Is.EqualTo("app v1"), "install untouched");
+        }
+
+        [Test]
+        public async Task Stage_WhenAStaleMarkerIsAlreadyInTheStagingFolder_ItIsGoneEvenIfThisRunAlsoFails()
+        {
+            Write(_newRelease, "ArdysaModsTools.exe", "app v2");
+            Write(_newRelease, DeltaUpdateService.UpdaterRelPath, "applier v1");
+            string manifestUrl = Publish(NewVersion, _newRelease);
+
+            var service = new DeltaUpdateService(
+                new ArdysaModsTools.Core.Services.Logger((_, _) => { }), _installDir, _stagingRoot);
+
+            var manifest = new Dictionary<string, AssetHashEntry>
+            {
+                ["ArdysaModsTools.exe"] = new AssetHashEntry
+                {
+                    Sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("app v2"))),
+                    Size = Encoding.UTF8.GetByteCount("app v2")
+                },
+                [DeltaUpdateService.UpdaterRelPath] = new AssetHashEntry
+                {
+                    Sha256 = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("applier v1"))),
+                    Size = Encoding.UTF8.GetByteCount("applier v1")
+                }
+            };
+
+            string outOfBandStagingDir = Path.Combine(_root, "leftover-staging");
+            var plan = await DeltaUpdateService.BuildPlanAsync(
+                manifest, oldManifest: null, NewVersion, _installDir, outOfBandStagingDir,
+                DeltaUpdateService.FilesBaseUrl(manifestUrl));
+
+            Directory.CreateDirectory(plan.StagingDir);
+            File.WriteAllText(Path.Combine(plan.StagingDir, DeltaUpdateService.StagedOkMarker), plan.Version);
+
+            File.WriteAllText(
+                Path.Combine(_serverRoot, "releases", NewVersion, "files", "ArdysaModsTools.exe"),
+                "TAMPERED — forces this run to fail too");
+
+            Assert.ThrowsAsync<ArdysaModsTools.Core.Exceptions.DownloadException>(
+                async () => await service.StageAsync(plan));
+
+            Assert.That(File.Exists(Path.Combine(plan.StagingDir, DeltaUpdateService.StagedOkMarker)), Is.False,
+                "the stale marker must not survive, even though this restage also failed");
         }
     }
 }

@@ -15,6 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System.Diagnostics;
+using System.Security.Principal;
 
 namespace ArdysaModsTools.Updater
 {
@@ -54,42 +55,75 @@ namespace ArdysaModsTools.Updater
             if (dryRun)
                 return result.Success ? 0 : 1;
 
-            Relaunch(result.RelaunchPath, Log);
+            bool relaunched = Relaunch(result.RelaunchPath, Log);
 
-            if (result.Success)
+            if (result.Success && !relaunched && !string.IsNullOrWhiteSpace(result.RelaunchPath))
+            {
+                Log("WARNING: The update applied but the app did not restart. Keeping the staging " +
+                    "folder so this run's log survives for diagnosis.");
+            }
+            else if (result.Success)
+            {
                 CleanStaging(stagingDir, Log);
+            }
 
             return result.Success ? 0 : 1;
         }
 
-        private static void Relaunch(string? exePath, Action<string> log)
+        private static bool Relaunch(string? exePath, Action<string> log)
         {
             if (string.IsNullOrWhiteSpace(exePath))
             {
                 log("Not relaunching — the app is still running.");
-                return;
+                return true;
             }
 
             if (!File.Exists(exePath))
             {
                 log($"Cannot relaunch — the app executable is missing: {exePath}");
-                return;
+                return false;
             }
 
-            try
+#pragma warning disable CA1416
+            bool elevated = new WindowsPrincipal(WindowsIdentity.GetCurrent())
+                .IsInRole(WindowsBuiltInRole.Administrator);
+#pragma warning restore CA1416
+
+            for (int attempt = 1; attempt <= 2; attempt++)
             {
-                Process.Start(new ProcessStartInfo
+                try
                 {
-                    FileName = exePath,
-                    WorkingDirectory = Path.GetDirectoryName(exePath)!,
-                    UseShellExecute = true
-                });
-                log($"Relaunched {exePath}");
+                    if (elevated)
+                    {
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = "explorer.exe",
+                            Arguments = $"\"{exePath}\"",
+                            UseShellExecute = true
+                        });
+                    }
+                    else
+                    {
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = exePath,
+                            WorkingDirectory = Path.GetDirectoryName(exePath)!,
+                            UseShellExecute = true
+                        });
+                    }
+
+                    log($"Relaunched {exePath}");
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    log($"Could not relaunch the app (attempt {attempt}): {ex.Message}");
+                    if (attempt == 1)
+                        Thread.Sleep(500);
+                }
             }
-            catch (Exception ex)
-            {
-                log($"Could not relaunch the app: {ex.Message}");
-            }
+
+            return false;
         }
 
         private static void CleanStaging(string stagingDir, Action<string> log)

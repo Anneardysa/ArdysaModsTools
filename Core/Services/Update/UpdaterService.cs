@@ -73,6 +73,9 @@ namespace ArdysaModsTools.Core.Services.Update
                 {
                     _delta.RepairInterruptedUpdate();
                     _delta.ReportLastApplyOutcome();
+
+                    if (_delta.LastReportedFailure == null)
+                        _delta.ClearStagingRoot();
                 }).ConfigureAwait(true);
 
                 _logger.Log("Checking for updates...");

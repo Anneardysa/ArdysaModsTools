@@ -307,7 +307,7 @@ namespace ArdysaModsTools.UI.Forms
                 if (!await _delta.LaunchApplierAsync(_plan, _cts.Token).ConfigureAwait(true))
                 {
                     _applying = false;
-                    _delta.MarkVersionFailed(_plan.Version, "Launch applier declined or failed integrity check");
+                    FallbackLogger.Log($"Update applier declined or failed integrity check for v{_plan.Version}.");
                     await CallJsAsync("setUpdateFailed", $"{Loc.T("updateAvail.failed")} (UAC declined or updater launch failed)");
                     return;
                 }
@@ -323,7 +323,6 @@ namespace ArdysaModsTools.UI.Forms
             catch (Exception ex)
             {
                 _applying = false;
-                _delta?.MarkVersionFailed(_updateInfo.Version, $"Staging failed: {ex.Message}");
                 FallbackLogger.Log($"Incremental update failed: {ex.Message}");
                 await CallJsAsync("setUpdateFailed", $"{Loc.T("updateAvail.failed")} ({ex.Message})");
             }
@@ -440,7 +439,15 @@ namespace ArdysaModsTools.UI.Forms
             }
 
             if (applierStarted)
+            {
                 Application.Exit();
+
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(20));
+                    Environment.Exit(0);
+                });
+            }
 
             return applierStarted;
         }

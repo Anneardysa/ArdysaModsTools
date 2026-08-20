@@ -365,8 +365,7 @@ namespace ArdysaModsTools.Core.Services.Update
             if (delta != null)
             {
                 if (delta.HasLastApplyFailedForVersion(info.Version) ||
-                    delta.IsAutoUpdateLoopGuarded(info.Version) ||
-                    delta.HasAnyRecentApplyFailed())
+                    delta.IsAutoUpdateLoopGuarded(info.Version))
                 {
                     return false;
                 }
@@ -491,6 +490,8 @@ namespace ArdysaModsTools.Core.Services.Update
 
             CleanStagingRoot(plan.StagingDir);
             Directory.CreateDirectory(plan.StagingDir);
+
+            File.Delete(Path.Combine(plan.StagingDir, StagedOkMarker));
 
             long total = Math.Max(1, plan.TotalDownloadBytes);
             var files = plan.Files;
@@ -758,6 +759,8 @@ namespace ArdysaModsTools.Core.Services.Update
             }
         }
 
+        public void ClearStagingRoot() => CleanStagingRoot(_stagingRoot);
+
         private List<string>? Enumerate(string extension)
         {
             try
@@ -848,7 +851,10 @@ namespace ArdysaModsTools.Core.Services.Update
             catch (Exception ex)
             {
                 _logger.Log($"Could not clear the update staging folder: {ex.Message}");
-                try { if (Directory.Exists(currentStagingDir)) Directory.Delete(currentStagingDir, recursive: true); } catch { }
+                if (!string.Equals(currentStagingDir, _stagingRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    try { if (Directory.Exists(currentStagingDir)) Directory.Delete(currentStagingDir, recursive: true); } catch { }
+                }
             }
         }
 

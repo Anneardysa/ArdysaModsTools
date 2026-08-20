@@ -366,6 +366,37 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
+        public void CanAutoUpdate_AfterAFailedStagingOfAnotherVersion_StillAllowsTheNewVersion()
+        {
+            string stagingRoot = Path.Combine(_installDir, "stagingRoot");
+            var service = NewService(stagingRoot, _ => { });
+            service.MarkVersionFailed("3.0.0", "Staging failed: connection reset");
+
+            var info = new UpdateInfo { Version = "4.0.0", FilesManifestUrl = "https://cdn.invalid/releases/4.0.0/files.json" };
+            Assert.That(DeltaUpdateService.CanAutoUpdate(InstallationType.Installer, info, service), Is.True);
+        }
+
+        [Test]
+        public void ClearStagingRoot_RemovesStagedFoldersButKeepsUpdateState()
+        {
+            string stagingRoot = Path.Combine(_installDir, "stagingRoot");
+            Directory.CreateDirectory(Path.Combine(stagingRoot, "3.0.0"));
+            File.WriteAllText(Path.Combine(stagingRoot, "3.0.0", "apply.json"), "{}");
+
+            var service = NewService(stagingRoot, _ => { });
+            service.MarkVersionFailed("3.0.0", "irrelevant — just needs update_state.json to exist");
+
+            service.ClearStagingRoot();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Directory.Exists(Path.Combine(stagingRoot, "3.0.0")), Is.False);
+                Assert.That(File.Exists(Path.Combine(stagingRoot, "update_state.json")), Is.True);
+                Assert.That(NewService(stagingRoot, _ => { }).HasLastApplyFailedForVersion("3.0.0"), Is.True);
+            });
+        }
+
+        [Test]
         public void IsAutoUpdateLoopGuarded_SuppressesWhenAttemptCountExceeded()
         {
             string stagingRoot = Path.Combine(_installDir, "stagingRoot");
