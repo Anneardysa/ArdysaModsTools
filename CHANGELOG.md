@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.3.2-beta] (Builds 2342–2349)
+## [2.3.2-beta] (Builds 2342–2350)
 
 ### Fixed
 
@@ -27,6 +27,7 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 
 - **Trimmed the always-loaded dev guide by a fifth and gave it a definition-of-done rule** (2349): `CLAUDE.md` is read in full at the start of every coding session, so every line in it is a recurring cost. The Understory and Linux-rig sections (39 lines of setup detail) were duplicating `.understory/operations/understory-memory.md` and `agent-rig.md` verbatim and are now one-line pointers to them, and the commit/build sections dropped what `COMMIT_GUIDE.md` and `.agents/skills/build-and-test/` already cover — 170 lines down to 151, with the file-safety, architecture, `[AMT:TIER]` and grounding rules untouched. Added in their place: a definition-of-done rule (name the check that can fail before writing code) and session-hygiene rules against speculative file reads.
 - **Corrected the Understory MCP port and a stale gitignore claim in the memory bundle** (2349): The two operations concepts still said `127.0.0.1:3800` and described `scripts/**` as gitignored, both untrue since the port move and since the private repo started tracking `scripts/`.
+- **Pruned the agent-config skill's pre-migration WebView2 workflow instead of just warning about it** (2350): `.agents/skills/add-webview2-form/SKILL.md` still taught a raw-HTML template loading Tailwind and Google Fonts from a runtime CDN, which CLAUDE.md had to carry a standing warning against because it contradicts the app's zero-runtime-CDN guarantee and the fact that `Assets/Html/*.html` is committed `Frontend/` build output, not hand-written source. The skill now teaches the real `Frontend/src/pages/` → `npm run build` workflow directly, so the warning in CLAUDE.md could be removed instead of read every session.
 
 ## [2.3.1-beta] (Builds 2334–2341)
 
