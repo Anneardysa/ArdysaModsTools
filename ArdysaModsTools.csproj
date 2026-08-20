@@ -40,8 +40,8 @@
   <!-- ============================================== -->
   <PropertyGroup>
     <Version>2.3.2-beta</Version>
-    <AssemblyVersion>2.3.2.2348</AssemblyVersion>
-    <FileVersion>2.3.2.2348</FileVersion>
+    <AssemblyVersion>2.3.2.2349</AssemblyVersion>
+    <FileVersion>2.3.2.2349</FileVersion>
     <InformationalVersion>2.3.1-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>

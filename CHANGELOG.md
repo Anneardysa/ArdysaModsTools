@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.3.2-beta] (Builds 2342–2348)
+## [2.3.2-beta] (Builds 2342–2349)
 
 ### Fixed
 
@@ -22,6 +22,11 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 - **`kv3.py` reads KV3 v1 and v5, and an unreadable model is no longer silently treated as one without skins** (2345): `material_groups()` swallowed every parse failure into `[]`, which is also what a model with genuinely no alternates returns. Wyrdwing Exaltation - Wings (#29031) is on a v5 model while its four setmates are v4, so one piece of a set kept the wrong material and nothing said so — 34 of 307 skin-bearing items were in that state. The reader now covers v1–v5, pinned against [ValveResourceFormat](https://github.com/ValveResourceFormat/ValveResourceFormat) and re-proved over 3824 shipped blocks with zero failures; `material_groups()` raises for a model it cannot read, and the reason surfaces in the console, the inject report and the page. Writing back stays v2–v4 only. Also fixed the v3 header length, which was 72 instead of 64 and broke every v3 block outright.
 - **A second `build_hero_assets.py --serve` now refuses to start instead of shadowing the first** (2345): `socketserver` sets `SO_REUSEADDR`, which on Windows means "bind a port another process is actively serving" rather than Unix's TIME_WAIT reuse — so restarting the dev server after an edit could leave the old process answering, and a verified-correct fix kept producing the old behaviour in the browser. `serve()` now sets `allow_reuse_address` only off Windows and reports the port conflict by name.
 - **Delta updates no longer fail with HTTP 404 when a release changes a file under `Assets/`** (2342): `CdnConfig.ExtractAssetPath` matched the `"/Assets/"` marker before the CDN base URL, so a delta file URL — which has `Assets/` in the middle of its path — was truncated to its tail: `…/releases/2.3.1-beta/files/Assets/Locales/en.json` became `…/Assets/Locales/en.json`, a path that exists on neither host. Every mirror candidate for that file was the same wrong URL, so staging failed on all servers and the dialog fell back to the manual installer. Known bases are now matched first and the marker is only a fallback for hosts in no base list; `DeltaUpdateService.StageAsync` also drops any candidate whose path no longer ends with the file's own relative path. See [ADR-0012](docs/adr/0012-incremental-delta-updates.md).
+
+### Documentation
+
+- **Trimmed the always-loaded dev guide by a fifth and gave it a definition-of-done rule** (2349): `CLAUDE.md` is read in full at the start of every coding session, so every line in it is a recurring cost. The Understory and Linux-rig sections (39 lines of setup detail) were duplicating `.understory/operations/understory-memory.md` and `agent-rig.md` verbatim and are now one-line pointers to them, and the commit/build sections dropped what `COMMIT_GUIDE.md` and `.agents/skills/build-and-test/` already cover — 170 lines down to 151, with the file-safety, architecture, `[AMT:TIER]` and grounding rules untouched. Added in their place: a definition-of-done rule (name the check that can fail before writing code) and session-hygiene rules against speculative file reads.
+- **Corrected the Understory MCP port and a stale gitignore claim in the memory bundle** (2349): The two operations concepts still said `127.0.0.1:3800` and described `scripts/**` as gitignored, both untrue since the port move and since the private repo started tracking `scripts/`.
 
 ## [2.3.1-beta] (Builds 2334–2341)
 
