@@ -59,11 +59,12 @@ namespace ArdysaModsTools.Core.Services
             string root = PathUtility.NormalizeTargetPath(targetPath);
             string gameVpk = Path.Combine(root, ToNative(DotaPaths.GameVpk));
             string modVpk = Path.Combine(root, ToNative(DotaPaths.ModsVpk));
+            string mainPayload = ProtectedVpkStore.MainPayloadStorePath(root);
 
             var vanillaStamp = VpkStamp.Read(gameVpk);
-            var modStamp = VpkStamp.Read(modVpk);
+            var modStamp = ProtectedVpkStore.GetActiveModVpkStamp(root);
 
-            if (modStamp == null)
+            if (modStamp == null || (!File.Exists(modVpk) && !File.Exists(mainPayload)))
             {
                 return PublishTransient(Unknown("verify.sync.unknown", "mod package not installed"));
             }
@@ -111,7 +112,7 @@ namespace ArdysaModsTools.Core.Services
         {
             var baseline = await ItemsGameBaselineStore.ReadAsync(root, ct).ConfigureAwait(false);
 
-            var modStamp = VpkStamp.Read(modVpk);
+            var modStamp = ProtectedVpkStore.GetActiveModVpkStamp(root);
             bool recordApplies = baseline != null && modStamp != null && baseline.ModVpk == modStamp.Value;
 
             if (recordApplies && baseline!.VanillaVpk == vanillaStamp)
@@ -140,7 +141,7 @@ namespace ArdysaModsTools.Core.Services
                         return InSync();
                     }
 
-                    var diff = await TryDiffAsync(modVpk, vanillaCopy, workDir, ct).ConfigureAwait(false);
+                    var diff = await TryDiffAsync(root, vanillaCopy, workDir, ct).ConfigureAwait(false);
                     string diag = $"vanilla items_game.txt is {currentSha}, package was built from {baseline.VanillaItemsGameSha}"
                                 + (diff.HasValue ? $"; +{diff.Value.Added} / -{diff.Value.Removed} / ~{diff.Value.Changed} ids" : "");
                     _logger?.Log($"[SYNC] Package is stale: {diag}");
@@ -150,7 +151,7 @@ namespace ArdysaModsTools.Core.Services
                         : Stale("verify.sync.fail", null, diag);
                 }
 
-                var legacy = await TryDiffAsync(modVpk, vanillaCopy, workDir, ct).ConfigureAwait(false);
+                var legacy = await TryDiffAsync(root, vanillaCopy, workDir, ct).ConfigureAwait(false);
                 if (legacy == null)
                     return Unknown("verify.sync.noPackage", "mod package carries no item data");
 
@@ -184,10 +185,10 @@ namespace ArdysaModsTools.Core.Services
         }
 
         private async Task<ItemsGameBlockIndex.IdDiff?> TryDiffAsync(
-            string modVpk, string vanillaCopy, string workDir, CancellationToken ct)
+            string root, string vanillaCopy, string workDir, CancellationToken ct)
         {
             string modCopy = Path.Combine(workDir, "mod_items_game.txt");
-            if (!await _extractor.ExtractItemsGameAsync(modVpk, modCopy, null, ct).ConfigureAwait(false))
+            if (!await _extractor.ExtractModItemsGameAsync(root, modCopy, null, ct).ConfigureAwait(false))
                 return null;
 
             ct.ThrowIfCancellationRequested();
@@ -260,9 +261,10 @@ namespace ArdysaModsTools.Core.Services
                 };
             }
 
-            string root = Path.GetFullPath(targetPath);
+            string root = PathUtility.NormalizeTargetPath(targetPath);
             string gameVpk = Path.Combine(root, ToNative(DotaPaths.GameVpk));
             string modVpk = Path.Combine(root, ToNative(DotaPaths.ModsVpk));
+            string mainPayload = ProtectedVpkStore.MainPayloadStorePath(root);
 
             if (!File.Exists(gameVpk))
             {
@@ -274,7 +276,7 @@ namespace ArdysaModsTools.Core.Services
                 };
             }
 
-            if (!File.Exists(modVpk))
+            if (!File.Exists(modVpk) && !File.Exists(mainPayload))
             {
                 return new SyncDetailsReport
                 {
@@ -292,7 +294,7 @@ namespace ArdysaModsTools.Core.Services
                 string modCopy = Path.Combine(workDir, "mod_items_game.txt");
 
                 bool gotVanilla = await _extractor.ExtractItemsGameAsync(gameVpk, vanillaCopy, null, ct).ConfigureAwait(false);
-                bool gotMod = await _extractor.ExtractItemsGameAsync(modVpk, modCopy, null, ct).ConfigureAwait(false);
+                bool gotMod = await _extractor.ExtractModItemsGameAsync(root, modCopy, null, ct).ConfigureAwait(false);
 
                 if (!gotVanilla || !gotMod)
                 {

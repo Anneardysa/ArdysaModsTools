@@ -34,6 +34,9 @@ namespace ArdysaModsTools.Core.Services
 
         Task<bool> ExtractItemsGameAsync(string vpkPath, string destFilePath,
             Action<string>? log = null, CancellationToken ct = default);
+
+        Task<bool> ExtractModItemsGameAsync(string targetPath, string destFilePath,
+            Action<string>? log = null, CancellationToken ct = default);
     }
 
     public sealed class GameItemsGameExtractorService : IGameItemsGameExtractor
@@ -165,6 +168,126 @@ namespace ArdysaModsTools.Core.Services
             {
                 try { Directory.Delete(tempDir, true); } catch {  }
             }
+        }
+
+        public async Task<bool> ExtractModItemsGameAsync(string targetPath, string destFilePath,
+            Action<string>? log = null, CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(targetPath) || string.IsNullOrWhiteSpace(destFilePath))
+                return false;
+
+            string root = PathUtility.NormalizeTargetPath(targetPath);
+
+            string looseItemsGame = Path.Combine(root, "game", "_ArdysaMods", "scripts", "items", "items_game.txt");
+            if (File.Exists(looseItemsGame))
+            {
+                try
+                {
+                    long size = new FileInfo(looseItemsGame).Length;
+                    if (size >= MinItemsGameBytes)
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(destFilePath)!);
+                        File.Copy(looseItemsGame, destFilePath, overwrite: true);
+                        _logger?.LogDebug($"GameItemsGameExtractor: found loose items_game.txt ({size} bytes) in _ArdysaMods.");
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug($"GameItemsGameExtractor: reading loose items_game failed: {ex.Message}");
+                }
+            }
+
+            string mainPayload = ProtectedVpkStore.MainPayloadStorePath(root);
+            if (File.Exists(mainPayload))
+            {
+                string tempDir = Path.Combine(SafeTempPathHelper.GetSafeTempPath(), $"ArdysaModDec_{Guid.NewGuid():N}");
+                try
+                {
+                    Directory.CreateDirectory(tempDir);
+                    SafeTempPathHelper.HideDirectory(tempDir);
+                    string tempDecryptedVpk = Path.Combine(tempDir, "temp_mod.vpk");
+
+                    if (ProtectedVpkStore.DecryptMainPayloadToTempFile(root, tempDecryptedVpk, _logger))
+                    {
+                        bool ok = await ExtractItemsGameAsync(tempDecryptedVpk, destFilePath, log, ct).ConfigureAwait(false);
+                        if (ok) return true;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug($"GameItemsGameExtractor: main payload extraction failed: {ex.Message}");
+                }
+                finally
+                {
+                    try
+                    {
+                        if (Directory.Exists(tempDir))
+                        {
+                            ProtectedVpkStore.NormalizeAttributesRecursively(tempDir);
+                            Directory.Delete(tempDir, true);
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            string modVpk = Path.Combine(root, DotaPaths.ModsVpk.Replace('/', Path.DirectorySeparatorChar));
+            if (File.Exists(modVpk))
+            {
+                var fi = new FileInfo(modVpk);
+                if (fi.Length != 28)
+                {
+                    bool ok = await ExtractItemsGameAsync(modVpk, destFilePath, log, ct).ConfigureAwait(false);
+                    if (ok) return true;
+                }
+            }
+
+            string protPayload = ProtectedVpkStore.PayloadStorePath(root);
+            if (File.Exists(protPayload))
+            {
+                string tempDir = Path.Combine(SafeTempPathHelper.GetSafeTempPath(), $"ArdysaProtDec_{Guid.NewGuid():N}");
+                try
+                {
+                    Directory.CreateDirectory(tempDir);
+                    SafeTempPathHelper.HideDirectory(tempDir);
+                    string tempDecryptedVpk = Path.Combine(tempDir, "temp_prot.vpk");
+
+                    if (ProtectedVpkStore.DecryptPayloadToTempFile(root, tempDecryptedVpk, _logger))
+                    {
+                        bool ok = await ExtractItemsGameAsync(tempDecryptedVpk, destFilePath, log, ct).ConfigureAwait(false);
+                        if (ok) return true;
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogDebug($"GameItemsGameExtractor: protected payload extraction failed: {ex.Message}");
+                }
+                finally
+                {
+                    try
+                    {
+                        if (Directory.Exists(tempDir))
+                        {
+                            ProtectedVpkStore.NormalizeAttributesRecursively(tempDir);
+                            Directory.Delete(tempDir, true);
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            return false;
         }
 
         private async Task<bool> RunHlExtractAsync(string hlExtractPath, string arguments, CancellationToken ct)

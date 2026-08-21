@@ -67,8 +67,9 @@ namespace ArdysaModsTools.Core.Services
             string root = PathUtility.NormalizeTargetPath(targetPath);
             string gameVpk = Path.Combine(root, Native(DotaPaths.GameVpk));
             string modVpk = Path.Combine(root, Native(DotaPaths.ModsVpk));
+            string mainPayload = ProtectedVpkStore.MainPayloadStorePath(root);
 
-            if (!File.Exists(modVpk))
+            if (!File.Exists(modVpk) && !File.Exists(mainPayload))
                 return new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.NothingToMerge };
 
             if (!File.Exists(gameVpk))
@@ -101,7 +102,8 @@ namespace ArdysaModsTools.Core.Services
 
                 string vanillaSha = await AssetHashVerifier.ComputeSha256Async(vanillaPath, ct).ConfigureAwait(false);
                 var record = await ItemsGameBaselineStore.ReadAsync(root, ct).ConfigureAwait(false);
-                var modStamp = VpkStamp.Read(modVpk);
+                string stampPath = File.Exists(mainPayload) ? mainPayload : modVpk;
+                var modStamp = VpkStamp.Read(stampPath);
 
                 bool recordApplies = record != null && modStamp != null && record.ModVpk == modStamp.Value;
                 if (recordApplies &&
@@ -113,11 +115,18 @@ namespace ArdysaModsTools.Core.Services
                     return new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.AlreadyCurrent };
                 }
 
+                string activeModVpk = modVpk;
+                string tempDecrypted = Path.Combine(tempRoot, "active_mod.vpk");
+                if (ProtectedVpkStore.DecryptMainPayloadToTempFile(root, tempDecrypted, _logger))
+                {
+                    activeModVpk = tempDecrypted;
+                }
+
                 percent?.Report(5);
                 status?.Report("play.merge.merging");
 
                 string moddedProbe = Path.Combine(tempRoot, "mod_items_game.txt");
-                if (!await _itemsGameExtractor.ExtractItemsGameAsync(modVpk, moddedProbe, null, ct).ConfigureAwait(false))
+                if (!await _itemsGameExtractor.ExtractItemsGameAsync(activeModVpk, moddedProbe, null, ct).ConfigureAwait(false))
                 {
                     _logger?.Log("[MERGE] Package carries no item data — nothing to merge.");
                     return new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.NothingToMerge };
@@ -152,7 +161,7 @@ namespace ArdysaModsTools.Core.Services
                         combinedPatchedIds.Add(id);
                 }
 
-                var patchedIds = combinedPatchedIds.Count > 0 ? (IReadOnlyCollection<string>)combinedPatchedIds : null;
+                IReadOnlyCollection<string>? patchedIds = combinedPatchedIds.Count > 0 ? combinedPatchedIds : null;
 
                 var merged = await Task.Run(() => ItemsGameMerger.Merge(vanillaText, moddedText, patchedIds), ct)
                     .ConfigureAwait(false);
@@ -177,10 +186,10 @@ namespace ArdysaModsTools.Core.Services
 
                 status?.Report("play.merge.unpacking");
 
-                if (!await _extractor.ExtractAsync(hlExtractPath, modVpk, extractDir,
+                if (!await _extractor.ExtractAsync(hlExtractPath, activeModVpk, extractDir,
                         line => _logger?.LogDebug($"[MERGE] {line}"), ct, null, requireItemsGame: false)
                         .ConfigureAwait(false))
-                    return ItemsGameMergeResult.Fail("play.merge.unpackFailed", $"could not unpack {modVpk}");
+                    return ItemsGameMergeResult.Fail("play.merge.unpackFailed", $"could not unpack {activeModVpk}");
 
                 ct.ThrowIfCancellationRequested();
 

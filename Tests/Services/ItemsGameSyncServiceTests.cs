@@ -89,6 +89,18 @@ namespace ArdysaModsTools.Tests.Services
                     File.WriteAllText(dest, body);
                     return Task.FromResult(true);
                 });
+
+            _extractor
+                .Setup(e => e.ExtractModItemsGameAsync(It.IsAny<string>(), It.IsAny<string>(),
+                                                       It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>()))
+                .Returns((string targetPath, string dest, Action<string>? _, CancellationToken __) =>
+                {
+                    if (modItemData == null) return Task.FromResult(false);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                    File.WriteAllText(dest, modItemData);
+                    return Task.FromResult(true);
+                });
         }
 
         private async Task WriteRecordAsync(string vanillaItemDataAtBuildTime, IEnumerable<string>? patchedIds = null)
@@ -439,6 +451,26 @@ namespace ArdysaModsTools.Tests.Services
                 Assert.That(report.IsStale, Is.False);
                 Assert.That(report.Items, Is.Empty);
             });
+        }
+
+        [Test]
+        public async Task Refresh_WithEncryptedStagingPayload_EvaluatesInSync()
+        {
+            Write(DotaPaths.GameVpk, "game vpk v1");
+            string payloadPath = ProtectedVpkStore.MainPayloadStorePath(_root);
+            Directory.CreateDirectory(Path.GetDirectoryName(payloadPath)!);
+            File.WriteAllText(payloadPath, "staging payload v1");
+
+            ProtectedVpkStore.CreateEmptyDummyVpk(Path.Combine(_root, DotaPaths.ModsVpk));
+
+            const string itemData = "\"DOTAEconomyItems\" { \"items\" { \"101\" { \"name\" \"test\" } } }";
+            SetupExtractor(itemData, itemData);
+
+            await WriteRecordAsync(itemData);
+
+            var verdict = await NewService().RefreshAsync(_root);
+
+            Assert.That(verdict.State, Is.EqualTo(ItemsGameSyncState.InSync));
         }
     }
 }

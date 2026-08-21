@@ -88,7 +88,7 @@ namespace ArdysaModsTools.Core.Services
                 var pending = await ReadFileAsync(pendingPath, ct).ConfigureAwait(false);
                 var existing = await ReadFileAsync(baselinePath, ct).ConfigureAwait(false);
 
-                var modStamp = VpkStamp.Read(Path.Combine(targetPath, DotaPaths.ModsVpk));
+                var modStamp = ReadModVpkStamp(targetPath);
                 if (modStamp == null) return;
 
                 string gameVpkPath = Path.Combine(targetPath, DotaPaths.GameVpk.Replace('/', Path.DirectorySeparatorChar));
@@ -152,6 +152,9 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
+        private static VpkStamp? ReadModVpkStamp(string targetPath)
+            => ProtectedVpkStore.GetActiveModVpkStamp(targetPath);
+
         public static async Task RebindAsync(string? targetPath, VpkStamp? expectedPreviousStamp,
             CancellationToken ct = default)
         {
@@ -170,7 +173,7 @@ namespace ArdysaModsTools.Core.Services
                     return;
                 }
 
-                var modStamp = VpkStamp.Read(Path.Combine(targetPath, DotaPaths.ModsVpk));
+                var modStamp = ReadModVpkStamp(targetPath);
                 if (modStamp == null) return;
 
                 await WriteAsync(path, existing with { ModVpk = modStamp.Value }, ct).ConfigureAwait(false);
@@ -197,7 +200,7 @@ namespace ArdysaModsTools.Core.Services
                 string path = Path.Combine(targetPath, DotaPaths.ItemsGameBaseline);
                 var existing = await ReadFileAsync(path, ct).ConfigureAwait(false);
 
-                var modStamp = VpkStamp.Read(Path.Combine(targetPath, DotaPaths.ModsVpk));
+                var modStamp = ReadModVpkStamp(targetPath);
                 if (modStamp == null) return;
 
                 var mergedIds = new HashSet<string>(existing?.PatchedIds ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
