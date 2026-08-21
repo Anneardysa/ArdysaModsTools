@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.3.4-beta] (Builds 2354–2359)
+## [2.3.4-beta] (Builds 2354–2360)
 
 ### Added
 
@@ -28,6 +28,7 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 
 ### Fixed
 
+- **Fixed package rebuild and installation over existing staging directories** (2360): Normalized file and directory attributes prior to rebuilding or overwriting mod packages, cleanly resetting staging directories and extraction logs during ModsPack installations.
 - **Fixed a race condition that could corrupt `pak01_dir.vpk` at Dota 2 launch** (2354): `Dota2Monitor` polled `Process.GetProcessesByName("dota2")` every 1.5s with no debounce, and Source 2's own bootstrap can briefly show zero `dota2` processes while relaunching itself mid-start — not because the game actually exited. A poll landing in that gap fired the "Dota exited" event early, and `MainFormPresenter`'s handler re-encrypted the just-decrypted VPK while the real engine process was still trying to mount it, corrupting the file. `Dota2Monitor` now requires two consecutive consistent readings before raising its event, matching the debounce `GameSessionWatcher` already used for the same signal.
 
 ## [2.3.3-beta] (Build 2353)

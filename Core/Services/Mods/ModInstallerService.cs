@@ -1021,8 +1021,13 @@ namespace ArdysaModsTools.Core.Services
             {
                 string modsDir = Path.Combine(targetPath, "game", "_ArdysaMods");
                 Directory.CreateDirectory(modsDir);
+                try { new DirectoryInfo(modsDir).Attributes = FileAttributes.Normal; } catch { }
 
                 string destVpkPath = Path.Combine(modsDir, "pak01_dir.vpk");
+                if (File.Exists(destVpkPath))
+                {
+                    try { File.SetAttributes(destVpkPath, FileAttributes.Normal); } catch { }
+                }
 
                 using var snapshot = InstallSnapshot.Capture(destVpkPath);
                 snapshot.Report();

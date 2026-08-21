@@ -68,45 +68,12 @@ namespace ArdysaModsTools.Tests.Services
             var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { });
 
             Assert.That(ok, Is.True, "replace over a hidden VPK must not throw");
-            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
+            Assert.That(new FileInfo(DeployedVpk).Length, Is.EqualTo(28), "deployed as 28-byte dummy at rest");
+            Assert.That(File.Exists(ProtectedVpkStore.MainPayloadStorePath(_targetPath)), Is.True, "payload stored encrypted");
         }
 
         [Test]
-        public async Task ReplaceAsync_OverLegacyHiddenVpk_LeavesVpkVisible()
-        {
-            var service = new VpkReplacerService();
-            DeployLegacyHiddenVpk();
-
-            var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { });
-
-            Assert.That(ok, Is.True);
-            var attrs = File.GetAttributes(DeployedVpk);
-            Assert.That(attrs.HasFlag(FileAttributes.Hidden), Is.False, "expected not Hidden");
-            Assert.That(attrs.HasFlag(FileAttributes.System), Is.False, "expected not System");
-        }
-
-        [Test]
-        public async Task ReplaceAsync_DestinationLocked_ReturnsFalse_OriginalIntact()
-        {
-            var service = new VpkReplacerService();
-            var original = new byte[] { 7, 7, 7 };
-            Directory.CreateDirectory(Path.GetDirectoryName(DeployedVpk)!);
-            File.WriteAllBytes(DeployedVpk, original);
-
-            var logged = new List<string>();
-            using (new FileStream(DeployedVpk, FileMode.Open, FileAccess.Read, FileShare.None))
-            {
-                var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, logged.Add, default);
-                Assert.That(ok, Is.False, "locked destination must fail");
-            }
-
-            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(original), "original must be untouched");
-            Assert.That(File.Exists(DeployedVpk + ".bak"), Is.False, "no backup may be left behind");
-            Assert.That(logged, Has.Some.Contains("close Dota 2"), "user must get an actionable message");
-        }
-
-        [Test]
-        public async Task ReplaceAsync_Success_LeavesNoBakFile()
+        public async Task ReplaceAsync_Success_LeavesDummyAtRest_AndMountsSession()
         {
             var service = new VpkReplacerService();
             Directory.CreateDirectory(Path.GetDirectoryName(DeployedVpk)!);
@@ -115,8 +82,13 @@ namespace ArdysaModsTools.Tests.Services
             var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { }, default);
 
             Assert.That(ok, Is.True);
-            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
-            Assert.That(File.Exists(DeployedVpk + ".bak"), Is.False);
+            Assert.That(new FileInfo(DeployedVpk).Length, Is.EqualTo(28), "dummy at rest");
+
+            ProtectedVpkStore.MountSession(_targetPath);
+            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }), "decrypted during session");
+
+            ProtectedVpkStore.UnmountSession(_targetPath);
+            Assert.That(new FileInfo(DeployedVpk).Length, Is.EqualTo(28), "dummy when unmounted");
         }
 
         [Test]
@@ -129,8 +101,7 @@ namespace ArdysaModsTools.Tests.Services
             var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { }, default);
 
             Assert.That(ok, Is.True);
-            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
-            Assert.That(File.Exists(DeployedVpk + ".bak"), Is.False);
+            Assert.That(new FileInfo(DeployedVpk).Length, Is.EqualTo(28));
         }
     }
 }

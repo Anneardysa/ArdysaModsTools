@@ -249,5 +249,128 @@ namespace ArdysaModsTools.Tests.Services
 
             Assert.That(Directory.Exists(modDir), Is.False);
         }
+
+        #region Dual Package & Security Tests
+
+        [Test]
+        public async Task DeployMainAsync_EncryptsPayload_CreatesDummyVpk()
+        {
+            string sampleMainVpk = NewVpk(Path.Combine(_root, "sample_main.vpk"));
+            bool ok = await ProtectedVpkStore.DeployMainAsync(_targetPath, sampleMainVpk, _ => { });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ok, Is.True);
+                Assert.That(File.Exists(ProtectedVpkStore.MainPayloadStorePath(_targetPath)), Is.True, "main payload stored encrypted");
+                Assert.That(File.Exists(ProtectedVpkStore.MainVpkPath(_targetPath)), Is.True, "main vpk exists");
+                Assert.That(new FileInfo(ProtectedVpkStore.MainVpkPath(_targetPath)).Length, Is.EqualTo(28), "main vpk is 28-byte dummy at rest");
+            });
+        }
+
+        [Test]
+        public async Task MountSession_And_UnmountSession_HandlesBothPackages()
+        {
+            string sampleMainVpk = NewVpk(Path.Combine(_root, "sample_main.vpk"));
+            string sampleProtVpk = NewVpk(Path.Combine(_root, "sample_prot.vpk"));
+
+            await ProtectedVpkStore.DeployMainAsync(_targetPath, sampleMainVpk, _ => { });
+            await ProtectedVpkStore.DeployAsync(_targetPath, sampleProtVpk, _ => { });
+
+            Assert.That(new FileInfo(ProtectedVpkStore.MainVpkPath(_targetPath)).Length, Is.EqualTo(28));
+            Assert.That(new FileInfo(ProtectedVpkStore.VpkPath(_targetPath)).Length, Is.EqualTo(28));
+
+            ProtectedVpkStore.MountSession(_targetPath);
+            Assert.That(new FileInfo(ProtectedVpkStore.MainVpkPath(_targetPath)).Length, Is.EqualTo(4));
+            Assert.That(new FileInfo(ProtectedVpkStore.VpkPath(_targetPath)).Length, Is.EqualTo(4));
+
+            ProtectedVpkStore.UnmountSession(_targetPath);
+            Assert.That(new FileInfo(ProtectedVpkStore.MainVpkPath(_targetPath)).Length, Is.EqualTo(28));
+            Assert.That(new FileInfo(ProtectedVpkStore.VpkPath(_targetPath)).Length, Is.EqualTo(28));
+        }
+
+        [Test]
+        public async Task PanicWipe_OverwritesBothVpksToDummy_KeepsPayloadStores()
+        {
+            string sampleMainVpk = NewVpk(Path.Combine(_root, "sample_main.vpk"));
+            string sampleProtVpk = NewVpk(Path.Combine(_root, "sample_prot.vpk"));
+
+            await ProtectedVpkStore.DeployMainAsync(_targetPath, sampleMainVpk, _ => { });
+            await ProtectedVpkStore.DeployAsync(_targetPath, sampleProtVpk, _ => { });
+
+            ProtectedVpkStore.MountSession(_targetPath);
+            Assert.That(new FileInfo(ProtectedVpkStore.MainVpkPath(_targetPath)).Length, Is.EqualTo(4));
+            Assert.That(new FileInfo(ProtectedVpkStore.VpkPath(_targetPath)).Length, Is.EqualTo(4));
+
+            bool wiped = ProtectedVpkStore.PanicWipe(_targetPath);
+            Assert.Multiple(() =>
+            {
+                Assert.That(wiped, Is.True);
+                Assert.That(new FileInfo(ProtectedVpkStore.MainVpkPath(_targetPath)).Length, Is.EqualTo(28));
+                Assert.That(new FileInfo(ProtectedVpkStore.VpkPath(_targetPath)).Length, Is.EqualTo(28));
+                Assert.That(File.Exists(ProtectedVpkStore.MainPayloadStorePath(_targetPath)), Is.True, "payload store remains safe");
+                Assert.That(File.Exists(ProtectedVpkStore.PayloadStorePath(_targetPath)), Is.True, "payload store remains safe");
+            });
+        }
+
+        [Test]
+        public async Task DecryptMainPayloadToTempFile_RestoresOriginalBytes()
+        {
+            string sampleMainVpk = NewVpk(Path.Combine(_root, "sample_main.vpk"));
+            await ProtectedVpkStore.DeployMainAsync(_targetPath, sampleMainVpk, _ => { });
+
+            string tempOut = Path.Combine(_root, "decrypted_main.vpk");
+            bool decrypted = ProtectedVpkStore.DecryptMainPayloadToTempFile(_targetPath, tempOut);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decrypted, Is.True);
+                Assert.That(File.Exists(tempOut), Is.True);
+                Assert.That(File.ReadAllBytes(tempOut), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
+            });
+        }
+
+        [Test]
+        public async Task Clear_RemovesAllStagingPayloads_AndResetsAttributes()
+        {
+            string sampleMainVpk = NewVpk(Path.Combine(_root, "sample_main.vpk"));
+            string sampleProtVpk = NewVpk(Path.Combine(_root, "sample_prot.vpk"));
+
+            await ProtectedVpkStore.DeployMainAsync(_targetPath, sampleMainVpk, _ => { });
+            await ProtectedVpkStore.DeployAsync(_targetPath, sampleProtVpk, _ => { });
+
+            string tempDir = Path.Combine(_targetPath, "game", "_ArdysaMods", "_temp");
+            File.WriteAllText(Path.Combine(tempDir, "hero_extraction_log.json"), "{}");
+            File.WriteAllText(Path.Combine(tempDir, "hero_selections.json"), "{}");
+
+            Assert.That(File.Exists(ProtectedVpkStore.MainPayloadStorePath(_targetPath)), Is.True);
+            Assert.That(File.Exists(ProtectedVpkStore.PayloadStorePath(_targetPath)), Is.True);
+            Assert.That(Directory.Exists(ProtectedVpkStore.Dir(_targetPath)), Is.True);
+
+            ProtectedVpkStore.Clear(_targetPath);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(File.Exists(ProtectedVpkStore.MainPayloadStorePath(_targetPath)), Is.False, "main payload removed");
+                Assert.That(File.Exists(ProtectedVpkStore.PayloadStorePath(_targetPath)), Is.False, "protected payload removed");
+                Assert.That(File.Exists(ProtectedVpkStore.VpkPath(_targetPath)), Is.False, "game/mod/pak01_dir.vpk removed");
+                Assert.That(Directory.Exists(ProtectedVpkStore.Dir(_targetPath)), Is.True, "game/mod directory kept");
+                Assert.That(File.Exists(Path.Combine(tempDir, "hero_extraction_log.json")), Is.False, "extraction log removed");
+                Assert.That(File.Exists(Path.Combine(tempDir, "hero_selections.json")), Is.False, "selections log removed");
+
+                string mainVpk = ProtectedVpkStore.MainVpkPath(_targetPath);
+                if (File.Exists(mainVpk))
+                {
+                    Assert.That(File.GetAttributes(mainVpk), Is.EqualTo(FileAttributes.Normal));
+                }
+                string modsDir = Path.Combine(_targetPath, "game", "_ArdysaMods");
+                if (Directory.Exists(modsDir))
+                {
+                    Assert.That(new DirectoryInfo(modsDir).Attributes.HasFlag(FileAttributes.Hidden), Is.False);
+                    Assert.That(new DirectoryInfo(modsDir).Attributes.HasFlag(FileAttributes.System), Is.False);
+                }
+            });
+        }
+
+        #endregion
     }
 }

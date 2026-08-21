@@ -23,6 +23,9 @@ using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
+using ArdysaModsTools.Core.Models;
+using ArdysaModsTools.Core.Services.Security;
+using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -77,11 +80,60 @@ namespace ArdysaModsTools.Core.Services
         {
             try
             {
-                string vpk = VpkPath(targetPath);
-                if (File.Exists(vpk))
+                if (string.IsNullOrWhiteSpace(targetPath))
+                    return;
+
+                string mainPayload = MainPayloadStorePath(targetPath);
+                if (File.Exists(mainPayload))
                 {
-                    try { File.SetAttributes(vpk, FileAttributes.Normal); } catch { }
-                    File.Delete(vpk);
+                    try { File.SetAttributes(mainPayload, FileAttributes.Normal); } catch { }
+                    try { File.Delete(mainPayload); } catch { }
+                }
+
+                string protPayload = PayloadStorePath(targetPath);
+                if (File.Exists(protPayload))
+                {
+                    try { File.SetAttributes(protPayload, FileAttributes.Normal); } catch { }
+                    try { File.Delete(protPayload); } catch { }
+                }
+
+                string protVpk = VpkPath(targetPath);
+                if (File.Exists(protVpk))
+                {
+                    try { File.SetAttributes(protVpk, FileAttributes.Normal); } catch { }
+                    try { File.Delete(protVpk); } catch { }
+                }
+                string protDir = Dir(targetPath);
+                if (Directory.Exists(protDir))
+                {
+                    NormalizeAttributesRecursively(protDir);
+                }
+
+                string tempDir = Path.Combine(targetPath, "game", "_ArdysaMods", "_temp");
+                if (Directory.Exists(tempDir))
+                {
+                    string[] logFiles = { "hero_extraction_log.json", "hero_selections.json", "itemsgame_baseline.json" };
+                    foreach (var file in logFiles)
+                    {
+                        string p = Path.Combine(tempDir, file);
+                        if (File.Exists(p))
+                        {
+                            try { File.SetAttributes(p, FileAttributes.Normal); } catch { }
+                            try { File.Delete(p); } catch { }
+                        }
+                    }
+                }
+
+                string mainVpk = MainVpkPath(targetPath);
+                if (File.Exists(mainVpk))
+                {
+                    try { File.SetAttributes(mainVpk, FileAttributes.Normal); } catch { }
+                }
+
+                string modsDir = Path.Combine(targetPath, "game", "_ArdysaMods");
+                if (Directory.Exists(modsDir))
+                {
+                    try { new DirectoryInfo(modsDir).Attributes = FileAttributes.Normal; } catch { }
                 }
             }
             catch (Exception ex)
@@ -92,8 +144,92 @@ namespace ArdysaModsTools.Core.Services
 
         private static readonly byte[] StorageEntropy = { 0x41, 0x4D, 0x54, 0x5F, 0x56, 0x50, 0x4B, 0x5F, 0x53, 0x45, 0x43 };
 
+        public static VpkStamp? GetActiveModVpkStamp(string targetPath)
+        {
+            if (string.IsNullOrWhiteSpace(targetPath)) return null;
+            string root = PathUtility.NormalizeTargetPath(targetPath);
+
+            string mainPayload = MainPayloadStorePath(root);
+            if (File.Exists(mainPayload))
+                return VpkStamp.Read(mainPayload);
+
+            string modVpk = MainVpkPath(root);
+            if (File.Exists(modVpk))
+            {
+                var fi = new FileInfo(modVpk);
+                if (fi.Length != 28)
+                    return VpkStamp.Read(modVpk);
+            }
+
+            string protPayload = PayloadStorePath(root);
+            if (File.Exists(protPayload))
+                return VpkStamp.Read(protPayload);
+
+            return VpkStamp.Read(modVpk);
+        }
+
+        public static string MainPayloadStorePath(string targetPath)
+            => Path.Combine(targetPath, "game", "_ArdysaMods", "_temp", "main_payload.vpk");
+
+        public static string MainVpkPath(string targetPath)
+            => Path.Combine(targetPath, "game", "_ArdysaMods", "pak01_dir.vpk");
+
         public static string PayloadStorePath(string targetPath)
             => Path.Combine(targetPath, "game", "_ArdysaMods", "_temp", "protected_payload.vpk");
+
+        public static async Task<bool> DeployMainAsync(string targetPath, string? newVpkPath,
+            Action<string> log, CancellationToken ct = default, IAppLogger? logger = null)
+        {
+            string payloadDest = MainPayloadStorePath(targetPath);
+            string vpkDest = MainVpkPath(targetPath);
+
+            try
+            {
+                if (!string.IsNullOrEmpty(newVpkPath) && File.Exists(newVpkPath))
+                {
+                    byte[] plainBytes = await File.ReadAllBytesAsync(newVpkPath, ct).ConfigureAwait(false);
+                    byte[] encBytes = System.Security.Cryptography.ProtectedData.Protect(
+                        plainBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(payloadDest)!);
+                    try { SafeTempPathHelper.HideDirectory(Path.GetDirectoryName(payloadDest)!); } catch { }
+
+                    if (File.Exists(payloadDest))
+                    {
+                        try { File.SetAttributes(payloadDest, FileAttributes.Normal); } catch { }
+                        try { File.Delete(payloadDest); } catch { }
+                    }
+
+                    await File.WriteAllBytesAsync(payloadDest, encBytes, ct).ConfigureAwait(false);
+                    try { File.SetAttributes(payloadDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+
+                    CreateEmptyDummyVpk(vpkDest);
+                    try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                    try { SafeTempPathHelper.HideDirectory(Path.GetDirectoryName(vpkDest)!); } catch { }
+                }
+                else
+                {
+                    if (File.Exists(payloadDest))
+                    {
+                        try { File.SetAttributes(payloadDest, FileAttributes.Normal); } catch { }
+                        try { File.Delete(payloadDest); } catch { }
+                    }
+
+                    if (File.Exists(vpkDest))
+                    {
+                        try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
+                        try { File.Delete(vpkDest); } catch { }
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger?.Log($"ProtectedVpkStore.DeployMainAsync failed: {ex.Message}");
+                return false;
+            }
+        }
 
         public static async Task<bool> DeployAsync(string targetPath, string? newVpkPath,
             Action<string> log, CancellationToken ct = default, IAppLogger? logger = null)
@@ -154,6 +290,32 @@ namespace ArdysaModsTools.Core.Services
         {
             try
             {
+                string mainPayloadSrc = MainPayloadStorePath(targetPath);
+                string mainVpkDest = MainVpkPath(targetPath);
+                if (File.Exists(mainPayloadSrc))
+                {
+                    byte[] encBytes = File.ReadAllBytes(mainPayloadSrc);
+                    byte[] plainBytes;
+                    try
+                    {
+                        plainBytes = System.Security.Cryptography.ProtectedData.Unprotect(
+                            encBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                    }
+                    catch
+                    {
+                        plainBytes = encBytes;
+                    }
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(mainVpkDest)!);
+                    if (File.Exists(mainVpkDest))
+                    {
+                        try { File.SetAttributes(mainVpkDest, FileAttributes.Normal); } catch { }
+                    }
+                    File.WriteAllBytes(mainVpkDest, plainBytes);
+                    try { File.SetAttributes(mainVpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                    logger?.LogDebug("ProtectedVpkStore: mounted main session payload.");
+                }
+
                 Ensure(targetPath);
                 string payloadSrc = PayloadStorePath(targetPath);
                 string vpkDest = VpkPath(targetPath);
@@ -196,18 +358,30 @@ namespace ArdysaModsTools.Core.Services
         {
             try
             {
+                string mainPayloadSrc = MainPayloadStorePath(targetPath);
+                string mainVpkDest = MainVpkPath(targetPath);
+                if (File.Exists(mainPayloadSrc))
+                {
+                    FileSecurityGuard.ReleaseDaclLock(mainVpkDest, logger);
+                    CreateEmptyDummyVpk(mainVpkDest);
+                    try { File.SetAttributes(mainVpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                    logger?.LogDebug("ProtectedVpkStore: unmounted main session payload (reverted to dummy VPK).");
+                }
+
                 Ensure(targetPath);
                 string payloadSrc = PayloadStorePath(targetPath);
                 string vpkDest = VpkPath(targetPath);
 
                 if (File.Exists(payloadSrc))
                 {
+                    FileSecurityGuard.ReleaseDaclLock(vpkDest, logger);
                     CreateEmptyDummyVpk(vpkDest);
                     try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
                     logger?.LogDebug("ProtectedVpkStore: unmounted session payload (reverted to dummy VPK).");
                 }
                 else if (File.Exists(vpkDest))
                 {
+                    FileSecurityGuard.ReleaseDaclLock(vpkDest, logger);
                     try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
                     File.Delete(vpkDest);
                 }
@@ -218,12 +392,67 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
+        public static bool PanicWipe(string targetPath, IAppLogger? logger = null)
+        {
+            try
+            {
+                bool wiped = false;
+                string mainVpk = MainVpkPath(targetPath);
+                if (File.Exists(mainVpk))
+                {
+                    FileSecurityGuard.ReleaseDaclLock(mainVpk, logger);
+                    CreateEmptyDummyVpk(mainVpk);
+                    try { File.SetAttributes(mainVpk, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                    wiped = true;
+                }
+
+                string protVpk = VpkPath(targetPath);
+                if (File.Exists(protVpk))
+                {
+                    FileSecurityGuard.ReleaseDaclLock(protVpk, logger);
+                    CreateEmptyDummyVpk(protVpk);
+                    try { File.SetAttributes(protVpk, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                    wiped = true;
+                }
+
+                logger?.LogDebug("ProtectedVpkStore: PanicWipe executed successfully (both VPKs reverted to dummy headers).");
+                FallbackLogger.Log("[ProtectedVpkStore] PanicWipe executed — VPKs locked to dummy.");
+                return wiped;
+            }
+            catch (Exception ex)
+            {
+                logger?.Log($"ProtectedVpkStore.PanicWipe failed: {ex.Message}");
+                FallbackLogger.LogFileOnly($"ProtectedVpkStore.PanicWipe error: {ex.Message}");
+                return false;
+            }
+        }
+
         public static void PurgeOrphanedSession(string targetPath, IAppLogger? logger = null)
         {
             try
             {
                 if (string.IsNullOrEmpty(targetPath) || !Directory.Exists(targetPath))
                     return;
+
+                string mainPayloadSrc = MainPayloadStorePath(targetPath);
+                string mainVpkDest = MainVpkPath(targetPath);
+                if (File.Exists(mainPayloadSrc))
+                {
+                    if (File.Exists(mainVpkDest))
+                    {
+                        var fi = new FileInfo(mainVpkDest);
+                        if (fi.Length != 28)
+                        {
+                            CreateEmptyDummyVpk(mainVpkDest);
+                            try { File.SetAttributes(mainVpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                        }
+                    }
+                    else
+                    {
+                        CreateEmptyDummyVpk(mainVpkDest);
+                        try { File.SetAttributes(mainVpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                    }
+                }
 
                 string payloadSrc = PayloadStorePath(targetPath);
                 string vpkDest = VpkPath(targetPath);
@@ -334,6 +563,36 @@ namespace ArdysaModsTools.Core.Services
             {
                 logger?.Log($"ProtectedVpkStore: could not copy items_game.txt to protected folder: {ex.Message}");
                 FallbackLogger.LogFileOnly($"ProtectedVpkStore.CopyItemsGame failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        public static bool DecryptMainPayloadToTempFile(string targetPath, string tempOutputPath, IAppLogger? logger = null)
+        {
+            try
+            {
+                string payloadSrc = MainPayloadStorePath(targetPath);
+                if (!File.Exists(payloadSrc)) return false;
+
+                byte[] encBytes = File.ReadAllBytes(payloadSrc);
+                byte[] plainBytes;
+                try
+                {
+                    plainBytes = System.Security.Cryptography.ProtectedData.Unprotect(
+                        encBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                }
+                catch
+                {
+                    plainBytes = encBytes;
+                }
+
+                Directory.CreateDirectory(Path.GetDirectoryName(tempOutputPath)!);
+                File.WriteAllBytes(tempOutputPath, plainBytes);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger?.Log($"ProtectedVpkStore.DecryptMainPayloadToTempFile failed: {ex.Message}");
                 return false;
             }
         }

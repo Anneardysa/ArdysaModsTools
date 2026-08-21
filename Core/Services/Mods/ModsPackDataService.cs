@@ -178,7 +178,17 @@ namespace ArdysaModsTools.Core.Services
 
                 percent?.Report(98);
                 status("Installing...");
+                if (File.Exists(vpkPath))
+                {
+                    try { File.SetAttributes(vpkPath, FileAttributes.Normal); } catch { }
+                }
+                string destDir = Path.GetDirectoryName(vpkPath)!;
+                if (Directory.Exists(destDir))
+                {
+                    try { new DirectoryInfo(destDir).Attributes = FileAttributes.Normal; } catch { }
+                }
                 File.Copy(newVpkPath, vpkPath, overwrite: true);
+                try { File.SetAttributes(vpkPath, FileAttributes.Normal); } catch { }
 
                 await ItemsGameBaselineStore.CommitAsync(targetPath, mergedBlocks.Keys, ct).ConfigureAwait(false);
 

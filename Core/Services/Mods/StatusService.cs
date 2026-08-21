@@ -163,9 +163,10 @@ namespace ArdysaModsTools.Core.Services
             ct.ThrowIfCancellationRequested();
 
             string vpkFile = Path.Combine(targetPath, DotaPaths.ModsVpk);
+            string mainPayload = ProtectedVpkStore.MainPayloadStorePath(targetPath);
             string versionFile = Path.Combine(targetPath, DotaPaths.ModsVersion);
 
-            if (!File.Exists(vpkFile))
+            if (!File.Exists(vpkFile) && !File.Exists(mainPayload))
             {
                 return new ModsInstalledResult
                 {
@@ -178,7 +179,7 @@ namespace ArdysaModsTools.Core.Services
             }
 
             string? version = await GetVersionAsync(versionFile, ct);
-            DateTime? lastModified = GetLastModified(vpkFile);
+            DateTime? lastModified = File.Exists(mainPayload) ? GetLastModified(mainPayload) : GetLastModified(vpkFile);
 
             return new ModsInstalledResult
             {

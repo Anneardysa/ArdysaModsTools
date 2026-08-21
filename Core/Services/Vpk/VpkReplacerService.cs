@@ -43,9 +43,7 @@ namespace ArdysaModsTools.Core.Services
             string modsDir = Path.Combine(targetPath, "game", "_ArdysaMods");
             Directory.CreateDirectory(modsDir);
 
-            string currentVpk = Path.Combine(modsDir, "pak01_dir.vpk");
-
-            if (!await DeployVpkAsync(currentVpk, newVpkPath, hideOutput: false, log, ct, _logger).ConfigureAwait(false))
+            if (!await ProtectedVpkStore.DeployMainAsync(targetPath, newVpkPath, log, ct, _logger).ConfigureAwait(false))
                 return false;
 
             try
