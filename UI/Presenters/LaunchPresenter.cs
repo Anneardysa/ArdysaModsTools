@@ -169,7 +169,7 @@ namespace ArdysaModsTools.UI.Presenters
                 return;
             }
 
-            if (!Launch(targetPath))
+            if (!Launch())
                 return;
 
             await WaitForGameAsync(targetPath, ct).ConfigureAwait(false);
@@ -280,12 +280,9 @@ namespace ArdysaModsTools.UI.Presenters
             return true;
         }
 
-        private bool Launch(string? targetPath)
+        private bool Launch()
         {
             Show("play.panel.launching", "play.panel.launchingDetail", percent: null, canCancel: true);
-
-            if (!string.IsNullOrEmpty(targetPath))
-                ProtectedVpkStore.DecryptForPlay(targetPath, _logger);
 
             if (_launcher(SteamLaunchUrl)) return true;
 
@@ -324,7 +321,7 @@ namespace ArdysaModsTools.UI.Presenters
                         return;
                     }
 
-                    if (!Launch(targetPath)) return;
+                    if (!Launch()) return;
 
                     deadline = DateTime.UtcNow + LaunchTimeout;
                     continue;

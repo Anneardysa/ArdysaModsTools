@@ -19,7 +19,6 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Services;
-using ArdysaModsTools.Core.Services.Config;
 
 namespace ArdysaModsTools.Core.Services.App
 {
@@ -90,17 +89,6 @@ namespace ArdysaModsTools.Core.Services.App
             {
                 WaitUntilGoneAsync(GameIsRunning, PollInterval, CancellationToken.None)
                     .GetAwaiter().GetResult();
-
-                try
-                {
-                    string? targetPath = new MainConfigService().GetLastTargetPath();
-                    if (!string.IsNullOrEmpty(targetPath))
-                        ProtectedVpkStore.EncryptAtRest(targetPath);
-                }
-                catch (Exception ex)
-                {
-                    FallbackLogger.Log($"[GameSessionWatcher] Re-encrypt after session failed: {ex.Message}");
-                }
 
                 string args = IsMinimizedLaunch(Environment.GetCommandLineArgs())
                     ? $"{ResumedArgument} {MinimizedArgument}"

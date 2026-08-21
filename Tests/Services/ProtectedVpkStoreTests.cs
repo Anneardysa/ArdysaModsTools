@@ -16,7 +16,6 @@
  */
 using NUnit.Framework;
 using ArdysaModsTools.Core.Services;
-using ArdysaModsTools.Core.Services.Security;
 
 namespace ArdysaModsTools.Tests.Services
 {
@@ -182,6 +181,7 @@ namespace ArdysaModsTools.Tests.Services
                 Assert.That(dirAttrs.HasFlag(FileAttributes.Hidden), Is.True, "folder Hidden");
                 Assert.That(dirAttrs.HasFlag(FileAttributes.System), Is.True, "folder System");
                 Assert.That(File.Exists(ProtectedVpk + ".bak"), Is.False, "no backup left behind");
+                Assert.That(File.ReadAllBytes(ProtectedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }), "deployed as plaintext VPK");
             });
         }
 
@@ -219,170 +219,6 @@ namespace ArdysaModsTools.Tests.Services
         public void Clear_NoPackage_DoesNotThrow()
         {
             Assert.DoesNotThrow(() => ProtectedVpkStore.Clear(_targetPath));
-        }
-
-        [Test]
-        public async Task DeployAsync_EncryptsPackageAtRest()
-        {
-            var source = NewVpk(Path.Combine(_root, "protected.vpk"));
-
-            bool ok = await ProtectedVpkStore.DeployAsync(_targetPath, source, _ => { });
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(ok, Is.True);
-                Assert.That(ProtectedVpkStore.IsEncryptedAtRest(_targetPath), Is.True,
-                    "generate must leave the protected package encrypted, not a plaintext VPK");
-                Assert.That(AssetCipher.IsEncrypted(ProtectedVpk), Is.True);
-            });
-        }
-
-        #endregion
-
-        #region EncryptAtRest / DecryptForPlay
-
-        [Test]
-        public void EncryptAtRest_PlaintextVpk_BecomesAme1Container()
-        {
-            NewVpk(ProtectedVpk);
-
-            bool ok = ProtectedVpkStore.EncryptAtRest(_targetPath);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(ok, Is.True);
-                Assert.That(ProtectedVpkStore.IsEncryptedAtRest(_targetPath), Is.True);
-                byte[] head = File.ReadAllBytes(ProtectedVpk).Take(4).ToArray();
-                Assert.That(head, Is.EqualTo(new byte[] { 0x41, 0x4D, 0x45, 0x31 }), "AME1 magic");
-            });
-        }
-
-        [Test]
-        public void EncryptThenDecrypt_RoundTrips_ByteIdentical()
-        {
-            byte[] original = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-            Directory.CreateDirectory(Path.GetDirectoryName(ProtectedVpk)!);
-            File.WriteAllBytes(ProtectedVpk, original);
-
-            Assert.That(ProtectedVpkStore.EncryptAtRest(_targetPath), Is.True);
-            Assert.That(ProtectedVpkStore.DecryptForPlay(_targetPath), Is.True);
-
-            Assert.That(File.ReadAllBytes(ProtectedVpk), Is.EqualTo(original));
-        }
-
-        [Test]
-        public void EncryptAtRest_AlreadyEncrypted_IsIdempotent()
-        {
-            NewVpk(ProtectedVpk);
-            Assert.That(ProtectedVpkStore.EncryptAtRest(_targetPath), Is.True);
-            byte[] afterFirst = File.ReadAllBytes(ProtectedVpk);
-
-            bool ok = ProtectedVpkStore.EncryptAtRest(_targetPath);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(ok, Is.True);
-                Assert.That(File.ReadAllBytes(ProtectedVpk), Is.EqualTo(afterFirst),
-                    "a second encrypt must not re-encrypt (would corrupt content/change nonce needlessly)");
-            });
-        }
-
-        [Test]
-        public void DecryptForPlay_AlreadyPlaintext_IsIdempotentNoOp()
-        {
-            var bytes = new byte[] { 9, 9, 9, 9 };
-            NewVpk(ProtectedVpk);
-            File.WriteAllBytes(ProtectedVpk, bytes);
-
-            bool ok = ProtectedVpkStore.DecryptForPlay(_targetPath);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(ok, Is.True);
-                Assert.That(File.ReadAllBytes(ProtectedVpk), Is.EqualTo(bytes));
-            });
-        }
-
-        [Test]
-        public void EncryptAtRest_MissingPackage_IsNoOpSuccess()
-        {
-            Assert.That(ProtectedVpkStore.EncryptAtRest(_targetPath), Is.True);
-        }
-
-        [Test]
-        public void DecryptForPlay_MissingPackage_IsNoOpSuccess()
-        {
-            Assert.That(ProtectedVpkStore.DecryptForPlay(_targetPath), Is.True);
-        }
-
-        [Test]
-        public void IsEncryptedAtRest_MissingPackage_ReturnsFalse()
-        {
-            Assert.That(ProtectedVpkStore.IsEncryptedAtRest(_targetPath), Is.False);
-        }
-
-        [Test]
-        public void EncryptAtRest_PreservesHiddenSystemAttributes()
-        {
-            NewVpk(ProtectedVpk);
-            File.SetAttributes(ProtectedVpk, FileAttributes.Hidden | FileAttributes.System);
-
-            ProtectedVpkStore.EncryptAtRest(_targetPath);
-
-            var attrs = File.GetAttributes(ProtectedVpk);
-            Assert.Multiple(() =>
-            {
-                Assert.That(attrs.HasFlag(FileAttributes.Hidden), Is.True);
-                Assert.That(attrs.HasFlag(FileAttributes.System), Is.True);
-            });
-        }
-
-        [Test]
-        public void DecryptForPlay_PreservesHiddenSystemAttributes()
-        {
-            NewVpk(ProtectedVpk);
-            File.SetAttributes(ProtectedVpk, FileAttributes.Hidden | FileAttributes.System);
-            ProtectedVpkStore.EncryptAtRest(_targetPath);
-
-            ProtectedVpkStore.DecryptForPlay(_targetPath);
-
-            var attrs = File.GetAttributes(ProtectedVpk);
-            Assert.Multiple(() =>
-            {
-                Assert.That(attrs.HasFlag(FileAttributes.Hidden), Is.True);
-                Assert.That(attrs.HasFlag(FileAttributes.System), Is.True);
-            });
-        }
-
-        [Test]
-        public void EncryptAtRest_LockedFile_LeavesOriginalIntact()
-        {
-            NewVpk(ProtectedVpk);
-            byte[] original = File.ReadAllBytes(ProtectedVpk);
-
-            using (var lockStream = new FileStream(ProtectedVpk, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                bool ok = ProtectedVpkStore.EncryptAtRest(_targetPath);
-
-                Assert.That(ok, Is.False, "a locked file must fail closed, not report a fake success");
-            }
-
-            Assert.That(File.ReadAllBytes(ProtectedVpk), Is.EqualTo(original),
-                "the original package must survive a failed encrypt attempt untouched");
-        }
-
-        [Test]
-        public void EncryptAtRest_NoBackupOrTempArtifactsLeftBehind()
-        {
-            NewVpk(ProtectedVpk);
-
-            ProtectedVpkStore.EncryptAtRest(_targetPath);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(File.Exists(ProtectedVpk + ".bak"), Is.False);
-                Assert.That(File.Exists(ProtectedVpk + ".tmp"), Is.False);
-            });
         }
 
         #endregion

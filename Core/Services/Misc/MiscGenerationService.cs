@@ -104,7 +104,6 @@ namespace ArdysaModsTools.Core.Services
                     {
                         try
                         {
-                            ProtectedVpkStore.DecryptForPlay(targetPath, _logger);
                             await _extractor.ExtractAsync(hlExtractPath, protectedVpkPath, protectedDir, _ => { }, ct).ConfigureAwait(false);
                         }
                         catch (Exception ex)
