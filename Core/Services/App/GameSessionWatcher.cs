@@ -19,6 +19,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Services.Security;
 
 namespace ArdysaModsTools.Core.Services.App
 {
@@ -85,21 +86,39 @@ namespace ArdysaModsTools.Core.Services.App
                 FallbackLogger.Log($"[GameSessionWatcher] Stub mutex unavailable: {ex.Message}");
             }
 
+            ActiveProcessSentry? sentry = null;
             try
             {
+                ProcessProtectionGuard.ProtectCurrentProcess();
+
+                var detector = new DetectionService();
+                string? dotaPath = detector.AutoDetectAsync().GetAwaiter().GetResult();
+
+                if (!string.IsNullOrEmpty(dotaPath))
+                {
+                    sentry = new ActiveProcessSentry(threatName =>
+                    {
+                        ActiveProcessSentry.KillRunningThreats();
+                        return true;
+                    });
+                    sentry.Start(pollIntervalMs: 350);
+                }
+
                 WaitUntilGoneAsync(GameIsRunning, PollInterval, CancellationToken.None)
                     .GetAwaiter().GetResult();
 
+                try { sentry?.Stop(); } catch { }
+
                 try
                 {
-                    var detector = new DetectionService();
-                    string? dotaPath = detector.AutoDetectAsync().GetAwaiter().GetResult();
                     if (!string.IsNullOrEmpty(dotaPath))
                     {
                         ProtectedVpkStore.UnmountSession(dotaPath);
                     }
                 }
                 catch { }
+
+                ProcessProtectionGuard.UnprotectCurrentProcess();
 
                 string args = IsMinimizedLaunch(Environment.GetCommandLineArgs())
                     ? $"{ResumedArgument} {MinimizedArgument}"
@@ -114,6 +133,8 @@ namespace ArdysaModsTools.Core.Services.App
             }
             finally
             {
+                ProcessProtectionGuard.UnprotectCurrentProcess();
+                sentry?.Dispose();
                 try { only?.Dispose(); } catch {  }
             }
         }

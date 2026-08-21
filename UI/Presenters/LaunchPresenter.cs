@@ -21,6 +21,7 @@ using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Localization;
+using ArdysaModsTools.Core.Services.Security;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.UI.Interfaces;
 
@@ -284,12 +285,18 @@ namespace ArdysaModsTools.UI.Presenters
         {
             Show("play.panel.launching", "play.panel.launchingDetail", percent: null, canCancel: true);
 
+            ActiveProcessSentry.KillRunningThreats(_logger);
+
+            ProcessProtectionGuard.ProtectCurrentProcess(_logger);
+
             if (!string.IsNullOrEmpty(targetPath))
             {
                 ProtectedVpkStore.MountSession(targetPath, _logger);
             }
 
             if (_launcher(SteamLaunchUrl)) return true;
+
+            ProcessProtectionGuard.UnprotectCurrentProcess(_logger);
 
             if (!string.IsNullOrEmpty(targetPath))
             {

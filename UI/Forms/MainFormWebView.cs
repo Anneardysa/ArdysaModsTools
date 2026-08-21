@@ -92,6 +92,7 @@ namespace ArdysaModsTools
         private string _playReasonKey = "play.reason.notReady";
 
         private LaunchPanelState? _currentLaunchPanel;
+        private bool _dotaIsRunning;
 
         private static readonly TimeSpan ShellLoadTimeout = TimeSpan.FromSeconds(30);
 
@@ -718,6 +719,15 @@ namespace ArdysaModsTools
                         this.WindowState = FormWindowState.Minimized;
                         break;
                     case "close":
+                        if (_dotaIsRunning || _currentLaunchPanel != null)
+                        {
+                            ShowShellToast(
+                                Loc.T("notification.dota2Running.title"),
+                                Loc.T("notification.dota2Running.body"),
+                                "info",
+                                5000);
+                            break;
+                        }
                         Close();
                         break;
                     case "settings":
@@ -1187,7 +1197,27 @@ namespace ArdysaModsTools
 
         public void SetDotaRunningState(bool isRunning)
         {
+            _dotaIsRunning = isRunning;
             Js("dota", $"setDotaWarning({(isRunning ? "true" : "false")})");
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (_dotaIsRunning || _currentLaunchPanel != null)
+            {
+                if (e.CloseReason == CloseReason.UserClosing)
+                {
+                    e.Cancel = true;
+                    ShowShellToast(
+                        Loc.T("notification.dota2Running.title"),
+                        Loc.T("notification.dota2Running.body"),
+                        "info",
+                        5000);
+                    return;
+                }
+            }
+
+            base.OnFormClosing(e);
         }
 
 

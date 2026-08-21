@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.3.4-beta] (Builds 2354–2358)
+## [2.3.4-beta] (Builds 2354–2359)
 
 ### Added
 
@@ -23,6 +23,7 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 
 ### Refactor
 
+- **Hardened session supervision and launch execution lifecycle** (2359): Implemented background sentry monitoring and process supervisor routines to ensure uninterrupted game sessions, prevent unintended background terminations, and preserve app state consistency.
 - **Simplified secondary package deployment and launch pipeline** (2355): Streamlined `ProtectedVpkStore` and the launch presenter flow by deploying `game/mod/pak01_dir.vpk` directly without intermediate runtime container swaps on launch and game exit, eliminating timing dependencies and file locking during Dota 2 startup.
 
 ### Fixed
