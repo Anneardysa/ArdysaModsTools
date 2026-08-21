@@ -40,9 +40,9 @@ export function translatePlural(key: string, count: number, fallback?: string, v
    return value;
 }
 
-export function T({ k, vars, children }: { k: string; vars?: Vars; children?: ReactNode }): ReactNode {
+export function T({ k, vars, values, children }: { k: string; vars?: Vars; values?: Vars; children?: ReactNode }): ReactNode {
    const { t } = useLocale();
-   const value = t(k, undefined, vars);
+   const value = t(k, undefined, vars ?? values);
    return value === k ? (children ?? k) : value;
 }
 

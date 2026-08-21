@@ -42,3 +42,12 @@ export type TileType = "set" | "persona" | "item" | "base" | "prismatic";
 export type AlertType = "success" | "warning" | "info";
 
 export type ConfirmItem = { heroName: string; setName: string; thumbnail: string };
+
+export type CooldownState = {
+   active: boolean;
+   remainingSeconds: number;
+   totalSeconds: number;
+   dailyUsed: number;
+   dailyMax: number;
+   isDailyLimit: boolean;
+};

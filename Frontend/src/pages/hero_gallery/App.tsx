@@ -42,6 +42,7 @@ export function App() {
    const cachingStatus = store.use((s) => s.cachingStatus);
    const alert = store.use((s) => s.alert);
    const generationLogLines = store.use((s) => s.generationLogLines);
+   const cooldown = store.use((s) => s.cooldown);
 
    const [logModalOpen, setLogModalOpen] = useState(false);
    const searchInputRef = useRef<HTMLInputElement>(null);
@@ -94,15 +95,31 @@ export function App() {
             return;
          }
 
-         if (!isSearchFocused && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+         if (isSearchFocused) {
+            if (e.key === "Escape") {
+               e.preventDefault();
+               store.set({ searchQuery: "" });
+               searchInputRef.current?.blur();
+            }
+            return;
+         }
+
+         if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
             searchInputRef.current?.focus();
-         } else if (e.key === "Escape" && isSearchFocused) {
-            searchInputRef.current?.blur();
-            store.set({ searchQuery: "" });
+            return;
+         }
+
+         if (e.key === "Escape") {
+            if (s.searchQuery) {
+               e.preventDefault();
+               store.set({ searchQuery: "" });
+            }
          }
       };
-      document.addEventListener("keydown", onKeyDown);
-      return () => document.removeEventListener("keydown", onKeyDown);
+
+      window.addEventListener("keydown", onKeyDown);
+      return () => window.removeEventListener("keydown", onKeyDown);
    }, []);
 
    return (
@@ -115,6 +132,7 @@ export function App() {
             search={searchQuery}
             onlyWithSets={showOnlyWithSets}
             selectionCount={selectionCount}
+            cooldown={cooldown}
             onFilterChange={(cat: FilterCategory) => store.set({ currentFilter: cat })}
             onSearchChange={(q: string) => store.set({ searchQuery: q })}
             onToggleHasSets={() => store.set((s) => ({ showOnlyWithSets: !s.showOnlyWithSets }))}

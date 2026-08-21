@@ -12,7 +12,7 @@ import {
    isBaseActive,
    isPersonaActive,
 } from "./helpers";
-import type { AlertType, ConfirmItem, FilterCategory, Hero, HeroSelectionState, LatestUpdate, Selections, TileType } from "./types";
+import type { AlertType, ConfirmItem, CooldownState, FilterCategory, Hero, HeroSelectionState, LatestUpdate, Selections, TileType } from "./types";
 
 export type ConfirmState =
    | { visible: false }
@@ -55,6 +55,8 @@ export const store = createStore<{
    alert: { visible: boolean; title: string; message: string; type: AlertType; hasLog: boolean };
    generationLogLines: string[];
    logModalOpen: boolean;
+
+   cooldown: CooldownState;
 }>({
    heroes: [],
    selections: {},
@@ -83,6 +85,8 @@ export const store = createStore<{
    alert: { visible: false, title: "", message: "", type: "info", hasLog: false },
    generationLogLines: [],
    logModalOpen: false,
+
+   cooldown: { active: false, remainingSeconds: 0, totalSeconds: 600, dailyUsed: 0, dailyMax: 5, isDailyLimit: false },
 });
 
 function notifySelectionChanged() {
@@ -317,8 +321,53 @@ export function requestClearAllSelections() {
    store.set({ confirm: { visible: true, kind: "clearAll", count, items } });
 }
 
+let cooldownInterval: ReturnType<typeof setInterval> | null = null;
+
+export function setCooldown(cooldown: CooldownState) {
+   if (cooldownInterval) {
+      clearInterval(cooldownInterval);
+      cooldownInterval = null;
+   }
+
+   store.set({ cooldown });
+
+   if (cooldown.active && cooldown.remainingSeconds > 0) {
+      cooldownInterval = setInterval(() => {
+         const current = store.get().cooldown;
+         if (!current.active || current.remainingSeconds <= 1) {
+            if (cooldownInterval) {
+               clearInterval(cooldownInterval);
+               cooldownInterval = null;
+            }
+            store.set({
+               cooldown: { ...current, active: false, remainingSeconds: 0 },
+               status: "Ready",
+            });
+         } else {
+            store.set({
+               cooldown: { ...current, remainingSeconds: current.remainingSeconds - 1 },
+            });
+         }
+      }, 1000);
+   }
+}
+
 export function requestGenerate() {
    const s = store.get();
+
+   if (s.cooldown.active && s.cooldown.remainingSeconds > 0) {
+      if (s.cooldown.isDailyLimit) {
+         const h = Math.floor(s.cooldown.remainingSeconds / 3600);
+         const m = Math.floor((s.cooldown.remainingSeconds % 3600) / 60);
+         store.set({ status: `Daily limit reached (${h}h ${m}m remaining until reset)` });
+      } else {
+         const m = Math.floor(s.cooldown.remainingSeconds / 60);
+         const sec = s.cooldown.remainingSeconds % 60;
+         store.set({ status: `Generation on cooldown (${m}m ${sec}s remaining)` });
+      }
+      return;
+   }
+
    const active: Selections = {};
    for (const [id, sel] of Object.entries(s.selections)) {
       if (hasAnySelection(sel)) active[id] = sel;

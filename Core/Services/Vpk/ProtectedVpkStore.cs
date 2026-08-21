@@ -111,13 +111,20 @@ namespace ArdysaModsTools.Core.Services
                         plainBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
 
                     Directory.CreateDirectory(Path.GetDirectoryName(payloadDest)!);
-                    SafeTempPathHelper.HideDirectory(Path.GetDirectoryName(payloadDest)!);
+                    try { SafeTempPathHelper.HideDirectory(Path.GetDirectoryName(payloadDest)!); } catch { }
+
+                    if (File.Exists(payloadDest))
+                    {
+                        try { File.SetAttributes(payloadDest, FileAttributes.Normal); } catch { }
+                        try { File.Delete(payloadDest); } catch { }
+                    }
+
                     await File.WriteAllBytesAsync(payloadDest, encBytes, ct).ConfigureAwait(false);
                     try { File.SetAttributes(payloadDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
 
                     CreateEmptyDummyVpk(vpkDest);
                     try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    SafeTempPathHelper.HideDirectory(Dir(targetPath));
+                    try { SafeTempPathHelper.HideDirectory(Dir(targetPath)); } catch { }
                 }
                 else
                 {
@@ -130,7 +137,7 @@ namespace ArdysaModsTools.Core.Services
                     if (File.Exists(vpkDest))
                     {
                         try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
-                        File.Delete(vpkDest);
+                        try { File.Delete(vpkDest); } catch { }
                     }
                 }
 
@@ -254,9 +261,16 @@ namespace ArdysaModsTools.Core.Services
             if (string.IsNullOrWhiteSpace(relativePath))
                 return false;
 
-            string root = relativePath.Replace('\\', '/').TrimStart('/').Split('/')[0];
-            return !Array.Exists(StaysWithPackage,
-                s => string.Equals(s, root, StringComparison.OrdinalIgnoreCase));
+            string normalized = relativePath.Replace('\\', '/').TrimStart('/');
+            string root = normalized.Split('/')[0];
+            if (Array.Exists(StaysWithPackage, s => string.Equals(s, root, StringComparison.OrdinalIgnoreCase)))
+                return false;
+
+            string wrapped = "/" + normalized.Trim('/') + "/";
+            if (wrapped.Contains("/kisilev_ind/", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return true;
         }
 
         public static int MoveProtected(string extractDir, string protectedDir,
@@ -302,13 +316,68 @@ namespace ArdysaModsTools.Core.Services
             return moved;
         }
 
+        public static bool CopyItemsGame(string sourceExtractDir, string targetProtectedDir, IAppLogger? logger = null)
+        {
+            try
+            {
+                string src = Path.Combine(sourceExtractDir, "scripts", "items", "items_game.txt");
+                if (!File.Exists(src))
+                    return false;
+
+                string dest = Path.Combine(targetProtectedDir, "scripts", "items", "items_game.txt");
+                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+                File.Copy(src, dest, overwrite: true);
+                logger?.LogDebug("ProtectedVpkStore: copied items_game.txt into protected package tree.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger?.Log($"ProtectedVpkStore: could not copy items_game.txt to protected folder: {ex.Message}");
+                FallbackLogger.LogFileOnly($"ProtectedVpkStore.CopyItemsGame failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        public static bool DecryptPayloadToTempFile(string targetPath, string tempOutputPath, IAppLogger? logger = null)
+        {
+            try
+            {
+                string payloadSrc = PayloadStorePath(targetPath);
+                if (!File.Exists(payloadSrc)) return false;
+
+                byte[] encBytes = File.ReadAllBytes(payloadSrc);
+                byte[] plainBytes;
+                try
+                {
+                    plainBytes = System.Security.Cryptography.ProtectedData.Unprotect(
+                        encBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                }
+                catch
+                {
+                    plainBytes = encBytes;
+                }
+
+                Directory.CreateDirectory(Path.GetDirectoryName(tempOutputPath)!);
+                File.WriteAllBytes(tempOutputPath, plainBytes);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger?.Log($"ProtectedVpkStore.DecryptPayloadToTempFile failed: {ex.Message}");
+                return false;
+            }
+        }
+
         public static void CreateEmptyDummyVpk(string outputPath)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
             try
             {
                 if (File.Exists(outputPath))
-                    File.SetAttributes(outputPath, FileAttributes.Normal);
+                {
+                    try { File.SetAttributes(outputPath, FileAttributes.Normal); } catch { }
+                    try { File.Delete(outputPath); } catch { }
+                }
             }
             catch { }
 
@@ -316,6 +385,45 @@ namespace ArdysaModsTools.Core.Services
             System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(0, 4), 0x55aa1234);
             System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(4, 4), 2);
             File.WriteAllBytes(outputPath, header);
+        }
+        public static void DeletePermanently(string targetPath, IAppLogger? logger = null)
+        {
+            try
+            {
+                string dir = Dir(targetPath);
+                if (Directory.Exists(dir))
+                {
+                    NormalizeAttributesRecursively(dir);
+                    Directory.Delete(dir, true);
+                    logger?.Log($"ProtectedVpkStore: permanently deleted {dir}");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.Log($"ProtectedVpkStore.DeletePermanently failed: {ex.Message}");
+                FallbackLogger.LogFileOnly($"ProtectedVpkStore.DeletePermanently error: {ex.Message}");
+            }
+        }
+
+        public static void NormalizeAttributesRecursively(string dir)
+        {
+            try
+            {
+                if (!Directory.Exists(dir)) return;
+                var dirInfo = new DirectoryInfo(dir);
+                try { dirInfo.Attributes = FileAttributes.Normal; } catch { }
+
+                foreach (var file in dirInfo.GetFiles("*", SearchOption.AllDirectories))
+                {
+                    try { file.Attributes = FileAttributes.Normal; } catch { }
+                }
+
+                foreach (var subDir in dirInfo.GetDirectories("*", SearchOption.AllDirectories))
+                {
+                    try { subDir.Attributes = FileAttributes.Normal; } catch { }
+                }
+            }
+            catch { }
         }
     }
 }

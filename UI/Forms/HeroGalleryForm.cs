@@ -33,6 +33,7 @@ using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Cache;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Services.Hero;
 using ArdysaModsTools.Models;
 using ArdysaModsTools.UI.Helpers;
 using ArdysaModsTools.UI.Interfaces;
@@ -200,6 +201,16 @@ namespace ArdysaModsTools.UI.Forms
 
                 await LoadHeroDataAsync();
                 await RestoreSelectionsAsync();
+                await _presenter.SyncCooldownStatusAsync();
+
+                _ = Task.Run(async () =>
+                {
+                    await SkinSelectorCooldownService.CalibrateServerTimeAsync();
+                    if (_initialized)
+                    {
+                        try { BeginInvoke(new Action(async () => await _presenter.SyncCooldownStatusAsync())); } catch { }
+                    }
+                });
             }
             catch (Exception ex)
             {
@@ -512,6 +523,13 @@ namespace ArdysaModsTools.UI.Forms
                         HandleFavoritesChanged(message);
                         break;
 
+                    case "resetCooldown":
+                        if (EnvironmentConfig.IsDevMode)
+                        {
+                            BeginInvoke(new Action(async () => await _presenter.ResetCooldownAsync()));
+                        }
+                        break;
+
                     case "generate":
                         if (message.TryGetProperty("selections", out var generateEl))
                             _selections = ParseSelections(generateEl);
@@ -738,6 +756,18 @@ namespace ArdysaModsTools.UI.Forms
             await ExecuteScriptAsync($"showAlert('{JsEscape(title)}', '{JsEscape(message)}')");
         }
 
+        public async Task UpdateCooldownAsync(bool active, int remainingSeconds, int totalSeconds)
+        {
+            var payload = JsonSerializer.Serialize(new
+            {
+                active,
+                remainingSeconds,
+                totalSeconds
+            }, _jsonOptions);
+
+            await ExecuteScriptAsync($"updateCooldown({payload})");
+        }
+
         public bool ShowGenerationPreview(IReadOnlyList<(HeroModel hero, string setName, string? thumbnailUrl)> items)
         {
             using var previewForm = new GenerationPreviewForm(items.ToList());
@@ -893,6 +923,26 @@ namespace ArdysaModsTools.UI.Forms
             {
                 var escaped = status.Replace("\\", "\\\\").Replace("'", "\\'");
                 await ExecuteScriptAsync($"updateStatus('{escaped}')");
+            }
+            catch { }
+        }
+
+        public async Task UpdateCooldownAsync(bool active, int remainingSeconds, int totalSeconds, int dailyUsed, int dailyMax, bool isDailyLimit)
+        {
+            if (!_initialized || _webView?.CoreWebView2 == null) return;
+            try
+            {
+                var payload = JsonSerializer.Serialize(new
+                {
+                    active,
+                    remainingSeconds,
+                    totalSeconds,
+                    dailyUsed,
+                    dailyMax,
+                    isDailyLimit
+                }, _jsonOptions);
+
+                await ExecuteScriptAsync($"updateCooldown({payload})");
             }
             catch { }
         }

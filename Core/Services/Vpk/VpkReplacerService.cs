@@ -69,7 +69,7 @@ namespace ArdysaModsTools.Core.Services
 
             ct.ThrowIfCancellationRequested();
 
-            try { if (File.Exists(backupVpk)) File.Delete(backupVpk); } catch { }
+            try { if (File.Exists(backupVpk)) { try { File.SetAttributes(backupVpk, FileAttributes.Normal); } catch { } File.Delete(backupVpk); } } catch { }
 
             if (newVpkPath != null)
                 await WaitForFileReadyAsync(newVpkPath, ct).ConfigureAwait(false);
@@ -127,7 +127,16 @@ namespace ArdysaModsTools.Core.Services
                 ct.ThrowIfCancellationRequested();
                 try
                 {
-                    File.Move(source, destination);
+                    if (File.Exists(destination))
+                    {
+                        try { File.SetAttributes(destination, FileAttributes.Normal); } catch { }
+                        try { File.Delete(destination); } catch { }
+                    }
+                    if (File.Exists(source))
+                    {
+                        try { File.SetAttributes(source, FileAttributes.Normal); } catch { }
+                    }
+                    File.Move(source, destination, overwrite: true);
                     return true;
                 }
                 catch (IOException)

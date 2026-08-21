@@ -474,7 +474,9 @@ namespace ArdysaModsTools.Core.Services
                     }
 
                     if (protectedMoved > 0)
+                    {
                         _logger?.LogDebug($"Protected split: {protectedMoved} file(s) moved out of the main package into game/mod.");
+                    }
 
                     stageProgress?.Report((65, "Building"));
                     log("Building VPK...");

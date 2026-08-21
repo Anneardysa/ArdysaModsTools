@@ -83,6 +83,10 @@ namespace ArdysaModsTools.Tests.Services
         [TestCase("scripts/items/items_game.txt")]
         [TestCase("resource/localization/dota_english.txt")]
         [TestCase(@"scripts\items\items_game.txt")]
+        [TestCase("kisilev_ind/particles/econ/items/antimage/weapon.vpcf_c")]
+        [TestCase("models/heroes/antimage/kisilev_ind/weapon.vmdl_c")]
+        [TestCase(@"models\heroesntimage\kisilev_ind\weapon.vmdl_c")]
+        [TestCase("materials/kisilev_ind/textures.vmat_c")]
         [TestCase("")]
         public void IsProtectable_PackageOwnedPaths_ReturnsFalse(string path)
         {
@@ -161,6 +165,7 @@ namespace ArdysaModsTools.Tests.Services
 
         #endregion
 
+
         #region Deploy / Clear
 
         [Test]
@@ -222,5 +227,27 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         #endregion
+
+        [Test]
+        public void DeletePermanently_WhenProtectedFolderAndContentsExist_RemovesDirectoryCompletely()
+        {
+            ProtectedVpkStore.Ensure(_targetPath);
+            string modDir = ProtectedVpkStore.Dir(_targetPath);
+            Assert.That(Directory.Exists(modDir), Is.True);
+
+            string vpkPath = ProtectedVpkStore.VpkPath(_targetPath);
+            ProtectedVpkStore.CreateEmptyDummyVpk(vpkPath);
+            File.SetAttributes(vpkPath, FileAttributes.Hidden | FileAttributes.System);
+
+            string subDir = Path.Combine(modDir, "sub");
+            Directory.CreateDirectory(subDir);
+            string subFile = Path.Combine(subDir, "test.txt");
+            File.WriteAllText(subFile, "test");
+            File.SetAttributes(subFile, FileAttributes.ReadOnly);
+
+            ProtectedVpkStore.DeletePermanently(_targetPath);
+
+            Assert.That(Directory.Exists(modDir), Is.False);
+        }
     }
 }

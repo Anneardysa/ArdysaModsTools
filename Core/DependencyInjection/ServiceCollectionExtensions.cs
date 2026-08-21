@@ -82,6 +82,8 @@ namespace ArdysaModsTools.Core.DependencyInjection
         {
             services.AddTransient<IHeroGenerationService, HeroGenerationService>();
 
+            services.AddSingleton<ISkinSelectorCooldownService, ArdysaModsTools.Core.Services.Hero.SkinSelectorCooldownService>();
+
             services.AddTransient<IHeroDatabaseService>(sp =>
                 new HeroDatabaseService(System.AppContext.BaseDirectory, sp.GetService<IAppLogger>()));
 

@@ -1,7 +1,9 @@
 import type { RefObject } from "react";
+import { send } from "../../bridge/host";
 import { T, translate, useLocale } from "../../bridge/i18n";
 import { ATTRIBUTE_ICONS } from "./attributeIcons";
-import type { FilterCategory } from "./types";
+import { setCooldown } from "./store";
+import type { CooldownState, FilterCategory } from "./types";
 import css from "./gallery.module.css";
 
 const ATTR_FILTERS: { id: FilterCategory; labelKey: string; label: string }[] = [
@@ -11,11 +13,23 @@ const ATTR_FILTERS: { id: FilterCategory; labelKey: string; label: string }[] = 
    { id: "universal", labelKey: "filter.universal", label: "Universal" },
 ];
 
+function formatCooldown(totalSec: number): string {
+   if (totalSec >= 3600) {
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      return `${h}h ${m.toString().padStart(2, "0")}m`;
+   }
+   const m = Math.floor(totalSec / 60);
+   const s = totalSec % 60;
+   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+}
+
 export function Header({
    filter,
    search,
    onlyWithSets,
    selectionCount,
+   cooldown,
    onFilterChange,
    onSearchChange,
    onToggleHasSets,
@@ -29,6 +43,7 @@ export function Header({
    search: string;
    onlyWithSets: boolean;
    selectionCount: number;
+   cooldown: CooldownState;
    onFilterChange: (cat: FilterCategory) => void;
    onSearchChange: (q: string) => void;
    onToggleHasSets: () => void;
@@ -39,6 +54,20 @@ export function Header({
    searchInputRef: RefObject<HTMLInputElement>;
 }) {
    const { t } = useLocale();
+   const isLocked = cooldown.active && cooldown.remainingSeconds > 0;
+   const isDailyLimit = isLocked && cooldown.isDailyLimit;
+   const timeStr = isLocked ? formatCooldown(cooldown.remainingSeconds) : "";
+   const maxQuota = cooldown.dailyMax || 5;
+   const remainingQuota = Math.max(0, maxQuota - (cooldown.dailyUsed || 0));
+
+   const handleGenerateClick = (e: React.MouseEvent) => {
+      if (e.shiftKey || e.ctrlKey) {
+         send("resetCooldown");
+         setCooldown({ active: false, remainingSeconds: 0, totalSeconds: 600, dailyUsed: 0, dailyMax: 5, isDailyLimit: false });
+         return;
+      }
+      onGenerate();
+   };
 
    return (
       <header className={css.galleryHeader}>
@@ -73,8 +102,41 @@ export function Header({
                      <span id="selectionCount">{selectionCount}</span>
                      <T k="heroGallery.selected">Selected</T>
                   </div>
-                  <button type="button" data-no-drag className={`${css.btn} ${css.primary}`} onClick={onGenerate}>
-                     <T k="heroGallery.generate">Generate ModsPack</T>
+                  <button
+                     type="button"
+                     data-no-drag
+                     className={`${css.btn} ${isLocked ? css.cooldownBtn : css.primary}`}
+                     onClick={handleGenerateClick}
+                     title={
+                        isDailyLimit
+                           ? t("hero.cooldown.dailyLimitTitle", `Daily limit reached (${timeStr} until reset)`, { time: timeStr })
+                           : isLocked
+                           ? t("hero.status.cooldownActive", `Generation on cooldown (${timeStr} remaining)`, { time: timeStr })
+                           : t("hero.cooldown.quotaStatus", `${remainingQuota} generations remaining today`, { remaining: remainingQuota })
+                     }
+                  >
+                     {isDailyLimit ? (
+                        <>
+                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={css.btnIcon} aria-hidden="true">
+                              <circle cx="12" cy="12" r="10" />
+                              <polyline points="12 6 12 12 16 14" />
+                           </svg>
+                           <T k="hero.cooldown.dailyLimitButton" vars={{ time: timeStr }}>Daily Limit ({timeStr})</T>
+                        </>
+                     ) : isLocked ? (
+                        <>
+                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={css.btnIcon} aria-hidden="true">
+                              <circle cx="12" cy="12" r="10" />
+                              <polyline points="12 6 12 12 16 14" />
+                           </svg>
+                           <T k="hero.cooldown.button" vars={{ time: timeStr }}>Cooldown ({timeStr})</T>
+                        </>
+                     ) : (
+                        <>
+                           <T k="heroGallery.generate">Generate ModsPack</T>
+                           {cooldown.dailyUsed > 0 && <span style={{ opacity: 0.85, fontSize: "0.85em", marginLeft: 4 }}>({remainingQuota}/{maxQuota})</span>}
+                        </>
+                     )}
                   </button>
                </div>
             </div>

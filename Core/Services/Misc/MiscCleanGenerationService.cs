@@ -142,7 +142,9 @@ namespace ArdysaModsTools.Core.Services
                     }
 
                     if (protectedMoved > 0)
+                    {
                         _logger?.LogDebug($"Protected split: {protectedMoved} file(s) moved out of the main package into game/mod.");
+                    }
 
                     log("Building VPK...");
                     var newVpkPath = await _recompiler.RecompileAsync(

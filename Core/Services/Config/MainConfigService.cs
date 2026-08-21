@@ -101,6 +101,10 @@ namespace ArdysaModsTools.Core.Services.Config
         private const string KeyLanguage = "Language";
         private const string KeySupportPromptSnoozeDate = "SupportPromptSnoozeDate";
         private const string KeyCdnServerPreference = "CdnServerPreference";
+        private const string KeySkinSelectorLastGenerationTimeUtc = "SkinSelectorLastGenerationTimeUtc";
+        private const string KeySkinSelectorDailyGenerationCount = "SkinSelectorDailyGenerationCount";
+        private const string KeySkinSelectorDailyQuotaDateUtc = "SkinSelectorDailyQuotaDateUtc";
+        private const string KeySkinSelectorCooldownSignature = "SkinSelectorCooldownSignature";
 
         public bool MinimizeToTray
         {
@@ -147,6 +151,48 @@ namespace ArdysaModsTools.Core.Services.Config
                 CdnConfig.CdnServerPreference = value;
                 Save();
             }
+        }
+
+        public DateTime? SkinSelectorLastGenerationTimeUtc
+        {
+            get
+            {
+                var raw = GetValue<string?>(KeySkinSelectorLastGenerationTimeUtc, null);
+                if (string.IsNullOrEmpty(raw))
+                    return null;
+
+                if (DateTime.TryParse(raw, null, System.Globalization.DateTimeStyles.AdjustToUniversal, out var parsed))
+                    return DateTime.SpecifyKind(parsed, DateTimeKind.Utc);
+
+                return null;
+            }
+            set
+            {
+                if (value.HasValue)
+                    SetValue(KeySkinSelectorLastGenerationTimeUtc, value.Value.ToUniversalTime().ToString("o"));
+                else
+                    SetValue<string?>(KeySkinSelectorLastGenerationTimeUtc, null);
+
+                Save();
+            }
+        }
+
+        public int SkinSelectorDailyGenerationCount
+        {
+            get => GetValue(KeySkinSelectorDailyGenerationCount, 0);
+            set { SetValue(KeySkinSelectorDailyGenerationCount, value); Save(); }
+        }
+
+        public string? SkinSelectorDailyQuotaDateUtc
+        {
+            get => GetValue<string?>(KeySkinSelectorDailyQuotaDateUtc, null);
+            set { SetValue(KeySkinSelectorDailyQuotaDateUtc, value); Save(); }
+        }
+
+        public string? SkinSelectorCooldownSignature
+        {
+            get => GetValue<string?>(KeySkinSelectorCooldownSignature, null);
+            set { SetValue(KeySkinSelectorCooldownSignature, value); Save(); }
         }
 
         public void Save()

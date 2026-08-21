@@ -28,6 +28,8 @@ namespace ArdysaModsTools.UI.Interfaces
     {
         Task UpdateStatusAsync(string status);
 
+        Task UpdateCooldownAsync(bool active, int remainingSeconds, int totalSeconds, int dailyUsed, int dailyMax, bool isDailyLimit);
+
         Task<bool> ConfirmBaseNoSetAsync(string title, string htmlMessage);
 
         Task<bool> ShowGenerationAlertAsync(string title, string message, bool hasFailures, string? logText = null);

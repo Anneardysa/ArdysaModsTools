@@ -1,8 +1,8 @@
 import { createRoot } from "react-dom/client";
 import { expose } from "../../bridge/host";
 import "../../design/base.css";
-import { applyLoadedSelections, loadHighlightedHeroes, store } from "./store";
-import type { AlertType, Hero, LatestUpdate, Selections } from "./types";
+import { applyLoadedSelections, loadHighlightedHeroes, setCooldown, store } from "./store";
+import type { AlertType, CooldownState, Hero, LatestUpdate, Selections } from "./types";
 import { App } from "./App";
 
 function parseJson<T>(value: T | string): T {
@@ -27,6 +27,15 @@ expose({
    },
 
    updateStatus: (text: string) => store.set({ status: text }),
+
+   updateCooldown: (json: CooldownState | string) => {
+      const parsed = parseJson(json);
+      setCooldown(parsed);
+   },
+
+   resetCooldown: () => {
+      setCooldown({ active: false, remainingSeconds: 0, totalSeconds: 1800 });
+   },
 
    showCachingOverlay: () => store.set({ cachingVisible: true, cachingStatus: { current: 0, total: 0 } }),
    updateCachingProgress: (current: number, total: number) => {

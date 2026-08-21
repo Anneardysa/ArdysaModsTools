@@ -34,6 +34,7 @@ namespace ArdysaModsTools.UI.Presenters
         private readonly IConfigService _configService;
         private readonly IAppLogger? _logger;
         private readonly Func<Task<FeatureCheckResult>> _featureCheck;
+        private readonly ISkinSelectorCooldownService _cooldownService;
 
         private IHeroGalleryView? _view;
         private bool _isGenerating;
@@ -42,13 +43,15 @@ namespace ArdysaModsTools.UI.Presenters
             IHeroGenerationService generationService,
             IConfigService configService,
             IAppLogger? logger = null,
-            Func<Task<FeatureCheckResult>>? featureCheck = null)
+            Func<Task<FeatureCheckResult>>? featureCheck = null,
+            ISkinSelectorCooldownService? cooldownService = null)
         {
             _generationService = generationService ?? throw new ArgumentNullException(nameof(generationService));
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _logger = logger;
             _featureCheck = featureCheck
                 ?? (() => FeatureAccessService.CheckFeatureAsync(FeatureAccessService.SkinSelectorFeature));
+            _cooldownService = cooldownService ?? new ArdysaModsTools.Core.Services.Hero.SkinSelectorCooldownService(configService);
         }
 
         public void SetView(IHeroGalleryView view)
@@ -113,6 +116,25 @@ namespace ArdysaModsTools.UI.Presenters
             return new GenerationPlan(sets, baseWithoutSet);
         }
 
+        public async Task SyncCooldownStatusAsync()
+        {
+            if (_view == null) return;
+            var status = _cooldownService.GetStatus();
+            await _view.UpdateCooldownAsync(
+                status.IsActive,
+                (int)Math.Ceiling(status.Remaining.TotalSeconds),
+                (int)status.TotalDuration.TotalSeconds,
+                status.DailyGenerationsUsed,
+                status.DailyGenerationsMax,
+                status.IsDailyLimitReached);
+        }
+
+        public async Task ResetCooldownAsync()
+        {
+            _cooldownService.ResetCooldown();
+            await SyncCooldownStatusAsync();
+        }
+
         public async Task GenerateAsync(
             IReadOnlyList<HeroModel> heroes,
             IReadOnlyDictionary<string, HeroSelectionState> selections)
@@ -126,6 +148,33 @@ namespace ArdysaModsTools.UI.Presenters
             _isGenerating = true;
             try
             {
+                if (_cooldownService.IsOnCooldown(out var remaining, out var reason))
+                {
+                    if (reason == SkinSelectorLockReason.DailyLimitReached || reason == SkinSelectorLockReason.ClockAnomaly)
+                    {
+                        var hours = (int)remaining.TotalHours;
+                        var minutes = remaining.Minutes;
+                        _logger?.LogDebug($"Skin Selector generation blocked by daily limit: {hours}h {minutes}m remaining until reset");
+
+                        await _view.ShowAlertAsync(
+                            Loc.T("hero.cooldown.dailyLimitTitle"),
+                            Loc.T("hero.cooldown.dailyLimitMessage", new { hours, minutes }));
+                    }
+                    else
+                    {
+                        var minutes = (int)remaining.TotalMinutes;
+                        var seconds = remaining.Seconds;
+                        _logger?.LogDebug($"Skin Selector generation blocked by cooldown: {minutes}m {seconds}s remaining");
+
+                        await _view.ShowAlertAsync(
+                            Loc.T("hero.cooldown.title"),
+                            Loc.T("hero.cooldown.message", new { minutes, seconds }));
+                    }
+
+                    await SyncCooldownStatusAsync();
+                    return;
+                }
+
                 var plan = BuildPlan(heroes, selections);
 
                 if (plan.BaseWithoutSetHeroNames.Count > 0)
@@ -234,6 +283,9 @@ namespace ArdysaModsTools.UI.Presenters
 
             if (operationResult.Success)
             {
+                _cooldownService.RecordGeneration();
+                await SyncCooldownStatusAsync();
+
                 var message = new StringBuilder();
                 message.AppendLine(operationResult.Message ?? Loc.T("hero.installComplete"));
 

@@ -37,6 +37,7 @@ namespace ArdysaModsTools.Tests.Presenters
         private Mock<IHeroGenerationService> _generation = null!;
         private Mock<IConfigService> _config = null!;
         private Mock<IHeroGalleryView> _view = null!;
+        private Mock<ISkinSelectorCooldownService> _cooldown = null!;
         private HeroGalleryPresenter _presenter = null!;
         private Func<Task<FeatureCheckResult>> _featureCheck = null!;
 
@@ -46,9 +47,11 @@ namespace ArdysaModsTools.Tests.Presenters
             _generation = new Mock<IHeroGenerationService>();
             _config = new Mock<IConfigService>();
             _view = new Mock<IHeroGalleryView>();
+            _cooldown = new Mock<ISkinSelectorCooldownService>();
 
             _config.Setup(c => c.GetLastTargetPath()).Returns(@"C:\Dota2");
             _view.Setup(v => v.UpdateStatusAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
+            _view.Setup(v => v.UpdateCooldownAsync(It.IsAny<bool>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>())).Returns(Task.CompletedTask);
             _view.Setup(v => v.SaveSelectionsAsync()).Returns(Task.CompletedTask);
             _view.Setup(v => v.ShowAlertAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
             _view.Setup(v => v.ShowGenerationAlertAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string?>()))
@@ -57,10 +60,24 @@ namespace ArdysaModsTools.Tests.Presenters
             _view.Setup(v => v.ShowGenerationPreview(It.IsAny<IReadOnlyList<(HeroModel, string, string?)>>()))
                  .Returns(true);
 
+            TimeSpan zero = TimeSpan.Zero;
+            SkinSelectorLockReason noReason = SkinSelectorLockReason.None;
+            _cooldown.Setup(c => c.IsOnCooldown(out zero, out noReason)).Returns(false);
+            _cooldown.Setup(c => c.GetStatus()).Returns(new SkinSelectorCooldownStatus
+            {
+                IsActive = false,
+                Remaining = TimeSpan.Zero,
+                TotalDuration = TimeSpan.FromMinutes(10),
+                DailyGenerationsUsed = 0,
+                DailyGenerationsMax = 5,
+                IsDailyLimitReached = false,
+                LockReason = SkinSelectorLockReason.None
+            });
+
             _featureCheck = () => Task.FromResult(FeatureCheckResult.Allowed("Skin Selector"));
 
             _presenter = new HeroGalleryPresenter(
-                _generation.Object, _config.Object, null, () => _featureCheck());
+                _generation.Object, _config.Object, null, () => _featureCheck(), _cooldown.Object);
             _presenter.SetView(_view.Object);
         }
 
@@ -457,6 +474,88 @@ namespace ArdysaModsTools.Tests.Presenters
             _view.Verify(v => v.ShowGenerationPreview(
                 It.IsAny<IReadOnlyList<(HeroModel, string, string?)>>()), Times.Never);
             _view.Verify(v => v.ShowAlertAsync(It.IsAny<string>(), "Update to 2.3.0."), Times.Once);
+        }
+
+        [Test]
+        public async Task GenerateAsync_WhenOnCooldown_BlocksGenerationAndShowsAlert()
+        {
+            TimeSpan remaining = TimeSpan.FromMinutes(5);
+            SkinSelectorLockReason reason = SkinSelectorLockReason.Cooldown;
+            _cooldown.Setup(c => c.IsOnCooldown(out remaining, out reason)).Returns(true);
+
+            await _presenter.GenerateAsync(new[] { Hero("h1", "SetA") }, Sel("h1", set: 0));
+
+            _generation.Verify(g => g.GenerateBatchAsync(
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<(HeroModel, string)>>(),
+                It.IsAny<Action<string>>(),
+                It.IsAny<IProgress<(int, int, string)>>(),
+                It.IsAny<IProgress<(int, string)>>(),
+                It.IsAny<IProgress<SpeedMetrics>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            _view.Verify(v => v.ShowGenerationPreview(
+                It.IsAny<IReadOnlyList<(HeroModel, string, string?)>>()), Times.Never);
+            _view.Verify(v => v.ShowAlertAsync("hero.cooldown.title", It.IsAny<string>()), Times.Once);
+        }
+
+        [Test]
+        public async Task GenerateAsync_WhenDailyLimitReached_ShowsDailyLimitAlert()
+        {
+            TimeSpan remaining = TimeSpan.FromHours(12);
+            SkinSelectorLockReason reason = SkinSelectorLockReason.DailyLimitReached;
+            _cooldown.Setup(c => c.IsOnCooldown(out remaining, out reason)).Returns(true);
+
+            await _presenter.GenerateAsync(new[] { Hero("h1", "SetA") }, Sel("h1", set: 0));
+
+            _generation.Verify(g => g.GenerateBatchAsync(
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<(HeroModel, string)>>(),
+                It.IsAny<Action<string>>(),
+                It.IsAny<IProgress<(int, int, string)>>(),
+                It.IsAny<IProgress<(int, string)>>(),
+                It.IsAny<IProgress<SpeedMetrics>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            _view.Verify(v => v.ShowAlertAsync("hero.cooldown.dailyLimitTitle", It.IsAny<string>()), Times.Once);
+        }
+
+        [Test]
+        public async Task GenerateAsync_WhenSuccess_RecordsCooldown()
+        {
+            SetupGenerationResult(new OperationResult { Success = true, Message = "Done", SuccessCount = 1 });
+
+            await _presenter.GenerateAsync(new[] { Hero("h1", "SetA") }, Sel("h1", set: 0));
+
+            _cooldown.Verify(c => c.RecordGeneration(), Times.Once);
+            _view.Verify(v => v.CloseWithSuccess(), Times.Once);
+        }
+
+        [Test]
+        public async Task GenerateAsync_WhenFailure_DoesNotRecordCooldown()
+        {
+            SetupGenerationResult(new OperationResult { Success = false, Message = "Failed" });
+
+            await _presenter.GenerateAsync(new[] { Hero("h1", "SetA") }, Sel("h1", set: 0));
+
+            _cooldown.Verify(c => c.RecordGeneration(), Times.Never);
+        }
+
+        [Test]
+        public async Task SyncCooldownStatusAsync_PushesCooldownStateToView()
+        {
+            _cooldown.Setup(c => c.GetStatus()).Returns(new SkinSelectorCooldownStatus
+            {
+                IsActive = true,
+                Remaining = TimeSpan.FromMinutes(6),
+                TotalDuration = TimeSpan.FromMinutes(10),
+                DailyGenerationsUsed = 1,
+                DailyGenerationsMax = 5,
+                IsDailyLimitReached = false,
+                LockReason = SkinSelectorLockReason.Cooldown
+            });
+
+            await _presenter.SyncCooldownStatusAsync();
+
+            _view.Verify(v => v.UpdateCooldownAsync(true, 360, 600, 1, 5, false), Times.Once);
         }
 
         #endregion

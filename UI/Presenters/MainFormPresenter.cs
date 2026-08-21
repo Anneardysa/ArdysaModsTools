@@ -779,6 +779,7 @@ namespace ArdysaModsTools.UI.Presenters
                     {
                         try
                         {
+                            ProtectedVpkStore.NormalizeAttributesRecursively(modsFolder);
                             Directory.Delete(modsFolder, true);
                             _logger.LogLocalized("default", LogSegment.T("log.disable.folderDeleted"));
                         }
@@ -790,6 +791,8 @@ namespace ArdysaModsTools.UI.Presenters
                                 Loc.T("disable.toast.deleteFailed.body"), "error", 6000);
                         }
                     }
+
+                    ProtectedVpkStore.DeletePermanently(_targetPath, _logger);
 
                     ClearTempFolder();
 

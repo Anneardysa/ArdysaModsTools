@@ -40,6 +40,14 @@ namespace ArdysaModsTools.Core.Interfaces
 
         string CdnServerPreference { get; set; }
 
+        DateTime? SkinSelectorLastGenerationTimeUtc { get; set; }
+
+        int SkinSelectorDailyGenerationCount { get; set; }
+
+        string? SkinSelectorDailyQuotaDateUtc { get; set; }
+
+        string? SkinSelectorCooldownSignature { get; set; }
+
         void Save();
     }
 }
