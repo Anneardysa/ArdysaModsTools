@@ -169,6 +169,7 @@ jobs:
               echo "📤 Uploading to: r2:${{ env.R2_BUCKET }}/${DEST_PATH}/"
 
               rclone copy assets/ "r2:${{ env.R2_BUCKET }}/${DEST_PATH}/" \
+                --header-upload "Cache-Control: public, max-age=31536000, immutable" \
                 --progress \
                 --stats 1s \
                 -v
@@ -308,7 +309,10 @@ jobs:
 
               # Upload manifest
               echo "Uploading manifest to R2..."
-              rclone copyto updated_manifest.json "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" -v
+              rclone copyto updated_manifest.json "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" \
+                --header-upload "Content-Type: application/json" \
+                --header-upload "Cache-Control: public, max-age=300" \
+                -v
 
               echo "✅ Manifest updated successfully!"
 
@@ -340,7 +344,10 @@ jobs:
 
               # Publish to R2 (served at ${{ env.CDN_BASE_URL }}/config/whatsnew.json — the
               # WhatsNewFeedUrl default the app reads first).
-              rclone copyto whatsnew.json "r2:${{ env.R2_BUCKET }}/config/whatsnew.json" -v
+              rclone copyto whatsnew.json "r2:${{ env.R2_BUCKET }}/config/whatsnew.json" \
+                --header-upload "Content-Type: application/json" \
+                --header-upload "Cache-Control: public, max-age=300" \
+                -v
 
               echo "✅ whatsnew.json published"
 

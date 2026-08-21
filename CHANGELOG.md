@@ -9,11 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.3.4-beta] (Builds 2354–2355)
+## [2.3.4-beta] (Builds 2354–2356)
 
 ### Added
 
 - **Added a "Play Dota 2" button to every post-generation completion screen** (2354): Install ModsPack, Skin Selector, and Miscellaneous all previously left the user to launch Dota 2 themselves after a successful generation — through Steam, a desktop shortcut, or anything else — even though the mod package only decrypts correctly when launched through AMT's own `LaunchPresenter`. Each completion alert now offers a Play button with a note that Dota 2 must be started through the app for the mods to work, wired back through a new `PlayRequested` hand-back (`ModGenerationResult` → `NavigationPresenter` → `MainFormPresenter`) into the single existing launch path — no new launch logic. The Play button always renders first/leftmost in the action row, with OK and Show Log (when present) grouped on the right.
+
+### Performance
+
+- **Optimized Cloudflare R2 cache headers across releases, deltas, and manifests** (2356): Added long-lived immutable caching to asset packages and delta files to prevent redundant CDN re-fetching, while setting responsive cache headers on manifest feeds.
+- **Streamlined dataset localization tooling with automatic game path discovery** (2356): Added CLI options (--vpk, --root, --output), automatic Steam library detection for Dota VPK files, and integrated root path forwarding in the toolbox launcher.
 
 ### Refactor
 
