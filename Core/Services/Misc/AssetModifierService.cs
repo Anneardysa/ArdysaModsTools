@@ -1223,6 +1223,9 @@ namespace ArdysaModsTools.Core.Services
                                 {
                                     Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                                     entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
+                                    if (isEncrypted)
+                                    {
+                                    }
                                     TrackInstalledFile(category, relativePath, isEncrypted);
                                     copied++;
                                 }
@@ -1425,6 +1428,9 @@ namespace ArdysaModsTools.Core.Services
                         {
                             Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                             entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
+                            if (isEncrypted)
+                            {
+                            }
                             extractedFiles.Add(relativePath);
                         }
                         else

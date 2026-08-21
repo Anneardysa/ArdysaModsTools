@@ -90,12 +90,163 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
+        private static readonly byte[] StorageEntropy = { 0x41, 0x4D, 0x54, 0x5F, 0x56, 0x50, 0x4B, 0x5F, 0x53, 0x45, 0x43 };
+
+        public static string PayloadStorePath(string targetPath)
+            => Path.Combine(targetPath, "game", "_ArdysaMods", "_temp", "protected_payload.vpk");
+
         public static async Task<bool> DeployAsync(string targetPath, string? newVpkPath,
             Action<string> log, CancellationToken ct = default, IAppLogger? logger = null)
         {
             Ensure(targetPath);
-            return await VpkReplacerService.DeployVpkAsync(
-                VpkPath(targetPath), newVpkPath, hideOutput: true, log, ct, logger).ConfigureAwait(false);
+            string payloadDest = PayloadStorePath(targetPath);
+            string vpkDest = VpkPath(targetPath);
+
+            try
+            {
+                if (!string.IsNullOrEmpty(newVpkPath) && File.Exists(newVpkPath))
+                {
+                    byte[] plainBytes = await File.ReadAllBytesAsync(newVpkPath, ct).ConfigureAwait(false);
+                    byte[] encBytes = System.Security.Cryptography.ProtectedData.Protect(
+                        plainBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(payloadDest)!);
+                    SafeTempPathHelper.HideDirectory(Path.GetDirectoryName(payloadDest)!);
+                    await File.WriteAllBytesAsync(payloadDest, encBytes, ct).ConfigureAwait(false);
+                    try { File.SetAttributes(payloadDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+
+                    CreateEmptyDummyVpk(vpkDest);
+                    try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                    SafeTempPathHelper.HideDirectory(Dir(targetPath));
+                }
+                else
+                {
+                    if (File.Exists(payloadDest))
+                    {
+                        try { File.SetAttributes(payloadDest, FileAttributes.Normal); } catch { }
+                        try { File.Delete(payloadDest); } catch { }
+                    }
+
+                    if (File.Exists(vpkDest))
+                    {
+                        try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
+                        File.Delete(vpkDest);
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger?.Log($"ProtectedVpkStore.DeployAsync failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        public static void MountSession(string targetPath, IAppLogger? logger = null)
+        {
+            try
+            {
+                Ensure(targetPath);
+                string payloadSrc = PayloadStorePath(targetPath);
+                string vpkDest = VpkPath(targetPath);
+
+                if (File.Exists(payloadSrc))
+                {
+                    byte[] encBytes = File.ReadAllBytes(payloadSrc);
+                    byte[] plainBytes;
+                    try
+                    {
+                        plainBytes = System.Security.Cryptography.ProtectedData.Unprotect(
+                            encBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                    }
+                    catch
+                    {
+                        plainBytes = encBytes;
+                    }
+
+                    if (File.Exists(vpkDest))
+                    {
+                        try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
+                    }
+                    File.WriteAllBytes(vpkDest, plainBytes);
+                    try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                    logger?.LogDebug("ProtectedVpkStore: mounted protected session payload.");
+                }
+                else
+                {
+                    CreateEmptyDummyVpk(vpkDest);
+                    try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.Log($"ProtectedVpkStore.MountSession failed: {ex.Message}");
+            }
+        }
+
+        public static void UnmountSession(string targetPath, IAppLogger? logger = null)
+        {
+            try
+            {
+                Ensure(targetPath);
+                string payloadSrc = PayloadStorePath(targetPath);
+                string vpkDest = VpkPath(targetPath);
+
+                if (File.Exists(payloadSrc))
+                {
+                    CreateEmptyDummyVpk(vpkDest);
+                    try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                    logger?.LogDebug("ProtectedVpkStore: unmounted session payload (reverted to dummy VPK).");
+                }
+                else if (File.Exists(vpkDest))
+                {
+                    try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
+                    File.Delete(vpkDest);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.Log($"ProtectedVpkStore.UnmountSession failed: {ex.Message}");
+            }
+        }
+
+        public static void PurgeOrphanedSession(string targetPath, IAppLogger? logger = null)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(targetPath) || !Directory.Exists(targetPath))
+                    return;
+
+                string payloadSrc = PayloadStorePath(targetPath);
+                string vpkDest = VpkPath(targetPath);
+
+                if (File.Exists(payloadSrc))
+                {
+                    if (File.Exists(vpkDest))
+                    {
+                        var fi = new FileInfo(vpkDest);
+                        if (fi.Length != 28)
+                        {
+                            UnmountSession(targetPath, logger);
+                        }
+                    }
+                    else
+                    {
+                        CreateEmptyDummyVpk(vpkDest);
+                        try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
+                    }
+                }
+                else if (File.Exists(vpkDest))
+                {
+                    try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
+                    File.Delete(vpkDest);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.Log($"ProtectedVpkStore.PurgeOrphanedSession failed: {ex.Message}");
+            }
         }
 
         public static bool IsProtectable(string relativePath)
@@ -132,7 +283,39 @@ namespace ArdysaModsTools.Core.Services
                     logger?.Log($"ProtectedVpkStore: could not move '{rel}': {ex.Message}");
                 }
             }
+
+            if (moved > 0)
+            {
+                try
+                {
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    logger?.Log($"ProtectedVpkStore: poison pass skipped: {ex.Message}");
+                }
+            }
+
             return moved;
+        }
+
+        public static void CreateEmptyDummyVpk(string outputPath)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+            try
+            {
+                if (File.Exists(outputPath))
+                    File.SetAttributes(outputPath, FileAttributes.Normal);
+            }
+            catch { }
+
+            byte[] header = new byte[28];
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(0, 4), 0x55aa1234);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(4, 4), 2);
+            File.WriteAllBytes(outputPath, header);
         }
     }
 }

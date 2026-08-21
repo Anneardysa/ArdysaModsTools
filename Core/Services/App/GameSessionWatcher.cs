@@ -90,6 +90,17 @@ namespace ArdysaModsTools.Core.Services.App
                 WaitUntilGoneAsync(GameIsRunning, PollInterval, CancellationToken.None)
                     .GetAwaiter().GetResult();
 
+                try
+                {
+                    var detector = new DetectionService();
+                    string? dotaPath = detector.AutoDetectAsync().GetAwaiter().GetResult();
+                    if (!string.IsNullOrEmpty(dotaPath))
+                    {
+                        ProtectedVpkStore.UnmountSession(dotaPath);
+                    }
+                }
+                catch { }
+
                 string args = IsMinimizedLaunch(Environment.GetCommandLineArgs())
                     ? $"{ResumedArgument} {MinimizedArgument}"
                     : ResumedArgument;

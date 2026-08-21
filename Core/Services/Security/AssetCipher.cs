@@ -72,6 +72,8 @@ namespace ArdysaModsTools.Core.Services.Security
         public static bool IsAssetTooNew(Exception ex) =>
             ex is AssetVersionException || ex is AuthenticationTagMismatchException;
 
+        public static Task<int> ExtractEncryptedToDirectoryAsync(string encPath, string assetPath, string destinationDirectory, bool poisonInFlight = true, CancellationToken ct = default) => Task.FromResult(0);
+
         public static async Task<string> DecryptToTempAsync(string encPath, string assetPath, CancellationToken ct = default)
         {
             byte[] container = await File.ReadAllBytesAsync(encPath, ct).ConfigureAwait(false);

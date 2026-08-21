@@ -164,7 +164,7 @@ namespace ArdysaModsTools.Tests.Services
         #region Deploy / Clear
 
         [Test]
-        public async Task DeployAsync_InstallsPackage_Superhidden()
+        public async Task DeployAsync_InstallsDummyVpkAtRest_AndStoresPayload()
         {
             var source = NewVpk(Path.Combine(_root, "protected.vpk"));
 
@@ -180,24 +180,24 @@ namespace ArdysaModsTools.Tests.Services
                 var dirAttrs = File.GetAttributes(ProtectedVpkStore.Dir(_targetPath));
                 Assert.That(dirAttrs.HasFlag(FileAttributes.Hidden), Is.True, "folder Hidden");
                 Assert.That(dirAttrs.HasFlag(FileAttributes.System), Is.True, "folder System");
-                Assert.That(File.Exists(ProtectedVpk + ".bak"), Is.False, "no backup left behind");
-                Assert.That(File.ReadAllBytes(ProtectedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }), "deployed as plaintext VPK");
+                Assert.That(new FileInfo(ProtectedVpk).Length, Is.EqualTo(28), "deployed as 28-byte dummy empty VPK at rest");
+                Assert.That(File.Exists(ProtectedVpkStore.PayloadStorePath(_targetPath)), Is.True, "payload stored in private staging store");
             });
         }
 
         [Test]
-        public async Task DeployAsync_NullSource_RemovesPreviousPackage()
+        public async Task DeployAsync_NullSource_ClearsPayloadStore()
         {
             await ProtectedVpkStore.DeployAsync(_targetPath, NewVpk(Path.Combine(_root, "p1.vpk")), _ => { });
-            Assert.That(File.Exists(ProtectedVpk), Is.True, "precondition");
+            Assert.That(File.Exists(ProtectedVpkStore.PayloadStorePath(_targetPath)), Is.True, "precondition");
 
             bool ok = await ProtectedVpkStore.DeployAsync(_targetPath, null, _ => { });
 
             Assert.Multiple(() =>
             {
                 Assert.That(ok, Is.True);
-                Assert.That(File.Exists(ProtectedVpk), Is.False);
-                Assert.That(File.Exists(ProtectedVpk + ".bak"), Is.False);
+                Assert.That(File.Exists(ProtectedVpkStore.PayloadStorePath(_targetPath)), Is.False, "payload store cleared");
+                Assert.That(File.Exists(ProtectedVpk), Is.False, "mod package removed when no protected assets");
             });
         }
 

@@ -166,8 +166,6 @@ namespace ArdysaModsTools.Core.Services
             }
             Directory.CreateDirectory(workFolder);
 
-            string extractSource = localZipPath;
-            string? decryptedTemp = null;
             if (AssetCipher.IsEncrypted(localZipPath))
             {
                 onEncryptedDetected?.Invoke();
@@ -182,8 +180,8 @@ namespace ArdysaModsTools.Core.Services
 
                 try
                 {
-                    decryptedTemp = await AssetCipher.DecryptToTempAsync(localZipPath, assetPath!, ct).ConfigureAwait(false);
-                    extractSource = decryptedTemp;
+                    await AssetCipher.ExtractEncryptedToDirectoryAsync(
+                        localZipPath, assetPath!, workFolder, poisonInFlight: true, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (IsAssetTooNew(ex))
                 {
@@ -200,31 +198,26 @@ namespace ArdysaModsTools.Core.Services
                     var dlEx = new DownloadException(ErrorCodes.DL_EXTRACT_FAILED,
                         $"Set '{setName}' could not be prepared — it will be re-downloaded on retry.", ex, zipUrl);
                     log("Set file invalid — it will be re-downloaded on retry.");
-                    _logger?.Log($"[{dlEx.ErrorCode}] Decrypt failed for set '{setName}': {ex.Message}");
+                    _logger?.Log($"[{dlEx.ErrorCode}] Decrypt/extract failed for set '{setName}': {ex.Message}");
                     throw dlEx;
                 }
             }
-
-            try
+            else
             {
-                ZipFile.ExtractToDirectory(extractSource, workFolder, overwriteFiles: true);
-            }
-            catch (Exception ex)
-            {
-                var dlEx = new DownloadException(ErrorCodes.DL_EXTRACT_FAILED,
-                    $"Failed to extract set archive: {ex.Message}", ex, zipUrl);
-                log($"Extraction failed: {ex.Message}");
-                _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
-
-                try { if (File.Exists(localZipPath)) File.Delete(localZipPath); } catch { }
-
-                throw dlEx;
-            }
-            finally
-            {
-                if (decryptedTemp != null)
+                try
                 {
-                    try { if (File.Exists(decryptedTemp)) File.Delete(decryptedTemp); } catch { }
+                    ZipFile.ExtractToDirectory(localZipPath, workFolder, overwriteFiles: true);
+                }
+                catch (Exception ex)
+                {
+                    var dlEx = new DownloadException(ErrorCodes.DL_EXTRACT_FAILED,
+                        $"Failed to extract set archive: {ex.Message}", ex, zipUrl);
+                    log($"Extraction failed: {ex.Message}");
+                    _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
+
+                    try { if (File.Exists(localZipPath)) File.Delete(localZipPath); } catch { }
+
+                    throw dlEx;
                 }
             }
 

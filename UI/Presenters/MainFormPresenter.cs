@@ -213,6 +213,10 @@ namespace ArdysaModsTools.UI.Presenters
         private void SyncTargetPath(string? path)
         {
             _navigationPresenter.TargetPath = path;
+            if (!string.IsNullOrEmpty(path))
+            {
+                ProtectedVpkStore.PurgeOrphanedSession(path, _logger);
+            }
         }
         
         private void SyncCurrentStatus(ModStatusInfo? status)
@@ -1193,6 +1197,7 @@ namespace ArdysaModsTools.UI.Presenters
                 {
                     if (!string.IsNullOrEmpty(_targetPath))
                     {
+                        ProtectedVpkStore.UnmountSession(_targetPath, _logger);
                         _view.EnableAllButtons();
                         _ = CheckModsStatusAsync();
                     }

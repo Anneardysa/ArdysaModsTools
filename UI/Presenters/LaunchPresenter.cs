@@ -169,7 +169,7 @@ namespace ArdysaModsTools.UI.Presenters
                 return;
             }
 
-            if (!Launch())
+            if (!Launch(targetPath))
                 return;
 
             await WaitForGameAsync(targetPath, ct).ConfigureAwait(false);
@@ -280,11 +280,21 @@ namespace ArdysaModsTools.UI.Presenters
             return true;
         }
 
-        private bool Launch()
+        private bool Launch(string? targetPath)
         {
             Show("play.panel.launching", "play.panel.launchingDetail", percent: null, canCancel: true);
 
+            if (!string.IsNullOrEmpty(targetPath))
+            {
+                ProtectedVpkStore.MountSession(targetPath, _logger);
+            }
+
             if (_launcher(SteamLaunchUrl)) return true;
+
+            if (!string.IsNullOrEmpty(targetPath))
+            {
+                ProtectedVpkStore.UnmountSession(targetPath, _logger);
+            }
 
             ShowError("play.panel.failed", "play.panel.steamFailed");
             return false;
@@ -321,7 +331,7 @@ namespace ArdysaModsTools.UI.Presenters
                         return;
                     }
 
-                    if (!Launch()) return;
+                    if (!Launch(targetPath)) return;
 
                     deadline = DateTime.UtcNow + LaunchTimeout;
                     continue;

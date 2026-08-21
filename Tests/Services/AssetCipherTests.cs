@@ -363,5 +363,85 @@ namespace ArdysaModsTools.Tests.Services
                 Assert.That(AssetCipher.IsAssetTooNew(new IOException("Disk error")), Is.False);
             });
         }
+
+        [Test]
+        public async Task ExtractEncryptedToDirectoryAsync_ExtractsDirectlyWithInFlightPoisoning()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "amt_extract_test_" + Guid.NewGuid().ToString("N"));
+            string extractTarget = Path.Combine(dir, "extracted");
+            Directory.CreateDirectory(dir);
+
+            try
+            {
+                byte[] vmdlBytes = CreateSyntheticResourceWithNtro();
+                byte[] zipBytes;
+                using (var ms = new MemoryStream())
+                {
+                    using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+                    {
+                        var entry1 = zip.CreateEntry("index.txt");
+                        using (var w = new StreamWriter(entry1.Open()))
+                            w.Write("test content");
+
+                        var entry2 = zip.CreateEntry("models/hero.vmdl_c");
+                        using (var s = entry2.Open())
+                            s.Write(vmdlBytes, 0, vmdlBytes.Length);
+                    }
+                    zipBytes = ms.ToArray();
+                }
+
+                string encPath = Path.Combine(dir, "hero_set.zip");
+                File.WriteAllBytes(encPath, AssetCipher.Encrypt(zipBytes, AssetPath));
+
+                int count = await AssetCipher.ExtractEncryptedToDirectoryAsync(
+                    encPath, AssetPath, extractTarget, poisonInFlight: true);
+
+                Assert.That(count, Is.EqualTo(2));
+                Assert.That(File.Exists(Path.Combine(extractTarget, "index.txt")), Is.True);
+
+                string extractedVmdl = Path.Combine(extractTarget, "models", "hero.vmdl_c");
+                Assert.That(File.Exists(extractedVmdl), Is.True);
+
+                byte[] extractedBytes = File.ReadAllBytes(extractedVmdl);
+                Assert.That(extractedBytes.Length, Is.EqualTo(vmdlBytes.Length));
+                int ntroOffset = 16 + (2 * 12) + 2;
+                Assert.That(extractedBytes[ntroOffset], Is.EqualTo(0));
+                Assert.That(extractedBytes[ntroOffset + 1], Is.EqualTo(0));
+            }
+            finally
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+
+        private static byte[] CreateSyntheticResourceWithNtro()
+        {
+            using var ms = new MemoryStream();
+            using var writer = new BinaryWriter(ms);
+
+            writer.Write((uint)0);
+            writer.Write((ushort)12);
+            writer.Write((ushort)0);
+            writer.Write((uint)8);
+            writer.Write((uint)2);
+
+            writer.Write(System.Text.Encoding.ASCII.GetBytes("DATA"));
+            writer.Write((uint)(40 - 20));
+            writer.Write((uint)2);
+
+            writer.Write(System.Text.Encoding.ASCII.GetBytes("NTRO"));
+            writer.Write((uint)(42 - 32));
+            writer.Write((uint)2);
+
+            writer.Write((byte)0x01);
+            writer.Write((byte)0x02);
+
+            writer.Write((byte)0xDE);
+            writer.Write((byte)0xAD);
+
+            byte[] res = ms.ToArray();
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(res.AsSpan(0, 4), (uint)res.Length);
+            return res;
+        }
     }
 }
