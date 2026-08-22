@@ -68,12 +68,11 @@ namespace ArdysaModsTools.Tests.Services
             var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { });
 
             Assert.That(ok, Is.True, "replace over a hidden VPK must not throw");
-            Assert.That(new FileInfo(DeployedVpk).Length, Is.EqualTo(28), "deployed as 28-byte dummy at rest");
-            Assert.That(File.Exists(ProtectedVpkStore.MainPayloadStorePath(_targetPath)), Is.True, "payload stored encrypted");
+            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
         }
 
         [Test]
-        public async Task ReplaceAsync_Success_LeavesDummyAtRest_AndMountsSession()
+        public async Task ReplaceAsync_Success_DeploysRealVpk_WithSuperhiddenAttributes()
         {
             var service = new VpkReplacerService();
             Directory.CreateDirectory(Path.GetDirectoryName(DeployedVpk)!);
@@ -82,13 +81,8 @@ namespace ArdysaModsTools.Tests.Services
             var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { }, default);
 
             Assert.That(ok, Is.True);
-            Assert.That(new FileInfo(DeployedVpk).Length, Is.EqualTo(28), "dummy at rest");
-
-            ProtectedVpkStore.MountSession(_targetPath);
-            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }), "decrypted during session");
-
-            ProtectedVpkStore.UnmountSession(_targetPath);
-            Assert.That(new FileInfo(DeployedVpk).Length, Is.EqualTo(28), "dummy when unmounted");
+            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
+            Assert.That(File.GetAttributes(DeployedVpk).HasFlag(FileAttributes.Hidden), Is.True);
         }
 
         [Test]
@@ -101,7 +95,7 @@ namespace ArdysaModsTools.Tests.Services
             var ok = await service.ReplaceAsync(_targetPath, _sourceVpk, _ => { }, default);
 
             Assert.That(ok, Is.True);
-            Assert.That(new FileInfo(DeployedVpk).Length, Is.EqualTo(28));
+            Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
         }
     }
 }

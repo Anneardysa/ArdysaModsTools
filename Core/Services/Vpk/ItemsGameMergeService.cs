@@ -67,9 +67,8 @@ namespace ArdysaModsTools.Core.Services
             string root = PathUtility.NormalizeTargetPath(targetPath);
             string gameVpk = Path.Combine(root, Native(DotaPaths.GameVpk));
             string modVpk = Path.Combine(root, Native(DotaPaths.ModsVpk));
-            string mainPayload = ProtectedVpkStore.MainPayloadStorePath(root);
 
-            if (!File.Exists(modVpk) && !File.Exists(mainPayload))
+            if (!File.Exists(modVpk))
                 return new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.NothingToMerge };
 
             if (!File.Exists(gameVpk))
@@ -102,8 +101,7 @@ namespace ArdysaModsTools.Core.Services
 
                 string vanillaSha = await AssetHashVerifier.ComputeSha256Async(vanillaPath, ct).ConfigureAwait(false);
                 var record = await ItemsGameBaselineStore.ReadAsync(root, ct).ConfigureAwait(false);
-                string stampPath = File.Exists(mainPayload) ? mainPayload : modVpk;
-                var modStamp = VpkStamp.Read(stampPath);
+                var modStamp = VpkStamp.Read(modVpk);
 
                 bool recordApplies = record != null && modStamp != null && record.ModVpk == modStamp.Value;
                 if (recordApplies &&
@@ -116,11 +114,6 @@ namespace ArdysaModsTools.Core.Services
                 }
 
                 string activeModVpk = modVpk;
-                string tempDecrypted = Path.Combine(tempRoot, "active_mod.vpk");
-                if (ProtectedVpkStore.DecryptMainPayloadToTempFile(root, tempDecrypted, _logger))
-                {
-                    activeModVpk = tempDecrypted;
-                }
 
                 percent?.Report(5);
                 status?.Report("play.merge.merging");

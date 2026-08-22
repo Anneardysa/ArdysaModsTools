@@ -109,15 +109,6 @@ namespace ArdysaModsTools.Core.Services.App
 
                 try { sentry?.Stop(); } catch { }
 
-                try
-                {
-                    if (!string.IsNullOrEmpty(dotaPath))
-                    {
-                        ProtectedVpkStore.UnmountSession(dotaPath);
-                    }
-                }
-                catch { }
-
                 ProcessProtectionGuard.UnprotectCurrentProcess();
 
                 string args = IsMinimizedLaunch(Environment.GetCommandLineArgs())

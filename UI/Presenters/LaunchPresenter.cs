@@ -289,19 +289,9 @@ namespace ArdysaModsTools.UI.Presenters
 
             ProcessProtectionGuard.ProtectCurrentProcess(_logger);
 
-            if (!string.IsNullOrEmpty(targetPath))
-            {
-                ProtectedVpkStore.MountSession(targetPath, _logger);
-            }
-
             if (_launcher(SteamLaunchUrl)) return true;
 
             ProcessProtectionGuard.UnprotectCurrentProcess(_logger);
-
-            if (!string.IsNullOrEmpty(targetPath))
-            {
-                ProtectedVpkStore.UnmountSession(targetPath, _logger);
-            }
 
             ShowError("play.panel.failed", "play.panel.steamFailed");
             return false;

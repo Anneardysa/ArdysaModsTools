@@ -232,6 +232,21 @@ namespace ArdysaModsTools.Core.Services
                 {
                     await WriteAsync(path, existing with { ModVpk = modStamp.Value, PatchedIds = mergedIds.ToArray() }, ct).ConfigureAwait(false);
                 }
+                else
+                {
+                    string gameVpk = Path.Combine(targetPath, DotaPaths.GameVpk);
+                    var vanillaStamp = File.Exists(gameVpk) ? (VpkStamp.Read(gameVpk) ?? default) : default;
+                    var newRecord = new ItemsGameBaseline
+                    {
+                        BuiltUtc = DateTime.UtcNow,
+                        VanillaVpk = vanillaStamp,
+                        ModVpk = modStamp.Value,
+                        VanillaItemsGameSha = string.Empty,
+                        PatchedIds = mergedIds.ToArray(),
+                        AppVersion = "1.0"
+                    };
+                    await WriteAsync(path, newRecord, ct).ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException) { }
             catch (Exception ex)

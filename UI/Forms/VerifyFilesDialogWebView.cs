@@ -229,13 +229,6 @@ namespace ArdysaModsTools.UI.Forms
                     {
                         await Task.Yield();
                         string vpkPath = Path.Combine(_targetPath, DotaPaths.ModsVpk);
-                        string mainPayload = ProtectedVpkStore.MainPayloadStorePath(_targetPath);
-                        if (File.Exists(mainPayload))
-                        {
-                            var info = new FileInfo(mainPayload);
-                            string size = FormatFileSize(info.Length);
-                            return (true, $"pak01_dir.vpk ({size} - Protected)");
-                        }
                         if (File.Exists(vpkPath))
                         {
                             var info = new FileInfo(vpkPath);

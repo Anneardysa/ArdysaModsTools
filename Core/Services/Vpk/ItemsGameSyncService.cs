@@ -59,12 +59,11 @@ namespace ArdysaModsTools.Core.Services
             string root = PathUtility.NormalizeTargetPath(targetPath);
             string gameVpk = Path.Combine(root, ToNative(DotaPaths.GameVpk));
             string modVpk = Path.Combine(root, ToNative(DotaPaths.ModsVpk));
-            string mainPayload = ProtectedVpkStore.MainPayloadStorePath(root);
 
             var vanillaStamp = VpkStamp.Read(gameVpk);
             var modStamp = ProtectedVpkStore.GetActiveModVpkStamp(root);
 
-            if (modStamp == null || (!File.Exists(modVpk) && !File.Exists(mainPayload)))
+            if (modStamp == null || !File.Exists(modVpk))
             {
                 return PublishTransient(Unknown("verify.sync.unknown", "mod package not installed"));
             }
@@ -264,7 +263,6 @@ namespace ArdysaModsTools.Core.Services
             string root = PathUtility.NormalizeTargetPath(targetPath);
             string gameVpk = Path.Combine(root, ToNative(DotaPaths.GameVpk));
             string modVpk = Path.Combine(root, ToNative(DotaPaths.ModsVpk));
-            string mainPayload = ProtectedVpkStore.MainPayloadStorePath(root);
 
             if (!File.Exists(gameVpk))
             {
@@ -276,7 +274,7 @@ namespace ArdysaModsTools.Core.Services
                 };
             }
 
-            if (!File.Exists(modVpk) && !File.Exists(mainPayload))
+            if (!File.Exists(modVpk))
             {
                 return new SyncDetailsReport
                 {

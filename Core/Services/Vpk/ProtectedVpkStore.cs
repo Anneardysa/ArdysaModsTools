@@ -63,6 +63,9 @@ namespace ArdysaModsTools.Core.Services
         public static string VpkPath(string targetPath)
             => Path.Combine(Dir(targetPath), "pak01_dir.vpk");
 
+        public static string MainVpkPath(string targetPath)
+            => Path.Combine(targetPath, "game", "_ArdysaMods", "pak01_dir.vpk");
+
         public static void Ensure(string targetPath)
         {
             try
@@ -82,20 +85,6 @@ namespace ArdysaModsTools.Core.Services
             {
                 if (string.IsNullOrWhiteSpace(targetPath))
                     return;
-
-                string mainPayload = MainPayloadStorePath(targetPath);
-                if (File.Exists(mainPayload))
-                {
-                    try { File.SetAttributes(mainPayload, FileAttributes.Normal); } catch { }
-                    try { File.Delete(mainPayload); } catch { }
-                }
-
-                string protPayload = PayloadStorePath(targetPath);
-                if (File.Exists(protPayload))
-                {
-                    try { File.SetAttributes(protPayload, FileAttributes.Normal); } catch { }
-                    try { File.Delete(protPayload); } catch { }
-                }
 
                 string protVpk = VpkPath(targetPath);
                 if (File.Exists(protVpk))
@@ -142,347 +131,35 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private static readonly byte[] StorageEntropy = { 0x41, 0x4D, 0x54, 0x5F, 0x56, 0x50, 0x4B, 0x5F, 0x53, 0x45, 0x43 };
-
         public static VpkStamp? GetActiveModVpkStamp(string targetPath)
         {
             if (string.IsNullOrWhiteSpace(targetPath)) return null;
             string root = PathUtility.NormalizeTargetPath(targetPath);
 
-            string mainPayload = MainPayloadStorePath(root);
-            if (File.Exists(mainPayload))
-                return VpkStamp.Read(mainPayload);
-
             string modVpk = MainVpkPath(root);
             if (File.Exists(modVpk))
-            {
-                var fi = new FileInfo(modVpk);
-                if (fi.Length != 28)
-                    return VpkStamp.Read(modVpk);
-            }
+                return VpkStamp.Read(modVpk);
 
-            string protPayload = PayloadStorePath(root);
-            if (File.Exists(protPayload))
-                return VpkStamp.Read(protPayload);
+            string protVpk = VpkPath(root);
+            if (File.Exists(protVpk))
+                return VpkStamp.Read(protVpk);
 
-            return VpkStamp.Read(modVpk);
+            return null;
         }
 
-        public static string MainPayloadStorePath(string targetPath)
-            => Path.Combine(targetPath, "game", "_ArdysaMods", "_temp", "main_payload.vpk");
-
-        public static string MainVpkPath(string targetPath)
-            => Path.Combine(targetPath, "game", "_ArdysaMods", "pak01_dir.vpk");
-
-        public static string PayloadStorePath(string targetPath)
-            => Path.Combine(targetPath, "game", "_ArdysaMods", "_temp", "protected_payload.vpk");
-
-        public static async Task<bool> DeployMainAsync(string targetPath, string? newVpkPath,
-            Action<string> log, CancellationToken ct = default, IAppLogger? logger = null)
-        {
-            string payloadDest = MainPayloadStorePath(targetPath);
-            string vpkDest = MainVpkPath(targetPath);
-
-            try
-            {
-                if (!string.IsNullOrEmpty(newVpkPath) && File.Exists(newVpkPath))
-                {
-                    byte[] plainBytes = await File.ReadAllBytesAsync(newVpkPath, ct).ConfigureAwait(false);
-                    byte[] encBytes = System.Security.Cryptography.ProtectedData.Protect(
-                        plainBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-
-                    Directory.CreateDirectory(Path.GetDirectoryName(payloadDest)!);
-                    try { SafeTempPathHelper.HideDirectory(Path.GetDirectoryName(payloadDest)!); } catch { }
-
-                    if (File.Exists(payloadDest))
-                    {
-                        try { File.SetAttributes(payloadDest, FileAttributes.Normal); } catch { }
-                        try { File.Delete(payloadDest); } catch { }
-                    }
-
-                    await File.WriteAllBytesAsync(payloadDest, encBytes, ct).ConfigureAwait(false);
-                    try { File.SetAttributes(payloadDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-
-                    CreateEmptyDummyVpk(vpkDest);
-                    try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    try { SafeTempPathHelper.HideDirectory(Path.GetDirectoryName(vpkDest)!); } catch { }
-                }
-                else
-                {
-                    if (File.Exists(payloadDest))
-                    {
-                        try { File.SetAttributes(payloadDest, FileAttributes.Normal); } catch { }
-                        try { File.Delete(payloadDest); } catch { }
-                    }
-
-                    if (File.Exists(vpkDest))
-                    {
-                        try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
-                        try { File.Delete(vpkDest); } catch { }
-                    }
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                logger?.Log($"ProtectedVpkStore.DeployMainAsync failed: {ex.Message}");
-                return false;
-            }
-        }
-
-        public static async Task<bool> DeployAsync(string targetPath, string? newVpkPath,
+        public static async Task<bool> DeployAsync(string targetPath, string? newProtectedVpkPath,
             Action<string> log, CancellationToken ct = default, IAppLogger? logger = null)
         {
             Ensure(targetPath);
-            string payloadDest = PayloadStorePath(targetPath);
-            string vpkDest = VpkPath(targetPath);
+            bool success = await VpkReplacerService.DeployVpkAsync(
+                VpkPath(targetPath), newProtectedVpkPath, hideOutput: true, log, ct, logger).ConfigureAwait(false);
 
-            try
+            if (success)
             {
-                if (!string.IsNullOrEmpty(newVpkPath) && File.Exists(newVpkPath))
-                {
-                    byte[] plainBytes = await File.ReadAllBytesAsync(newVpkPath, ct).ConfigureAwait(false);
-                    byte[] encBytes = System.Security.Cryptography.ProtectedData.Protect(
-                        plainBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-
-                    Directory.CreateDirectory(Path.GetDirectoryName(payloadDest)!);
-                    try { SafeTempPathHelper.HideDirectory(Path.GetDirectoryName(payloadDest)!); } catch { }
-
-                    if (File.Exists(payloadDest))
-                    {
-                        try { File.SetAttributes(payloadDest, FileAttributes.Normal); } catch { }
-                        try { File.Delete(payloadDest); } catch { }
-                    }
-
-                    await File.WriteAllBytesAsync(payloadDest, encBytes, ct).ConfigureAwait(false);
-                    try { File.SetAttributes(payloadDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-
-                    CreateEmptyDummyVpk(vpkDest);
-                    try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    try { SafeTempPathHelper.HideDirectory(Dir(targetPath)); } catch { }
-                }
-                else
-                {
-                    if (File.Exists(payloadDest))
-                    {
-                        try { File.SetAttributes(payloadDest, FileAttributes.Normal); } catch { }
-                        try { File.Delete(payloadDest); } catch { }
-                    }
-
-                    if (File.Exists(vpkDest))
-                    {
-                        try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
-                        try { File.Delete(vpkDest); } catch { }
-                    }
-                }
-
-                return true;
+                try { SafeTempPathHelper.HideDirectory(Dir(targetPath)); } catch { }
             }
-            catch (Exception ex)
-            {
-                logger?.Log($"ProtectedVpkStore.DeployAsync failed: {ex.Message}");
-                return false;
-            }
-        }
 
-        public static void MountSession(string targetPath, IAppLogger? logger = null)
-        {
-            try
-            {
-                string mainPayloadSrc = MainPayloadStorePath(targetPath);
-                string mainVpkDest = MainVpkPath(targetPath);
-                if (File.Exists(mainPayloadSrc))
-                {
-                    byte[] encBytes = File.ReadAllBytes(mainPayloadSrc);
-                    byte[] plainBytes;
-                    try
-                    {
-                        plainBytes = System.Security.Cryptography.ProtectedData.Unprotect(
-                            encBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-                    }
-                    catch
-                    {
-                        plainBytes = encBytes;
-                    }
-
-                    Directory.CreateDirectory(Path.GetDirectoryName(mainVpkDest)!);
-                    if (File.Exists(mainVpkDest))
-                    {
-                        try { File.SetAttributes(mainVpkDest, FileAttributes.Normal); } catch { }
-                    }
-                    File.WriteAllBytes(mainVpkDest, plainBytes);
-                    try { File.SetAttributes(mainVpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    logger?.LogDebug("ProtectedVpkStore: mounted main session payload.");
-                }
-
-                Ensure(targetPath);
-                string payloadSrc = PayloadStorePath(targetPath);
-                string vpkDest = VpkPath(targetPath);
-
-                if (File.Exists(payloadSrc))
-                {
-                    byte[] encBytes = File.ReadAllBytes(payloadSrc);
-                    byte[] plainBytes;
-                    try
-                    {
-                        plainBytes = System.Security.Cryptography.ProtectedData.Unprotect(
-                            encBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-                    }
-                    catch
-                    {
-                        plainBytes = encBytes;
-                    }
-
-                    if (File.Exists(vpkDest))
-                    {
-                        try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
-                    }
-                    File.WriteAllBytes(vpkDest, plainBytes);
-                    try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    logger?.LogDebug("ProtectedVpkStore: mounted protected session payload.");
-                }
-                else
-                {
-                    CreateEmptyDummyVpk(vpkDest);
-                    try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.Log($"ProtectedVpkStore.MountSession failed: {ex.Message}");
-            }
-        }
-
-        public static void UnmountSession(string targetPath, IAppLogger? logger = null)
-        {
-            try
-            {
-                string mainPayloadSrc = MainPayloadStorePath(targetPath);
-                string mainVpkDest = MainVpkPath(targetPath);
-                if (File.Exists(mainPayloadSrc))
-                {
-                    FileSecurityGuard.ReleaseDaclLock(mainVpkDest, logger);
-                    CreateEmptyDummyVpk(mainVpkDest);
-                    try { File.SetAttributes(mainVpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    logger?.LogDebug("ProtectedVpkStore: unmounted main session payload (reverted to dummy VPK).");
-                }
-
-                Ensure(targetPath);
-                string payloadSrc = PayloadStorePath(targetPath);
-                string vpkDest = VpkPath(targetPath);
-
-                if (File.Exists(payloadSrc))
-                {
-                    FileSecurityGuard.ReleaseDaclLock(vpkDest, logger);
-                    CreateEmptyDummyVpk(vpkDest);
-                    try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    logger?.LogDebug("ProtectedVpkStore: unmounted session payload (reverted to dummy VPK).");
-                }
-                else if (File.Exists(vpkDest))
-                {
-                    FileSecurityGuard.ReleaseDaclLock(vpkDest, logger);
-                    try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
-                    File.Delete(vpkDest);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.Log($"ProtectedVpkStore.UnmountSession failed: {ex.Message}");
-            }
-        }
-
-        public static bool PanicWipe(string targetPath, IAppLogger? logger = null)
-        {
-            try
-            {
-                bool wiped = false;
-                string mainVpk = MainVpkPath(targetPath);
-                if (File.Exists(mainVpk))
-                {
-                    FileSecurityGuard.ReleaseDaclLock(mainVpk, logger);
-                    CreateEmptyDummyVpk(mainVpk);
-                    try { File.SetAttributes(mainVpk, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    wiped = true;
-                }
-
-                string protVpk = VpkPath(targetPath);
-                if (File.Exists(protVpk))
-                {
-                    FileSecurityGuard.ReleaseDaclLock(protVpk, logger);
-                    CreateEmptyDummyVpk(protVpk);
-                    try { File.SetAttributes(protVpk, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    wiped = true;
-                }
-
-                logger?.LogDebug("ProtectedVpkStore: PanicWipe executed successfully (both VPKs reverted to dummy headers).");
-                FallbackLogger.Log("[ProtectedVpkStore] PanicWipe executed — VPKs locked to dummy.");
-                return wiped;
-            }
-            catch (Exception ex)
-            {
-                logger?.Log($"ProtectedVpkStore.PanicWipe failed: {ex.Message}");
-                FallbackLogger.LogFileOnly($"ProtectedVpkStore.PanicWipe error: {ex.Message}");
-                return false;
-            }
-        }
-
-        public static void PurgeOrphanedSession(string targetPath, IAppLogger? logger = null)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(targetPath) || !Directory.Exists(targetPath))
-                    return;
-
-                string mainPayloadSrc = MainPayloadStorePath(targetPath);
-                string mainVpkDest = MainVpkPath(targetPath);
-                if (File.Exists(mainPayloadSrc))
-                {
-                    if (File.Exists(mainVpkDest))
-                    {
-                        var fi = new FileInfo(mainVpkDest);
-                        if (fi.Length != 28)
-                        {
-                            CreateEmptyDummyVpk(mainVpkDest);
-                            try { File.SetAttributes(mainVpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                        }
-                    }
-                    else
-                    {
-                        CreateEmptyDummyVpk(mainVpkDest);
-                        try { File.SetAttributes(mainVpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    }
-                }
-
-                string payloadSrc = PayloadStorePath(targetPath);
-                string vpkDest = VpkPath(targetPath);
-
-                if (File.Exists(payloadSrc))
-                {
-                    if (File.Exists(vpkDest))
-                    {
-                        var fi = new FileInfo(vpkDest);
-                        if (fi.Length != 28)
-                        {
-                            UnmountSession(targetPath, logger);
-                        }
-                    }
-                    else
-                    {
-                        CreateEmptyDummyVpk(vpkDest);
-                        try { File.SetAttributes(vpkDest, FileAttributes.Hidden | FileAttributes.System); } catch { }
-                    }
-                }
-                else if (File.Exists(vpkDest))
-                {
-                    try { File.SetAttributes(vpkDest, FileAttributes.Normal); } catch { }
-                    File.Delete(vpkDest);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger?.Log($"ProtectedVpkStore.PurgeOrphanedSession failed: {ex.Message}");
-            }
+            return success;
         }
 
         public static bool IsProtectable(string relativePath)
@@ -527,21 +204,6 @@ namespace ArdysaModsTools.Core.Services
                 }
             }
 
-            if (moved > 0)
-            {
-                try
-                {
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    logger?.Log($"ProtectedVpkStore: poison pass skipped: {ex.Message}");
-                }
-            }
-
             return moved;
         }
 
@@ -567,84 +229,6 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        public static bool DecryptMainPayloadToTempFile(string targetPath, string tempOutputPath, IAppLogger? logger = null)
-        {
-            try
-            {
-                string payloadSrc = MainPayloadStorePath(targetPath);
-                if (!File.Exists(payloadSrc)) return false;
-
-                byte[] encBytes = File.ReadAllBytes(payloadSrc);
-                byte[] plainBytes;
-                try
-                {
-                    plainBytes = System.Security.Cryptography.ProtectedData.Unprotect(
-                        encBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-                }
-                catch
-                {
-                    plainBytes = encBytes;
-                }
-
-                Directory.CreateDirectory(Path.GetDirectoryName(tempOutputPath)!);
-                File.WriteAllBytes(tempOutputPath, plainBytes);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                logger?.Log($"ProtectedVpkStore.DecryptMainPayloadToTempFile failed: {ex.Message}");
-                return false;
-            }
-        }
-
-        public static bool DecryptPayloadToTempFile(string targetPath, string tempOutputPath, IAppLogger? logger = null)
-        {
-            try
-            {
-                string payloadSrc = PayloadStorePath(targetPath);
-                if (!File.Exists(payloadSrc)) return false;
-
-                byte[] encBytes = File.ReadAllBytes(payloadSrc);
-                byte[] plainBytes;
-                try
-                {
-                    plainBytes = System.Security.Cryptography.ProtectedData.Unprotect(
-                        encBytes, StorageEntropy, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-                }
-                catch
-                {
-                    plainBytes = encBytes;
-                }
-
-                Directory.CreateDirectory(Path.GetDirectoryName(tempOutputPath)!);
-                File.WriteAllBytes(tempOutputPath, plainBytes);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                logger?.Log($"ProtectedVpkStore.DecryptPayloadToTempFile failed: {ex.Message}");
-                return false;
-            }
-        }
-
-        public static void CreateEmptyDummyVpk(string outputPath)
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
-            try
-            {
-                if (File.Exists(outputPath))
-                {
-                    try { File.SetAttributes(outputPath, FileAttributes.Normal); } catch { }
-                    try { File.Delete(outputPath); } catch { }
-                }
-            }
-            catch { }
-
-            byte[] header = new byte[28];
-            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(0, 4), 0x55aa1234);
-            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(header.AsSpan(4, 4), 2);
-            File.WriteAllBytes(outputPath, header);
-        }
         public static void DeletePermanently(string targetPath, IAppLogger? logger = null)
         {
             try

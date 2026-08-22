@@ -200,91 +200,18 @@ namespace ArdysaModsTools.Core.Services
                 }
             }
 
-            string mainPayload = ProtectedVpkStore.MainPayloadStorePath(root);
-            if (File.Exists(mainPayload))
-            {
-                string tempDir = Path.Combine(SafeTempPathHelper.GetSafeTempPath(), $"ArdysaModDec_{Guid.NewGuid():N}");
-                try
-                {
-                    Directory.CreateDirectory(tempDir);
-                    SafeTempPathHelper.HideDirectory(tempDir);
-                    string tempDecryptedVpk = Path.Combine(tempDir, "temp_mod.vpk");
-
-                    if (ProtectedVpkStore.DecryptMainPayloadToTempFile(root, tempDecryptedVpk, _logger))
-                    {
-                        bool ok = await ExtractItemsGameAsync(tempDecryptedVpk, destFilePath, log, ct).ConfigureAwait(false);
-                        if (ok) return true;
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogDebug($"GameItemsGameExtractor: main payload extraction failed: {ex.Message}");
-                }
-                finally
-                {
-                    try
-                    {
-                        if (Directory.Exists(tempDir))
-                        {
-                            ProtectedVpkStore.NormalizeAttributesRecursively(tempDir);
-                            Directory.Delete(tempDir, true);
-                        }
-                    }
-                    catch { }
-                }
-            }
-
             string modVpk = Path.Combine(root, DotaPaths.ModsVpk.Replace('/', Path.DirectorySeparatorChar));
             if (File.Exists(modVpk))
             {
-                var fi = new FileInfo(modVpk);
-                if (fi.Length != 28)
-                {
-                    bool ok = await ExtractItemsGameAsync(modVpk, destFilePath, log, ct).ConfigureAwait(false);
-                    if (ok) return true;
-                }
+                bool ok = await ExtractItemsGameAsync(modVpk, destFilePath, log, ct).ConfigureAwait(false);
+                if (ok) return true;
             }
 
-            string protPayload = ProtectedVpkStore.PayloadStorePath(root);
-            if (File.Exists(protPayload))
+            string protVpk = ProtectedVpkStore.VpkPath(root);
+            if (File.Exists(protVpk))
             {
-                string tempDir = Path.Combine(SafeTempPathHelper.GetSafeTempPath(), $"ArdysaProtDec_{Guid.NewGuid():N}");
-                try
-                {
-                    Directory.CreateDirectory(tempDir);
-                    SafeTempPathHelper.HideDirectory(tempDir);
-                    string tempDecryptedVpk = Path.Combine(tempDir, "temp_prot.vpk");
-
-                    if (ProtectedVpkStore.DecryptPayloadToTempFile(root, tempDecryptedVpk, _logger))
-                    {
-                        bool ok = await ExtractItemsGameAsync(tempDecryptedVpk, destFilePath, log, ct).ConfigureAwait(false);
-                        if (ok) return true;
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogDebug($"GameItemsGameExtractor: protected payload extraction failed: {ex.Message}");
-                }
-                finally
-                {
-                    try
-                    {
-                        if (Directory.Exists(tempDir))
-                        {
-                            ProtectedVpkStore.NormalizeAttributesRecursively(tempDir);
-                            Directory.Delete(tempDir, true);
-                        }
-                    }
-                    catch { }
-                }
+                bool ok = await ExtractItemsGameAsync(protVpk, destFilePath, log, ct).ConfigureAwait(false);
+                if (ok) return true;
             }
 
             return false;

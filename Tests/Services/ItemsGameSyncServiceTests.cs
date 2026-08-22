@@ -454,14 +454,10 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public async Task Refresh_WithEncryptedStagingPayload_EvaluatesInSync()
+        public async Task Refresh_WithDirectModVpk_EvaluatesInSync()
         {
             Write(DotaPaths.GameVpk, "game vpk v1");
-            string payloadPath = ProtectedVpkStore.MainPayloadStorePath(_root);
-            Directory.CreateDirectory(Path.GetDirectoryName(payloadPath)!);
-            File.WriteAllText(payloadPath, "staging payload v1");
-
-            ProtectedVpkStore.CreateEmptyDummyVpk(Path.Combine(_root, DotaPaths.ModsVpk));
+            Write(DotaPaths.ModsVpk, "mod vpk v1");
 
             const string itemData = "\"DOTAEconomyItems\" { \"items\" { \"101\" { \"name\" \"test\" } } }";
             SetupExtractor(itemData, itemData);

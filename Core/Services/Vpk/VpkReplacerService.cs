@@ -42,9 +42,12 @@ namespace ArdysaModsTools.Core.Services
         {
             string modsDir = Path.Combine(targetPath, "game", "_ArdysaMods");
             Directory.CreateDirectory(modsDir);
+            string destVpk = Path.Combine(modsDir, "pak01_dir.vpk");
 
-            if (!await ProtectedVpkStore.DeployMainAsync(targetPath, newVpkPath, log, ct, _logger).ConfigureAwait(false))
+            if (!await DeployVpkAsync(destVpk, newVpkPath, hideOutput: true, log, ct, _logger).ConfigureAwait(false))
                 return false;
+
+            try { Helpers.SafeTempPathHelper.HideDirectory(modsDir); } catch { }
 
             try
             {

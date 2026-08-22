@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.4.1-beta] (Build 2364)
+## [2.4.1-beta] (Builds 2364–2365)
+
+### Refactor
+
+- **Streamlined mod package deployment and session lifecycle** (2365): Deployed mod packages directly with superhidden file attributes at all times, eliminating runtime staging swaps during game launch and session termination.
 
 ### Fixed
 

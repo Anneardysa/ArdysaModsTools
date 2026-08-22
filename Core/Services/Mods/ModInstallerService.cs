@@ -1222,8 +1222,20 @@ namespace ArdysaModsTools.Core.Services
                 var s = new InstallSnapshot(vpkPath);
                 try
                 {
-                    if (s._hadVpk) { TryDelete(s._vpkBak); File.Move(s._vpk, s._vpkBak); s._vpkCaptured = true; }
-                    if (s._hadHash) { TryDelete(s._hashBak); File.Move(s._hash, s._hashBak); s._hashCaptured = true; }
+                    if (s._hadVpk)
+                    {
+                        TryDelete(s._vpkBak);
+                        try { File.SetAttributes(s._vpk, FileAttributes.Normal); } catch { }
+                        File.Move(s._vpk, s._vpkBak);
+                        s._vpkCaptured = true;
+                    }
+                    if (s._hadHash)
+                    {
+                        TryDelete(s._hashBak);
+                        try { File.SetAttributes(s._hash, FileAttributes.Normal); } catch { }
+                        File.Move(s._hash, s._hashBak);
+                        s._hashCaptured = true;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1257,8 +1269,16 @@ namespace ArdysaModsTools.Core.Services
                 {
                     if (!_hadVpk || _vpkCaptured) TryDelete(_vpk);
                     if (!_hadHash || _hashCaptured) TryDelete(_hash);
-                    if (_vpkCaptured && File.Exists(_vpkBak)) File.Move(_vpkBak, _vpk);
-                    if (_hashCaptured && File.Exists(_hashBak)) File.Move(_hashBak, _hash);
+                    if (_vpkCaptured && File.Exists(_vpkBak))
+                    {
+                        try { File.SetAttributes(_vpkBak, FileAttributes.Normal); } catch { }
+                        File.Move(_vpkBak, _vpk);
+                    }
+                    if (_hashCaptured && File.Exists(_hashBak))
+                    {
+                        try { File.SetAttributes(_hashBak, FileAttributes.Normal); } catch { }
+                        File.Move(_hashBak, _hash);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -1268,7 +1288,15 @@ namespace ArdysaModsTools.Core.Services
 
             private static void TryDelete(string path)
             {
-                try { if (File.Exists(path)) File.Delete(path); } catch {  }
+                try
+                {
+                    if (File.Exists(path))
+                    {
+                        try { File.SetAttributes(path, FileAttributes.Normal); } catch { }
+                        File.Delete(path);
+                    }
+                }
+                catch {  }
             }
         }
 
