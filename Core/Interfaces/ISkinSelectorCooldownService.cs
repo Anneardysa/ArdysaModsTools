@@ -33,7 +33,7 @@ namespace ArdysaModsTools.Core.Interfaces
         public TimeSpan TotalDuration { get; init; }
         public DateTime? LastGenerationTimeUtc { get; init; }
         public int DailyGenerationsUsed { get; init; }
-        public int DailyGenerationsMax { get; init; } = 5;
+        public int DailyGenerationsMax { get; init; } = 0;
         public bool IsDailyLimitReached { get; init; }
         public SkinSelectorLockReason LockReason { get; init; }
     }

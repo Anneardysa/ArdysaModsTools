@@ -150,7 +150,7 @@ namespace ArdysaModsTools.UI.Presenters
             {
                 if (_cooldownService.IsOnCooldown(out var remaining, out var reason))
                 {
-                    if (reason == SkinSelectorLockReason.DailyLimitReached || reason == SkinSelectorLockReason.ClockAnomaly)
+                    if (reason == SkinSelectorLockReason.DailyLimitReached)
                     {
                         var hours = (int)remaining.TotalHours;
                         var minutes = remaining.Minutes;

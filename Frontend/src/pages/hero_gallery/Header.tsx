@@ -57,13 +57,13 @@ export function Header({
    const isLocked = cooldown.active && cooldown.remainingSeconds > 0;
    const isDailyLimit = isLocked && cooldown.isDailyLimit;
    const timeStr = isLocked ? formatCooldown(cooldown.remainingSeconds) : "";
-   const maxQuota = cooldown.dailyMax || 5;
-   const remainingQuota = Math.max(0, maxQuota - (cooldown.dailyUsed || 0));
+   const maxQuota = cooldown.dailyMax || 0;
+   const remainingQuota = maxQuota > 0 ? Math.max(0, maxQuota - (cooldown.dailyUsed || 0)) : 0;
 
    const handleGenerateClick = (e: React.MouseEvent) => {
       if (e.shiftKey || e.ctrlKey) {
          send("resetCooldown");
-         setCooldown({ active: false, remainingSeconds: 0, totalSeconds: 600, dailyUsed: 0, dailyMax: 5, isDailyLimit: false });
+         setCooldown({ active: false, remainingSeconds: 0, totalSeconds: 600, dailyUsed: 0, dailyMax: 0, isDailyLimit: false });
          return;
       }
       onGenerate();
@@ -112,7 +112,9 @@ export function Header({
                            ? t("hero.cooldown.dailyLimitTitle", `Daily limit reached (${timeStr} until reset)`, { time: timeStr })
                            : isLocked
                            ? t("hero.status.cooldownActive", `Generation on cooldown (${timeStr} remaining)`, { time: timeStr })
-                           : t("hero.cooldown.quotaStatus", `${remainingQuota} generations remaining today`, { remaining: remainingQuota })
+                           : maxQuota > 0
+                           ? t("hero.cooldown.quotaStatus", `${remainingQuota} generations remaining today`, { remaining: remainingQuota })
+                           : t("heroGallery.generate", "Generate ModsPack")
                      }
                   >
                      {isDailyLimit ? (
@@ -134,7 +136,7 @@ export function Header({
                      ) : (
                         <>
                            <T k="heroGallery.generate">Generate ModsPack</T>
-                           {cooldown.dailyUsed > 0 && <span style={{ opacity: 0.85, fontSize: "0.85em", marginLeft: 4 }}>({remainingQuota}/{maxQuota})</span>}
+                           {maxQuota > 0 && cooldown.dailyUsed > 0 && <span style={{ opacity: 0.85, fontSize: "0.85em", marginLeft: 4 }}>({remainingQuota}/{maxQuota})</span>}
                         </>
                      )}
                   </button>

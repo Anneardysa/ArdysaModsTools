@@ -86,7 +86,7 @@ export const store = createStore<{
    generationLogLines: [],
    logModalOpen: false,
 
-   cooldown: { active: false, remainingSeconds: 0, totalSeconds: 600, dailyUsed: 0, dailyMax: 5, isDailyLimit: false },
+   cooldown: { active: false, remainingSeconds: 0, totalSeconds: 600, dailyUsed: 0, dailyMax: 0, isDailyLimit: false },
 });
 
 function notifySelectionChanged() {

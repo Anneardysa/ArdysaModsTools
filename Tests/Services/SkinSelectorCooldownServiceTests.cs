@@ -82,7 +82,7 @@ namespace ArdysaModsTools.Tests.Services
             }
         }
 
-        private SkinSelectorCooldownService CreateService(TimeSpan? duration = null, int maxDaily = 5, Func<bool>? isDevMode = null)
+        private SkinSelectorCooldownService CreateService(TimeSpan? duration = null, int maxDaily = 0, Func<bool>? isDevMode = null)
         {
             return new SkinSelectorCooldownService(
                 _config.Object,
@@ -103,7 +103,7 @@ namespace ArdysaModsTools.Tests.Services
         {
             var service = CreateService();
             Assert.That(service.CooldownDuration, Is.EqualTo(TimeSpan.FromMinutes(10)));
-            Assert.That(service.MaxDailyGenerations, Is.EqualTo(5));
+            Assert.That(service.MaxDailyGenerations, Is.EqualTo(0));
         }
 
         [Test]
@@ -170,12 +170,39 @@ namespace ArdysaModsTools.Tests.Services
 
         #endregion
 
-        #region Daily Quota Tests (Max 5/Day)
+        #region Unlimited Daily Generation Tests (No Daily Quota Limit)
 
         [Test]
-        public void DailyQuota_Allows5Generations_Blocks6thWithDailyLimitReason()
+        public void UnlimitedGenerations_AllowsMoreThan5Generations_WhenCooldownElapsed()
         {
             var service = CreateService();
+
+            for (int i = 1; i <= 10; i++)
+            {
+                service.RecordGeneration();
+
+                Assert.That(service.IsOnCooldown(out _, out var cooldownReason), Is.True);
+                Assert.That(cooldownReason, Is.EqualTo(SkinSelectorLockReason.Cooldown));
+
+                _currentTime = _currentTime.AddMinutes(10);
+                _currentTick += (long)TimeSpan.FromMinutes(10).TotalMilliseconds;
+
+                Assert.That(service.IsOnCooldown(out var remaining, out var reason), Is.False,
+                    $"Generation #{i + 1} should be allowed after 10-minute cooldown");
+                Assert.That(remaining, Is.EqualTo(TimeSpan.Zero));
+                Assert.That(reason, Is.EqualTo(SkinSelectorLockReason.None));
+            }
+
+            var status = service.GetStatus();
+            Assert.That(status.IsDailyLimitReached, Is.False);
+            Assert.That(status.DailyGenerationsMax, Is.EqualTo(0));
+            Assert.That(status.DailyGenerationsUsed, Is.EqualTo(10));
+        }
+
+        [Test]
+        public void ExplicitDailyQuota_WhenConfigured_EnforcesDailyLimit()
+        {
+            var service = CreateService(maxDaily: 5);
 
             for (int i = 1; i <= 5; i++)
             {
@@ -185,12 +212,11 @@ namespace ArdysaModsTools.Tests.Services
 
                 if (i < 5)
                 {
-                    Assert.That(service.IsOnCooldown(out _), Is.False, $"Generation #{i + 1} should be allowed after cooldown");
+                    Assert.That(service.IsOnCooldown(out _), Is.False);
                 }
             }
 
             var onCooldown = service.IsOnCooldown(out var remaining, out var reason);
-
             Assert.That(onCooldown, Is.True);
             Assert.That(reason, Is.EqualTo(SkinSelectorLockReason.DailyLimitReached));
 
@@ -198,43 +224,6 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(status.IsDailyLimitReached, Is.True);
             Assert.That(status.DailyGenerationsUsed, Is.EqualTo(5));
             Assert.That(status.DailyGenerationsMax, Is.EqualTo(5));
-        }
-
-        [Test]
-        public void DailyQuota_ResetsOnNextDayRollover()
-        {
-            var service = CreateService();
-
-            for (int i = 0; i < 5; i++)
-            {
-                service.RecordGeneration();
-                _currentTime = _currentTime.AddMinutes(10);
-                _currentTick += (long)TimeSpan.FromMinutes(10).TotalMilliseconds;
-            }
-
-            Assert.That(service.IsOnCooldown(out _, out var reason), Is.True);
-            Assert.That(reason, Is.EqualTo(SkinSelectorLockReason.DailyLimitReached));
-
-            _currentTime = new DateTime(2026, 8, 22, 0, 5, 0, DateTimeKind.Utc);
-            _currentTick += (long)TimeSpan.FromHours(12).TotalMilliseconds;
-
-            var freshDayService = new SkinSelectorCooldownService(
-                _config.Object,
-                clock: () => _currentTime,
-                tickCountProvider: () => _currentTick,
-                shadowFilePath: _shadowFile,
-                dpapiFilePath: _dpapiFile,
-                registrySubKey: _registryKey);
-
-            var onCooldownNextDay = freshDayService.IsOnCooldown(out var remaining, out var nextReason);
-
-            Assert.That(onCooldownNextDay, Is.False, "Next day must reset daily quota back to 0/5");
-            Assert.That(remaining, Is.EqualTo(TimeSpan.Zero));
-            Assert.That(nextReason, Is.EqualTo(SkinSelectorLockReason.None));
-
-            var status = freshDayService.GetStatus();
-            Assert.That(status.DailyGenerationsUsed, Is.EqualTo(0));
-            Assert.That(status.IsDailyLimitReached, Is.False);
         }
 
         #endregion

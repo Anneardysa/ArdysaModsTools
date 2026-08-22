@@ -31,7 +31,7 @@ namespace ArdysaModsTools.Core.Services.Hero
     public sealed class SkinSelectorCooldownService : ISkinSelectorCooldownService
     {
         private static readonly TimeSpan DefaultCooldownDuration = TimeSpan.FromMinutes(10);
-        private const int DefaultMaxDailyGenerations = 5;
+        private const int DefaultMaxDailyGenerations = 0;
         private const string Salt = "AMT_SKIN_SELECTOR_COOLDOWN_PROTECTION_V2_PRO";
         private const string RegistrySubKey = @"Software\ArdysaModsTools\Security";
         private const string RegistryValueName = "StateToken";
@@ -74,7 +74,7 @@ namespace ArdysaModsTools.Core.Services.Hero
             _clock = clock ?? (() => DateTime.UtcNow + _serverTimeOffset);
             _tickCountProvider = tickCountProvider ?? (() => Environment.TickCount64);
             _cooldownDuration = cooldownDuration ?? DefaultCooldownDuration;
-            _maxDailyGenerations = maxDailyGenerations > 0 ? maxDailyGenerations : DefaultMaxDailyGenerations;
+            _maxDailyGenerations = maxDailyGenerations > 0 ? maxDailyGenerations : 0;
             _isDevMode = isDevMode != null ? isDevMode : () => EnvironmentConfig.IsDevMode;
             _registrySubKey = registrySubKey ?? RegistrySubKey;
 
@@ -118,7 +118,7 @@ namespace ArdysaModsTools.Core.Services.Hero
 
                 if (hasTamper)
                 {
-                    remaining = GetRemainingUntilNextDayUtc(now);
+                    remaining = _cooldownDuration;
                     reason = SkinSelectorLockReason.ClockAnomaly;
                     return true;
                 }
@@ -140,12 +140,12 @@ namespace ArdysaModsTools.Core.Services.Hero
                 }
                 else if (string.CompareOrdinal(todayDateUtc, effectiveDate) < 0)
                 {
-                    remaining = GetRemainingUntilNextDayUtc(now);
+                    remaining = _cooldownDuration;
                     reason = SkinSelectorLockReason.ClockAnomaly;
                     return true;
                 }
 
-                if (effectiveCount >= _maxDailyGenerations)
+                if (_maxDailyGenerations > 0 && effectiveCount >= _maxDailyGenerations)
                 {
                     remaining = GetRemainingUntilNextDayUtc(now);
                     reason = SkinSelectorLockReason.DailyLimitReached;
@@ -218,7 +218,7 @@ namespace ArdysaModsTools.Core.Services.Hero
                     LastGenerationTimeUtc = _configService.SkinSelectorLastGenerationTimeUtc,
                     DailyGenerationsUsed = dailyUsed,
                     DailyGenerationsMax = _maxDailyGenerations,
-                    IsDailyLimitReached = dailyUsed >= _maxDailyGenerations,
+                    IsDailyLimitReached = _maxDailyGenerations > 0 && dailyUsed >= _maxDailyGenerations,
                     LockReason = reason
                 };
             }
@@ -329,12 +329,13 @@ namespace ArdysaModsTools.Core.Services.Hero
             if ((t1 != null && !v1) || (t2 != null && !v2) || (t3 != null && !v3) || (t4 != null && !v4))
             {
                 hasTamper = true;
+                var failCount = _maxDailyGenerations > 0 ? _maxDailyGenerations : 0;
                 var lockedSnapshot = new StateSnapshot
                 {
                     DateUtc = now.ToUniversalTime().ToString("yyyy-MM-dd"),
-                    DailyCount = _maxDailyGenerations,
+                    DailyCount = failCount,
                     TimestampUtc = now.ToUniversalTime().ToString("o"),
-                    Signature = ComputeSignature(now.ToUniversalTime().ToString("yyyy-MM-dd"), _maxDailyGenerations, now)
+                    Signature = ComputeSignature(now.ToUniversalTime().ToString("yyyy-MM-dd"), failCount, now)
                 };
                 SaveAllStores(lockedSnapshot, now);
                 return lockedSnapshot;
