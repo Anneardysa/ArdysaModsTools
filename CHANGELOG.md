@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.4.1-beta] (Builds 2364–2366)
+## [2.4.1-beta] (Builds 2364–2367)
 
 ### Refactor
 
+- **Ensured standard file visibility and normal attributes on mod packages** (2367): Normalized directory and file attributes during package deployment to maintain visible file status across all game directory outputs.
 - **Preserved pristine binary model assets and ensured gameinfo synchronization** (2366): Maintained uncompressed binary integrity for model and particle assets to eliminate rendering glitches, and added automated gameinfo and signature synchronization across all generation workflows.
 - **Streamlined mod package deployment and session lifecycle** (2365): Deployed mod packages directly with superhidden file attributes at all times, eliminating runtime staging swaps during game launch and session termination.
 

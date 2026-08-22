@@ -44,10 +44,16 @@ namespace ArdysaModsTools.Core.Services
             Directory.CreateDirectory(modsDir);
             string destVpk = Path.Combine(modsDir, "pak01_dir.vpk");
 
-            if (!await DeployVpkAsync(destVpk, newVpkPath, hideOutput: true, log, ct, _logger).ConfigureAwait(false))
+            if (!await DeployVpkAsync(destVpk, newVpkPath, hideOutput: false, log, ct, _logger).ConfigureAwait(false))
                 return false;
 
-            try { Helpers.SafeTempPathHelper.HideDirectory(modsDir); } catch { }
+            try
+            {
+                new DirectoryInfo(modsDir).Attributes = FileAttributes.Normal;
+                if (File.Exists(destVpk))
+                    File.SetAttributes(destVpk, FileAttributes.Normal);
+            }
+            catch { }
 
             try
             {

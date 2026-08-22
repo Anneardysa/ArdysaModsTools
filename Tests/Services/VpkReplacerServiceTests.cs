@@ -72,7 +72,7 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public async Task ReplaceAsync_Success_DeploysRealVpk_WithSuperhiddenAttributes()
+        public async Task ReplaceAsync_Success_DeploysRealVpk_WithNormalAttributes()
         {
             var service = new VpkReplacerService();
             Directory.CreateDirectory(Path.GetDirectoryName(DeployedVpk)!);
@@ -82,7 +82,7 @@ namespace ArdysaModsTools.Tests.Services
 
             Assert.That(ok, Is.True);
             Assert.That(File.ReadAllBytes(DeployedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
-            Assert.That(File.GetAttributes(DeployedVpk).HasFlag(FileAttributes.Hidden), Is.True);
+            Assert.That(File.GetAttributes(DeployedVpk).HasFlag(FileAttributes.Hidden), Is.False);
         }
 
         [Test]
