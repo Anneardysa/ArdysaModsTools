@@ -556,8 +556,13 @@ namespace ArdysaModsTools.Core.Services
 
             if (vpkExtractPaths.Count > 0 && modelMappings.Count > 0)
             {
-                string dotaRoot = PathUtility.NormalizeTargetPath(Path.GetDirectoryName(Path.GetDirectoryName(vpkPath)) ?? "");
+                string dotaRoot = PathUtility.NormalizeTargetPath(Path.GetDirectoryName(Path.GetDirectoryName(vpkPath)) ?? vpkPath);
                 string gameVpkPath = Path.Combine(dotaRoot, "game", "dota", "pak01_dir.vpk");
+                if (!File.Exists(gameVpkPath))
+                {
+                    dotaRoot = PathUtility.NormalizeTargetPath(vpkPath);
+                    gameVpkPath = Path.Combine(dotaRoot, "game", "dota", "pak01_dir.vpk");
+                }
                 string hlExtractPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HLExtract.exe");
 
                 if (File.Exists(gameVpkPath) && File.Exists(hlExtractPath))
@@ -722,8 +727,13 @@ namespace ArdysaModsTools.Core.Services
 
             if (vpkExtractPaths.Count > 0 && modelMappings.Count > 0)
             {
-                string dotaRoot = PathUtility.NormalizeTargetPath(Path.GetDirectoryName(Path.GetDirectoryName(vpkPath)) ?? "");
+                string dotaRoot = PathUtility.NormalizeTargetPath(Path.GetDirectoryName(Path.GetDirectoryName(vpkPath)) ?? vpkPath);
                 string gameVpkPath = Path.Combine(dotaRoot, "game", "dota", "pak01_dir.vpk");
+                if (!File.Exists(gameVpkPath))
+                {
+                    dotaRoot = PathUtility.NormalizeTargetPath(vpkPath);
+                    gameVpkPath = Path.Combine(dotaRoot, "game", "dota", "pak01_dir.vpk");
+                }
                 string hlExtractPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HLExtract.exe");
 
                 if (File.Exists(gameVpkPath) && File.Exists(hlExtractPath))
@@ -1223,9 +1233,6 @@ namespace ArdysaModsTools.Core.Services
                                 {
                                     Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                                     entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
-                                    if (isEncrypted)
-                                    {
-                                    }
                                     TrackInstalledFile(category, relativePath, isEncrypted);
                                     copied++;
                                 }
@@ -1428,9 +1435,6 @@ namespace ArdysaModsTools.Core.Services
                         {
                             Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
                             entry.WriteToFile(destPath, new ExtractionOptions { ExtractFullPath = true, Overwrite = true });
-                            if (isEncrypted)
-                            {
-                            }
                             extractedFiles.Add(relativePath);
                         }
                         else

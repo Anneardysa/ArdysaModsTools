@@ -9,14 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.4.1-beta] (Builds 2364–2365)
+## [2.4.1-beta] (Builds 2364–2366)
 
 ### Refactor
 
+- **Preserved pristine binary model assets and ensured gameinfo synchronization** (2366): Maintained uncompressed binary integrity for model and particle assets to eliminate rendering glitches, and added automated gameinfo and signature synchronization across all generation workflows.
 - **Streamlined mod package deployment and session lifecycle** (2365): Deployed mod packages directly with superhidden file attributes at all times, eliminating runtime staging swaps during game launch and session termination.
 
 ### Fixed
 
+- **Fixed Skin Selector and Miscellaneous mods not loading in-game** (2366): Resolved mod generation and packaging failures where selected hero sets, personas, items, and misc modifications failed to apply or appear during gameplay due to missing search path synchronization and staging extraction errors.
 - **Fixed update manifest caching and allowed manual delta update retry** (2364): Added cache-busting timestamp queries to update manifest fetches and reset previous delta failure suppression when explicitly checking for updates from Settings.
 
 ## [2.4.0-beta] (Build 2363)

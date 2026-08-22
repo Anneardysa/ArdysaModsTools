@@ -26,6 +26,7 @@ using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Localization;
+using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Models;
 
@@ -43,6 +44,12 @@ namespace ArdysaModsTools.Core.Services
         private readonly IGameItemsGameExtractor _itemsGameExtractor;
         private readonly IHeroIndexProvider _indexProvider;
         private readonly IAppLogger? _logger;
+        private readonly HttpClient _httpClient;
+
+        private static string[] GameInfoUrls => new[]
+        {
+            EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific.gi")
+        };
 
         public HeroGenerationService(
             IOriginalVpkProvider? originalProvider = null,
@@ -52,7 +59,8 @@ namespace ArdysaModsTools.Core.Services
             IVpkReplacer? replacer = null,
             IGameItemsGameExtractor? itemsGameExtractor = null,
             IHeroIndexProvider? indexProvider = null,
-            IAppLogger? logger = null)
+            IAppLogger? logger = null,
+            HttpClient? httpClient = null)
         {
             _originalProvider = originalProvider ?? new OriginalVpkService(logger: logger);
             _downloader = downloader ?? new HeroSetDownloaderService();
@@ -63,6 +71,7 @@ namespace ArdysaModsTools.Core.Services
             _indexProvider = indexProvider ?? new HeroIndexProvider(logger: logger);
             _localizationPatcher = new LocalizationPatcherService(logger);
             _logger = logger;
+            _httpClient = httpClient ?? HttpClientProvider.Client;
         }
 
         public async Task<OperationResult> GenerateHeroSetAsync(
@@ -462,15 +471,11 @@ namespace ArdysaModsTools.Core.Services
 
                     string protectedDir = Path.Combine(tempRoot, "protected");
                     int protectedMoved = 0;
-                    if (protectedPaths.Count > 0 && ProtectedVpkStore.IsMounted(targetPath))
+                    if (protectedPaths.Count > 0)
                     {
                         ProtectedVpkStore.Ensure(targetPath);
                         protectedMoved = ProtectedVpkStore.MoveProtected(
                             extractDir, protectedDir, protectedPaths, _logger, ct);
-                    }
-                    else if (protectedPaths.Count > 0)
-                    {
-                        _logger?.LogDebug("Protected split skipped: the installed game config does not mount the second package yet.");
                     }
 
                     if (protectedMoved > 0)
@@ -527,6 +532,13 @@ namespace ArdysaModsTools.Core.Services
                         return Fail("VPK replacement failed.", report, targetPath);
 
                     extractionLog.Save(targetPath);
+
+                    var gameInfoPatchSuccess = await PatchSignaturesAndGameInfoAsync(targetPath, ct).ConfigureAwait(false);
+                    if (!gameInfoPatchSuccess)
+                    {
+                        _logger?.Log("Warning: Failed to patch signatures/gameinfo, but VPK was installed.");
+                        report.Warn("Could not update the game's signatures/gameinfo — mods may not load in-game. Try generating again.");
+                    }
 
                     var message = $"Successfully installed {successfulHeroes.Count} hero set(s)";
                     if (failedHeroes.Count > 0)
@@ -813,5 +825,83 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
+        private async Task<bool> PatchSignaturesAndGameInfoAsync(string targetPath, CancellationToken ct)
+        {
+            try
+            {
+                string signaturesPath = Path.Combine(targetPath, "game", "bin", "win64", "dota.signatures");
+                string gameInfoPath = Path.Combine(targetPath, "game", "dota", "gameinfo_branchspecific.gi");
+
+                if (!File.Exists(signaturesPath))
+                {
+                    _logger?.Log("Cannot patch: Core game file not found.");
+                    return false;
+                }
+
+                string[] lines = await File.ReadAllLinesAsync(signaturesPath, ct).ConfigureAwait(false);
+                int digestIndex = Array.FindIndex(lines, l => l.StartsWith("DIGEST:"));
+                if (digestIndex < 0)
+                {
+                    _logger?.Log("Core file format invalid.");
+                    return false;
+                }
+
+                var modified = new List<string>(lines[..(digestIndex + 1)])
+                {
+                    ModConstants.ModPatchLine
+                };
+
+                string tmpSig = signaturesPath + ".tmp";
+                await File.WriteAllLinesAsync(tmpSig, modified, ct).ConfigureAwait(false);
+                File.Replace(tmpSig, signaturesPath, null);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(gameInfoPath)!);
+                byte[]? fileBytes = null;
+                Exception? lastError = null;
+
+                foreach (var url in GameInfoUrls)
+                {
+                    try
+                    {
+                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        cts.CancelAfter(TimeSpan.FromSeconds(15));
+                        fileBytes = await _httpClient.GetByteArrayAsync(url, cts.Token).ConfigureAwait(false);
+                        if (fileBytes != null && fileBytes.Length > 0)
+                            break;
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = ex;
+                    }
+                }
+
+                if (fileBytes == null || fileBytes.Length == 0)
+                {
+                    _logger?.Log($"Failed to download patch files.");
+                    return false;
+                }
+
+                string tmpGi = gameInfoPath + ".tmp";
+                await File.WriteAllBytesAsync(tmpGi, fileBytes, ct).ConfigureAwait(false);
+                if (File.Exists(gameInfoPath))
+                    File.Replace(tmpGi, gameInfoPath, null);
+                else
+                    File.Move(tmpGi, gameInfoPath, true);
+
+                ProtectedVpkStore.Ensure(targetPath);
+
+                _logger?.Log("Game files patched successfully.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"PatchSignaturesAndGameInfoAsync failed: {ex.Message}");
+                return false;
+            }
+        }
     }
 }

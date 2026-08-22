@@ -25,6 +25,9 @@ using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Interfaces;
+using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Services.Cdn;
+using ArdysaModsTools.Core.Services.Config;
 
 namespace ArdysaModsTools.Core.Services
 {
@@ -35,6 +38,12 @@ namespace ArdysaModsTools.Core.Services
         private readonly IVpkRecompiler _recompiler;
         private readonly IVpkReplacer _replacer;
         private readonly IAppLogger? _logger;
+        private readonly HttpClient _httpClient;
+
+        private static string[] GameInfoUrls => new[]
+        {
+            EnvironmentConfig.BuildRawUrl("remote/gameinfo_branchspecific.gi")
+        };
 
         public MiscGenerationService(
             IVpkExtractor? extractor = null,
@@ -50,6 +59,7 @@ namespace ArdysaModsTools.Core.Services
             _recompiler = recompiler ?? new VpkRecompilerService(logger);
             _replacer = replacer ?? new VpkReplacerService(logger);
             _logger = logger;
+            _httpClient = HttpClientProvider.Client;
         }
 
         public async Task<OperationResult> PerformGenerationAsync(
@@ -68,10 +78,12 @@ namespace ArdysaModsTools.Core.Services
 
                 targetPath = PathUtility.NormalizeTargetPath(targetPath);
                 string vpkPath = PathUtility.GetVpkPath(targetPath);
+                string protectedVpkPath = ProtectedVpkStore.VpkPath(targetPath);
+
                 if (!File.Exists(vpkPath))
                     return Fail($"VPK file not found at: {vpkPath}", log, ErrorCodes.VPK_FILE_NOT_FOUND);
 
-                var packageBeforeRebuild = Core.Models.VpkStamp.Read(vpkPath);
+                var packageBeforeRebuild = ProtectedVpkStore.GetActiveModVpkStamp(targetPath);
 
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 string hlExtractPath = Path.Combine(baseDir, "HLExtract.exe");
@@ -90,6 +102,7 @@ namespace ArdysaModsTools.Core.Services
                 try
                 {
                     log("Extracting game files...");
+
                     if (!await _extractor.ExtractAsync(hlExtractPath, vpkPath, extractDir, log, ct, speedProgress).ConfigureAwait(false))
                         return Fail(
                             "Could not read your existing mod package — it looks incomplete or corrupted.",
@@ -98,7 +111,6 @@ namespace ArdysaModsTools.Core.Services
 
                     ct.ThrowIfCancellationRequested();
 
-                    string protectedVpkPath = ProtectedVpkStore.VpkPath(targetPath);
                     bool hadExistingProtected = File.Exists(protectedVpkPath);
                     if (hadExistingProtected)
                     {
@@ -138,15 +150,11 @@ namespace ArdysaModsTools.Core.Services
 
                     int protectedMoved = 0;
                     var protectedPaths = _modifier.GetProtectedPaths();
-                    if (protectedPaths.Count > 0 && ProtectedVpkStore.IsMounted(targetPath))
+                    if (protectedPaths.Count > 0)
                     {
                         ProtectedVpkStore.Ensure(targetPath);
                         protectedMoved = ProtectedVpkStore.MoveProtected(
                             extractDir, protectedDir, protectedPaths, _logger, ct);
-                    }
-                    else if (protectedPaths.Count > 0)
-                    {
-                        _logger?.LogDebug("Protected split skipped: the installed game config does not mount the second package yet.");
                     }
 
                     if (protectedMoved > 0)
@@ -206,9 +214,16 @@ namespace ArdysaModsTools.Core.Services
                     }
                     extractionLog.Save(targetPath);
 
+                    var patchSuccess = await PatchSignaturesAndGameInfoAsync(targetPath, ct).ConfigureAwait(false);
+
                     await CleanupAsync(tempRoot, log).ConfigureAwait(false);
 
-                    var warnings = _modifier.GetWarnings();
+                    var warnings = new List<string>(_modifier.GetWarnings());
+                    if (!patchSuccess)
+                    {
+                        _logger?.Log("Warning: Failed to patch signatures/gameinfo, but VPK was installed.");
+                        warnings.Add("Could not update the game's signatures/gameinfo — mods may not load in-game. Try generating again.");
+                    }
                     if (warnings.Count > 0)
                     {
                         log($"Completed with {warnings.Count} warning(s):");
@@ -274,6 +289,85 @@ namespace ArdysaModsTools.Core.Services
             catch (Exception ex)
             {
                 _logger?.Log($"Cleanup failed: {ex.Message}");
+            }
+        }
+
+        private async Task<bool> PatchSignaturesAndGameInfoAsync(string targetPath, CancellationToken ct)
+        {
+            try
+            {
+                string signaturesPath = Path.Combine(targetPath, "game", "bin", "win64", "dota.signatures");
+                string gameInfoPath = Path.Combine(targetPath, "game", "dota", "gameinfo_branchspecific.gi");
+
+                if (!File.Exists(signaturesPath))
+                {
+                    _logger?.Log("Cannot patch: Core game file not found.");
+                    return false;
+                }
+
+                string[] lines = await File.ReadAllLinesAsync(signaturesPath, ct).ConfigureAwait(false);
+                int digestIndex = Array.FindIndex(lines, l => l.StartsWith("DIGEST:"));
+                if (digestIndex < 0)
+                {
+                    _logger?.Log("Core file format invalid.");
+                    return false;
+                }
+
+                var modified = new List<string>(lines[..(digestIndex + 1)])
+                {
+                    ModConstants.ModPatchLine
+                };
+
+                string tmpSig = signaturesPath + ".tmp";
+                await File.WriteAllLinesAsync(tmpSig, modified, ct).ConfigureAwait(false);
+                File.Replace(tmpSig, signaturesPath, null);
+
+                Directory.CreateDirectory(Path.GetDirectoryName(gameInfoPath)!);
+                byte[]? fileBytes = null;
+                Exception? lastError = null;
+
+                foreach (var url in GameInfoUrls)
+                {
+                    try
+                    {
+                        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        cts.CancelAfter(TimeSpan.FromSeconds(15));
+                        fileBytes = await _httpClient.GetByteArrayAsync(url, cts.Token).ConfigureAwait(false);
+                        if (fileBytes != null && fileBytes.Length > 0)
+                            break;
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = ex;
+                    }
+                }
+
+                if (fileBytes == null || fileBytes.Length == 0)
+                {
+                    _logger?.Log($"Failed to download patch files: {lastError?.Message}");
+                    return false;
+                }
+
+                string tmpGi = gameInfoPath + ".tmp";
+                await File.WriteAllBytesAsync(tmpGi, fileBytes, ct).ConfigureAwait(false);
+                if (File.Exists(gameInfoPath))
+                    File.Replace(tmpGi, gameInfoPath, null);
+                else
+                    File.Move(tmpGi, gameInfoPath, true);
+
+                ProtectedVpkStore.Ensure(targetPath);
+
+                _logger?.Log("Game files patched successfully.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"PatchSignaturesAndGameInfoAsync failed: {ex.Message}");
+                return false;
             }
         }
     }

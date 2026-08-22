@@ -318,4 +318,64 @@ public class MiscProtectedVpkIntegrationTests
             Assert.That(File.Exists(ProtectedVpkStore.VpkPath(_targetPath)), Is.False);
         });
     }
+
+    [Test]
+    public async Task MiscGenerationService_AddToCurrent_ExtractsDirectVpk_AndPatchesGameFiles()
+    {
+        string modsDir = Path.Combine(_targetPath, "game", "_ArdysaMods");
+        Directory.CreateDirectory(modsDir);
+        string mainVpk = Path.Combine(modsDir, "pak01_dir.vpk");
+        File.WriteAllBytes(mainVpk, new byte[] { 0x55, 0xaa, 0x12, 0x34, 0x02, 0x00, 0x00, 0x00, 1, 2, 3, 4 });
+
+        string binDir = Path.Combine(_targetPath, "game", "bin", "win64");
+        Directory.CreateDirectory(binDir);
+        string sigPath = Path.Combine(binDir, "dota.signatures");
+        File.WriteAllLines(sigPath, new[] { "GAME_SIGNATURES_HEADER", "DIGEST:12345", "SOME_OLD_LINE" });
+
+        var mockExtractor = new Mock<IVpkExtractor>();
+        string? extractedVpkSource = null;
+        mockExtractor
+            .Setup(e => e.ExtractAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Action<string>>(), It.IsAny<CancellationToken>(), It.IsAny<IProgress<SpeedMetrics>?>(), It.IsAny<bool>()))
+            .Returns<string, string, string, Action<string>, CancellationToken, IProgress<SpeedMetrics>?, bool>((tool, vpk, destDir, l, ct, sp, req) =>
+            {
+                extractedVpkSource = vpk;
+                Directory.CreateDirectory(Path.Combine(destDir, "scripts", "items"));
+                File.WriteAllText(Path.Combine(destDir, "scripts", "items", "items_game.txt"), "\"items_game\" { \"items\" { } }");
+                return Task.FromResult(true);
+            });
+
+        var fakeModifier = new FakeAssetModifier();
+        var mockRecompiler = new Mock<IVpkRecompiler>();
+        mockRecompiler
+            .Setup(r => r.RecompileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Action<string>>(), It.IsAny<CancellationToken>(), It.IsAny<IProgress<SpeedMetrics>?>()))
+            .Returns<string, string, string, string, Action<string>, CancellationToken, IProgress<SpeedMetrics>?>((tool, inputDir, build, temp, l, ct, sp) =>
+            {
+                string dummyVpk = Path.Combine(temp, Path.GetFileName(inputDir) + ".vpk");
+                File.WriteAllBytes(dummyVpk, new byte[] { 1, 2, 3, 4 });
+                return Task.FromResult<string?>(dummyVpk);
+            });
+
+        var mockReplacer = new Mock<IVpkReplacer>();
+        mockReplacer
+            .Setup(r => r.ReplaceAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Action<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var service = new MiscGenerationService(
+            mockExtractor.Object,
+            fakeModifier,
+            mockRecompiler.Object,
+            mockReplacer.Object);
+
+        var selections = new Dictionary<string, string> { { "Weather", "Ash" } };
+        var result = await service.PerformGenerationAsync(_targetPath, selections, _ => { });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Success, Is.True);
+            Assert.That(extractedVpkSource, Is.EqualTo(mainVpk), "Should extract direct pak01_dir.vpk");
+            
+            string[] sigLines = File.ReadAllLines(sigPath);
+            Assert.That(sigLines, Does.Contain(ModConstants.ModPatchLine));
+        });
+    }
 }

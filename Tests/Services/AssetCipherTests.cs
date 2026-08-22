@@ -394,7 +394,7 @@ namespace ArdysaModsTools.Tests.Services
                 File.WriteAllBytes(encPath, AssetCipher.Encrypt(zipBytes, AssetPath));
 
                 int count = await AssetCipher.ExtractEncryptedToDirectoryAsync(
-                    encPath, AssetPath, extractTarget, poisonInFlight: true);
+                    encPath, AssetPath, extractTarget, poisonInFlight: false);
 
                 Assert.That(count, Is.EqualTo(2));
                 Assert.That(File.Exists(Path.Combine(extractTarget, "index.txt")), Is.True);
@@ -403,10 +403,7 @@ namespace ArdysaModsTools.Tests.Services
                 Assert.That(File.Exists(extractedVmdl), Is.True);
 
                 byte[] extractedBytes = File.ReadAllBytes(extractedVmdl);
-                Assert.That(extractedBytes.Length, Is.EqualTo(vmdlBytes.Length));
-                int ntroOffset = 16 + (2 * 12) + 2;
-                Assert.That(extractedBytes[ntroOffset], Is.EqualTo(0));
-                Assert.That(extractedBytes[ntroOffset + 1], Is.EqualTo(0));
+                Assert.That(extractedBytes, Is.EqualTo(vmdlBytes));
             }
             finally
             {
