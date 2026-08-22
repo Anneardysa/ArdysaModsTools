@@ -185,10 +185,41 @@ namespace ArdysaModsTools.Tests.Services
             var config = System.Text.Json.JsonSerializer.Deserialize<FeatureAccessConfig>(json,
                 new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-            Assert.That(config, Is.Not.Null);
             Assert.That(config!.SkinSelector.Enabled, Is.True, "Empty JSON should use fail-open defaults");
+            Assert.That(config.SkinSelector.CooldownEnabled, Is.True, "Empty JSON should default CooldownEnabled to true");
             Assert.That(config.Miscellaneous.Enabled, Is.True, "Empty JSON should use fail-open defaults");
             Assert.That(config.InstallModsPack.Enabled, Is.True, "Empty JSON should use fail-open defaults");
+        }
+
+        [Test]
+        public void FeatureAccessConfig_Deserializes_CooldownFields()
+        {
+            var json = @"{
+                ""skinSelector"": {
+                    ""enabled"": true,
+                    ""cooldownEnabled"": false,
+                    ""cooldownSeconds"": 300
+                },
+                ""miscellaneous"": {
+                    ""enabled"": true,
+                    ""cooldownEnabled"": true,
+                    ""cooldownSeconds"": 0
+                }
+            }";
+
+            var config = System.Text.Json.JsonSerializer.Deserialize<FeatureAccessConfig>(json,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            Assert.That(config, Is.Not.Null);
+            Assert.That(config!.SkinSelector.CooldownEnabled, Is.False);
+            Assert.That(config.SkinSelector.CooldownSeconds, Is.EqualTo(300));
+            Assert.That(config.SkinSelector.IsCooldownEnabled(), Is.False);
+            Assert.That(config.SkinSelector.GetEffectiveCooldownDuration(TimeSpan.FromMinutes(10)), Is.EqualTo(TimeSpan.Zero));
+
+            Assert.That(config.Miscellaneous.CooldownEnabled, Is.True);
+            Assert.That(config.Miscellaneous.CooldownSeconds, Is.EqualTo(0));
+            Assert.That(config.Miscellaneous.IsCooldownEnabled(), Is.False);
+            Assert.That(config.Miscellaneous.GetEffectiveCooldownDuration(TimeSpan.FromMinutes(10)), Is.EqualTo(TimeSpan.Zero));
         }
 
         #endregion

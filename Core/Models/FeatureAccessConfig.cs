@@ -49,6 +49,25 @@ namespace ArdysaModsTools.Core.Models
         [JsonPropertyName("outdatedMessage")]
         public string? OutdatedMessage { get; set; }
 
+        [JsonPropertyName("cooldownEnabled")]
+        public bool CooldownEnabled { get; set; } = true;
+
+        [JsonPropertyName("cooldownSeconds")]
+        public int? CooldownSeconds { get; set; }
+
+        public bool IsCooldownEnabled() => CooldownEnabled && (CooldownSeconds == null || CooldownSeconds > 0);
+
+        public TimeSpan GetEffectiveCooldownDuration(TimeSpan defaultDuration)
+        {
+            if (!CooldownEnabled || CooldownSeconds == 0)
+                return TimeSpan.Zero;
+
+            if (CooldownSeconds.HasValue && CooldownSeconds.Value > 0)
+                return TimeSpan.FromSeconds(CooldownSeconds.Value);
+
+            return defaultDuration;
+        }
+
         public bool HasVersionRequirement =>
             !string.IsNullOrWhiteSpace(MinVersion) || MinBuild > 0;
 

@@ -119,6 +119,12 @@ namespace ArdysaModsTools.UI.Presenters
         public async Task SyncCooldownStatusAsync()
         {
             if (_view == null) return;
+
+            if (FeatureAccessService.CurrentConfig == null)
+            {
+                try { await FeatureAccessService.GetConfigAsync().ConfigureAwait(false); } catch { }
+            }
+
             var status = _cooldownService.GetStatus();
             await _view.UpdateCooldownAsync(
                 status.IsActive,
@@ -148,6 +154,11 @@ namespace ArdysaModsTools.UI.Presenters
             _isGenerating = true;
             try
             {
+                if (FeatureAccessService.CurrentConfig == null)
+                {
+                    try { await FeatureAccessService.GetConfigAsync().ConfigureAwait(false); } catch { }
+                }
+
                 if (_cooldownService.IsOnCooldown(out var remaining, out var reason))
                 {
                     if (reason == SkinSelectorLockReason.DailyLimitReached)

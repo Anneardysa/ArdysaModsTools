@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.4.1-beta] (Builds 2364–2367)
+## [2.4.1-beta] (Builds 2364–2368)
+
+### Added
+
+- **Added remote generation cooldown toggle via feature access configuration** (2368): Integrated remote on/off switch and custom duration support for Skin Selector generation cooldown via Cloudflare R2 feature access configuration.
 
 ### Refactor
 

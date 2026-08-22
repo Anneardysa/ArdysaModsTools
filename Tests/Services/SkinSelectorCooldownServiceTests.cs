@@ -82,7 +82,11 @@ namespace ArdysaModsTools.Tests.Services
             }
         }
 
-        private SkinSelectorCooldownService CreateService(TimeSpan? duration = null, int maxDaily = 0, Func<bool>? isDevMode = null)
+        private SkinSelectorCooldownService CreateService(
+            TimeSpan? duration = null,
+            int maxDaily = 0,
+            Func<bool>? isDevMode = null,
+            Func<ArdysaModsTools.Core.Models.FeatureAccessConfig?>? remoteConfig = null)
         {
             return new SkinSelectorCooldownService(
                 _config.Object,
@@ -93,7 +97,8 @@ namespace ArdysaModsTools.Tests.Services
                 registrySubKey: _registryKey,
                 cooldownDuration: duration,
                 maxDailyGenerations: maxDaily,
-                isDevMode: isDevMode);
+                isDevMode: isDevMode,
+                remoteConfigProvider: remoteConfig);
         }
 
         #region Cooldown Duration Tests (10 Minutes)
@@ -346,6 +351,85 @@ namespace ArdysaModsTools.Tests.Services
 
             var status = service.GetStatus();
             Assert.That(status.IsActive, Is.False);
+        }
+
+        #endregion
+
+        #region Remote Feature Access / R2 Cooldown Tests
+
+        [Test]
+        public void IsOnCooldown_WhenRemoteCooldownDisabled_BypassesCooldown()
+        {
+            var config = new ArdysaModsTools.Core.Models.FeatureAccessConfig
+            {
+                SkinSelector = new ArdysaModsTools.Core.Models.FeatureAccess
+                {
+                    Enabled = true,
+                    CooldownEnabled = false
+                }
+            };
+
+            var service = CreateService(remoteConfig: () => config);
+            service.RecordGeneration();
+
+            var onCooldown = service.IsOnCooldown(out var remaining, out var reason);
+
+            Assert.That(onCooldown, Is.False, "Disabled remote cooldown must bypass cooldown");
+            Assert.That(remaining, Is.EqualTo(TimeSpan.Zero));
+            Assert.That(reason, Is.EqualTo(SkinSelectorLockReason.None));
+
+            var status = service.GetStatus();
+            Assert.That(status.IsActive, Is.False);
+            Assert.That(status.Remaining, Is.EqualTo(TimeSpan.Zero));
+        }
+
+        [Test]
+        public void IsOnCooldown_WhenRemoteCooldownZeroSeconds_BypassesCooldown()
+        {
+            var config = new ArdysaModsTools.Core.Models.FeatureAccessConfig
+            {
+                SkinSelector = new ArdysaModsTools.Core.Models.FeatureAccess
+                {
+                    Enabled = true,
+                    CooldownEnabled = true,
+                    CooldownSeconds = 0
+                }
+            };
+
+            var service = CreateService(remoteConfig: () => config);
+            service.RecordGeneration();
+
+            var onCooldown = service.IsOnCooldown(out var remaining, out var reason);
+
+            Assert.That(onCooldown, Is.False);
+            Assert.That(remaining, Is.EqualTo(TimeSpan.Zero));
+        }
+
+        [Test]
+        public void IsOnCooldown_WhenRemoteCooldownCustomSeconds_UsesRemoteDuration()
+        {
+            var config = new ArdysaModsTools.Core.Models.FeatureAccessConfig
+            {
+                SkinSelector = new ArdysaModsTools.Core.Models.FeatureAccess
+                {
+                    Enabled = true,
+                    CooldownEnabled = true,
+                    CooldownSeconds = 300
+                }
+            };
+
+            var service = CreateService(remoteConfig: () => config);
+            service.RecordGeneration();
+
+            var onCooldown = service.IsOnCooldown(out var remaining, out var reason);
+
+            Assert.That(onCooldown, Is.True);
+            Assert.That(remaining.TotalSeconds, Is.EqualTo(300).Within(1));
+            Assert.That(reason, Is.EqualTo(SkinSelectorLockReason.Cooldown));
+
+            var status = service.GetStatus();
+            Assert.That(status.IsActive, Is.True);
+            Assert.That(status.TotalDuration, Is.EqualTo(TimeSpan.FromSeconds(300)));
         }
 
         #endregion

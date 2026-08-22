@@ -23,6 +23,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Interfaces;
+using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Config;
 using Microsoft.Win32;
 
@@ -40,6 +41,7 @@ namespace ArdysaModsTools.Core.Services.Hero
         private readonly Func<DateTime> _clock;
         private readonly Func<long> _tickCountProvider;
         private readonly Func<bool> _isDevMode;
+        private readonly Func<FeatureAccessConfig?> _remoteConfigProvider;
         private readonly string _shadowFilePath;
         private readonly string _dpapiFilePath;
         private readonly string _registrySubKey;
@@ -68,7 +70,8 @@ namespace ArdysaModsTools.Core.Services.Hero
             string? registrySubKey = null,
             TimeSpan? cooldownDuration = null,
             int maxDailyGenerations = DefaultMaxDailyGenerations,
-            Func<bool>? isDevMode = null)
+            Func<bool>? isDevMode = null,
+            Func<FeatureAccessConfig?>? remoteConfigProvider = null)
         {
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _clock = clock ?? (() => DateTime.UtcNow + _serverTimeOffset);
@@ -76,6 +79,7 @@ namespace ArdysaModsTools.Core.Services.Hero
             _cooldownDuration = cooldownDuration ?? DefaultCooldownDuration;
             _maxDailyGenerations = maxDailyGenerations > 0 ? maxDailyGenerations : 0;
             _isDevMode = isDevMode != null ? isDevMode : () => EnvironmentConfig.IsDevMode;
+            _remoteConfigProvider = remoteConfigProvider ?? (() => FeatureAccessService.CurrentConfig);
             _registrySubKey = registrySubKey ?? RegistrySubKey;
 
             _shadowFilePath = shadowFilePath ?? Path.Combine(
@@ -97,6 +101,29 @@ namespace ArdysaModsTools.Core.Services.Hero
             public string? Signature { get; set; }
         }
 
+        private bool IsRemoteCooldownDisabled(out TimeSpan effectiveDuration)
+        {
+            var config = _remoteConfigProvider();
+            var skinFeature = config?.SkinSelector;
+            if (skinFeature != null)
+            {
+                if (!skinFeature.CooldownEnabled || skinFeature.CooldownSeconds == 0)
+                {
+                    effectiveDuration = TimeSpan.Zero;
+                    return true;
+                }
+
+                if (skinFeature.CooldownSeconds.HasValue && skinFeature.CooldownSeconds.Value > 0)
+                {
+                    effectiveDuration = TimeSpan.FromSeconds(skinFeature.CooldownSeconds.Value);
+                    return false;
+                }
+            }
+
+            effectiveDuration = _cooldownDuration;
+            return false;
+        }
+
         public bool IsOnCooldown(out TimeSpan remaining) => IsOnCooldown(out remaining, out _);
 
         public bool IsOnCooldown(out TimeSpan remaining, out SkinSelectorLockReason reason)
@@ -104,6 +131,13 @@ namespace ArdysaModsTools.Core.Services.Hero
             lock (_lock)
             {
                 if (_isDevMode())
+                {
+                    remaining = TimeSpan.Zero;
+                    reason = SkinSelectorLockReason.None;
+                    return false;
+                }
+
+                if (IsRemoteCooldownDisabled(out var effectiveDuration))
                 {
                     remaining = TimeSpan.Zero;
                     reason = SkinSelectorLockReason.None;
@@ -118,7 +152,7 @@ namespace ArdysaModsTools.Core.Services.Hero
 
                 if (hasTamper)
                 {
-                    remaining = _cooldownDuration;
+                    remaining = effectiveDuration;
                     reason = SkinSelectorLockReason.ClockAnomaly;
                     return true;
                 }
@@ -140,7 +174,7 @@ namespace ArdysaModsTools.Core.Services.Hero
                 }
                 else if (string.CompareOrdinal(todayDateUtc, effectiveDate) < 0)
                 {
-                    remaining = _cooldownDuration;
+                    remaining = effectiveDuration;
                     reason = SkinSelectorLockReason.ClockAnomaly;
                     return true;
                 }
@@ -155,9 +189,9 @@ namespace ArdysaModsTools.Core.Services.Hero
                 if (_lastGenerationSessionTick.HasValue)
                 {
                     var elapsedMs = currentTick - _lastGenerationSessionTick.Value;
-                    if (elapsedMs >= 0 && elapsedMs < _cooldownDuration.TotalMilliseconds)
+                    if (elapsedMs >= 0 && elapsedMs < effectiveDuration.TotalMilliseconds)
                     {
-                        var remainingMs = _cooldownDuration.TotalMilliseconds - elapsedMs;
+                        var remainingMs = effectiveDuration.TotalMilliseconds - elapsedMs;
                         remaining = TimeSpan.FromMilliseconds(remainingMs);
                         reason = SkinSelectorLockReason.Cooldown;
                         return true;
@@ -170,15 +204,15 @@ namespace ArdysaModsTools.Core.Services.Hero
 
                     if (now < lastGenUtc - TimeSpan.FromMinutes(1))
                     {
-                        remaining = _cooldownDuration;
+                        remaining = effectiveDuration;
                         reason = SkinSelectorLockReason.ClockAnomaly;
                         return true;
                     }
 
                     var elapsed = now - lastGenUtc;
-                    if (elapsed < _cooldownDuration && elapsed >= TimeSpan.Zero)
+                    if (elapsed < effectiveDuration && elapsed >= TimeSpan.Zero)
                     {
-                        remaining = _cooldownDuration - elapsed;
+                        remaining = effectiveDuration - elapsed;
                         reason = SkinSelectorLockReason.Cooldown;
                         return true;
                     }
@@ -206,9 +240,11 @@ namespace ArdysaModsTools.Core.Services.Hero
                     dailyUsed = 0;
                 }
 
+                IsRemoteCooldownDisabled(out var effectiveDuration);
+
                 var totalDuration = reason == SkinSelectorLockReason.DailyLimitReached
                     ? TimeSpan.FromHours(24)
-                    : _cooldownDuration;
+                    : effectiveDuration;
 
                 return new SkinSelectorCooldownStatus
                 {
