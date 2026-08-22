@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
+## [2.4.0-beta] (Build 2363)
+
+### Build
+
+- **Bumped version to 2.4.0-beta** (2363): Updated core project version and build tracking to 2.4.0-beta.
+
 ## [2.3.4-beta] (Builds 2354–2362)
 
 ### Added

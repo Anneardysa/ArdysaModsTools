@@ -31,13 +31,27 @@ namespace ArdysaModsTools.Tests.Presenters
     public class NavigationPresenterTests
     {
         private TestServiceFactory _factory = null!;
-        private NavigationPresenter _presenter = null!;
+        private TestableNavigationPresenter _presenter = null!;
+
+        private class TestableNavigationPresenter : NavigationPresenter
+        {
+            public bool StubHeroesJsonAccess { get; set; } = true;
+            public bool StubFeatureAccess { get; set; } = true;
+
+            public TestableNavigationPresenter(IMainFormView view, Logger logger, IStatusService status)
+                : base(view, logger, status)
+            {
+            }
+
+            public override Task<bool> CheckHeroesJsonAccessAsync() => Task.FromResult(StubHeroesJsonAccess);
+            protected override Task<bool> CheckFeatureAccessAsync(string featureName) => Task.FromResult(StubFeatureAccess);
+        }
 
         [SetUp]
         public void Setup()
         {
             _factory = new TestServiceFactory();
-            _presenter = new NavigationPresenter(_factory.ViewMock.Object, _factory.Logger, new StatusService(_factory.Logger));
+            _presenter = new TestableNavigationPresenter(_factory.ViewMock.Object, _factory.Logger, new StatusService(_factory.Logger));
         }
 
         [TearDown]
@@ -120,6 +134,50 @@ namespace ArdysaModsTools.Tests.Presenters
             _presenter.TargetPath = null;
 
             await _presenter.OpenMiscellaneousAsync();
+        }
+
+        [Test]
+        public async Task OpenHeroSelectionAsync_WhenPlayRequested_RaisesPlayRequestedEvent()
+        {
+            _presenter.TargetPath = @"C:\Games\Dota 2";
+            _factory.ViewMock.Setup(v => v.ShowShellConfirmAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+                .ReturnsAsync(true);
+            _factory.ViewMock.Setup(v => v.ShowHeroGallery())
+                .Returns((DialogResult.OK, new ModGenerationResult
+                {
+                    Success = true,
+                    PlayRequested = true,
+                    Type = GenerationType.SkinSelector
+                }));
+
+            bool playRaised = false;
+            _presenter.PlayRequested += async () => { playRaised = true; await Task.CompletedTask; };
+
+            await _presenter.OpenHeroSelectionAsync();
+
+            Assert.That(playRaised, Is.True);
+        }
+
+        [Test]
+        public async Task OpenMiscellaneousAsync_WhenPlayRequested_RaisesPlayRequestedEvent()
+        {
+            _presenter.TargetPath = @"C:\Games\Dota 2";
+            _factory.ViewMock.Setup(v => v.ShowMiscForm(It.IsAny<string?>()))
+                .Returns((DialogResult.OK, new ModGenerationResult
+                {
+                    Success = true,
+                    PlayRequested = true,
+                    Type = GenerationType.Miscellaneous
+                }));
+
+            bool playRaised = false;
+            _presenter.PlayRequested += async () => { playRaised = true; await Task.CompletedTask; };
+
+            await _presenter.OpenMiscellaneousAsync();
+
+            Assert.That(playRaised, Is.True);
         }
 
         #endregion

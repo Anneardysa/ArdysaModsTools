@@ -1628,6 +1628,9 @@ namespace ArdysaModsTools.UI.Presenters
                     await ShowPatchRequiredIfNeededAsync(Loc.T("nav.install.successMisc"));
                 }
             }
+
+            if (generationResult?.PlayRequested == true)
+                await LaunchDotaAsync();
         }
 
         public async Task OpenHeroSelectionAsync()
@@ -1714,6 +1717,9 @@ namespace ArdysaModsTools.UI.Presenters
                     await ShowPatchRequiredIfNeededAsync(Loc.T("nav.install.success"));
                 }
             }
+
+            if (generationResult?.PlayRequested == true)
+                await LaunchDotaAsync();
         }
 
         private async Task<bool> CheckHeroesJsonAccessAsync()

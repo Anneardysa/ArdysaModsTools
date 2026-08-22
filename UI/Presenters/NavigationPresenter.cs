@@ -265,7 +265,7 @@ namespace ArdysaModsTools.UI.Presenters
 
         #region Connectivity
 
-        public async Task<bool> CheckHeroesJsonAccessAsync()
+        public virtual async Task<bool> CheckHeroesJsonAccessAsync()
         {
             var client = HttpClientProvider.Client;
             
@@ -306,7 +306,7 @@ namespace ArdysaModsTools.UI.Presenters
             return System.IO.File.Exists(vpkPath);
         }
 
-        private async Task<bool> CheckFeatureAccessAsync(string featureName)
+        protected virtual async Task<bool> CheckFeatureAccessAsync(string featureName)
         {
             var result = await FeatureAccessService.CheckFeatureAsync(featureName);
 
