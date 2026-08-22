@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
+## [2.4.1-beta] (Build 2364)
+
+### Fixed
+
+- **Fixed update manifest caching and allowed manual delta update retry** (2364): Added cache-busting timestamp queries to update manifest fetches and reset previous delta failure suppression when explicitly checking for updates from Settings.
+
 ## [2.4.0-beta] (Build 2363)
 
 ### Build

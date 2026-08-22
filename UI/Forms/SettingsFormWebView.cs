@@ -467,6 +467,8 @@ namespace ArdysaModsTools.UI.Forms
                 var updateInfo = await _updaterService.GetUpdateInfoAsync();
                 if (updateInfo?.IsUpdateAvailable == true)
                 {
+                    _updaterService.Delta.ClearFailedVersion(updateInfo.Version);
+
                     applierStarted = UpdateAvailableDialogWebView.Show(
                         this, updateInfo, _updaterService.InstallationType, _updaterService.Delta);
                 }

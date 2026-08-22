@@ -133,8 +133,9 @@ namespace ArdysaModsTools.Core.Services.Update
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                string manifestUrl = $"{CdnConfig.ReleaseManifestUrl}?t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
                 var content = await CdnFallbackService.Instance
-                    .DownloadStringWithFallbackAsync(CdnConfig.ReleaseManifestUrl, cts.Token)
+                    .DownloadStringWithFallbackAsync(manifestUrl, cts.Token)
                     .ConfigureAwait(false);
 
                 if (string.IsNullOrWhiteSpace(content))
