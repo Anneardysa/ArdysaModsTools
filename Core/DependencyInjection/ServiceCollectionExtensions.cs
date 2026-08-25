@@ -16,6 +16,7 @@
  */
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Services.App;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.FileTransactions;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,6 +43,8 @@ namespace ArdysaModsTools.Core.DependencyInjection
             services.AddTransient<IActiveModsService, ActiveModsService>();
 
             services.AddTransient<ISetupVerificationService, SetupVerificationService>();
+
+            services.AddTransient<IAppRepairService, AppRepairService>();
 
             services.AddTransient<IGameItemsGameExtractor, GameItemsGameExtractorService>();
 
