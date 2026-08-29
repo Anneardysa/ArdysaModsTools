@@ -189,6 +189,11 @@
    content: "]";
    color: var(--mute);
 }
+.tbActions {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+}
 .tbClose {
    width: 34px;
    height: 30px;
