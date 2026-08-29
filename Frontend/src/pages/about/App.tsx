@@ -3,6 +3,7 @@ import { T } from "../../bridge/i18n";
 import { BrandGlyph, BrandSprite } from "../../ui/BrandMark";
 import { ExternalLink } from "../../ui/ExternalLink";
 import { Footer } from "../../ui/Footer";
+import { GITHUB_REPO_URL } from "../../ui/StarOnGitHub";
 import { Titlebar } from "../../ui/Titlebar";
 import { store } from "./store";
 import css from "./about.module.css";
@@ -24,8 +25,6 @@ const THANKS = [
    { label: "Kisilev", href: "https://vk.com/id363951132" },
    { label: "Source2Viewer", href: "https://github.com/ValveResourceFormat/ValveResourceFormat" },
 ];
-
-const REPO = "https://github.com/Anneardysa/ArdysaModsTools";
 
 export function App() {
    const version = store.use((s) => s.version);
@@ -116,7 +115,7 @@ export function App() {
 
          <Footer layout="between">
             <span className={css.footerNote}>© Ardysa</span>
-            <ExternalLink href={REPO} className={css.footerLink}>
+            <ExternalLink href={GITHUB_REPO_URL} className={css.footerLink}>
                <T k="about.viewGithub">View on GitHub</T>
                <svg
                   viewBox="0 0 24 24"
