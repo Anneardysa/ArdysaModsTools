@@ -218,6 +218,28 @@ namespace ArdysaModsTools.Tests.Helpers
             Assert.That(result, Does.Contain("\"Default Cursor Pack\""));
         }
 
+        [TestCase("<!DOCTYPE html><html><body>Just a moment...</body></html>", TestName = "ReplaceIdBlock_HtmlErrorPage_IsRefused")]
+        [TestCase("\t\"12345\"\n\t{\n\t\t\"name\"\t\t\"Truncated", TestName = "ReplaceIdBlock_TruncatedBlock_IsRefused")]
+        [TestCase("\t\"999\"\n\t{\n\t\t\"name\"\t\t\"Wrong Id\"\n\t}", TestName = "ReplaceIdBlock_BlockForAnotherId_IsRefused")]
+        [TestCase("\t\"12345\"\n\t{\n\t}\n\t\"12346\"\n\t{\n\t}", TestName = "ReplaceIdBlock_TrailingSecondBlock_IsRefused")]
+        public void ReplaceIdBlock_MalformedReplacement_LeavesContentUntouched(string replacement)
+        {
+            var content = "\"items\"\n{\n\t\"12345\"\n\t{\n\t\t\"name\"\t\t\"Original Item\"\n\t\t\"prefab\"\t\t\"default_item\"\n\t}\n}";
+
+            var result = KeyValuesBlockHelper.ReplaceIdBlock(content, "12345", replacement, out bool didReplace);
+
+            Assert.That(didReplace, Is.False);
+            Assert.That(result, Is.EqualTo(content));
+        }
+
+        [Test]
+        public void IsWellFormedIdBlock_AcceptsAnAuthoredBlock()
+        {
+            var block = "\t\"12345\"\n\t{\n\t\t\"name\"\t\t\"Modified\"\n\t\t\"visuals\"\n\t\t{\n\t\t\t\"asset\"\t\t\"a{b}\"\n\t\t}\n\t}\n";
+
+            Assert.That(KeyValuesBlockHelper.IsWellFormedIdBlock(block, "12345"), Is.True);
+        }
+
         #endregion
 
         #region ParseKvBlocks Tests
