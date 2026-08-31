@@ -2,6 +2,7 @@ import { createStore } from "../../bridge/store";
 import type {
    ButtonStates,
    CarouselSlide,
+   ChangelogPayload,
    ConfirmPayload,
    ConsoleLine,
    InstallLogPayload,
@@ -64,6 +65,7 @@ export const store = createStore<{
 
    patchMenu: PatchMenuState;
    newsModalOpen: boolean;
+   changelogModal: ChangelogPayload | null;
    confirmModal: ConfirmPayload | null;
    confirmCountdown: number;
    installLogModal: InstallLogPayload | null;
@@ -110,6 +112,7 @@ export const store = createStore<{
 
    patchMenu: { visible: false, left: 0, top: 0, minWidth: 0 },
    newsModalOpen: false,
+   changelogModal: null,
    confirmModal: null,
    confirmCountdown: 0,
    installLogModal: null,
@@ -301,6 +304,17 @@ export function openNewsModal() {
 }
 export function closeNewsModal() {
    store.set({ newsModalOpen: false });
+}
+
+export function showChangelogModal(p: ChangelogPayload) {
+   closePatchMenu();
+   store.set({
+      newsModalOpen: false,
+      changelogModal: { tag: p.tag ?? "", name: p.name ?? "", date: p.date ?? null, body: p.body ?? "", url: p.url ?? "" },
+   });
+}
+export function closeChangelogModal() {
+   store.set({ changelogModal: null });
 }
 
 
