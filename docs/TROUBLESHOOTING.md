@@ -121,6 +121,26 @@ public void Setup()
 
 ## 🎮 Runtime Issues
 
+### Skin Selector says "please wait N minutes"
+
+Generation has a **10-minute cooldown** between runs to protect the download servers
+(see the User Guide → *Generation cooldown*). Not a bug. Options:
+
+- Wait it out — the panel counts down.
+- Select every hero you want in one batch; the cooldown is per run, not per hero.
+- If the message mentions a **clock anomaly**, your system date/time is wrong — correct it
+  (Windows Settings → Time & language → *Set time automatically*) and it clears.
+- Operators can shorten or disable the cooldown remotely; a stale value is not something a
+  reinstall fixes.
+
+### "Skin Selector won't open" / blank WebView2 window
+
+Almost always the **WebView2 runtime** or its profile folder. Go to **Settings → Repair App**
+and run the scan — it installs the runtime if missing, resets a corrupted profile folder, and
+clears stale `WebView2.corrupt-*` leftovers. A fix marked *applies on restart* needs AMT
+reopened. If Settings itself won't open, reinstall AMT (your mods are untouched).
+
+
 ### "Dota 2 Not Detected"
 
 **Causes:**
