@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Ardysa
  *
  * This program is free software: you can redistribute it and/or modify
@@ -60,6 +60,8 @@ namespace ArdysaModsTools.Core.Services
         private IAppLogger? _logger;
         private readonly HttpClient _httpClient;
         private readonly ModsPackDataService _dataService;
+        private readonly IGameItemsGameExtractor _itemsGameExtractor;
+        private readonly IVpkRecompiler _recompiler;
 
         private static string[] GameInfoUrls => SmartCdnSelector.Instance.GetOrderedCdnUrls()
             .Select(b => $"{b.TrimEnd('/')}/remote/gameinfo_branchspecific.gi")
@@ -83,10 +85,16 @@ namespace ArdysaModsTools.Core.Services
 
         private const string RequiredModFilePath = DotaPaths.ModsVpk;
 
-        public ModInstallerService(IAppLogger? logger = null)
+        public ModInstallerService(
+            IAppLogger? logger = null,
+            ModsPackDataService? dataService = null,
+            IGameItemsGameExtractor? itemsGameExtractor = null,
+            IVpkRecompiler? recompiler = null)
         {
             _logger = logger;
-            _dataService = new ModsPackDataService();
+            _dataService = dataService ?? new ModsPackDataService();
+            _itemsGameExtractor = itemsGameExtractor ?? new GameItemsGameExtractorService(logger);
+            _recompiler = recompiler ?? new VpkRecompilerService(logger);
             _httpClient = HttpClientProvider.Client;
         }
 
@@ -142,6 +150,24 @@ namespace ArdysaModsTools.Core.Services
         private const string OriginMarkerPath = @"materials\dev\deferred_light_cache.vtex_c";
 
         private const string LegacyMarkerPath = @"version\_ardysamods";
+
+        internal static bool RemoveLoosePackageText(string modsDir)
+        {
+            bool clean = true;
+            foreach (var stray in new[] { "scripts", "resource" })
+            {
+                string strayDir = Path.Combine(modsDir, stray);
+                try { if (Directory.Exists(strayDir)) Directory.Delete(strayDir, true); }
+                catch (Exception ex) { FallbackLogger.LogFileOnly($"Could not remove loose {stray}/ from _ArdysaMods: {ex.Message}"); }
+
+                if (Directory.Exists(strayDir))
+                {
+                    clean = false;
+                    FallbackLogger.LogFileOnly($"Loose {stray}/ survived cleanup in {modsDir} — it would shadow the packages.");
+                }
+            }
+            return clean;
+        }
 
         private static bool ListingContainsMarker(string listing)
             => ListingContainsPath(listing, OriginMarkerPath);
@@ -242,8 +268,8 @@ namespace ArdysaModsTools.Core.Services
             if (!ListingContainsMarker(listing))
                 return (VpkOrigin.Unofficial, false);
 
-            bool slim = !ListingContainsPath(listing, @"scripts\items\items_game.txt");
-            return (VpkOrigin.Official, slim);
+            bool generated = ListingContainsPath(listing, LegacyMarkerPath);
+            return (VpkOrigin.Official, !generated);
         }
 
         public bool IsRequiredModFilePresent(string targetPath)
@@ -621,13 +647,15 @@ namespace ArdysaModsTools.Core.Services
                 {
                     _logger?.Log($"ERROR: Failed to extract ModsPack: {ex.Message}");
                     FallbackLogger.LogFileOnly($"Zip extraction error: {ex.Message}");
-                    InstallReport.Fail("Could not unpack the download — check free disk space and antivirus.");
+                    InstallReport.Fail(ex is InvalidDataException && downloadVerified
+                        ? "The mod package published on the server is damaged — please report this; a fixed one has to be uploaded."
+                        : "Could not unpack the download — check free disk space and antivirus.");
                     return (false, false);
                 }
 
                 string installedVpk = Path.Combine(modsDir, "pak01_dir.vpk");
 
-                using var snapshot = InstallSnapshot.Capture(installedVpk);
+                using var snapshot = InstallSnapshot.Capture(installedVpk, ProtectedVpkStore.VpkPath(targetPath));
                 snapshot.Report();
 
                 cancellationToken.ThrowIfCancellationRequested();
@@ -660,6 +688,8 @@ namespace ArdysaModsTools.Core.Services
 
                 cancellationToken.ThrowIfCancellationRequested();
 
+                ProtectedVpkStore.Clear(targetPath);
+
                 statusCallback?.Invoke(Loc.T("progress.buildingData"));
                 bool dataOk = await _dataService.RebuildVpkAsync(
                     targetPath,
@@ -674,6 +704,13 @@ namespace ArdysaModsTools.Core.Services
                     return (false, false);
                 }
 
+                if (!RemoveLoosePackageText(modsDir))
+                {
+                    _logger?.Log("ERROR: Loose item definitions could not be removed from the mod folder.");
+                    InstallReport.Fail("Loose leftovers could not be cleaned from the mod folder — close Dota 2 and try again.");
+                    return (false, false);
+                }
+
                 cancellationToken.ThrowIfCancellationRequested();
 
                 if (!string.IsNullOrWhiteSpace(remoteHash))
@@ -682,9 +719,14 @@ namespace ArdysaModsTools.Core.Services
                     catch (Exception ex) { FallbackLogger.LogFileOnly($"Failed writing local ModsPack.hash: {ex.Message}"); }
                 }
 
-                snapshot.Commit();
+                VpkSignatureSection.TryApply(installedVpk);
+                string protVpk = ProtectedVpkStore.VpkPath(targetPath);
+                if (File.Exists(protVpk))
+                {
+                    VpkSignatureSection.TryApply(protVpk);
+                }
 
-                ProtectedVpkStore.Clear(targetPath);
+                snapshot.Commit();
 
                 _logger?.Log("Mod installation completed successfully.");
                 InstallReport.Ok("Installation completed successfully.");
@@ -803,7 +845,7 @@ namespace ArdysaModsTools.Core.Services
 
         internal static string[]? TrimAfterDigest(string[] lines)
         {
-            int digestIndex = Array.FindIndex(lines, l => l.StartsWith("DIGEST:"));
+            int digestIndex = Array.FindIndex(lines, l => l.StartsWith("DIGEST:", StringComparison.Ordinal));
             return digestIndex >= 0 ? lines[..(digestIndex + 1)] : null;
         }
 
@@ -878,9 +920,9 @@ namespace ArdysaModsTools.Core.Services
 
                 statusCallback?.Invoke("Checking patch status...");
                 string[] lines = await File.ReadAllLinesAsync(signaturesPath, ct).ConfigureAwait(false);
-                int lineDigestIndex = Array.FindIndex(lines, l => l.StartsWith("DIGEST:", StringComparison.Ordinal));
+                string[]? trimmedSignatures = TrimAfterDigest(lines);
 
-                if (lineDigestIndex < 0)
+                if (trimmedSignatures == null)
                 {
                     _logger?.Log("[PATCH] Error: Core file format invalid (no DIGEST found).");
                     return PatchResult.Failed;
@@ -898,61 +940,13 @@ namespace ArdysaModsTools.Core.Services
                     return PatchResult.Failed;
                 }
 
-                Directory.CreateDirectory(Path.GetDirectoryName(gameInfoPath)!);
+                statusCallback?.Invoke("Patching core files...");
 
-                using (var transaction = new FileTransaction(_logger))
-                {
-                    try
-                    {
-                        statusCallback?.Invoke("Patching core files...");
+                if (!await ApplyModPatchAsync(targetPath, trimmedSignatures, fileBytes, ct).ConfigureAwait(false))
+                    return PatchResult.Failed;
 
-                        var modified = new List<string>(lines[..(lineDigestIndex + 1)])
-                        {
-                            ModConstants.ModPatchLine
-                        };
-
-                        string tmpSig = signaturesPath + ".tmp";
-                        await File.WriteAllLinesAsync(tmpSig, modified, ct).ConfigureAwait(false);
-
-                        transaction.AddOperation(new MoveOperation(tmpSig, signaturesPath));
-
-                        _logger?.LogDebug("[PATCH] Core files prepared for patching.");
-
-                        string tmpGi = gameInfoPath + ".tmp";
-                        await File.WriteAllBytesAsync(tmpGi, fileBytes, ct).ConfigureAwait(false);
-
-                        transaction.AddOperation(new MoveOperation(tmpGi, gameInfoPath));
-
-                        await transaction.ExecuteAsync(ct).ConfigureAwait(false);
-
-                        _logger?.LogDebug("[PATCH] All file operations completed successfully.");
-
-                        transaction.Commit();
-
-                        ProtectedVpkStore.Ensure(targetPath);
-
-
-                        try
-                        {
-                            var versionService = new DotaVersionService(_logger);
-                            await versionService.SavePatchedVersionJsonAsync(targetPath).ConfigureAwait(false);
-                            _logger?.LogDebug("[PATCH] Version info saved.");
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger?.Log($"[PATCH] Warning: Failed to save version info: {ex.Message}");
-                        }
-                        
-                        _logger?.Log("[PATCH] Patch completed successfully!");
-                        return PatchResult.Success;
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        _logger?.Log($"[PATCH] Error during patch: {ex.Message}. Rolling back...");
-                        await transaction.RollbackAsync(ct).ConfigureAwait(false);
-                        return PatchResult.Failed;
-                    }
-                }
+                _logger?.Log("[PATCH] Patch completed successfully!");
+                return PatchResult.Success;
             }
             catch (OperationCanceledException)
             {
@@ -967,6 +961,63 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
+        private async Task<bool> ApplyModPatchAsync(
+            string targetPath,
+            string[] trimmedSignatureLines,
+            byte[] gameInfoBytes,
+            CancellationToken ct)
+        {
+            string signaturesPath = Path.Combine(targetPath, DotaPaths.Signatures);
+            string gameInfoPath = Path.Combine(targetPath, DotaPaths.GameInfo);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(gameInfoPath)!);
+
+            using (var transaction = new FileTransaction(_logger))
+            {
+                try
+                {
+                    var modified = new List<string>(trimmedSignatureLines) { ModConstants.ModPatchLine };
+
+                    string tmpSig = signaturesPath + ".tmp";
+                    await File.WriteAllLinesAsync(tmpSig, modified, ct).ConfigureAwait(false);
+                    transaction.AddOperation(new MoveOperation(tmpSig, signaturesPath));
+
+                    string tmpGi = gameInfoPath + ".tmp";
+                    await File.WriteAllBytesAsync(tmpGi, gameInfoBytes, ct).ConfigureAwait(false);
+                    transaction.AddOperation(new MoveOperation(tmpGi, gameInfoPath));
+
+                    await transaction.ExecuteAsync(ct).ConfigureAwait(false);
+                    transaction.Commit();
+                }
+                catch (OperationCanceledException)
+                {
+                    await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.Log($"[PATCH] Error during patch: {ex.Message}. Rolling back...");
+                    FallbackLogger.LogFileOnly($"ApplyModPatchAsync failed: {ex.Message}");
+                    await transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+                    return false;
+                }
+            }
+
+            ProtectedVpkStore.Ensure(targetPath);
+
+            try
+            {
+                await new DotaVersionService(_logger).SavePatchedVersionJsonAsync(targetPath).ConfigureAwait(false);
+                _logger?.LogDebug("[PATCH] Version info saved.");
+            }
+            catch (Exception ex)
+            {
+                _logger?.Log($"[PATCH] Warning: Failed to save version info: {ex.Message}");
+            }
+
+            return true;
+        }
+
         public async Task<bool> ManualInstallModsAsync(
             string targetPath,
             string vpkFilePath,
@@ -974,7 +1025,8 @@ namespace ArdysaModsTools.Core.Services
             CancellationToken cancellationToken = default,
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null,
             Action<string>? statusCallback = null,
-            bool rebuild = true)
+            bool rebuild = true,
+            VpkOrigin origin = VpkOrigin.Unofficial)
         {
             _logger?.Log("Starting manual installation...");
             InstallReport.Begin();
@@ -1029,7 +1081,7 @@ namespace ArdysaModsTools.Core.Services
                     try { File.SetAttributes(destVpkPath, FileAttributes.Normal); } catch { }
                 }
 
-                using var snapshot = InstallSnapshot.Capture(destVpkPath);
+                using var snapshot = InstallSnapshot.Capture(destVpkPath, ProtectedVpkStore.VpkPath(targetPath));
                 snapshot.Report();
 
                 progress?.Report(10);
@@ -1076,6 +1128,8 @@ namespace ArdysaModsTools.Core.Services
                 progress?.Report(75);
                 cancellationToken.ThrowIfCancellationRequested();
 
+                ProtectedVpkStore.Clear(targetPath);
+
                 if (rebuild)
                 {
                     statusCallback?.Invoke(Loc.T("progress.buildingData"));
@@ -1083,7 +1137,8 @@ namespace ArdysaModsTools.Core.Services
                         targetPath,
                         destVpkPath,
                         msg => statusCallback?.Invoke(msg),
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken,
+                        percent: progress != null ? new Progress<int>(p => progress.Report(75 + p * 20 / 100)) : null).ConfigureAwait(false);
                     if (!dataOk)
                     {
                         _logger?.Log($"ERROR: Failed to build the ModsPack package. {LastFailReason()}".TrimEnd());
@@ -1093,14 +1148,100 @@ namespace ArdysaModsTools.Core.Services
                 }
                 else
                 {
-                    _logger?.LogDebug("VPK is self-contained or third-party: installing as-is (no package rebuild).");
-                    InstallReport.Step("Third-party package — installed as-is (no rebuild).");
+                    _logger?.LogDebug("VPK is self-contained or third-party: splitting and securing package.");
+                    InstallReport.Step("Securing and splitting mod packages...");
+                    await SplitAndSecureInstalledPackageAsync(targetPath, destVpkPath, statusCallback, cancellationToken).ConfigureAwait(false);
+                    progress?.Report(95);
+                }
+
+                if (!RemoveLoosePackageText(modsDir))
+                {
+                    _logger?.Log("ERROR: Loose item definitions could not be removed from the mod folder.");
+                    InstallReport.Fail("Loose leftovers could not be cleaned from the mod folder — close Dota 2 and try again.");
+                    return false;
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (rebuild)
+                {
+                    statusCallback?.Invoke(Loc.T("progress.verifying"));
+                    string probeDir = Path.Combine(SafeTempPathHelper.GetSafeTempPath(), $"amt_probe_{Guid.NewGuid():N}");
+                    string probeFile = Path.Combine(probeDir, "items_game.txt");
+
+                    try
+                    {
+                        Directory.CreateDirectory(probeDir);
+
+                        bool extracted = await _itemsGameExtractor.ExtractModItemsGameAsync(
+                            targetPath, probeFile, msg => statusCallback?.Invoke(msg), cancellationToken).ConfigureAwait(false);
+
+                        if (!extracted || !File.Exists(probeFile))
+                        {
+                            _logger?.Log("ERROR: Post-install verification failed — could not extract items_game.txt from installed packages.");
+                            InstallReport.Fail("Package verification failed — your previous install was restored.");
+                            return false;
+                        }
+
+                        var baseline = await ItemsGameBaselineStore.ReadAsync(targetPath, cancellationToken).ConfigureAwait(false);
+                        if (baseline == null || baseline.PatchedIds == null || baseline.PatchedIds.Count == 0)
+                        {
+                            _logger?.Log("ERROR: Post-install verification failed — baseline record missing or empty.");
+                            InstallReport.Fail("Package verification failed — your previous install was restored.");
+                            return false;
+                        }
+
+                        string itemsGameText = await File.ReadAllTextAsync(probeFile, cancellationToken).ConfigureAwait(false);
+                        var indexedSpans = ItemsGameBlockIndex.IndexSpans(itemsGameText);
+
+                        var missingIds = new List<string>();
+                        foreach (var id in baseline.PatchedIds)
+                        {
+                            if (!indexedSpans.ContainsKey(id))
+                                missingIds.Add(id);
+                        }
+
+                        if (missingIds.Count > 0)
+                        {
+                            _logger?.Log($"ERROR: Post-install verification failed — {missingIds.Count} patched item ID(s) missing from installed package: {string.Join(", ", missingIds.Take(5))}");
+                            InstallReport.Fail("Package verification failed — some modified item definitions are missing.");
+                            return false;
+                        }
+
+                        bool hasLocalization = false;
+                        string protVpk = ProtectedVpkStore.VpkPath(targetPath);
+
+                        if (File.Exists(protVpk))
+                        {
+                            string? listing = await TryListVpkContentsAsync(protVpk, cancellationToken).ConfigureAwait(false);
+                            if (listing != null && ListingContainsPath(listing, @"resource\localization\dota_english.txt"))
+                                hasLocalization = true;
+                        }
+
+                        if (!hasLocalization && File.Exists(destVpkPath))
+                        {
+                            string? listing = await TryListVpkContentsAsync(destVpkPath, cancellationToken).ConfigureAwait(false);
+                            if (listing != null && ListingContainsPath(listing, @"resource\localization\dota_english.txt"))
+                                hasLocalization = true;
+                        }
+
+                        if (!hasLocalization)
+                        {
+                            _logger?.Log("ERROR: Post-install verification failed — localization files missing from package.");
+                            InstallReport.Fail("Package verification failed — localization files are missing.");
+                            return false;
+                        }
+                    }
+                    finally
+                    {
+                        try { if (Directory.Exists(probeDir)) Directory.Delete(probeDir, true); }
+                        catch (Exception ex) { FallbackLogger.LogFileOnly($"Probe cleanup failed: {ex.Message}"); }
+                    }
                 }
 
                 cancellationToken.ThrowIfCancellationRequested();
 
                 string signaturesPath = Path.Combine(targetPath, DotaPaths.Signatures);
-                string gameInfoPath = Path.Combine(targetPath, DotaPaths.GameInfo);
 
                 if (!File.Exists(signaturesPath))
                 {
@@ -1111,8 +1252,16 @@ namespace ArdysaModsTools.Core.Services
                     return false;
                 }
 
-                Directory.CreateDirectory(Path.GetDirectoryName(gameInfoPath)!);
-                progress?.Report(80);
+                progress?.Report(95);
+
+                var sigLines = await File.ReadAllLinesAsync(signaturesPath, cancellationToken).ConfigureAwait(false);
+                var trimmedSignatures = TrimAfterDigest(sigLines);
+                if (trimmedSignatures == null)
+                {
+                    _logger?.Log("Error: Invalid core file format.");
+                    InstallReport.Fail("A Dota 2 core file has an unexpected format — verify game files in Steam and try again.");
+                    return false;
+                }
 
                 var giData = await DownloadGameInfoAsync(GameInfoUrls, cancellationToken, ModConstants.ModPatchSHA1).ConfigureAwait(false);
                 if (giData == null)
@@ -1122,60 +1271,34 @@ namespace ArdysaModsTools.Core.Services
                     return false;
                 }
 
-                progress?.Report(85);
+                progress?.Report(97);
 
-                var sigLines = await File.ReadAllLinesAsync(signaturesPath, cancellationToken).ConfigureAwait(false);
-                int sigDigestIndex = Array.FindIndex(sigLines, l => l.StartsWith("DIGEST:", StringComparison.Ordinal));
-                if (sigDigestIndex < 0)
+                if (!await ApplyModPatchAsync(targetPath, trimmedSignatures, giData, cancellationToken).ConfigureAwait(false))
                 {
-                    _logger?.Log("Error: Invalid core file format.");
-                    InstallReport.Fail("A Dota 2 core file has an unexpected format — verify game files in Steam and try again.");
+                    InstallReport.Fail("Could not apply the game patch — your previous game files were restored.");
                     return false;
                 }
 
-                using (var patchTx = new FileTransaction(_logger))
+                if (origin == VpkOrigin.Official)
                 {
-                    try
+                    string? remoteHash = await DownloadRemoteHashAsync(cancellationToken).ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(remoteHash))
                     {
-                        string tempGi = gameInfoPath + ".tmp";
-                        await File.WriteAllBytesAsync(tempGi, giData, cancellationToken).ConfigureAwait(false);
-                        patchTx.AddOperation(new MoveOperation(tempGi, gameInfoPath));
-
-                        progress?.Report(90);
-
-                        var modified = new List<string>(sigLines[..(sigDigestIndex + 1)])
-                        {
-                            ModConstants.ModPatchLine
-                        };
-
-                        string tmpSig = signaturesPath + ".tmp";
-                        await File.WriteAllLinesAsync(tmpSig, modified, cancellationToken).ConfigureAwait(false);
-                        patchTx.AddOperation(new MoveOperation(tmpSig, signaturesPath));
-
-                        await patchTx.ExecuteAsync(cancellationToken).ConfigureAwait(false);
-                        patchTx.Commit();
-
-                        ProtectedVpkStore.Ensure(targetPath);
+                        string localHashFile = Path.Combine(modsDir, "ModsPack.hash");
+                        try { await File.WriteAllTextAsync(localHashFile, remoteHash.Trim(), cancellationToken).ConfigureAwait(false); }
+                        catch (Exception ex) { FallbackLogger.LogFileOnly($"Failed writing local ModsPack.hash in manual install: {ex.Message}"); }
                     }
-                    catch (OperationCanceledException)
-                    {
-                        await patchTx.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger?.Log("Error: Failed to apply game patch. Rolling back...");
-                        FallbackLogger.LogFileOnly($"Manual patch (gameinfo/signatures) error: {ex.Message}");
-                        await patchTx.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
-                        InstallReport.Fail("Could not apply the game patch — your previous game files were restored.");
-                        return false;
-                    }
+                }
+
+                VpkSignatureSection.TryApply(destVpkPath);
+                string protManualVpk = ProtectedVpkStore.VpkPath(targetPath);
+                if (File.Exists(protManualVpk))
+                {
+                    VpkSignatureSection.TryApply(protManualVpk);
                 }
 
                 progress?.Report(100);
                 snapshot.Commit();
-
-                ProtectedVpkStore.Clear(targetPath);
 
                 _logger?.Log("Installation complete!");
                 InstallReport.Ok("Installation completed successfully.");
@@ -1197,92 +1320,82 @@ namespace ArdysaModsTools.Core.Services
 
         internal sealed class InstallSnapshot : IDisposable
         {
-            private readonly string _vpk;
-            private readonly string _hash;
-            private readonly string _vpkBak;
-            private readonly string _hashBak;
-            private readonly bool _hadVpk;
-            private readonly bool _hadHash;
-            private bool _vpkCaptured;
-            private bool _hashCaptured;
-            private bool _committed;
-
-            private InstallSnapshot(string vpkPath)
+            private sealed class Entry
             {
-                _vpk = vpkPath;
-                _hash = Path.Combine(Path.GetDirectoryName(vpkPath)!, "ModsPack.hash");
-                _vpkBak = _vpk + ".bak";
-                _hashBak = _hash + ".bak";
-                _hadVpk = File.Exists(_vpk);
-                _hadHash = File.Exists(_hash);
+                public Entry(string path) { Live = path; Bak = path + ".bak"; Had = File.Exists(path); }
+                public readonly string Live;
+                public readonly string Bak;
+                public readonly bool Had;
+                public bool Captured;
             }
 
-            public static InstallSnapshot Capture(string vpkPath)
+            private readonly Entry[] _files;
+            private bool _committed;
+
+            private InstallSnapshot(string vpkPath, string? protectedVpkPath)
             {
-                var s = new InstallSnapshot(vpkPath);
-                try
+                var files = new List<Entry>
                 {
-                    if (s._hadVpk)
-                    {
-                        TryDelete(s._vpkBak);
-                        try { File.SetAttributes(s._vpk, FileAttributes.Normal); } catch { }
-                        File.Move(s._vpk, s._vpkBak);
-                        s._vpkCaptured = true;
-                    }
-                    if (s._hadHash)
-                    {
-                        TryDelete(s._hashBak);
-                        try { File.SetAttributes(s._hash, FileAttributes.Normal); } catch { }
-                        File.Move(s._hash, s._hashBak);
-                        s._hashCaptured = true;
-                    }
-                }
-                catch (Exception ex)
+                    new Entry(vpkPath),
+                    new Entry(Path.Combine(Path.GetDirectoryName(vpkPath)!, "ModsPack.hash"))
+                };
+                if (!string.IsNullOrWhiteSpace(protectedVpkPath))
+                    files.Add(new Entry(protectedVpkPath));
+                _files = files.ToArray();
+            }
+
+            public static InstallSnapshot Capture(string vpkPath, string? protectedVpkPath = null)
+            {
+                var s = new InstallSnapshot(vpkPath, protectedVpkPath);
+                foreach (var f in s._files)
                 {
-                    FallbackLogger.LogFileOnly($"InstallSnapshot.Capture failed: {ex.Message}");
+                    if (!f.Had) continue;
+                    try
+                    {
+                        TryDelete(f.Bak);
+                        File.Move(f.Live, f.Bak);
+                        f.Captured = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        FallbackLogger.LogFileOnly($"InstallSnapshot.Capture failed for {f.Live}: {ex.Message}");
+                    }
                 }
                 return s;
             }
 
-            public bool BackupFailed => (_hadVpk && !_vpkCaptured) || (_hadHash && !_hashCaptured);
+            public bool BackupFailed => Array.Exists(_files, f => f.Had && !f.Captured);
 
             public void Report()
             {
                 if (BackupFailed)
                     InstallReport.Warn("Could not back up the current install — Dota 2 may still be running.");
-                else if (_hadVpk || _hadHash)
+                else if (Array.Exists(_files, f => f.Had))
                     InstallReport.Step("Backing up current install.");
             }
 
             public void Commit()
             {
                 _committed = true;
-                TryDelete(_vpkBak);
-                TryDelete(_hashBak);
+                foreach (var f in _files)
+                    TryDelete(f.Bak);
             }
 
             public void Dispose()
             {
                 if (_committed)
                     return;
-                try
+                foreach (var f in _files)
                 {
-                    if (!_hadVpk || _vpkCaptured) TryDelete(_vpk);
-                    if (!_hadHash || _hashCaptured) TryDelete(_hash);
-                    if (_vpkCaptured && File.Exists(_vpkBak))
+                    try
                     {
-                        try { File.SetAttributes(_vpkBak, FileAttributes.Normal); } catch { }
-                        File.Move(_vpkBak, _vpk);
+                        if (!f.Had || f.Captured) TryDelete(f.Live);
+                        if (f.Captured && File.Exists(f.Bak)) File.Move(f.Bak, f.Live);
                     }
-                    if (_hashCaptured && File.Exists(_hashBak))
+                    catch (Exception ex)
                     {
-                        try { File.SetAttributes(_hashBak, FileAttributes.Normal); } catch { }
-                        File.Move(_hashBak, _hash);
+                        FallbackLogger.LogFileOnly($"InstallSnapshot rollback failed for {f.Live}: {ex.Message}");
                     }
-                }
-                catch (Exception ex)
-                {
-                    FallbackLogger.LogFileOnly($"InstallSnapshot rollback failed: {ex.Message}");
                 }
             }
 
@@ -1391,6 +1504,100 @@ namespace ArdysaModsTools.Core.Services
             }
 
             return (false, string.Empty);
+        }
+
+        private async Task<bool> SplitAndSecureInstalledPackageAsync(
+            string targetPath,
+            string destVpkPath,
+            Action<string>? statusCallback,
+            CancellationToken ct)
+        {
+            if (!ProtectedVpkStore.IsMounted(targetPath))
+            {
+                VpkSignatureSection.TryApply(destVpkPath);
+                return true;
+            }
+
+            string appPath = AppDomain.CurrentDomain.BaseDirectory;
+            string hlExtractPath = Path.Combine(appPath, "HLExtract.exe");
+            string vpkToolPath = Path.Combine(appPath, "tools", "vpk", "vpk.exe");
+            if (!File.Exists(vpkToolPath))
+                vpkToolPath = Path.Combine(appPath, "vpk.exe");
+
+            if (!File.Exists(hlExtractPath) || !File.Exists(vpkToolPath))
+            {
+                VpkSignatureSection.TryApply(destVpkPath);
+                return true;
+            }
+
+            string tempRoot = Path.Combine(SafeTempPathHelper.GetSafeTempPath(), $"amt_manual_split_{Guid.NewGuid():N}");
+            string extractDir = Path.Combine(tempRoot, "root");
+            string protectedDir = Path.Combine(tempRoot, "protected");
+            string buildDir = Path.Combine(tempRoot, "build");
+
+            try
+            {
+                Directory.CreateDirectory(tempRoot);
+                Directory.CreateDirectory(buildDir);
+
+                statusCallback?.Invoke(Loc.T("progress.extracting") ?? "Extracting package...");
+                string arguments = $"-p \"{destVpkPath}\" -d \"{tempRoot}\" -e \"root\"";
+                string? extractResult = await RunHlExtractAsync(arguments, ct).ConfigureAwait(false);
+                if (extractResult == null
+                    || !Directory.Exists(extractDir)
+                    || !Directory.EnumerateFileSystemEntries(extractDir).Any())
+                {
+                    VpkSignatureSection.TryApply(destVpkPath);
+                    return true;
+                }
+
+                ProtectedVpkStore.Ensure(targetPath);
+                int protectedMoved = ProtectedVpkStore.MovePackageText(extractDir, protectedDir, _logger, ct);
+
+                if (protectedMoved == 0)
+                {
+                    VpkSignatureSection.TryApply(destVpkPath);
+                    return true;
+                }
+
+                statusCallback?.Invoke(Loc.T("progress.repacking") ?? "Securing packages...");
+                string? newVpkPath = await _recompiler.RecompileAsync(
+                    vpkToolPath, extractDir, buildDir, tempRoot,
+                    line => _logger?.LogDebug($"[VPK] {line}"), ct).ConfigureAwait(false);
+
+                if (string.IsNullOrWhiteSpace(newVpkPath))
+                {
+                    VpkSignatureSection.TryApply(destVpkPath);
+                    return true;
+                }
+                VpkSignatureSection.TryApply(newVpkPath);
+
+                string? newProtectedVpkPath = await _recompiler.RecompileAsync(
+                    vpkToolPath, protectedDir, buildDir, tempRoot,
+                    line => _logger?.LogDebug($"[VPK] {line}"), ct).ConfigureAwait(false);
+
+                if (!string.IsNullOrWhiteSpace(newProtectedVpkPath) &&
+                    !string.Equals(newProtectedVpkPath, newVpkPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    VpkSignatureSection.TryApply(newProtectedVpkPath);
+                    await ProtectedVpkStore.DeployAsync(targetPath, newProtectedVpkPath,
+                        msg => statusCallback?.Invoke(msg), ct, _logger).ConfigureAwait(false);
+                }
+
+                File.Copy(newVpkPath, destVpkPath, overwrite: true);
+                VpkSignatureSection.TryApply(destVpkPath);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                FallbackLogger.LogFileOnly($"SplitAndSecureInstalledPackageAsync exception: {ex.Message}");
+                VpkSignatureSection.TryApply(destVpkPath);
+                return true;
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, true); } catch { }
+            }
         }
     }
 }
