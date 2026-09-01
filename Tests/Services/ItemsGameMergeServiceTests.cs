@@ -19,11 +19,13 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using Moq;
 using NUnit.Framework;
+using ArdysaModsTools.Tests.Helpers;
 
 namespace ArdysaModsTools.Tests.Services
 {
@@ -104,18 +106,114 @@ namespace ArdysaModsTools.Tests.Services
             return full;
         }
 
-        private void SetupItemData(string? gameData, string? modData)
+        private void SetupItemData(string? gameData, string? modData, string? protectedData = null)
         {
             _itemsGame.Setup(e => e.ExtractItemsGameAsync(It.IsAny<string>(), It.IsAny<string>(),
-                    It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>()))
-                .Returns((string vpk, string dest, Action<string>? _, CancellationToken __) =>
+                    It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()))
+                .Returns((string vpk, string dest, Action<string>? _, CancellationToken __, bool normalize) =>
                 {
-                    string? body = vpk.Contains("_ArdysaMods") ? modData : gameData;
+                    string? body = PackageFolder(vpk) switch
+                    {
+                        "_ArdysaMods" => modData,
+                        "mod" => protectedData,
+                        _ => gameData,
+                    };
                     if (body == null) return Task.FromResult(false);
+                    if (normalize) body = body.Replace("\r\n", "\n").Replace("\r", "\n");
                     Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
                     File.WriteAllText(dest, body);
                     return Task.FromResult(true);
                 });
+        }
+
+        private static string PackageFolder(string vpkPath) =>
+            Path.GetFileName(Path.GetDirectoryName(vpkPath)!);
+
+        private string WriteProtectedPackage()
+        {
+            string protVpk = ProtectedVpkStore.VpkPath(_root);
+            Directory.CreateDirectory(Path.GetDirectoryName(protVpk)!);
+            File.WriteAllBytes(protVpk, TestVpk.Minimal());
+            return protVpk;
+        }
+
+        private void RecompileToRealPackage(byte[] bytes)
+        {
+            _recompiler.Setup(r => r.RecompileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<string>(), It.IsAny<Action<string>>(), It.IsAny<CancellationToken>(),
+                    It.IsAny<IProgress<SpeedMetrics>>()))
+                .Returns((string _, string __, string buildDir, string ___, Action<string> ____,
+                          CancellationToken _____, IProgress<SpeedMetrics> ______) =>
+                {
+                    Directory.CreateDirectory(buildDir);
+                    var p = Path.Combine(buildDir, "pak01_dir.vpk");
+                    File.WriteAllBytes(p, bytes);
+                    return Task.FromResult<string?>(p);
+                });
+        }
+
+        [Test]
+        public async Task Merge_WhenItemDataLivesInTheProtectedPackage_RepairsThatPackageAndLeavesTheMainOneAlone()
+        {
+            string protVpk = WriteProtectedPackage();
+            string mainVpk = Path.Combine(_root, DotaPaths.ModsVpk.Replace('/', Path.DirectorySeparatorChar));
+            byte[] mainBefore = File.ReadAllBytes(mainVpk);
+
+            SetupItemData(VanillaWithExtraItem, null, Modded);
+
+            string? extractedFrom = null;
+            _vpk.Setup(v => v.ExtractAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<Action<string>>(), It.IsAny<CancellationToken>(),
+                    It.IsAny<IProgress<SpeedMetrics>>(), It.IsAny<bool>()))
+                .Returns((string _, string vpk, string dir, Action<string> __, CancellationToken ___,
+                          IProgress<SpeedMetrics> ____, bool _____) =>
+                {
+                    extractedFrom = vpk;
+                    var p = Path.Combine(dir, "scripts", "items", "items_game.txt");
+                    Directory.CreateDirectory(Path.GetDirectoryName(p)!);
+                    File.WriteAllText(p, Modded);
+                    return Task.FromResult(true);
+                });
+
+            byte[] repaired = TestVpk.Build(TestVpk.ItemsGame(Modded), TestVpk.Blob("models", "repaired", "vmdl_c", 16));
+            RecompileToRealPackage(repaired);
+
+            var result = await NewService().MergeAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(ItemsGameMergeOutcome.Merged));
+                Assert.That(VpkSignatureSection.IsApplied(protVpk), Is.True,
+                    "the repaired package must carry the VpkSignatureSection guard");
+                Assert.That(VpkPackageValidator.TryValidate(protVpk, out var valErr), Is.True, valErr);
+                _replacer.Verify(r => r.ReplaceAsync(It.IsAny<string>(), It.IsAny<string>(),
+                        It.IsAny<Action<string>>(), It.IsAny<CancellationToken>()),
+                    Times.Never, "repairing the protected package must never touch the main package");
+                Assert.That(File.ReadAllBytes(mainVpk), Is.EqualTo(mainBefore),
+                    "the copyable package must not gain a copy of the item data");
+            });
+        }
+
+        [Test]
+        public async Task Merge_WhenBothPackagesCarryItemData_RepairsTheOneMountOrderPrefers()
+        {
+            string protVpk = WriteProtectedPackage();
+            byte[] protectedBefore = File.ReadAllBytes(protVpk);
+
+            SetupItemData(VanillaWithExtraItem, Modded, Modded);
+            RecompileToRealPackage(TestVpk.Minimal());
+
+            var result = await NewService().MergeAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(ItemsGameMergeOutcome.Merged));
+                _replacer.Verify(r => r.ReplaceAsync(It.IsAny<string>(), It.IsAny<string>(),
+                        It.IsAny<Action<string>>(), It.IsAny<CancellationToken>()),
+                    Times.Once, "_ArdysaMods wins over mod, so that is the copy to repair");
+                Assert.That(File.ReadAllBytes(protVpk), Is.EqualTo(protectedBefore),
+                    "the shadowed package is not the one causing the crash — leave it alone");
+            });
         }
 
         private ItemsGameMergeService NewService() =>
@@ -144,6 +242,19 @@ namespace ArdysaModsTools.Tests.Services
             var record = await ItemsGameBaselineStore.ReadAsync(_root);
             Assert.That(record, Is.Not.Null);
             Assert.That(record!.ModVpk, Is.EqualTo(VpkStamp.Read(Path.Combine(_root, DotaPaths.ModsVpk))!.Value));
+        }
+
+        [Test]
+        public async Task Merge_WhenPackageItemDataIsCrlf_RebuildsEvenThoughContentMatches()
+        {
+            SetupItemData(Vanilla, Modded.Replace("\n", "\r\n"));
+
+            var result = await NewService().MergeAsync(_root);
+
+            Assert.That(result.Outcome, Is.EqualTo(ItemsGameMergeOutcome.Merged),
+                "a CRLF package was reported as already current — the game would still reject it");
+            _replacer.Verify(r => r.ReplaceAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<Action<string>>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [Test]
