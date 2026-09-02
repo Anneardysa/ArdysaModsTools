@@ -229,13 +229,26 @@ namespace ArdysaModsTools
                     Log($"WebView2: source={webview2.Source} version={webview2.Version ?? "-"} diag={webview2.Diagnostic ?? "none"}");
                     if (!webview2.IsInstalled)
                     {
-                        Log("WebView2 runtime not found — showing install prompt, exiting");
-                        MessageBox.Show(
+                        var install = MessageBox.Show(
                             Core.Services.Localization.Loc.T("program.webview2Required.body"),
                             Core.Services.Localization.Loc.T("program.webview2Required.title"),
-                            MessageBoxButtons.OK,
+                            MessageBoxButtons.YesNo,
                             MessageBoxIcon.Error);
-                        return;
+
+                        bool installed = false;
+                        if (install == DialogResult.Yes)
+                        {
+                            Log("WebView2 runtime not found — user accepted install prompt");
+                            var repairService = serviceProvider.GetRequiredService<Core.Interfaces.IAppRepairService>();
+                            installed = repairService.InstallWebView2RuntimeAsync().GetAwaiter().GetResult();
+                            Log($"WebView2 install attempt result: {installed}");
+                        }
+
+                        if (!installed)
+                        {
+                            Log("WebView2 runtime still not available — exiting");
+                            return;
+                        }
                     }
 
                     string runningVersion = Core.Services.Update.Models.AppVersion.Current.ToString();
@@ -247,11 +260,19 @@ namespace ArdysaModsTools
                         Log($"Post-update cache clear: {cleared.FilesDeleted} files, " +
                             $"{CacheCleaningService.FormatBytes(cleared.BytesFreed)} freed");
                     }
-                    if (lastRunVersion != runningVersion)
+                    string runningSemVer = Core.Services.Update.Models.AppVersion.Current.Version;
+                    string lastChangelogVersion = configForLang.GetValue("lastChangelogVersion", "");
+                    if (lastRunVersion != runningVersion || lastChangelogVersion != runningSemVer)
                     {
+                        if (Core.Services.WhatsNewService.ShouldArmChangelog(lastChangelogVersion, runningSemVer))
+                            configForLang.SetValue("pendingChangelogVersion", runningSemVer);
+                        configForLang.SetValue("lastChangelogVersion", runningSemVer);
                         configForLang.SetValue("lastRunVersion", runningVersion);
                         configForLang.Save();
                     }
+
+                    if (Core.Services.App.AppRepairService.ApplyPendingRepairs())
+                        Log("Applied pending repair: WebView2 profile reset");
 
                     var mainFormFactory = serviceProvider.GetRequiredService<UI.Factories.IMainFormFactory>();
                     Log("MainFormFactory resolved, launching Application.Run...");
