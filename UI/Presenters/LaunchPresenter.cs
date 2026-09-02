@@ -15,6 +15,8 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Interfaces;
@@ -35,6 +37,8 @@ namespace ArdysaModsTools.UI.Presenters
 
         private static readonly TimeSpan LaunchTimeout = TimeSpan.FromMinutes(5);
 
+        private const int MaxPreparePasses = 3;
+
         private readonly IMainFormView _view;
         private readonly Logger _logger;
         private readonly IItemsGameMergeService _merge;
@@ -42,6 +46,8 @@ namespace ArdysaModsTools.UI.Presenters
         private readonly ISteamAppStateService _steam;
 
         private readonly Func<string, bool> _launcher;
+
+        private readonly Func<bool> _steamRunning;
 
         private CancellationTokenSource? _cts;
 
@@ -51,7 +57,7 @@ namespace ArdysaModsTools.UI.Presenters
 
         public LaunchPresenter(IMainFormView view, Logger logger,
             IItemsGameMergeService merge, IModInstallerService modInstaller, ISteamAppStateService steam,
-            Func<string, bool>? launcher = null)
+            Func<string, bool>? launcher = null, Func<bool>? steamRunning = null)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -59,6 +65,7 @@ namespace ArdysaModsTools.UI.Presenters
             _modInstaller = modInstaller ?? throw new ArgumentNullException(nameof(modInstaller));
             _steam = steam ?? throw new ArgumentNullException(nameof(steam));
             _launcher = launcher ?? (url => UIHelpers.OpenUrl(url, _logger.Log));
+            _steamRunning = steamRunning ?? (() => Process.GetProcessesByName("steam").Any());
         }
 
         public bool IsRunning => _cts != null;
@@ -126,11 +133,9 @@ namespace ArdysaModsTools.UI.Presenters
 
             try
             {
-                Show("play.panel.checking", "play.panel.checkingDetail", percent: null);
-                await WaitForSteamUpdateAsync(targetPath, cts.Token).ConfigureAwait(false);
-
-                if (GameStartedWithoutUs(Loc.T("verify.chip.sync"))) return;
-                if (!await RepairAsync(targetPath, cts.Token).ConfigureAwait(false)) return;
+                var (ready, _) = await PrepareAsync(targetPath, Loc.T("verify.chip.sync"),
+                    needsPatch: false, cts.Token).ConfigureAwait(false);
+                if (!ready) return;
 
                 _view.SetLaunchPanel(null);
                 _view.ShowShellToast(Loc.T("verify.chip.sync"), Loc.T("play.sync.repaired"), "success");
@@ -152,17 +157,9 @@ namespace ArdysaModsTools.UI.Presenters
 
         private async Task RunAsync(string? targetPath, bool needsPatch, CancellationToken ct)
         {
-            Show("play.panel.checking", "play.panel.checkingDetail", percent: null);
-            bool updated = await WaitForSteamUpdateAsync(targetPath, ct).ConfigureAwait(false);
-
-            if (GameStartedWithoutUs(Loc.T("play.button")))
-                return;
-
-            if (needsPatch && !await PatchAsync(targetPath, ct).ConfigureAwait(false))
-                return;
-
-            if (!await RepairAsync(targetPath, ct).ConfigureAwait(false))
-                return;
+            var (ready, updated) = await PrepareAsync(targetPath, Loc.T("play.button"), needsPatch, ct)
+                .ConfigureAwait(false);
+            if (!ready) return;
 
             if (updated && !await WaitForLaunchConfirmationAsync(ct).ConfigureAwait(false))
             {
@@ -176,21 +173,79 @@ namespace ArdysaModsTools.UI.Presenters
             await WaitForGameAsync(targetPath, ct).ConfigureAwait(false);
         }
 
-        private async Task<bool> WaitForSteamUpdateAsync(string? targetPath, CancellationToken ct)
+        private enum SteamWait
+        {
+            NoUpdate,
+
+            Updated,
+
+            SteamClosed
+        }
+
+        private enum RepairStep
+        {
+            Ok,
+
+            Stop,
+
+            Retry
+        }
+
+        private async Task<(bool Ready, bool Updated)> PrepareAsync(
+            string? targetPath, string title, bool needsPatch, CancellationToken ct)
+        {
+            bool updated = false;
+
+            for (int pass = 0; pass < MaxPreparePasses; pass++)
+            {
+                Show("play.panel.checking", "play.panel.checkingDetail", percent: null);
+
+                var wait = await WaitForSteamUpdateAsync(targetPath, ct).ConfigureAwait(false);
+                if (wait == SteamWait.SteamClosed) return (false, updated);
+                if (wait == SteamWait.Updated) updated = true;
+
+                if (GameStartedWithoutUs(title)) return (false, updated);
+
+                if ((needsPatch || pass > 0) && !await PatchAsync(targetPath, ct).ConfigureAwait(false))
+                    return (false, updated);
+
+                var step = await RepairAsync(targetPath, ct).ConfigureAwait(false);
+                if (step == RepairStep.Stop) return (false, updated);
+                if (step == RepairStep.Ok) return (true, updated);
+
+                _logger.Log(Loc.T("play.merge.gameChanged"));
+                updated = true;
+            }
+
+            _logger.Log(Loc.T("play.merge.gameChangedGaveUp"));
+            ShowError("play.panel.failed", "play.merge.gameChangedGaveUp");
+            return (false, updated);
+        }
+
+        private async Task<SteamWait> WaitForSteamUpdateAsync(string? targetPath, CancellationToken ct)
         {
             var state = _steam.Read(targetPath);
-            if (!state.IsUpdatePending) return false;
+            if (!state.IsUpdatePending) return SteamWait.NoUpdate;
 
             while (state.IsUpdatePending && !_dotaRunning)
             {
                 ct.ThrowIfCancellationRequested();
+
+                if (!_steamRunning())
+                {
+                    ShowError("play.panel.steamClosed", "play.panel.steamClosedDetail");
+                    _view.ShowShellToast(Loc.T("play.panel.steamClosed"),
+                        Loc.T("play.panel.steamClosedDetail"), "warning");
+                    _logger.Log(Loc.T("play.panel.steamClosedDetail"));
+                    return SteamWait.SteamClosed;
+                }
 
                 Show("play.panel.steamUpdating", "play.panel.steamUpdatingDetail", state.DownloadPercent);
                 await Task.Delay(PollInterval, ct).ConfigureAwait(false);
                 state = _steam.Read(targetPath);
             }
 
-            return true;
+            return SteamWait.Updated;
         }
 
         private bool GameStartedWithoutUs(string title)
@@ -252,7 +307,7 @@ namespace ArdysaModsTools.UI.Presenters
             return true;
         }
 
-        private async Task<bool> RepairAsync(string? targetPath, CancellationToken ct)
+        private async Task<RepairStep> RepairAsync(string? targetPath, CancellationToken ct)
         {
             var statusKey = "play.merge.reading";
             var status = new Progress<string>(key => statusKey = key);
@@ -262,6 +317,9 @@ namespace ArdysaModsTools.UI.Presenters
 
             var result = await _merge.MergeAsync(targetPath, status, percent, ct).ConfigureAwait(false);
 
+            if (result.Outcome == ItemsGameMergeOutcome.GameChanged)
+                return RepairStep.Retry;
+
             if (result.Outcome == ItemsGameMergeOutcome.Failed)
             {
                 _logger.Log(Loc.T(result.FailureKey ?? "play.merge.failed"));
@@ -269,7 +327,7 @@ namespace ArdysaModsTools.UI.Presenters
                     _logger.LogDebug($"[PLAY] {result.Diagnostic}");
 
                 ShowError("play.panel.failed", result.FailureKey ?? "play.merge.failed");
-                return false;
+                return RepairStep.Stop;
             }
 
             if (result.Outcome == ItemsGameMergeOutcome.Merged)
@@ -278,7 +336,7 @@ namespace ArdysaModsTools.UI.Presenters
                 PackageRepaired?.Invoke();
             }
 
-            return true;
+            return RepairStep.Ok;
         }
 
         private bool Launch(string? targetPath)
@@ -315,12 +373,11 @@ namespace ArdysaModsTools.UI.Presenters
 
                 if (_steam.Read(targetPath).IsUpdatePending)
                 {
-                    await WaitForSteamUpdateAsync(targetPath, ct).ConfigureAwait(false);
+                    var (ready, _) = await PrepareAsync(targetPath, Loc.T("play.button"),
+                        needsPatch: true, ct).ConfigureAwait(false);
 
                     if (_dotaRunning) continue;
-
-                    if (!await PatchAsync(targetPath, ct).ConfigureAwait(false)) return;
-                    if (!await RepairAsync(targetPath, ct).ConfigureAwait(false)) return;
+                    if (!ready) return;
 
                     if (!await WaitForLaunchConfirmationAsync(ct).ConfigureAwait(false))
                     {
