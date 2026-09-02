@@ -255,6 +255,7 @@ namespace ArdysaModsTools
             }
 
             ShowSupportDialogOnStartup();
+            _ = ShowPostUpdateChangelogAsync();
             ShowOnboardingGuide();
             _trayService?.ShowDonationReminder();
         }
@@ -296,35 +297,8 @@ namespace ArdysaModsTools
             }
         }
 
-        private async Task LoadShellAndWaitReadyAsync()
-        {
-            var core = _webView.CoreWebView2;
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            void OnDomReady(object? s, CoreWebView2DOMContentLoadedEventArgs e) => tcs.TrySetResult(true);
-            void OnNavCompleted(object? s, CoreWebView2NavigationCompletedEventArgs e)
-            {
-                if (!e.IsSuccess)
-                    tcs.TrySetException(new InvalidOperationException($"WebView2 navigation failed: {e.WebErrorStatus}"));
-            }
-
-            core.DOMContentLoaded += OnDomReady;
-            core.NavigationCompleted += OnNavCompleted;
-            try
-            {
-                core.NavigateToString(GetShellHtml());
-
-                if (await Task.WhenAny(tcs.Task, Task.Delay(ShellLoadTimeout)) != tcs.Task)
-                    throw new TimeoutException($"WebView2 shell did not become ready within {ShellLoadTimeout.TotalSeconds:0}s");
-
-                await tcs.Task;
-            }
-            finally
-            {
-                core.DOMContentLoaded -= OnDomReady;
-                core.NavigationCompleted -= OnNavCompleted;
-            }
-        }
+        private Task LoadShellAndWaitReadyAsync()
+            => WebViewNavigation.NavigateAndWaitReadyAsync(_webView.CoreWebView2, GetShellHtml(), ShellLoadTimeout);
 
         private void MarkWebReadyAndReplay()
         {
@@ -587,6 +561,69 @@ namespace ArdysaModsTools
             catch (Exception ex)
             {
                 _logger.Log($"Failed to show support dialog: {ex.Message}");
+            }
+        }
+
+        private async Task ShowPostUpdateChangelogAsync()
+        {
+            try
+            {
+                string pending = _configService.GetValue("pendingChangelogVersion", "");
+                if (string.IsNullOrEmpty(pending))
+                    return;
+
+                string running = Core.Services.Update.Models.AppVersion.Current.Version;
+                if (pending != running)
+                {
+                    ClearPendingChangelog();
+                    return;
+                }
+
+                if (!_webReady)
+                    return;
+
+                var releases = await new WhatsNewService().GetReleasesAsync(_launchCts.Token).ConfigureAwait(true);
+                if (releases == null || releases.Count == 0)
+                    return;
+
+                var release = WhatsNewService.SelectForVersion(releases, Core.Services.Update.Models.AppVersion.Current.Version);
+                if (release == null)
+                    return;
+
+                if (_launchCts.IsCancellationRequested || IsDisposed)
+                    return;
+
+                ClearPendingChangelog();
+
+                var payload = JsonSerializer.Serialize(new
+                {
+                    tag = release.Tag,
+                    name = release.Name,
+                    date = release.Date?.ToString("o"),
+                    body = release.Body,
+                    url = release.HtmlUrl
+                }, _jsonOptions);
+                PostExec($"showChangelogModal({payload})");
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Failed to show post-update changelog: {ex.Message}");
+            }
+        }
+
+        private void ClearPendingChangelog()
+        {
+            try
+            {
+                _configService.SetValue("pendingChangelogVersion", "");
+                _configService.Save();
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Failed to clear pending changelog flag: {ex.Message}");
             }
         }
 
