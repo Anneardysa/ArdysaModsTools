@@ -14,6 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System.Collections.Generic;
+using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using NUnit.Framework;
 
@@ -93,5 +95,78 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(WhatsNewService.Parse("[]"), Is.Null);
             Assert.That(WhatsNewService.Parse("not json"), Is.Null);
         }
+
+        private static List<ReleaseNote> Feed(params string[] tags)
+        {
+            var notes = new List<ReleaseNote>();
+            foreach (var tag in tags)
+                notes.Add(new ReleaseNote { Tag = tag, Body = tag + " notes" });
+            return notes;
+        }
+
+        [Test]
+        public void SelectForVersion_PrefersTheMatchingTagOverTheNewest()
+        {
+            var release = WhatsNewService.SelectForVersion(Feed("2.4.6-beta", "2.4.5-beta", "2.4.4-beta"), "2.4.5-beta");
+
+            Assert.That(release, Is.Not.Null);
+            Assert.That(release!.Tag, Is.EqualTo("2.4.5-beta"));
+        }
+
+        [TestCase("v2.4.5-beta", "2.4.5-beta")]
+        [TestCase("2.4.5-beta", "v2.4.5-beta")]
+        [TestCase("  V2.4.5-beta  ", "2.4.5-beta")]
+        public void SelectForVersion_MatchesAcrossTagPrefixAndWhitespace(string feedTag, string version)
+        {
+            var release = WhatsNewService.SelectForVersion(Feed("9.9.9", feedTag), version);
+
+            Assert.That(release, Is.Not.Null);
+            Assert.That(release!.Tag, Is.EqualTo(feedTag));
+        }
+
+        [Test]
+        public void SelectForVersion_NoMatch_FallsBackToNewest()
+        {
+            var release = WhatsNewService.SelectForVersion(Feed("2.4.6-beta", "2.4.4-beta"), "2.4.5-beta");
+
+            Assert.That(release, Is.Not.Null);
+            Assert.That(release!.Tag, Is.EqualTo("2.4.6-beta"));
+        }
+
+        [Test]
+        public void SelectForVersion_NothingToShow_ReturnsNull()
+        {
+            Assert.That(WhatsNewService.SelectForVersion(null, "2.4.5-beta"), Is.Null);
+            Assert.That(WhatsNewService.SelectForVersion(new List<ReleaseNote>(), "2.4.5-beta"), Is.Null);
+        }
+
+        [Test]
+        public void SelectForVersion_BlankVersion_FallsBackToNewestRatherThanMatchingEmptyTags()
+        {
+            var release = WhatsNewService.SelectForVersion(Feed("", "2.4.5-beta"), "");
+
+            Assert.That(release, Is.Not.Null);
+            Assert.That(release!.Tag, Is.EqualTo(""), "the newest entry, not a spurious empty-tag match");
+        }
+
+        [Test]
+        public void ShouldArmChangelog_SameSemanticVersion_DoesNotArm()
+            => Assert.That(WhatsNewService.ShouldArmChangelog("2.5.0-beta", "2.5.0-beta"), Is.False);
+
+        [Test]
+        public void ShouldArmChangelog_VersionChanged_Arms()
+            => Assert.That(WhatsNewService.ShouldArmChangelog("2.4.9-beta", "2.5.0-beta"), Is.True);
+
+        [Test]
+        public void ShouldArmChangelog_FirstEverInstall_DoesNotArm()
+        {
+            Assert.That(WhatsNewService.ShouldArmChangelog("", "2.5.0-beta"), Is.False);
+            Assert.That(WhatsNewService.ShouldArmChangelog(null, "2.5.0-beta"), Is.False);
+            Assert.That(WhatsNewService.ShouldArmChangelog("  ", "2.5.0-beta"), Is.False);
+        }
+
+        [Test]
+        public void ShouldArmChangelog_BlankRunningVersion_DoesNotArm()
+            => Assert.That(WhatsNewService.ShouldArmChangelog("2.5.0-beta", ""), Is.False);
     }
 }
