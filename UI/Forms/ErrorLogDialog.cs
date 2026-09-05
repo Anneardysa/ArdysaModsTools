@@ -52,7 +52,7 @@ namespace ArdysaModsTools.UI.Forms
             var badgeLabel = new Label
             {
                 Text = "[ ERROR ]",
-                Font = new Font("JetBrains Mono", 10f, FontStyle.Bold),
+                Font = FontHelper.Create(10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(255, 80, 80),
                 BackColor = Color.FromArgb(30, 30, 30),
                 AutoSize = false,
@@ -70,7 +70,7 @@ namespace ArdysaModsTools.UI.Forms
             var titleLabel = new Label
             {
                 Text = title,
-                Font = new Font("JetBrains Mono", 13f, FontStyle.Bold),
+                Font = FontHelper.Create(13f, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = false,
                 Size = new Size(Width - 60, 28),
@@ -83,7 +83,7 @@ namespace ArdysaModsTools.UI.Forms
             var descLabel = new Label
             {
                 Text = description,
-                Font = new Font("JetBrains Mono", 9f),
+                Font = FontHelper.Create(9f),
                 ForeColor = Color.FromArgb(170, 170, 170),
                 AutoSize = false,
                 Size = new Size(Width - 60, 22),
@@ -98,7 +98,7 @@ namespace ArdysaModsTools.UI.Forms
                 Multiline = true,
                 ReadOnly = true,
                 ScrollBars = ScrollBars.Vertical,
-                Font = new Font("JetBrains Mono", 8.5f),
+                Font = FontHelper.Create(8.5f),
                 BackColor = Color.FromArgb(20, 20, 20),
                 ForeColor = Color.FromArgb(200, 200, 200),
                 BorderStyle = BorderStyle.None,
@@ -130,7 +130,7 @@ namespace ArdysaModsTools.UI.Forms
                 BackColor = Color.FromArgb(255, 80, 80),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("JetBrains Mono", 10F, FontStyle.Bold),
+                Font = FontHelper.Create(10F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 BorderRadius = 0,
                 BorderColor = Color.FromArgb(255, 80, 80),
@@ -170,7 +170,7 @@ namespace ArdysaModsTools.UI.Forms
                 BackColor = Color.Black,
                 ForeColor = Color.FromArgb(136, 136, 136),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("JetBrains Mono", 10F, FontStyle.Bold),
+                Font = FontHelper.Create(10F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 BorderRadius = 0,
                 BorderColor = Color.FromArgb(51, 51, 51),
@@ -200,7 +200,6 @@ namespace ArdysaModsTools.UI.Forms
                 }
             };
 
-            UI.FontHelper.ApplyToForm(this);
         }
 
         private static class NativeMethods
