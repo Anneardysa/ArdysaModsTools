@@ -57,6 +57,81 @@ namespace ArdysaModsTools.Core.Helpers
             return fullPath;
         }
         
+        private static readonly string[] StaleWorkDirPrefixes =
+        {
+            "ArdysaHero_", "ArdysaMisc_", "ArdysaMods_", "ArdysaModsPack_", "ArdysaMerge_",
+            "ArdysaItemsGame_", "ArdysaSkinManifest_", "ArdysaSync_", "ArdysaSyncReport_",
+            "amt_manual_split_", "amt_probe_",
+        };
+
+        private static readonly string[] SelectHeroDecryptedSubdirs = { "HeroSets", "dec" };
+
+        public static int SweepStaleWorkDirs() => SweepStaleWorkDirs(GetSafeTempPath());
+
+        public static int SweepStaleWorkDirs(string root)
+        {
+            int removed = 0;
+            if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+                return 0;
+
+            foreach (var dir in SafeEnumerateDirectories(root))
+            {
+                string name = Path.GetFileName(dir);
+                bool stale = false;
+                foreach (var prefix in StaleWorkDirPrefixes)
+                {
+                    if (name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) { stale = true; break; }
+                }
+                if (stale && TryDeleteTree(dir)) removed++;
+            }
+
+            string selectHero = Path.Combine(root, "ArdysaSelectHero");
+            if (Directory.Exists(selectHero))
+            {
+                foreach (var sub in SelectHeroDecryptedSubdirs)
+                {
+                    string path = Path.Combine(selectHero, sub);
+                    if (Directory.Exists(path) && TryDeleteTree(path)) removed++;
+                }
+            }
+
+            return removed;
+        }
+
+        private static string[] SafeEnumerateDirectories(string root)
+        {
+            try { return Directory.GetDirectories(root); }
+            catch { return Array.Empty<string>(); }
+        }
+
+        private static bool TryDeleteTree(string path)
+        {
+            try
+            {
+                NormalizeAttributes(path);
+                Directory.Delete(path, true);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static void NormalizeAttributes(string path)
+        {
+            try
+            {
+                var dir = new DirectoryInfo(path);
+                dir.Attributes = FileAttributes.Normal;
+                foreach (var entry in dir.EnumerateFileSystemInfos("*", SearchOption.AllDirectories))
+                {
+                    try { entry.Attributes = FileAttributes.Normal; } catch { }
+                }
+            }
+            catch {  }
+        }
+
         public static void HideDirectory(string path)
         {
             try
