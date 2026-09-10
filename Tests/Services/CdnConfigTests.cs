@@ -165,5 +165,67 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(CdnConfig.IsModsPackUrl("https://cdn2.ardysamods.my.id/Assets/test.zip"), Is.True);
             Assert.That(CdnConfig.IsModsPackUrl("https://otherdomain.com/test.zip"), Is.False);
         }
+
+        [TestCase("Assets/models/Abaddon/blightfall.zip")]
+        [TestCase("Assets/models/Abaddon/blightfall.zip.001")]
+        [TestCase("dataset/Drow_Ranger/base_arcana_1/abc123.txt")]
+        [TestCase("Assets/misc/courier/fancy.zip")]
+        [TestCase("Assets/misc/effects/thing.vpcf")]
+        [TestCase("https://cdn.ardysamods.my.id/Assets/models/Abaddon/blightfall.zip")]
+        [TestCase("https://cdn2.ardysamods.my.id/dataset/Drow_Ranger/s/abc.txt")]
+        public void IsProtectedPath_ModelsDatasetAndMiscPayloads_RequireASignature(string path)
+        {
+            Assert.That(CdnConfig.IsProtectedPath(path), Is.True);
+        }
+
+        [TestCase("Assets/image/Abaddon/blightfall.png")]
+        [TestCase("Assets/misc/courier/fancy.png")]
+        [TestCase("Assets/misc/courier/fancy.WEBP")]
+        [TestCase("Assets/heroes.json")]
+        [TestCase("Assets/set_update.json")]
+        [TestCase("Assets/asset_hashes.json")]
+        [TestCase("Assets/Original.zip")]
+        [TestCase("config/feature_access.json")]
+        [TestCase("remote/gameinfo_branchspecific.gi")]
+        [TestCase("releases/releases.json")]
+        [TestCase("modspack-releases/modspack-releases.json")]
+        [TestCase("")]
+        [TestCase("/")]
+        public void IsProtectedPath_BrowserReachableAndOperationalPaths_StayOpen(string path)
+        {
+            Assert.That(CdnConfig.IsProtectedPath(path), Is.False);
+        }
+
+        [Test]
+        public void IsProtectedPath_DeltaFileUnderReleases_IsNotProtected()
+        {
+            const string delta = "releases/2.3.1-beta/files/Assets/models/x.zip";
+
+            Assert.That(CdnConfig.IsProtectedPath(delta), Is.False);
+            Assert.That(CdnConfig.IsProtectedPath("https://cdn.ardysamods.my.id/" + delta), Is.False);
+        }
+
+        [TestCase("assets/models/Abaddon/blightfall.zip")]
+        [TestCase("Assets/Models/Abaddon/blightfall.zip")]
+        [TestCase("DATASET/Drow_Ranger/base_arcana_1/abc123.txt")]
+        [TestCase("Assets/Misc/courier/fancy.zip")]
+        public void IsProtectedPath_DifferentlyCasedPrefix_IsNotProtected(string path)
+        {
+            Assert.That(CdnConfig.IsProtectedPath(path), Is.False);
+        }
+
+        [Test]
+        public void IsProtectedPath_MiscImageExtension_IsCaseInsensitive()
+        {
+            Assert.That(CdnConfig.IsProtectedPath("Assets/misc/courier/fancy.PNG"), Is.False);
+            Assert.That(CdnConfig.IsProtectedPath("Assets/misc/courier/fancy.png"), Is.False);
+        }
+
+        [Test]
+        public void IsProtectedPath_IgnoresQueryString()
+        {
+            Assert.That(CdnConfig.IsProtectedPath("Assets/image/banner/install_card.png?t=123"), Is.False);
+            Assert.That(CdnConfig.IsProtectedPath("Assets/models/Abaddon/x.zip?t=123"), Is.True);
+        }
     }
 }
