@@ -104,6 +104,40 @@ namespace ArdysaModsTools.Tests.Services
 
         #endregion
 
+        #region CDN Guard (ADR-0019)
+
+        [Test]
+        public void DownloadAndExtractAsync_SplitPartRefusedByTheGuard_StopsAtTheFirstCdn()
+        {
+            var fake = new FakeHttpMessageHandler((_, _) => new HttpResponseMessage(HttpStatusCode.Unauthorized));
+
+            var tempFolder = Path.Combine(Path.GetTempPath(), "AmtGuard401_" + Guid.NewGuid().ToString("N"));
+            var expected = new AssetHashEntry { Sha256 = new string('a', 64), Size = 1 };
+            var service = new HeroSetDownloaderService(tempFolder, new HttpClient(fake),
+                hashResolver: (_, _) => Task.FromResult<AssetHashEntry?>(expected));
+
+            try
+            {
+                var ex = Assert.ThrowsAsync<DownloadException>(async () =>
+                    await service.DownloadAndExtractAsync(
+                        "npc_dota_hero_test", "set1",
+                        "https://cdn.ardysamods.my.id/Assets/models/test_hero/set1/model.zip.001",
+                        _ => { }));
+
+                Assert.That(ex!.ErrorCode, Is.EqualTo(ErrorCodes.DL_CDN_UNAUTHORIZED),
+                    "a guard refusal must surface as DL_011, not as a generic network failure or " +
+                    "as a missing file");
+                Assert.That(fake.CallCount, Is.EqualTo(1),
+                    "the chain must stop on the first 401 instead of asking every CDN in turn");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempFolder)) Directory.Delete(tempFolder, true); } catch { }
+            }
+        }
+
+        #endregion
+
         #region Split Archive Retry
 
         [Test]
@@ -125,7 +159,13 @@ namespace ArdysaModsTools.Tests.Services
             });
 
             var tempFolder = Path.Combine(Path.GetTempPath(), "AmtSplitTest_" + Guid.NewGuid().ToString("N"));
-            var service = new HeroSetDownloaderService(tempFolder, new HttpClient(fake), hashResolver: NullResolver);
+            var expected = new AssetHashEntry
+            {
+                Sha256 = Convert.ToHexString(SHA256.HashData(zipBytes)),
+                Size = zipBytes.Length
+            };
+            var service = new HeroSetDownloaderService(tempFolder, new HttpClient(fake),
+                hashResolver: (_, _) => Task.FromResult<AssetHashEntry?>(expected));
             string? workFolder = null;
 
             try
@@ -206,6 +246,72 @@ namespace ArdysaModsTools.Tests.Services
             finally
             {
                 try { if (Directory.Exists(tempFolder)) Directory.Delete(tempFolder, true); } catch { }
+            }
+        }
+
+        [Test]
+        public void DownloadAndExtractAsync_SplitArchive_NoManifestHash_ThrowsNoHashAndDeletes()
+        {
+            byte[] zipBytes = BuildZip("inside.txt", "unverifiable");
+            var fake = SinglePartSplitHandler(zipBytes);
+
+            var tempFolder = Path.Combine(Path.GetTempPath(), "AmtNoHash_" + Guid.NewGuid().ToString("N"));
+            var service = new HeroSetDownloaderService(tempFolder, new HttpClient(fake), hashResolver: NullResolver);
+
+            try
+            {
+                var ex = Assert.ThrowsAsync<DownloadException>(async () =>
+                    await service.DownloadAndExtractAsync(
+                        "npc_dota_hero_test", "set1",
+                        "https://cdn.ardysamods.my.id/Assets/models/test_hero/set1/model.zip.001",
+                        _ => { }));
+
+                Assert.That(ex!.ErrorCode, Is.EqualTo(ErrorCodes.DL_NO_HASH));
+                var cached = Path.Combine(tempFolder, "cache", "sets", "npc_dota_hero_test", "set1", "model.zip");
+                Assert.That(File.Exists(cached), Is.False, "unverifiable cache file should be deleted");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempFolder)) Directory.Delete(tempFolder, true); } catch { }
+            }
+        }
+
+        [Test]
+        public async Task DownloadAndExtractAsync_CachedZipHashDiffersFromServer_RedownloadsInsteadOfFailing()
+        {
+            byte[] serverBytes = BuildZip("inside.txt", "current");
+            var fake = SinglePartSplitHandler(serverBytes);
+
+            var expected = new AssetHashEntry
+            {
+                Sha256 = Convert.ToHexString(SHA256.HashData(serverBytes)),
+                Size = serverBytes.Length
+            };
+
+            var tempFolder = Path.Combine(Path.GetTempPath(), "AmtStaleCache_" + Guid.NewGuid().ToString("N"));
+            var cached = Path.Combine(tempFolder, "cache", "sets", "npc_dota_hero_test", "set1", "model.zip");
+            Directory.CreateDirectory(Path.GetDirectoryName(cached)!);
+            File.WriteAllBytes(cached, BuildZip("inside.txt", "stale"));
+
+            var service = new HeroSetDownloaderService(tempFolder, new HttpClient(fake),
+                hashResolver: (_, _) => Task.FromResult<AssetHashEntry?>(expected));
+            string? workFolder = null;
+
+            try
+            {
+                workFolder = await service.DownloadAndExtractAsync(
+                    "npc_dota_hero_test", "set1",
+                    "https://cdn.ardysamods.my.id/Assets/models/test_hero/set1/model.zip.001",
+                    _ => { });
+
+                Assert.That(File.ReadAllText(Path.Combine(workFolder, "inside.txt")), Is.EqualTo("current"));
+                Assert.That(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(cached))),
+                    Is.EqualTo(expected.Sha256), "the cache should now hold the server's copy");
+            }
+            finally
+            {
+                try { if (Directory.Exists(tempFolder)) Directory.Delete(tempFolder, true); } catch { }
+                try { if (workFolder != null && Directory.Exists(workFolder)) Directory.Delete(workFolder, true); } catch { }
             }
         }
 
