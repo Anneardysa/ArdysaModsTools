@@ -18,12 +18,46 @@ using System;
 using System.IO;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Threading;
 using ArdysaModsTools.Core.Interfaces;
 
 namespace ArdysaModsTools.Core.Services.Security;
 
 public static class FileSecurityGuard
 {
+    public static bool WaitUntilHeldByAnotherProcess(string filePath, TimeSpan timeout,
+        TimeSpan pollInterval, CancellationToken ct = default, IAppLogger? logger = null)
+    {
+        if (!OperatingSystem.IsWindows()) return false;
+        var deadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (ct.IsCancellationRequested) return false;
+            if (!File.Exists(filePath)) { Sleep(pollInterval, ct); continue; }
+            try
+            {
+                using var _ = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.None);
+            }
+            catch (IOException)
+            {
+                logger?.LogDebug($"FileSecurityGuard: '{Path.GetFileName(filePath)}' is held by the game — locking.");
+                return true;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return true;
+            }
+            Sleep(pollInterval, ct);
+        }
+        logger?.LogDebug($"FileSecurityGuard: timed out waiting for the game to hold '{Path.GetFileName(filePath)}' — skipping lock.");
+        return false;
+    }
+
+    private static void Sleep(TimeSpan interval, CancellationToken ct)
+    {
+        try { ct.WaitHandle.WaitOne(interval); } catch { }
+    }
+
     public static bool ApplyRuntimeDaclLock(string filePath, IAppLogger? logger = null)
     {
         try
