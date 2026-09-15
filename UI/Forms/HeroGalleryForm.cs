@@ -25,6 +25,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.DependencyInjection;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Services.Localization;
@@ -53,12 +54,16 @@ namespace ArdysaModsTools.UI.Forms
 
         private static readonly TimeSpan DialogCallbackTimeout = TimeSpan.FromSeconds(60);
 
+        private static readonly TimeSpan GalleryLoadTimeout = TimeSpan.FromSeconds(30);
+
         private List<HeroModel> _heroes = new();
         private Dictionary<string, HeroSelectionState> _selections = new();
         private HashSet<string> _favorites = new(StringComparer.OrdinalIgnoreCase);
         private readonly HeroService _heroService;
         private readonly IConfigService _configService;
         private readonly HeroGalleryPresenter _presenter;
+
+        private SetUpdatesData? _lastSetUpdatesData;
 
         public ModGenerationResult? GenerationResult { get; private set; }
 
@@ -171,22 +176,8 @@ namespace ArdysaModsTools.UI.Forms
                 WebViewAssetInterceptor.Attach(_webView.CoreWebView2, env, EnvironmentConfig.ContentBase);
 
                 string html = GetGalleryHtml();
-                _webView.CoreWebView2.NavigateToString(Helpers.WebViewTheming.Apply(html));
-
-                var tcs = new TaskCompletionSource<bool>();
-                void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
-                {
-                    _webView.CoreWebView2.NavigationCompleted -= OnNavigationCompleted;
-                    tcs.TrySetResult(e.IsSuccess);
-                }
-                _webView.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
-
-                var timeoutTask = Task.Delay(15000);
-                var completedTask = await Task.WhenAny(tcs.Task, timeoutTask);
-                if (completedTask == timeoutTask)
-                {
-                    throw new TimeoutException("WebView2 navigation timeout");
-                }
+                await WebViewNavigation.NavigateAndWaitReadyAsync(
+                    _webView.CoreWebView2, Helpers.WebViewTheming.Apply(html), GalleryLoadTimeout);
 
                 await Task.Delay(200);
                 _initialized = true;
@@ -199,9 +190,12 @@ namespace ArdysaModsTools.UI.Forms
                     .InformationalVersion ?? "unknown";
                 await _webView.CoreWebView2.ExecuteScriptAsync($"setVersion('{version}')");
 
+                OnExtensionsReady();
+
                 await LoadHeroDataAsync();
-                await RestoreSelectionsAsync();
                 await _presenter.SyncCooldownStatusAsync();
+
+                _ = _presenter.DetectInstalledAsync(_heroes);
 
                 _ = Task.Run(async () =>
                 {
@@ -214,7 +208,10 @@ namespace ArdysaModsTools.UI.Forms
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"WebView2 init failed: {ex.Message}");
+                StartupLog.Append($"HeroGallery init failed: {ex}");
+                MessageBox.Show(this,
+                    Loc.T("form.webview.initFailed.body", new { error = ex.Message }),
+                    Loc.T("form.webview.initFailed.title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 this.DialogResult = DialogResult.Abort;
                 this.Close();
             }
@@ -283,6 +280,7 @@ namespace ArdysaModsTools.UI.Forms
             try
             {
                 var updatesData = await _heroService.LoadSetUpdatesAsync();
+                _lastSetUpdatesData = updatesData;
                 
                 if (updatesData.Updates.Count == 0)
                 {
@@ -327,48 +325,37 @@ namespace ArdysaModsTools.UI.Forms
                 return;
             }
 
-            var cached = allUrls.Where(u => cacheService.IsCached(u)).ToList();
+            InvalidateChangedSetThumbnails(cacheService, heroes);
+
             var notCached = allUrls
                 .Where(u => !cacheService.IsCached(u) && !cacheService.IsKnownMissing(u, MissingThumbnailTtl))
                 .ToList();
 
             System.Diagnostics.Debug.WriteLine(
-                $"[HeroGallery] Thumbnails: {cached.Count} cached, {notCached.Count} missing");
-
-            if (notCached.Count == 0 && !cacheService.ShouldRefreshAssets(RefreshCooldown))
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    "[HeroGallery] All cached, cooldown active — skipping overlay");
-                await ExecuteScriptAsync("hideCachingOverlay()");
-                return;
-            }
+                $"[HeroGallery] Thumbnails: {allUrls.Count - notCached.Count} cached, {notCached.Count} missing");
 
             if (notCached.Count == 0)
             {
-                System.Diagnostics.Debug.WriteLine(
-                    "[HeroGallery] All cached, cooldown expired — silent freshness check");
-                
+                System.Diagnostics.Debug.WriteLine("[HeroGallery] All thumbnails cached — skipping overlay");
                 await ExecuteScriptAsync("hideCachingOverlay()");
-                
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await RunSilentRefreshAsync(cacheService, cached);
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"[HeroGallery] Background refresh error: {ex.Message}");
-                    }
-                });
                 return;
             }
 
-            await RunDownloadWithOverlayAsync(cacheService, cached, notCached);
+            await RunDownloadWithOverlayAsync(cacheService, notCached);
         }
 
-        private static readonly TimeSpan RefreshCooldown = TimeSpan.FromMinutes(10);
+        private void InvalidateChangedSetThumbnails(AssetCacheService cacheService, List<HeroModel> heroes)
+        {
+            var updatesData = _lastSetUpdatesData;
+            if (updatesData == null || string.IsNullOrEmpty(updatesData.Version))
+                return;
+
+            var urls = SetUpdateResolver.Resolve(heroes, updatesData.GetAllUpdates())
+                .Select(c => c.SetThumbnail)
+                .Where(u => !string.IsNullOrEmpty(u));
+
+            cacheService.InvalidateOnEpochChange("hero-set-update", updatesData.Version, urls);
+        }
 
         private static readonly TimeSpan MissingThumbnailTtl = TimeSpan.FromDays(7);
 
@@ -410,36 +397,15 @@ namespace ArdysaModsTools.UI.Forms
             url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
             url.EndsWith(".webp", StringComparison.OrdinalIgnoreCase);
 
-        private async Task RunSilentRefreshAsync(AssetCacheService cacheService, List<string> cachedUrls)
-        {
-            try
-            {
-                var result = await cacheService.RefreshStaleAssetsAsync(cachedUrls);
-                cacheService.MarkRefreshed();
-
-                System.Diagnostics.Debug.WriteLine(
-                    $"[HeroGallery] Silent refresh complete: " +
-                    $"{result.refreshed} refreshed, {result.skipped} skipped, {result.failed} failed");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[HeroGallery] Silent refresh error: {ex.Message}");
-            }
-        }
-
         private static readonly TimeSpan ThumbnailOverlayCap = TimeSpan.FromSeconds(30);
 
-        private async Task RunDownloadWithOverlayAsync(
-            AssetCacheService cacheService,
-            List<string> cached,
-            List<string> notCached)
+        private async Task RunDownloadWithOverlayAsync(AssetCacheService cacheService, List<string> notCached)
         {
             await ExecuteScriptAsync("showCachingOverlay()");
 
             try
             {
-                var work = DownloadThumbnailsCoreAsync(cacheService, cached, notCached);
+                var work = DownloadThumbnailsCoreAsync(cacheService, notCached);
                 if (await Task.WhenAny(work, Task.Delay(ThumbnailOverlayCap)) != work)
                 {
                     System.Diagnostics.Debug.WriteLine(
@@ -453,33 +419,10 @@ namespace ArdysaModsTools.UI.Forms
             }
         }
 
-        private async Task DownloadThumbnailsCoreAsync(
-            AssetCacheService cacheService,
-            List<string> cached,
-            List<string> notCached)
+        private async Task DownloadThumbnailsCoreAsync(AssetCacheService cacheService, List<string> notCached)
         {
             try
             {
-                int refreshed = 0;
-
-                if (cached.Count > 0 && cacheService.ShouldRefreshAssets(RefreshCooldown))
-                {
-                    await ExecuteScriptAsync(
-                        "document.getElementById('cachingStatus').textContent = 'Checking for updates...'");
-
-                    var refreshProgress = new Progress<(int current, int total, string url)>(async p =>
-                    {
-                        try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
-                        catch { }
-                    });
-
-                    var refreshResult = await cacheService.RefreshStaleAssetsAsync(cached, refreshProgress);
-                    refreshed = refreshResult.refreshed;
-
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[HeroGallery] Refreshed {refreshed} stale assets");
-                }
-
                 await ExecuteScriptAsync(
                     "document.getElementById('cachingStatus').textContent = 'Downloading thumbnails...'");
                 await ExecuteScriptAsync($"updateCachingProgress(0, {notCached.Count})");
@@ -492,17 +435,27 @@ namespace ArdysaModsTools.UI.Forms
 
                 var downloadResult = await cacheService.PreloadAssetsWithProgressAsync(notCached, downloadProgress);
 
-                cacheService.MarkRefreshed();
-
                 System.Diagnostics.Debug.WriteLine(
                     $"[HeroGallery] Download complete: " +
-                    $"{refreshed} refreshed, {downloadResult.downloaded} downloaded, " +
+                    $"{downloadResult.downloaded} downloaded, " +
                     $"{downloadResult.skipped} skipped, {downloadResult.failed} failed");
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[HeroGallery] Thumbnail preload error: {ex.Message}");
             }
+        }
+
+        partial void OnExtensionsReady();
+
+        partial void OnExtensionMessage(string? type, JsonElement message);
+
+        partial void OnExtensionsShutdown();
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            OnExtensionsShutdown();
+            base.OnFormClosed(e);
         }
 
         private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
@@ -538,6 +491,14 @@ namespace ArdysaModsTools.UI.Forms
 
                     case "close":
                         BeginInvoke(new Action(() => this.Close()));
+                        break;
+
+                    case "openUrl":
+                        if (message.TryGetProperty("url", out var linkUrl))
+                        {
+                            var target = linkUrl.GetString();
+                            BeginInvoke(new Action(() => UIHelpers.OpenUrlWithErrorDialog(target, "GitHub")));
+                        }
                         break;
 
                     case "startDrag":
@@ -586,6 +547,10 @@ namespace ArdysaModsTools.UI.Forms
                         {
                             _confirmBaseNoSet?.TrySetResult(false);
                         }
+                        break;
+
+                    default:
+                        OnExtensionMessage(type, message);
                         break;
                 }
             }
@@ -710,7 +675,7 @@ namespace ArdysaModsTools.UI.Forms
 
         public async Task<bool> ConfirmBaseNoSetAsync(string title, string htmlMessage)
         {
-            if (_webView?.CoreWebView2 == null) return false;
+            if (!_initialized) return false;
 
             _confirmBaseNoSet = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             await ExecuteScriptAsync(
@@ -727,7 +692,7 @@ namespace ArdysaModsTools.UI.Forms
 
         public async Task<bool> ShowGenerationAlertAsync(string title, string message, bool hasFailures, string? logText = null)
         {
-            if (_webView?.CoreWebView2 == null) return false;
+            if (!_initialized) return false;
 
             _playRequestedFromAlert = false;
             var iconType = hasFailures ? "warning" : "success";
@@ -770,36 +735,51 @@ namespace ArdysaModsTools.UI.Forms
 
         public bool ShowGenerationPreview(IReadOnlyList<(HeroModel hero, string setName, string? thumbnailUrl)> items)
         {
-            using var previewForm = new GenerationPreviewForm(items.ToList());
-            var result = previewForm.ShowDialog(this);
-            return result == DialogResult.OK && previewForm.Confirmed;
+            return UiThread.Run(this, () =>
+            {
+                using var previewForm = new GenerationPreviewForm(items.ToList());
+                var result = previewForm.ShowDialog(this);
+                return result == DialogResult.OK && previewForm.Confirmed;
+            });
         }
 
-        public void ShowWarning(string message, string title)
-        {
-            MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
+        public void ShowWarning(string message, string title) =>
+            UiThread.Post(this, () => MessageBox.Show(message, title, MessageBoxButtons.OK, MessageBoxIcon.Warning));
 
-        public void ShowErrorDialog(string title, string subtitle, string details)
-        {
-            using var errorDialog = new ErrorLogDialog(title, subtitle, details);
-            errorDialog.ShowDialog(this);
-        }
+        public void ShowErrorDialog(string title, string subtitle, string details) =>
+            UiThread.Post(this, () =>
+            {
+                using var errorDialog = new ErrorLogDialog(title, subtitle, details);
+                errorDialog.ShowDialog(this);
+            });
 
         public Task<OperationResult> RunGenerationWithProgressAsync(
             string initialStatus,
             Func<ProgressOperationRunnerContext, Task<OperationResult>> operation)
         {
-            return ProgressOperationRunner.RunAsync(this, initialStatus, operation, hideDownloadSpeed: true);
+            return UiThread.RunAsync(this,
+                () => ProgressOperationRunner.RunAsync(this, initialStatus, operation, hideDownloadSpeed: true),
+                fallback: OperationResult.Fail("UI unavailable"));
         }
+
+        public async Task ApplyDetectedSelectionsAsync(IReadOnlyDictionary<string, HeroSelectionState> selections)
+        {
+            _selections = selections.ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
+
+            var json = JsonSerializer.Serialize(_selections, _jsonOptions);
+            await ExecuteScriptAsync($"applyDetectedSelections({json})");
+        }
+
+        public Task ShowDetectionAsync(bool found, int count) =>
+            ExecuteScriptAsync($"showDetection({(found ? "true" : "false")}, {count})");
 
         public void StoreResult(ModGenerationResult result) => GenerationResult = result;
 
-        public void CloseWithSuccess()
+        public void CloseWithSuccess() => UiThread.Post(this, () =>
         {
             this.DialogResult = DialogResult.OK;
             this.Close();
-        }
+        });
 
         private static string JsEscape(string value)
         {
@@ -821,65 +801,6 @@ namespace ArdysaModsTools.UI.Forms
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"SaveSelectionsAsync error: {ex.Message}");
-            }
-        }
-
-        private async Task RestoreSelectionsAsync()
-        {
-            try
-            {
-                var path = GetSettingsPath();
-                if (!File.Exists(path)) return;
-
-                var json = await File.ReadAllTextAsync(path);
-                if (string.IsNullOrWhiteSpace(json)) return;
-
-                try
-                {
-                    var full = JsonSerializer.Deserialize<Dictionary<string, HeroSelectionState>>(json, _jsonOptions);
-                    if (full != null && full.Count > 0)
-                    {
-                        _selections = full
-                            .Where(kvp => kvp.Value != null && kvp.Value.HasAnySelection)
-                            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
-
-                        if (_selections.Count > 0)
-                        {
-                            var selectionsJson = JsonSerializer.Serialize(_selections, _jsonOptions);
-                            await ExecuteScriptAsync($"applyLoadedSelections({selectionsJson})");
-                            return;
-                        }
-                    }
-                }
-                catch
-                {
-                }
-
-                List<string>? heroIds = null;
-                try
-                {
-                    heroIds = JsonSerializer.Deserialize<List<string>>(json);
-                }
-                catch
-                {
-                    try
-                    {
-                        var oldFormat = JsonSerializer.Deserialize<Dictionary<string, int>>(json);
-                        if (oldFormat != null)
-                            heroIds = oldFormat.Keys.ToList();
-                    }
-                    catch { }
-                }
-
-                if (heroIds != null && heroIds.Count > 0)
-                {
-                    var heroIdsJson = JsonSerializer.Serialize(heroIds, _jsonOptions);
-                    await ExecuteScriptAsync($"loadHighlightedHeroes({heroIdsJson})");
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"RestoreSelectionsAsync error: {ex.Message}");
             }
         }
 
@@ -918,44 +839,42 @@ namespace ArdysaModsTools.UI.Forms
 
         public async Task UpdateStatusAsync(string status)
         {
-            if (!_initialized || _webView?.CoreWebView2 == null) return;
-            try
-            {
-                var escaped = status.Replace("\\", "\\\\").Replace("'", "\\'");
-                await ExecuteScriptAsync($"updateStatus('{escaped}')");
-            }
-            catch { }
+            if (!_initialized) return;
+            var escaped = status.Replace("\\", "\\\\").Replace("'", "\\'");
+            await ExecuteScriptAsync($"updateStatus('{escaped}')");
         }
 
         public async Task UpdateCooldownAsync(bool active, int remainingSeconds, int totalSeconds, int dailyUsed, int dailyMax, bool isDailyLimit)
         {
-            if (!_initialized || _webView?.CoreWebView2 == null) return;
-            try
+            if (!_initialized) return;
+            var payload = JsonSerializer.Serialize(new
             {
-                var payload = JsonSerializer.Serialize(new
-                {
-                    active,
-                    remainingSeconds,
-                    totalSeconds,
-                    dailyUsed,
-                    dailyMax,
-                    isDailyLimit
-                }, _jsonOptions);
+                active,
+                remainingSeconds,
+                totalSeconds,
+                dailyUsed,
+                dailyMax,
+                isDailyLimit
+            }, _jsonOptions);
 
-                await ExecuteScriptAsync($"updateCooldown({payload})");
-            }
-            catch { }
+            await ExecuteScriptAsync($"updateCooldown({payload})");
         }
 
-        private async Task ExecuteScriptAsync(string script)
+        private readonly HashSet<string> _loggedScriptErrorTypes = new();
+
+        private Task ExecuteScriptAsync(string script) => UiThread.RunAsync(this, async () =>
         {
             if (_webView?.CoreWebView2 == null) return;
             try
             {
                 await _webView.CoreWebView2.ExecuteScriptAsync(script);
             }
-            catch { }
-        }
+            catch (Exception ex)
+            {
+                if (_loggedScriptErrorTypes.Add(ex.GetType().Name))
+                    StartupLog.Append($"HeroGallery ExecuteScriptAsync failed ({ex.GetType().Name}): {ex.Message}");
+            }
+        });
 
         private string GetGalleryHtml()
         {
