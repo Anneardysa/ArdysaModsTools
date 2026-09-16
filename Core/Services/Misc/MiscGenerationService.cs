@@ -37,6 +37,7 @@ namespace ArdysaModsTools.Core.Services
         private readonly IAssetModifier _modifier;
         private readonly IVpkRecompiler _recompiler;
         private readonly IVpkReplacer _replacer;
+        private readonly LocalizationPatcherService _localizationPatcher;
         private readonly IAppLogger? _logger;
         private readonly HttpClient _httpClient;
 
@@ -58,6 +59,7 @@ namespace ArdysaModsTools.Core.Services
             _modifier = modifier ?? new AssetModifierService(null, logger);
             _recompiler = recompiler ?? new VpkRecompilerService(logger);
             _replacer = replacer ?? new VpkReplacerService(logger);
+            _localizationPatcher = new LocalizationPatcherService(logger);
             _logger = logger;
             _httpClient = HttpClientProvider.Client;
         }
@@ -103,7 +105,8 @@ namespace ArdysaModsTools.Core.Services
                 {
                     log("Extracting game files...");
 
-                    if (!await _extractor.ExtractAsync(hlExtractPath, vpkPath, extractDir, log, ct, speedProgress).ConfigureAwait(false))
+                    if (!await _extractor.ExtractAsync(hlExtractPath, vpkPath, extractDir, log, ct, speedProgress,
+                            requireItemsGame: false).ConfigureAwait(false))
                         return Fail(
                             "Could not read your existing mod package — it looks incomplete or corrupted.",
                             log,
@@ -143,19 +146,26 @@ namespace ArdysaModsTools.Core.Services
                         }
                     }
 
+                    ProtectedVpkStore.BorrowPackageText(protectedDir, extractDir, _logger, ct);
+
+                    if (!File.Exists(Path.Combine(extractDir, "scripts", "items", "items_game.txt")))
+                        return Fail(
+                            "Your mod package is incomplete — its item definitions are missing. Re-run Install ModsPack and try again.",
+                            log,
+                            ErrorCodes.VPK_EXTRACT_FAILED);
+
                     if (!await _modifier.ApplyModificationsAsync(vpkPath, extractDir, selections, log, ct, speedProgress).ConfigureAwait(false))
                         return Fail("Modification failed.", log, ErrorCodes.MISC_APPLY_FAILED);
 
                     ct.ThrowIfCancellationRequested();
 
-                    int protectedMoved = 0;
-                    var protectedPaths = _modifier.GetProtectedPaths();
-                    if (protectedPaths.Count > 0)
-                    {
-                        ProtectedVpkStore.Ensure(targetPath);
-                        protectedMoved = ProtectedVpkStore.MoveProtected(
-                            extractDir, protectedDir, protectedPaths, _logger, ct);
-                    }
+                    bool locSuccess = await _localizationPatcher
+                        .PatchLocalizationAsync(extractDir, log, ct).ConfigureAwait(false);
+
+                    ct.ThrowIfCancellationRequested();
+
+                    int protectedMoved = ProtectedVpkStore.Split(
+                        targetPath, extractDir, protectedDir, _modifier.GetProtectedPaths(), _logger, ct);
 
                     if (protectedMoved > 0)
                     {
@@ -169,6 +179,7 @@ namespace ArdysaModsTools.Core.Services
                         ct, speedProgress).ConfigureAwait(false);
                     if (newVpk == null)
                         return Fail("Could not rebuild the mod package.", log, ErrorCodes.VPK_RECOMPILE_FAILED);
+                    VpkSignatureSection.TryApply(newVpk);
 
                     ct.ThrowIfCancellationRequested();
 
@@ -187,19 +198,21 @@ namespace ArdysaModsTools.Core.Services
                             _logger?.LogDebug("[VPK] Protected package build returned null or collided with main package.");
                             return Fail("Could not rebuild the protected mod package.", log, ErrorCodes.VPK_RECOMPILE_FAILED);
                         }
+                        VpkSignatureSection.TryApply(newProtectedVpk);
                     }
 
                     ct.ThrowIfCancellationRequested();
 
                     log("Installing...");
-                    if (!await _replacer.ReplaceAsync(targetPath, newVpk, log, ct).ConfigureAwait(false))
-                        return Fail("Could not install the rebuilt mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
-
-                    await ItemsGameBaselineStore.RebindAndMergePatchedIdsAsync(targetPath, packageBeforeRebuild, _modifier.GetModifiedItemIds(), _modifier.GetUnpatchedItemIds(), ct).ConfigureAwait(false);
 
                     if (!await ProtectedVpkStore.DeployAsync(
                             targetPath, newProtectedVpk, log, CancellationToken.None, _logger).ConfigureAwait(false))
                         return Fail("Could not install the rebuilt protected mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
+
+                    if (!await _replacer.ReplaceAsync(targetPath, newVpk, log, ct).ConfigureAwait(false))
+                        return Fail("Could not install the rebuilt mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
+
+                    await ItemsGameBaselineStore.RebindAndMergePatchedIdsAsync(targetPath, packageBeforeRebuild, _modifier.GetModifiedItemIds(), _modifier.GetUnpatchedItemIds(), ct).ConfigureAwait(false);
 
                     log("Finalizing...");
                     var extractionLog = new MiscExtractionLog
@@ -219,6 +232,8 @@ namespace ArdysaModsTools.Core.Services
                     await CleanupAsync(tempRoot, log).ConfigureAwait(false);
 
                     var warnings = new List<string>(_modifier.GetWarnings());
+                    if (!locSuccess)
+                        warnings.Add("Some localization files could not be refreshed — in-game text may be outdated or missing for those languages.");
                     if (!patchSuccess)
                     {
                         _logger?.Log("Warning: Failed to patch signatures/gameinfo, but VPK was installed.");
