@@ -63,8 +63,8 @@ namespace ArdysaModsTools.Core.Services.Update
             
             _lastKnownVersion = await _versionService.GetVersionInfoAsync(dotaPath);
             
-            _logger?.Log($"[PatchWatcher] Starting watcher for: {dotaPath}");
-            _logger?.Log($"[PatchWatcher] Current version: {_lastKnownVersion.DotaVersion} (Build {_lastKnownVersion.BuildNumber})");
+            _logger?.LogDebug($"[PatchWatcher] Starting watcher for: {dotaPath}");
+            _logger?.LogDebug($"[PatchWatcher] Current version: {_lastKnownVersion.DotaVersion} (Build {_lastKnownVersion.BuildNumber})");
             
             string steamInfPath = Path.Combine(dotaPath, DotaPaths.SteamInfWindows);
             if (File.Exists(steamInfPath))
@@ -85,7 +85,7 @@ namespace ArdysaModsTools.Core.Services.Update
             }
             
             _isWatching = true;
-            _logger?.Log("[PatchWatcher] Watcher active");
+            _logger?.LogDebug("[PatchWatcher] Watcher active");
         }
         
         public void StopWatching()
@@ -106,7 +106,7 @@ namespace ArdysaModsTools.Core.Services.Update
             
             if (wasWatching)
             {
-                _logger?.Log("[PatchWatcher] Watcher stopped");
+                _logger?.LogDebug("[PatchWatcher] Watcher stopped");
             }
         }
         
@@ -123,7 +123,7 @@ namespace ArdysaModsTools.Core.Services.Update
             
             watcher.Error += (s, e) =>
             {
-                _logger?.Log($"[PatchWatcher] Error watching {displayName}: {e.GetException().Message}");
+                _logger?.LogWarning($"[PatchWatcher] Error watching {displayName}: {e.GetException().Message}");
             };
             
             return watcher;
@@ -148,7 +148,7 @@ namespace ArdysaModsTools.Core.Services.Update
                     int changes = Interlocked.Exchange(ref _pendingChangeCount, 0);
                     if (changes > 0)
                     {
-                        _logger?.Log($"[PatchWatcher] Detected {changes} file change(s), checking for patch...");
+                        _logger?.LogDebug($"[PatchWatcher] Detected {changes} file change(s), checking for patch...");
                         await CheckForPatchAsync();
                     }
                 }
@@ -157,7 +157,7 @@ namespace ArdysaModsTools.Core.Services.Update
                 }
                 catch (Exception ex)
                 {
-                    _logger?.Log($"[PatchWatcher] Error checking patch: {ex.Message}");
+                    _logger?.LogWarning($"[PatchWatcher] Error checking patch: {ex.Message}");
                 }
             });
         }
@@ -180,8 +180,8 @@ namespace ArdysaModsTools.Core.Services.Update
             
             if (versionChanged || digestChanged)
             {
-                _logger?.Log($"[PatchWatcher] Dota 2 update detected! Version: {_lastKnownVersion.DotaVersion} → {currentVersion.DotaVersion}");
-                _logger?.Log($"[PatchWatcher] Re-patching required - your mods need to be updated.");
+                _logger?.LogDebug($"[PatchWatcher] Dota 2 update detected! Version: {_lastKnownVersion.DotaVersion} → {currentVersion.DotaVersion}");
+                _logger?.LogDebug($"[PatchWatcher] Re-patching required - your mods need to be updated.");
                 
                 var args = new PatchDetectedEventArgs
                 {
@@ -199,7 +199,7 @@ namespace ArdysaModsTools.Core.Services.Update
             }
             else
             {
-                _logger?.Log($"[PatchWatcher] File activity detected - no Dota 2 update found. Mods still working.");
+                _logger?.LogDebug($"[PatchWatcher] File activity detected - no Dota 2 update found. Mods still working.");
             }
         }
         
