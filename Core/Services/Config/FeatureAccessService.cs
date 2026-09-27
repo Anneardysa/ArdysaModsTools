@@ -146,7 +146,8 @@ namespace ArdysaModsTools.Core.Services.Config
                     System.Diagnostics.Debug.WriteLine(
                         $"[FeatureAccess] Loaded: SkinSelector={config.SkinSelector.Enabled}, " +
                         $"Miscellaneous={config.Miscellaneous.Enabled}, " +
-                        $"InstallModsPack={config.InstallModsPack.Enabled}");
+                        $"InstallModsPack={config.InstallModsPack.Enabled}, " +
+                        $"Utilities={config.Utilities?.Enabled}");
                     return config;
                 }
             }
@@ -182,6 +183,13 @@ namespace ArdysaModsTools.Core.Services.Config
             return GetFeatureAccess(config, featureName).GetDisplayMessage();
         }
 
+        public static async Task<bool> IsGreyedOutAsync(string featureName)
+        {
+            if (IsDevMode) return false;
+            var config = await GetConfigAsync().ConfigureAwait(false);
+            return GetFeatureAccess(config, featureName).GreyOut;
+        }
+
         public static async Task<FeatureCheckResult> CheckFeatureAsync(string featureName)
         {
             if (IsDevMode)
@@ -214,7 +222,7 @@ namespace ArdysaModsTools.Core.Services.Config
 
             var feature = GetFeatureAccess(config, featureName);
 
-            if (!feature.Enabled)
+            if (!feature.Enabled || feature.GreyOut)
                 return FeatureCheckResult.Blocked(displayName, feature.GetDisplayMessage());
 
             if (!MeetsMinimumVersion(feature, current, out string required))
@@ -237,6 +245,7 @@ namespace ArdysaModsTools.Core.Services.Config
             SkinSelectorFeature => "Skin Selector",
             MiscellaneousFeature => "Miscellaneous",
             InstallModsPackFeature => "Install ModsPack",
+            UtilitiesFeature => "Utilities",
             _ => featureName
         };
 
@@ -297,6 +306,8 @@ namespace ArdysaModsTools.Core.Services.Config
         public const string MiscellaneousFeature = "Miscellaneous";
 
         public const string InstallModsPackFeature = "InstallModsPack";
+
+        public const string UtilitiesFeature = "Utilities";
 
         #endregion
 
@@ -395,6 +406,7 @@ namespace ArdysaModsTools.Core.Services.Config
                 SkinSelectorFeature => config.SkinSelector,
                 MiscellaneousFeature => config.Miscellaneous,
                 InstallModsPackFeature => config.InstallModsPack,
+                UtilitiesFeature => config.Utilities,
                 _ => null
             } ?? new FeatureAccess();
         }
