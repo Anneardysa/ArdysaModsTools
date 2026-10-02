@@ -123,30 +123,6 @@ namespace ArdysaModsTools.Core.Services
             { "kill_streak", "1026" }
         };
 
-        public static readonly IReadOnlySet<string> KnownMiscDefaultItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "202",
-            "555",
-            "586",
-            "587",
-            "588",
-            "590",
-            "595",
-            "596",
-            "660",
-            "661",
-            "677",
-            "678",
-            "679",
-            "680",
-            "801",
-            "1026",
-            "11173",
-            "12970",
-            "34462",
-            "34463"
-        };
-
         private const string DefaultTerrainBlock = """"
 		"590"
 		{
@@ -269,6 +245,12 @@ namespace ArdysaModsTools.Core.Services
                     ids.Add("586");
                 }
 
+                if (string.Equals(category, "multikill_banner", StringComparison.OrdinalIgnoreCase))
+                {
+                    ids.Add("10731");
+                    ids.Add("11548");
+                }
+
                 string keyCandidate = selectedKey.Contains(':') ? selectedKey.Split(':')[0] : selectedKey;
                 if (int.TryParse(keyCandidate, out _))
                 {
@@ -325,7 +307,8 @@ namespace ArdysaModsTools.Core.Services
                 return false;
             }
 
-            string content = await File.ReadAllTextAsync(itemsGamePath, ct).ConfigureAwait(false);
+            string content = KeyValuesBlockHelper.NormalizeKvText(
+                await File.ReadAllTextAsync(itemsGamePath, ct).ConfigureAwait(false));
 
             if (KeyValuesBlockHelper.IsOneLinerFormat(content))
             {
@@ -367,6 +350,7 @@ namespace ArdysaModsTools.Core.Services
             content = await ApplyZipModAsync(content, extractDir, selections, "ancient", "Ancient", copyToRoot: true, mergeTxt: false, log, ct, speedProgress).ConfigureAwait(false);
             content = await ApplyZipModAsync(content, extractDir, selections, "roshan", "Roshan", copyToRoot: true, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
             content = await ApplyZipModAsync(content, extractDir, selections, "kill_streak", "Kill Streak", copyToRoot: false, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
+            content = await ApplyZipModAsync(content, extractDir, selections, "multikill_banner", "Kill Banner", copyToRoot: false, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
 
             _modifiedItemIds.UnionWith(ResolveItemIdsForSelections(selections));
 
@@ -406,6 +390,15 @@ namespace ArdysaModsTools.Core.Services
                 var warning = $"{category}: Failed to download from all CDNs (asset may be unavailable).";
                 log($"Warning: {warning}");
                 _warnings.Add(warning);
+                return content;
+            }
+
+            if (!KeyValuesBlockHelper.IsWellFormedIdBlock(replacementBlock, itemId))
+            {
+                var warning = $"{category}: downloaded data was not a valid package block — skipped.";
+                log($"Warning: {warning}");
+                _warnings.Add(warning);
+                _logger?.LogWarning($"[AssetModifier] {category}: malformed block for id {itemId} from {url} ({replacementBlock.Length} chars)");
                 return content;
             }
 
@@ -553,8 +546,9 @@ namespace ArdysaModsTools.Core.Services
             var models = CourierPatcherService.ParseCourierVisuals(selectedBlock, styleIndex);
             var vpkExtractPaths = CourierPatcherService.GetVpkExtractionPaths(models);
             var modelMappings = CourierPatcherService.GetModelMapping(models);
+            var materialSwaps = CourierSkinCatalog.GetMaterialSwaps(courierId, styleIndex);
 
-            if (vpkExtractPaths.Count > 0 && modelMappings.Count > 0)
+            if ((vpkExtractPaths.Count > 0 && modelMappings.Count > 0) || materialSwaps.Count > 0)
             {
                 string dotaRoot = PathUtility.NormalizeTargetPath(Path.GetDirectoryName(Path.GetDirectoryName(vpkPath)) ?? vpkPath);
                 string gameVpkPath = Path.Combine(dotaRoot, "game", "dota", "pak01_dir.vpk");
@@ -570,9 +564,11 @@ namespace ArdysaModsTools.Core.Services
                     string tempModelDir = Path.Combine(extractDir, "_temp_couriers");
                     Directory.CreateDirectory(tempModelDir);
 
+                    var materialExtractDirs = CourierSkinCatalog.GetMaterialExtractionDirs(materialSwaps);
                     var uniqueDirs = vpkExtractPaths
                         .Select(p => p.Replace('\\', '/'))
                         .Select(p => p.Contains('/') ? p.Substring(0, p.LastIndexOf('/')) : p)
+                        .Concat(materialExtractDirs)
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
 
@@ -611,40 +607,79 @@ namespace ArdysaModsTools.Core.Services
 
                     LogExtractedFiles(tempModelDir);
 
-                    string targetModelDir = Path.Combine(extractDir, "models", "props_gameplay");
-                    Directory.CreateDirectory(targetModelDir);
-
                     int mappedCount = 0;
-                    foreach (var mapping in modelMappings)
+                    if (modelMappings.Count > 0)
                     {
-                        string? extractedFile = FindExtractedModel(tempModelDir, mapping.SourcePath);
+                        string targetModelDir = Path.Combine(extractDir, "models", "props_gameplay");
+                        Directory.CreateDirectory(targetModelDir);
 
-                        if (extractedFile != null)
+                        foreach (var mapping in modelMappings)
                         {
-                            string targetFile = Path.Combine(targetModelDir, mapping.TargetFileName);
-                            File.Copy(extractedFile, targetFile, true);
-                            TrackInstalledFile(category, Path.Combine("models", "props_gameplay", mapping.TargetFileName).Replace('\\', '/'));
-                            mappedCount++;
+                            string? extractedFile = FindExtractedFile(tempModelDir, mapping.SourcePath);
+
+                            if (extractedFile != null)
+                            {
+                                string targetFile = Path.Combine(targetModelDir, mapping.TargetFileName);
+                                File.Copy(extractedFile, targetFile, true);
+                                TrackInstalledFile(category, Path.Combine("models", "props_gameplay", mapping.TargetFileName).Replace('\\', '/'));
+                                mappedCount++;
+                            }
+                            else
+                            {
+                                log($"Warning: Courier model not found: {Path.GetFileName(mapping.SourcePath)}");
+                                _logger?.Log($"Missing courier model: {mapping.SourcePath} (searched in {tempModelDir})");
+                            }
+                        }
+
+                        if (mappedCount > 0)
+                        {
+                            log($"Courier models mapped ({mappedCount}/{modelMappings.Count}).");
+                            _logger?.Log($"Courier models mapped: {mappedCount}/{modelMappings.Count}");
                         }
                         else
                         {
-                            log($"Warning: Courier model not found: {Path.GetFileName(mapping.SourcePath)}");
-                            _logger?.Log($"Missing courier model: {mapping.SourcePath} (searched in {tempModelDir})");
+                            log("Warning: No courier models could be extracted from game VPK.");
+                            _logger?.Log($"No courier models found. Searched paths: {string.Join(", ", vpkExtractPaths)}");
+                        }
+                    }
+
+                    int mappedMaterialCount = 0;
+                    if (materialSwaps.Count > 0)
+                    {
+                        foreach (var swap in materialSwaps)
+                        {
+                            string? extractedMat = FindExtractedFile(tempModelDir, swap.SourceMaterial);
+                            if (extractedMat != null)
+                            {
+                                string targetFile = Path.Combine(extractDir, swap.TargetMaterial);
+                                string? targetDir = Path.GetDirectoryName(targetFile);
+                                if (!string.IsNullOrEmpty(targetDir))
+                                    Directory.CreateDirectory(targetDir);
+
+                                File.Copy(extractedMat, targetFile, true);
+                                TrackInstalledFile(category, swap.TargetMaterial.Replace('\\', '/'));
+                                mappedMaterialCount++;
+                            }
+                            else
+                            {
+                                log($"Warning: Courier skin material not found: {Path.GetFileName(swap.SourceMaterial)}");
+                                _logger?.Log($"Missing courier skin material: {swap.SourceMaterial} (searched in {tempModelDir})");
+                            }
+                        }
+
+                        if (mappedMaterialCount > 0)
+                        {
+                            log($"Courier skin materials mapped ({mappedMaterialCount}/{materialSwaps.Count}).");
+                            _logger?.Log($"Courier skin materials mapped: {mappedMaterialCount}/{materialSwaps.Count}");
+                        }
+                        else
+                        {
+                            log("Warning: No courier skin materials could be extracted from game VPK.");
+                            _logger?.Log($"No courier skin materials found for courier {courierId}.");
                         }
                     }
 
                     try { Directory.Delete(tempModelDir, true); } catch { }
-
-                    if (mappedCount > 0)
-                    {
-                        log($"Courier models mapped ({mappedCount}/{modelMappings.Count}).");
-                        _logger?.Log($"Courier models mapped: {mappedCount}/{modelMappings.Count}");
-                    }
-                    else
-                    {
-                        log("Warning: No courier models could be extracted from game VPK.");
-                        _logger?.Log($"No courier models found. Searched paths: {string.Join(", ", vpkExtractPaths)}");
-                    }
                 }
                 else
                 {
@@ -1457,17 +1492,20 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private string? FindExtractedModel(string tempDir, string sourcePath)
+        private string? FindExtractedFile(string tempDir, string sourcePath)
         {
             string fileName = Path.GetFileName(sourcePath);
-            string fileNameC = fileName + "_c";
+            bool hasCompiledSuffix = fileName.EndsWith("_c", StringComparison.OrdinalIgnoreCase);
+            string fileNameC = hasCompiledSuffix ? fileName : fileName + "_c";
+            string sourcePathNorm = sourcePath.Replace('\\', '/').TrimStart('/');
+            string sourcePathC = hasCompiledSuffix ? sourcePathNorm : sourcePathNorm + "_c";
 
             string[] candidates =
             {
-                Path.Combine(tempDir, "root", sourcePath + "_c"),
-                Path.Combine(tempDir, "root", sourcePath),
-                Path.Combine(tempDir, sourcePath + "_c"),
-                Path.Combine(tempDir, sourcePath),
+                Path.Combine(tempDir, "root", sourcePathC),
+                Path.Combine(tempDir, "root", sourcePathNorm),
+                Path.Combine(tempDir, sourcePathC),
+                Path.Combine(tempDir, sourcePathNorm),
             };
 
             foreach (var candidate in candidates)
@@ -1481,16 +1519,21 @@ namespace ArdysaModsTools.Core.Services
                 foreach (var file in Directory.EnumerateFiles(tempDir, fileNameC, SearchOption.AllDirectories))
                     return file;
 
-                foreach (var file in Directory.EnumerateFiles(tempDir, fileName, SearchOption.AllDirectories))
-                    return file;
+                if (!hasCompiledSuffix)
+                {
+                    foreach (var file in Directory.EnumerateFiles(tempDir, fileName, SearchOption.AllDirectories))
+                        return file;
+                }
             }
             catch (Exception ex)
             {
-                _logger?.Log($"FindExtractedModel search error: {ex.Message}");
+                _logger?.Log($"FindExtractedFile search error: {ex.Message}");
             }
 
             return null;
         }
+
+        private string? FindExtractedModel(string tempDir, string sourcePath) => FindExtractedFile(tempDir, sourcePath);
 
         private void LogExtractedFiles(string tempDir)
         {
