@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Ardysa
  *
  * This program is free software: you can redistribute it and/or modify
@@ -148,6 +148,10 @@ namespace ArdysaModsTools.Core.Helpers
             didReplace = false;
             if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(content)) return content;
 
+            replacementBlock = NormalizeKvText(replacementBlock);
+
+            if (!IsWellFormedIdBlock(replacementBlock, id)) return content;
+
             string token = $"\"{id}\"";
             int searchPos = 0;
             int attempts = 0;
@@ -290,6 +294,20 @@ namespace ArdysaModsTools.Core.Helpers
             return false;
         }
 
+        public static bool IsWellFormedIdBlock(string block, string id)
+        {
+            if (string.IsNullOrWhiteSpace(block) || string.IsNullOrEmpty(id)) return false;
+
+            string trimmed = block.Trim();
+            string token = $"\"{id}\"";
+            if (!trimmed.StartsWith(token, StringComparison.Ordinal)) return false;
+
+            int brace = SkipWhitespace(trimmed, token.Length);
+            if (brace >= trimmed.Length || trimmed[brace] != '{') return false;
+
+            return ExtractBalancedBlockEnd(trimmed, brace) == trimmed.Length;
+        }
+
         public static int ExtractBalancedBlockEnd(string text, int firstBraceIdx)
         {
             if (firstBraceIdx < 0 || firstBraceIdx >= text.Length || text[firstBraceIdx] != '{') return -1;
@@ -354,6 +372,13 @@ namespace ArdysaModsTools.Core.Helpers
             int p = startIdx;
             while (p >= 0 && char.IsWhiteSpace(s[p])) p--;
             return p;
+        }
+
+        public static int FindBlockStart(string text, int idx)
+        {
+            int i = idx;
+            while (i > 0 && (text[i - 1] == ' ' || text[i - 1] == '	')) i--;
+            return i;
         }
 
         public static int FindLineStart(string text, int idx)
@@ -935,11 +960,110 @@ namespace ArdysaModsTools.Core.Helpers
         private static bool EndsWithNewline(System.Text.StringBuilder sb) =>
             sb.Length > 0 && sb[sb.Length - 1] == '\n';
 
+        public static IReadOnlyList<string> GetModelSwapAssets(string block)
+            => ModelSwapRows(block).Select(r => r.Asset).ToList();
+
+        public static IReadOnlyList<(string Asset, string Modifier)> GetEntityModelSwaps(string block)
+            => ModelSwapRows(block, "entity_model").Select(r => (r.Asset, r.Modifier)).ToList();
+
+        public static string? GetModelSkin(string block)
+        {
+            if (string.IsNullOrWhiteSpace(block)) return null;
+            foreach (var top in EnumerateTopLevelChildren(block))
+            {
+                if (!string.Equals(top.Key, "visuals", StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (var row in EnumerateTopLevelChildren(top.RawText))
+                {
+                    if (!row.Key.StartsWith("asset_modifier", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!TryGetTopLevelValue(row.RawText, "type", out var type) ||
+                        !string.Equals(type, "model_skin", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (TryGetTopLevelValue(row.RawText, "asset", out _) ||
+                        TryGetTopLevelValue(row.RawText, "criteria", out _)) continue;
+                    if (TryGetTopLevelValue(row.RawText, "skin", out var skin) && !string.IsNullOrWhiteSpace(skin))
+                        return skin!.Trim();
+                }
+            }
+            return null;
+        }
+
+        public static string RemoveModelSwapRows(string block, ISet<string> assets, out List<string> removed)
+        {
+            removed = new List<string>();
+            if (assets == null || assets.Count == 0) return block;
+
+            var hits = ModelSwapRows(block)
+                .Where(r => assets.Contains(r.Asset))
+                .ToList();
+            if (hits.Count == 0) return block;
+
+            var sb = new StringBuilder(block);
+            foreach (var hit in hits.OrderByDescending(h => h.Start))
+            {
+                int end = hit.Start + hit.Length;
+                if (end < sb.Length && sb[end] == '\r') end++;
+                if (end < sb.Length && sb[end] == '\n') end++;
+                sb.Remove(hit.Start, end - hit.Start);
+            }
+            removed.AddRange(hits.Select(h => h.Asset));
+            return sb.ToString();
+        }
+
+        public static string RemoveTopLevelKeys(string block, ISet<string> keys, out List<string> removed)
+        {
+            removed = new List<string>();
+            if (string.IsNullOrEmpty(block) || keys == null || keys.Count == 0) return block;
+
+            var hits = EnumerateTopLevelChildren(block)
+                .Where(c => keys.Contains(c.Key) && !c.RawText.TrimEnd().EndsWith("}", StringComparison.Ordinal))
+                .ToList();
+            if (hits.Count == 0) return block;
+
+            var sb = new StringBuilder(block);
+            foreach (var hit in hits.OrderByDescending(h => h.Start))
+            {
+                int end = hit.Start + hit.RawText.Length;
+                if (end < sb.Length && sb[end] == '\r') end++;
+                if (end < sb.Length && sb[end] == '\n') end++;
+                sb.Remove(hit.Start, end - hit.Start);
+            }
+            removed.AddRange(hits.Select(h => h.Key));
+            return sb.ToString();
+        }
+
+        public static string NormalizeAssetPath(string path)
+            => (path ?? string.Empty).Trim().Replace('\\', '/');
+
+        private readonly record struct ModelSwapRow(string Asset, string Modifier, int Start, int Length);
+
+        private static List<ModelSwapRow> ModelSwapRows(string block, string rowType = "model")
+        {
+            var rows = new List<ModelSwapRow>();
+            if (string.IsNullOrWhiteSpace(block)) return rows;
+
+            foreach (var top in EnumerateTopLevelChildren(block))
+            {
+                if (!string.Equals(top.Key, "visuals", StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (var row in EnumerateTopLevelChildren(top.RawText))
+                {
+                    if (!row.Key.StartsWith("asset_modifier", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!TryGetTopLevelValue(row.RawText, "type", out var type) ||
+                        !string.Equals(type, rowType, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!TryGetTopLevelValue(row.RawText, "asset", out var asset) ||
+                        string.IsNullOrWhiteSpace(asset)) continue;
+                    TryGetTopLevelValue(row.RawText, "modifier", out var modifier);
+                    rows.Add(new ModelSwapRow(NormalizeAssetPath(asset!), NormalizeAssetPath(modifier ?? ""),
+                        top.Start + row.Start, row.RawText.Length));
+                }
+            }
+            return rows;
+        }
+
         private readonly struct TopLevelChild
         {
             public readonly string Key;
             public readonly string RawText;
-            public TopLevelChild(string key, string rawText) { Key = key; RawText = rawText; }
+            public readonly int Start;
+            public TopLevelChild(string key, string rawText, int start = 0) { Key = key; RawText = rawText; Start = start; }
         }
 
         public static int IndexOfUncommentedQuote(string text, int pos, int limit = -1)
@@ -1029,7 +1153,7 @@ namespace ArdysaModsTools.Core.Helpers
                     break;
                 }
 
-                result.Add(new TopLevelChild(key, block.Substring(lineStart, spanEnd - lineStart)));
+                result.Add(new TopLevelChild(key, block.Substring(lineStart, spanEnd - lineStart), lineStart));
                 pos = spanEnd;
             }
 
