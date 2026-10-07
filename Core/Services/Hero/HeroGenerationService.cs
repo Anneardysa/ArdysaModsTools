@@ -27,6 +27,9 @@ using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Localization;
 using ArdysaModsTools.Core.Services.Config;
+using ArdysaModsTools.Core.Services.Cdn;
+using ArdysaModsTools.Core.Services.Hero;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Models;
 
@@ -166,7 +169,7 @@ namespace ArdysaModsTools.Core.Services
                         string pristineBase = await _originalProvider.GetExtractedOriginalAsync(log, ct, speedProgress, baseProgress).ConfigureAwait(false);
 
                         extractDir = Path.Combine(tempRoot, "base");
-                        CopyDirectory(pristineBase, extractDir, ct);
+                        Core.Helpers.DirectoryCopy.Tree(pristineBase, extractDir, ct);
                     }
                     catch (OperationCanceledException)
                     {
@@ -192,6 +195,8 @@ namespace ArdysaModsTools.Core.Services
                     var blockWeights = new Dictionary<string, int>();
 
                     var protectedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                    var manifestEntries = new List<SkinManifestEntry>();
 
                     stageProgress?.Report((20, "Processing"));
 
@@ -294,7 +299,7 @@ namespace ArdysaModsTools.Core.Services
                         bool hasHeroBaseSlot = policy.BaseWins(null, null, detectedHeroBase);
 
                         int LayerWeight(HeroModelMapper.SkinCategory category, string setName, int? itemId = null)
-                            => GetSortWeight(category, policy.BaseWins(setName, itemId, detectedHeroBase));
+                            => HeroGenerationService.LayerWeight(policy, category, setName, detectedHeroBase, itemId);
 
                         System.Diagnostics.Debug.WriteLine(
                             $"[DEBUG] Priority {hero.DisplayName}: method={(policy.Default?.ToString() ?? "null")}, " +
@@ -313,14 +318,25 @@ namespace ArdysaModsTools.Core.Services
                                     $"category={sel.category} set={sel.setName} scope={policy.ScopeOf(sel.setName, null)}");
 
                         bool heroSucceeded = false;
+                        var heroBlockOwner = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        var heroFileOwner = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        var heroLayerFiles = new Dictionary<string, ISet<string>>(StringComparer.OrdinalIgnoreCase);
+                        var heroLayerRoots = new Dictionary<string, (string Root, bool Encrypted)>(StringComparer.OrdinalIgnoreCase);
+                        var heroLayerVariants = new Dictionary<string, IReadOnlyDictionary<string, ISet<string>>>(StringComparer.OrdinalIgnoreCase);
+                        var heroLayerBlocks = new Dictionary<string, Dictionary<string, (string block, string heroId)>>(StringComparer.OrdinalIgnoreCase);
                         try
                         {
+                            EnsureEffectLayersAreSafe(orderedList
+                                .Where(x => x.category == HeroModelMapper.SkinCategory.AbilityEffect)
+                                .Select(x => (x.setName, FindContentRoot(x.folderPath))));
+
                             foreach (var selection in orderedList)
                             {
                                 ct.ThrowIfCancellationRequested();
 
                                 string? indexText = null;
-                                if (selection.category != HeroModelMapper.SkinCategory.Prismatic)
+                                bool isEffect = selection.category == HeroModelMapper.SkinCategory.AbilityEffect;
+                                if (!isEffect && selection.category != HeroModelMapper.SkinCategory.Prismatic)
                                 {
                                     indexText = await ResolveIndexTextAsync(selection.zipUrl, selection.folderPath, log, ct).ConfigureAwait(false);
                                     if (string.IsNullOrEmpty(indexText))
@@ -328,7 +344,12 @@ namespace ArdysaModsTools.Core.Services
                                             $"No index found for set '{selection.setName}' — cloud index not synced to R2 and no bundled index.txt inside the set.");
                                 }
 
-                                var (_, copiedFiles) = await MergeSetAssetsAsync(selection.folderPath, extractDir, ct).ConfigureAwait(false);
+                                var (contentRoot, copiedFiles) = await MergeSetAssetsAsync(selection.folderPath, extractDir, ct).ConfigureAwait(false);
+                                heroLayerRoots[selection.setName] = (contentRoot, selection.encrypted);
+                                heroLayerFiles[selection.setName] = new HashSet<string>(copiedFiles, StringComparer.OrdinalIgnoreCase);
+                                foreach (var rel in copiedFiles)
+                                    heroFileOwner[rel] = selection.setName;
+                                heroLayerVariants[selection.setName] = ReadBodyVariants(contentRoot);
                                 System.Diagnostics.Debug.WriteLine(
                                     $"[DEBUG] {hero.DisplayName}: '{selection.setName}' ({selection.category}) merged {copiedFiles.Count} asset file(s).");
 
@@ -344,6 +365,10 @@ namespace ArdysaModsTools.Core.Services
                                 {
                                     log($"[Patcher] {hero.DisplayName}: Prismatic '{selection.setName}' merged {copiedFiles.Count} asset file(s) as an overlay (no index.txt).");
                                 }
+                                else if (isEffect)
+                                {
+                                    log($"[Patcher] {hero.DisplayName}: Ability Effect '{selection.setName}' applied {copiedFiles.Count} file(s).");
+                                }
                                 else
                                 {
                                     var heroBlocks = _patcher.ParseIndexText(indexText!, hero.Id, hero.ItemIds);
@@ -353,6 +378,7 @@ namespace ArdysaModsTools.Core.Services
                                     }
                                     if (heroBlocks != null)
                                     {
+                                        heroLayerBlocks[selection.setName] = heroBlocks;
                                         foreach (var kvp in heroBlocks)
                                         {
                                             int weight = int.TryParse(kvp.Key, out var blockItemId)
@@ -374,6 +400,7 @@ namespace ArdysaModsTools.Core.Services
 
                                             mergedBlocks[kvp.Key] = kvp.Value;
                                             blockWeights[kvp.Key] = weight;
+                                            heroBlockOwner[kvp.Key] = selection.setName;
                                         }
                                     }
                                 }
@@ -385,8 +412,24 @@ namespace ArdysaModsTools.Core.Services
                                     Files = copiedFiles
                                 });
 
+                                manifestEntries.Add(await BuildManifestEntryAsync(
+                                    hero.Id, selection.setName, selection.category, selection.zipUrl, ct)
+                                    .ConfigureAwait(false));
+
                                 heroSucceeded = true;
                             }
+
+                            if (baseSelection != default)
+                                ApplyBaseSlotLock(hero, baseSelection.setName, mergedBlocks, heroBlockOwner,
+                                    heroLayerBlocks, heroLayerFiles, heroFileOwner, heroLayerRoots, extractDir,
+                                    protectedPaths, trace: s => _logger?.LogDebug(s), warn: report.Warn,
+                                    yieldTo: LayersAppliedOverTheLock(extractedList.Select(x => (x.category, x.setName))));
+                            ApplyBodyOwnership(hero, mergedBlocks, heroBlockOwner, heroLayerFiles, heroLayerVariants,
+                                heroFileOwner, heroLayerRoots, extractDir, protectedPaths,
+                                trace: s => _logger?.LogDebug(s), warn: s => report.Log($"Note: {s}"));
+                            ApplyWornModelYield(hero.DisplayName, mergedBlocks, heroBlockOwner, heroLayerFiles,
+                                heroFileOwner, heroLayerRoots, extractDir, protectedPaths,
+                                trace: s => _logger?.LogDebug(s), warn: report.Warn);
 
                             if (heroSucceeded)
                             {
@@ -469,14 +512,16 @@ namespace ArdysaModsTools.Core.Services
                         TotalBytes = 0 
                     });
 
-                    string protectedDir = Path.Combine(tempRoot, "protected");
-                    int protectedMoved = 0;
-                    if (protectedPaths.Count > 0)
+                    await SkinManifestStore.WriteToTreeAsync(extractDir, new SkinManifest
                     {
-                        ProtectedVpkStore.Ensure(targetPath);
-                        protectedMoved = ProtectedVpkStore.MoveProtected(
-                            extractDir, protectedDir, protectedPaths, _logger, ct);
-                    }
+                        GeneratedAtUtc = DateTime.UtcNow.ToString("O"),
+                        Build = typeof(HeroGenerationService).Assembly.GetName().Version?.ToString() ?? string.Empty,
+                        Entries = manifestEntries
+                    }, ct).ConfigureAwait(false);
+
+                    string protectedDir = Path.Combine(tempRoot, "protected");
+                    int protectedMoved = ProtectedVpkStore.Split(
+                        targetPath, extractDir, protectedDir, protectedPaths, _logger, ct);
 
                     if (protectedMoved > 0)
                     {
@@ -496,6 +541,7 @@ namespace ArdysaModsTools.Core.Services
                         log("[VPK] Recompilation returned null - check logs above for details");
                         return Fail("VPK recompilation failed.", report, targetPath);
                     }
+                    VpkSignatureSection.TryApply(newVpkPath);
 
                     ct.ThrowIfCancellationRequested();
 
@@ -513,23 +559,21 @@ namespace ArdysaModsTools.Core.Services
                             log("[VPK] Protected package build returned null - check logs above for details");
                             return Fail("VPK recompilation failed.", report, targetPath);
                         }
+                        VpkSignatureSection.TryApply(newProtectedVpkPath);
                     }
 
                     ct.ThrowIfCancellationRequested();
 
                     stageProgress?.Report((80, Loc.T("progress.installingShort")));
                     log("Installing...");
-                    var replaceSuccess = await _replacer.ReplaceAsync(
-                        targetPath, newVpkPath, log, ct).ConfigureAwait(false);
 
-                    if (!replaceSuccess)
+                    if (!await ProtectedVpkStore.DeployPairAsync(
+                            targetPath, newProtectedVpkPath,
+                            () => _replacer.ReplaceAsync(targetPath, newVpkPath, log, ct),
+                            log, _logger).ConfigureAwait(false))
                         return Fail("VPK replacement failed.", report, targetPath);
 
                     await ItemsGameBaselineStore.CommitAsync(targetPath, patchedIds, ct).ConfigureAwait(false);
-
-                    if (!await ProtectedVpkStore.DeployAsync(
-                            targetPath, newProtectedVpkPath, log, CancellationToken.None, _logger).ConfigureAwait(false))
-                        return Fail("VPK replacement failed.", report, targetPath);
 
                     extractionLog.Save(targetPath);
 
@@ -571,7 +615,12 @@ namespace ArdysaModsTools.Core.Services
                         var setsCache = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero", "cache", "sets");
                         if (Directory.Exists(setsCache))
                             Directory.Delete(setsCache, true);
-                        
+
+                        var decryptedSets = Path.Combine(Core.Helpers.SafeTempPathHelper.GetSafeTempPath(), "ArdysaSelectHero", "HeroSets");
+                        if (Directory.Exists(decryptedSets))
+                            Directory.Delete(decryptedSets, true);
+
+
                     }
                     catch (Exception ex)
                     {
@@ -594,28 +643,7 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private static void CopyDirectory(string sourceDir, string destDir, CancellationToken ct)
-        {
-            Directory.CreateDirectory(destDir);
-
-            foreach (var dir in Directory.EnumerateDirectories(sourceDir, "*", SearchOption.AllDirectories))
-            {
-                ct.ThrowIfCancellationRequested();
-                Directory.CreateDirectory(Path.Combine(destDir, Path.GetRelativePath(sourceDir, dir)));
-            }
-
-            foreach (var file in Directory.EnumerateFiles(sourceDir, "*", SearchOption.AllDirectories))
-            {
-                ct.ThrowIfCancellationRequested();
-                var destPath = Path.Combine(destDir, Path.GetRelativePath(sourceDir, file));
-                var destFolder = Path.GetDirectoryName(destPath);
-                if (!string.IsNullOrEmpty(destFolder))
-                    Directory.CreateDirectory(destFolder);
-                File.Copy(file, destPath, overwrite: true);
-            }
-        }
-
-        private async Task<(string contentRoot, List<string> files)> MergeSetAssetsAsync(string setFolder, string extractDir, CancellationToken ct)
+        internal async Task<(string contentRoot, List<string> files)> MergeSetAssetsAsync(string setFolder, string extractDir, CancellationToken ct)
         {
             var copiedFiles = new List<string>();
 
@@ -636,6 +664,8 @@ namespace ArdysaModsTools.Core.Services
                 
                 var relativePath = Path.GetRelativePath(contentRoot, file);
                 if (relativePath.Equals("index.txt", StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (IsUnderVariants(relativePath))
                     continue;
 
                 var destPath = Path.Combine(extractDir, relativePath);
@@ -804,10 +834,315 @@ namespace ArdysaModsTools.Core.Services
 
         internal const int BaseAnchorWeight = 100;
 
+        private static async Task<SkinManifestEntry> BuildManifestEntryAsync(
+            string heroId, string setName, HeroModelMapper.SkinCategory category, string zipUrl, CancellationToken ct)
+        {
+            string? assetPath = CdnConfig.ExtractAssetPath(zipUrl);
+            if (assetPath != null && zipUrl.EndsWith(".zip.001", StringComparison.OrdinalIgnoreCase))
+                assetPath = assetPath.Replace(".001", string.Empty, StringComparison.OrdinalIgnoreCase);
+
+            string sha = string.Empty;
+            try
+            {
+                var expected = await AssetHashManifestService.Instance.GetExpectedAsync(assetPath, ct).ConfigureAwait(false);
+                sha = expected?.Sha256 ?? string.Empty;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch {  }
+
+            return new SkinManifestEntry
+            {
+                HeroId = heroId,
+                SetName = setName,
+                Layer = LayerOf(category),
+                Sha256 = sha
+            };
+        }
+
+        internal static ISet<string> LayersAppliedOverTheLock(
+            IEnumerable<(HeroModelMapper.SkinCategory category, string setName)> layers) =>
+            layers.Where(x => x.category is HeroModelMapper.SkinCategory.Prismatic or HeroModelMapper.SkinCategory.AbilityEffect)
+                .Select(x => x.setName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        internal static void EnsureEffectLayersAreSafe(IEnumerable<(string setName, string contentRoot)> effects)
+        {
+            var layers = new Dictionary<string, ISet<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (setName, contentRoot) in effects)
+            {
+                var files = Directory.Exists(contentRoot)
+                    ? Directory.EnumerateFiles(contentRoot, "*", SearchOption.AllDirectories)
+                        .Select(f => Path.GetRelativePath(contentRoot, f).Replace('\\', '/'))
+                        .ToList()
+                    : new List<string>();
+                var problems = AbilityEffectGuard.ValidateLayerFiles(files);
+                if (problems.Count > 0)
+                    throw new InvalidOperationException(
+                        $"Ability Effect '{setName}' was refused: {string.Join("; ", problems.Take(3))}" +
+                        (problems.Count > 3 ? $" (+{problems.Count - 3} more)" : ""));
+                layers[setName] = new HashSet<string>(files, StringComparer.OrdinalIgnoreCase);
+            }
+
+            var overlaps = AbilityEffectGuard.FindOverlaps(layers);
+            if (overlaps.Count > 0)
+            {
+                var (file, owners) = overlaps.First();
+                throw new InvalidOperationException(
+                    $"Ability Effects {string.Join(" and ", owners)} both change '{file}' — pick one of them.");
+            }
+        }
+
+        private static string LayerOf(HeroModelMapper.SkinCategory category) => category switch
+        {
+            HeroModelMapper.SkinCategory.Prismatic => "prismatic",
+            HeroModelMapper.SkinCategory.BaseHero => "base",
+            HeroModelMapper.SkinCategory.Item => "item",
+            HeroModelMapper.SkinCategory.AbilityEffect => "effect",
+            _ => "set"
+        };
+
+        private static bool CopyFromLayer(
+            string rel, string sourceRel, string layer,
+            IReadOnlyDictionary<string, (string Root, bool Encrypted)> layerRoots,
+            string extractDir, Dictionary<string, string> fileOwner, HashSet<string> protectedPaths,
+            string? ownerToken = null)
+        {
+            if (!layerRoots.TryGetValue(layer, out var lr)) return false;
+            string src = Path.Combine(lr.Root, sourceRel.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(src)) return false;
+
+            string dest = Path.Combine(extractDir, rel.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+            File.Copy(src, dest, overwrite: true);
+            fileOwner[rel] = ownerToken ?? layer;
+            if (lr.Encrypted && ProtectedVpkStore.IsProtectable(rel))
+                protectedPaths.Add(rel);
+            else
+                protectedPaths.Remove(rel);
+            return true;
+        }
+
+        internal static bool IsUnderVariants(string relativePath)
+            => relativePath.Replace('\\', '/').StartsWith(BodyOwnership.VariantsDir + "/", StringComparison.OrdinalIgnoreCase);
+
+        internal static IReadOnlyDictionary<string, ISet<string>> ReadBodyVariants(string contentRoot)
+        {
+            var result = new Dictionary<string, ISet<string>>(StringComparer.OrdinalIgnoreCase);
+            string dir = Path.Combine(contentRoot, BodyOwnership.VariantsDir);
+            if (!Directory.Exists(dir)) return result;
+
+            foreach (var keyDir in Directory.EnumerateDirectories(dir))
+            {
+                var files = Directory.EnumerateFiles(keyDir, "*", SearchOption.AllDirectories)
+                    .Select(f => Path.GetRelativePath(keyDir, f).Replace('\\', '/'));
+                result[Path.GetFileName(keyDir)] = new HashSet<string>(files, StringComparer.OrdinalIgnoreCase);
+            }
+            return result;
+        }
+
+        internal static BaseSlotLock.Result ApplyBaseSlotLock(
+            HeroModel hero,
+            string baseLayer,
+            Dictionary<string, (string block, string heroId)> mergedBlocks,
+            Dictionary<string, string> blockOwner,
+            IReadOnlyDictionary<string, Dictionary<string, (string block, string heroId)>> layerBlocks,
+            IReadOnlyDictionary<string, ISet<string>> layerFiles,
+            Dictionary<string, string> fileOwner,
+            IReadOnlyDictionary<string, (string Root, bool Encrypted)> layerRoots,
+            string extractDir,
+            HashSet<string> protectedPaths,
+            Action<string> trace,
+            Action<string> warn,
+            ISet<string>? yieldTo = null,
+            Func<int, string?>? slotOf = null)
+        {
+            var slots = BaseSlotLock.SlotsFor(hero, baseLayer);
+            if (slots.Count == 0)
+                return new BaseSlotLock.Result();
+
+            string Label(string layer) => hero.Sets != null && hero.Sets.TryGetValue(layer, out var urls)
+                && HeroModelMapper.ExtractArchiveStem(urls) is string stem && hero.SetNames != null
+                && hero.SetNames.TryGetValue(stem, out var name) && !string.IsNullOrWhiteSpace(name) ? name : layer;
+
+            var lockedIds = BaseSlotLock.LockedIds(hero.ItemIds, slots, slotOf);
+            if (lockedIds.Count == 0)
+            {
+                warn($"{hero.DisplayName}: '{Label(baseLayer)}' locks {string.Join(", ", slots)}, but the hero has no such slot.");
+                return new BaseSlotLock.Result();
+            }
+
+            var own = layerBlocks.TryGetValue(baseLayer, out var parsed) ? parsed : new Dictionary<string, (string block, string heroId)>();
+            var baseBlocks = own.ToDictionary(kv => kv.Key, kv => kv.Value.block, StringComparer.OrdinalIgnoreCase);
+            var slotModels = (hero.ItemIds ?? new List<int>()).Distinct().ToDictionary(
+                id => id.ToString(),
+                id => HeroDefaultItemRegistry.TryGetItem(id, out var info) ? info.ModelPlayer ?? "" : "");
+
+            Dictionary<string, (string Block, string Layer)> Final() => blockOwner
+                .Where(kv => mergedBlocks.ContainsKey(kv.Key))
+                .ToDictionary(kv => kv.Key, kv => (mergedBlocks[kv.Key].block, kv.Value), StringComparer.OrdinalIgnoreCase);
+
+            BaseSlotLock.Result Compute() => BaseSlotLock.Compute(Final(), baseLayer, baseBlocks, lockedIds,
+                layerFiles, fileOwner, slotModels, yieldTo, Label);
+
+            var result = Compute();
+            foreach (var w in result.Warnings)
+                warn($"{hero.DisplayName}: {w}");
+            if (result.IsClean)
+                return result;
+
+            foreach (var id in result.Reclaim.Keys)
+            {
+                trace($"{hero.DisplayName}: item {id} locked to '{baseLayer}' (was '{(blockOwner.TryGetValue(id, out var o) ? o : "none")}').");
+                mergedBlocks[id] = own[id];
+                blockOwner[id] = baseLayer;
+            }
+            foreach (var (rel, layer) in result.Restore)
+                if (!CopyFromLayer(rel, rel, layer, layerRoots, extractDir, fileOwner, protectedPaths))
+                    throw new InvalidOperationException($"internal: {hero.DisplayName}: locked file {rel} of '{layer}' vanished.");
+
+            trace($"{hero.DisplayName}: '{baseLayer}' locks {string.Join(", ", slots)}: " +
+                  $"{result.Reclaim.Count} block(s) reclaimed, {result.Restore.Count} file(s) restored.");
+
+            if (!Compute().IsClean)
+                throw new InvalidOperationException(
+                    $"internal: {hero.DisplayName}: locked slot still owned by another layer after merge ('{baseLayer}').");
+            return result;
+        }
+
+        internal static BodyOwnership.Result ApplyBodyOwnership(
+            HeroModel hero,
+            Dictionary<string, (string block, string heroId)> mergedBlocks,
+            IReadOnlyDictionary<string, string> blockOwner,
+            IReadOnlyDictionary<string, ISet<string>> layerFiles,
+            IReadOnlyDictionary<string, IReadOnlyDictionary<string, ISet<string>>> layerVariants,
+            Dictionary<string, string> fileOwner,
+            IReadOnlyDictionary<string, (string Root, bool Encrypted)> layerRoots,
+            string extractDir,
+            HashSet<string> protectedPaths,
+            Action<string> trace,
+            Action<string> warn)
+        {
+            var slotModels = new HashSet<string>(
+                (hero.ItemIds ?? new List<int>())
+                    .Select(id => HeroDefaultItemRegistry.TryGetItem(id, out var info) ? info.ModelPlayer : "")
+                    .Where(m => !string.IsNullOrWhiteSpace(m))
+                    .Select(m => KeyValuesBlockHelper.NormalizeAssetPath(m) + "_c"),
+                StringComparer.OrdinalIgnoreCase);
+
+            string? Stem(string layer) => hero.Sets != null && hero.Sets.TryGetValue(layer, out var urls)
+                ? HeroModelMapper.ExtractArchiveStem(urls) : null;
+
+            string Label(string layer)
+            {
+                var stem = Stem(layer);
+                return stem != null && hero.SetNames != null && hero.SetNames.TryGetValue(stem, out var name)
+                    && !string.IsNullOrWhiteSpace(name) ? name : layer;
+            }
+
+            Dictionary<string, (string Block, string Layer)> Final() => blockOwner
+                .Where(kv => mergedBlocks.ContainsKey(kv.Key))
+                .ToDictionary(kv => kv.Key, kv => (mergedBlocks[kv.Key].block, kv.Value), StringComparer.OrdinalIgnoreCase);
+
+            BodyOwnership.Result Compute() => BodyOwnership.Compute(
+                Final(), layerFiles, layerVariants, fileOwner, hero.Id, slotModels, Label,
+                id => HeroDefaultItemRegistry.TryGetItem(id, out var info) ? info.ModelPlayer ?? "" : null, Stem);
+
+            var result = Compute();
+            foreach (var w in result.Warnings)
+                warn($"{hero.DisplayName}: {w}");
+            if (result.IsClean)
+                return result;
+
+            foreach (var (rel, (layer, key)) in result.VariantApply)
+                if (!CopyFromLayer(rel, $"{BodyOwnership.VariantsDir}/{key}/{rel}", layer,
+                        layerRoots, extractDir, fileOwner, protectedPaths,
+                        BodyOwnership.VariantOwner(layer, key)))
+                    throw new InvalidOperationException($"internal: {hero.DisplayName}: variant {rel} of '{layer}' vanished.");
+            foreach (var (rel, layer) in result.Restore)
+                if (!CopyFromLayer(rel, rel, layer, layerRoots, extractDir, fileOwner, protectedPaths))
+                    throw new InvalidOperationException($"internal: {hero.DisplayName}: body file {rel} of '{layer}' vanished.");
+
+            var wearableKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "model_player", "match_cycle_to_parent" };
+            foreach (var id in result.StripWearable)
+                mergedBlocks[id] = (KeyValuesBlockHelper.RemoveTopLevelKeys(mergedBlocks[id].block, wearableKeys, out _),
+                                    mergedBlocks[id].heroId);
+
+            string owners = result.Owner ?? string.Join(", ", result.Restore.Values
+                .Concat(result.VariantApply.Values.Select(v => $"{v.Layer}#{v.Key}")).Distinct(StringComparer.OrdinalIgnoreCase));
+            trace($"{hero.DisplayName}: body owner '{owners}' ({result.BodyKey}): " +
+                  $"{result.Restore.Count} body file(s) restored, {result.VariantApply.Count} variant file(s) applied, " +
+                  $"{result.StripWearable.Count} demo-only wearable(s) dropped.");
+
+            if (!Compute().IsClean)
+                throw new InvalidOperationException(
+                    $"internal: {hero.DisplayName}: hero body still mixed after merge (owner '{result.Owner}').");
+            return result;
+        }
+
+        internal static WornModelYield.Result ApplyWornModelYield(
+            string heroName,
+            Dictionary<string, (string block, string heroId)> mergedBlocks,
+            IReadOnlyDictionary<string, string> blockOwner,
+            IReadOnlyDictionary<string, ISet<string>> layerFiles,
+            Dictionary<string, string> fileOwner,
+            IReadOnlyDictionary<string, (string Root, bool Encrypted)> layerRoots,
+            string extractDir,
+            HashSet<string> protectedPaths,
+            Action<string> trace,
+            Action<string> warn,
+            Func<string, string?>? defaultModelOf = null)
+        {
+            defaultModelOf ??= id => HeroDefaultItemRegistry.TryGetItem(id, out var info) ? info.ModelPlayer : null;
+
+            Dictionary<string, (string Block, string Layer)> Final() => blockOwner
+                .Where(kv => mergedBlocks.ContainsKey(kv.Key))
+                .ToDictionary(kv => kv.Key, kv => (mergedBlocks[kv.Key].block, kv.Value), StringComparer.OrdinalIgnoreCase);
+
+            var result = WornModelYield.Compute(Final(), layerFiles, fileOwner, defaultModelOf);
+            foreach (var w in result.Warnings)
+                warn($"{heroName}: {w}");
+            if (result.IsClean)
+                return result;
+
+            foreach (var (id, assets) in result.StripRows)
+                mergedBlocks[id] = (KeyValuesBlockHelper.RemoveModelSwapRows(mergedBlocks[id].block, assets, out _),
+                                    mergedBlocks[id].heroId);
+
+            var unrestored = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (rel, layer) in result.Restore)
+            {
+                if (!CopyFromLayer(rel, rel, layer, layerRoots, extractDir, fileOwner, protectedPaths))
+                {
+                    unrestored.Add(rel);
+                    warn($"{heroName}: could not restore {rel} from '{layer}' — that piece may show the wrong model.");
+                }
+            }
+
+            foreach (var y in result.Yields)
+                trace($"{heroName}: item {y.BlockId} ('{y.HiddenByLayer}') no longer hides {y.Asset} — " +
+                      $"item {y.WornById} ('{y.WornByLayer}') wears its own mesh there.");
+
+            var verify = WornModelYield.Compute(Final(), layerFiles, fileOwner, defaultModelOf);
+            var stillHidden = verify.StripRows.SelectMany(kv => kv.Value).ToList();
+            var stillWrong = verify.Restore.Keys.Where(k => !unrestored.Contains(k)).ToList();
+            if (stillHidden.Count > 0 || stillWrong.Count > 0)
+                throw new InvalidOperationException(
+                    $"internal: {heroName}: worn models still hidden after merge ({string.Join(", ", stillHidden.Concat(stillWrong))}).");
+
+            return result;
+        }
+
+        internal static int LayerWeight(BasePriorityPolicy policy, HeroModelMapper.SkinCategory category,
+                                        string setName, bool detectedHeroBase, int? itemId = null)
+            => GetSortWeight(category, policy.BaseWins(setName, itemId, detectedHeroBase));
+
+
         internal static int GetSortWeight(HeroModelMapper.SkinCategory category, bool baseWins)
         {
             switch (category)
             {
+                case HeroModelMapper.SkinCategory.AbilityEffect:
+                    return -10;
                 case HeroModelMapper.SkinCategory.Prismatic:
                     return 0;
                 case HeroModelMapper.SkinCategory.BaseHero:
