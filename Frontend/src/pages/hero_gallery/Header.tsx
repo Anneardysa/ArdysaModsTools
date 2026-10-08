@@ -2,8 +2,9 @@ import type { RefObject } from "react";
 import { send } from "../../bridge/host";
 import { T, translate, useLocale } from "../../bridge/i18n";
 import { ATTRIBUTE_ICONS } from "./attributeIcons";
+import { DetectionBadge } from "./DetectionBadge";
 import { setCooldown } from "./store";
-import type { CooldownState, FilterCategory } from "./types";
+import type { CooldownState, DetectionState, FilterCategory } from "./types";
 import css from "./gallery.module.css";
 
 const ATTR_FILTERS: { id: FilterCategory; labelKey: string; label: string }[] = [
@@ -37,7 +38,9 @@ export function Header({
    onLoad,
    onClearAll,
    onGenerate,
+   detection,
    searchInputRef,
+   onDebug,
 }: {
    filter: FilterCategory;
    search: string;
@@ -51,7 +54,9 @@ export function Header({
    onLoad: () => void;
    onClearAll: () => void;
    onGenerate: () => void;
+   detection: DetectionState;
    searchInputRef: RefObject<HTMLInputElement>;
+   onDebug?: () => void;
 }) {
    const { t } = useLocale();
    const isLocked = cooldown.active && cooldown.remainingSeconds > 0;
@@ -87,7 +92,17 @@ export function Header({
                   />
                </div>
 
+               <DetectionBadge detection={detection} />
+
                <div className={css.ghActions}>
+                  {onDebug && (
+                     <button type="button" data-no-drag className={`${css.btn} ${css.debugBtn}`} onClick={onDebug} title="Skin Tester: build local zips before publishing (Debug build)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={css.btnIcon} aria-hidden="true">
+                           <path d="M9 7.13v-1a3 3 0 116 0v1M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6zM12 20v-9M6 13H2M22 13h-4" />
+                        </svg>
+                        Debug
+                     </button>
+                  )}
                   <button type="button" data-no-drag className={`${css.btn} ${css.ghost}`} onClick={onSave} title={t("heroGallery.savePreset.title", "Save selections to file")}>
                      <T k="common.save">Save</T>
                   </button>
