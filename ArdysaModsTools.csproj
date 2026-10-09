@@ -39,10 +39,10 @@
   <!-- APPLICATION METADATA                           -->
   <!-- ============================================== -->
   <PropertyGroup>
-    <Version>2.6.4-beta</Version>
-    <AssemblyVersion>2.6.4.2415</AssemblyVersion>
-    <FileVersion>2.6.4.2415</FileVersion>
-    <InformationalVersion>2.6.4-beta</InformationalVersion>
+    <Version>2.9.0-beta</Version>
+    <AssemblyVersion>2.9.0.2440</AssemblyVersion>
+    <FileVersion>2.9.0.2440</FileVersion>
+    <InformationalVersion>2.9.0-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
     <Authors>Ardysa</Authors>
@@ -238,6 +238,17 @@
     
     <!-- Images -->
     <Content Include="Assets\Images\banner.jpg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
+    <!-- Rank medal previews for the Utilities page, decoded from the game's own rank_tier_icons and
+         downscaled to 128px. Served to the page through the amt-assets virtual host mapping in
+         UtilitiesFormWebView, so they must land beside the exe. -->
+    <Content Include="Assets\Images\rank_tier_icons\**\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- Hero badge previews (hero_badge_rank_0..5), decoded from the game's own art at 128px, same host. -->
+    <Content Include="Assets\Images\hero_badges\*.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     
