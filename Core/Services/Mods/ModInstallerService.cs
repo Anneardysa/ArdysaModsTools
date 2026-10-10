@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 Ardysa
  *
  * This program is free software: you can redistribute it and/or modify
@@ -147,7 +147,7 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private const string OriginMarkerPath = @"materials\dev\deferred_light_cache.vtex_c";
+        internal const string OriginMarkerPath = @"materials\dev\deferred_light_cache.vtex_c";
 
         private const string LegacyMarkerPath = @"version\_ardysamods";
 
@@ -189,6 +189,16 @@ namespace ArdysaModsTools.Core.Services
             if (!File.Exists(vpkFilePath))
                 return Task.FromResult<string?>(null);
             return RunHlExtractAsync($"-p \"{vpkFilePath}\" -l", ct);
+        }
+
+        internal async Task<bool> InstallIsIntactAsync(string targetPath, CancellationToken ct = default)
+        {
+            string main = ProtectedVpkStore.MainVpkPath(targetPath);
+            if (!File.Exists(main)) return false;
+            if (File.Exists(ProtectedVpkStore.VpkPath(targetPath))) return true;
+
+            string? listing = await TryListVpkContentsAsync(main, ct).ConfigureAwait(false);
+            return listing == null || ListingContainsPath(listing, @"scripts\items\items_game.txt");
         }
 
         private const int HlExtractTimeoutMinutes = 20;
@@ -268,7 +278,8 @@ namespace ArdysaModsTools.Core.Services
             if (!ListingContainsMarker(listing))
                 return (VpkOrigin.Unofficial, false);
 
-            bool generated = ListingContainsPath(listing, LegacyMarkerPath);
+            bool generated = ListingContainsPath(listing, LegacyMarkerPath)
+                && ListingContainsPath(listing, @"scripts\items\items_game.txt");
             return (VpkOrigin.Official, !generated);
         }
 
@@ -277,8 +288,9 @@ namespace ArdysaModsTools.Core.Services
             if (string.IsNullOrEmpty(targetPath))
                 return false;
 
-            string requiredFilePath = Path.Combine(targetPath, RequiredModFilePath);
-            return File.Exists(requiredFilePath);
+            string mainVpk = Path.Combine(targetPath, RequiredModFilePath);
+            string protVpk = ProtectedVpkStore.VpkPath(targetPath);
+            return File.Exists(mainVpk) || File.Exists(protVpk);
         }
 
         public async Task<bool> CheckForNewerModsPackAsync(
@@ -504,9 +516,8 @@ namespace ArdysaModsTools.Core.Services
                     string localHash = (await File.ReadAllTextAsync(localHashFile, cancellationToken).ConfigureAwait(false)).Trim();
                     string cleanRemote = remoteHash.Trim();
 
-                    bool installIntact = File.Exists(Path.Combine(modsDir, "pak01_dir.vpk"));
-
-                    if (string.Equals(localHash, cleanRemote, StringComparison.OrdinalIgnoreCase) && !force && installIntact)
+                    if (string.Equals(localHash, cleanRemote, StringComparison.OrdinalIgnoreCase) && !force
+                        && await InstallIsIntactAsync(targetPath, cancellationToken).ConfigureAwait(false))
                     {
                         _logger?.Log("ModsPack up to date.");
                         return (true, true);
@@ -713,6 +724,9 @@ namespace ArdysaModsTools.Core.Services
 
                 cancellationToken.ThrowIfCancellationRequested();
 
+                if (!await VerifyInstalledPackagesAsync(targetPath, installedVpk, statusCallback, cancellationToken).ConfigureAwait(false))
+                    return (false, false);
+
                 if (!string.IsNullOrWhiteSpace(remoteHash))
                 {
                     try { await File.WriteAllTextAsync(localHashFile, remoteHash.Trim(), cancellationToken).ConfigureAwait(false); }
@@ -833,6 +847,70 @@ namespace ArdysaModsTools.Core.Services
             {
                 _logger?.Log($"DisableModsAsync failed: {ex.Message}");
                 FallbackLogger.LogFileOnly($"DisableModsAsync exception: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> DeleteModFilesPermanentlyAsync(string targetPath, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (string.IsNullOrWhiteSpace(targetPath) || !Path.IsPathFullyQualified(targetPath))
+            {
+                FallbackLogger.LogFileOnly("DeleteModFilesPermanentlyAsync: refused an empty or relative target path.");
+                return false;
+            }
+
+            string root = PathUtility.NormalizeTargetPath(targetPath);
+            string modsDir = Path.Combine(root, "game", "_ArdysaMods");
+            string protectedDir = ProtectedVpkStore.Dir(root);
+
+            if (!Directory.Exists(modsDir) && !Directory.Exists(protectedDir))
+                return true;
+
+            if (!File.Exists(Path.Combine(root, DotaPaths.Signatures)))
+            {
+                FallbackLogger.LogFileOnly("DeleteModFilesPermanentlyAsync: refused — target is not a Dota 2 install.");
+                return false;
+            }
+
+            string gameInfoPath = Path.Combine(root, DotaPaths.GameInfo);
+            if (File.Exists(gameInfoPath))
+            {
+                string gameInfo = await File.ReadAllTextAsync(gameInfoPath, cancellationToken).ConfigureAwait(false);
+                if (ProtectedVpkStore.IsMountedBy(gameInfo) || ProtectedVpkStore.MountsSearchPath(gameInfo, "_ArdysaMods"))
+                {
+                    FallbackLogger.LogFileOnly("DeleteModFilesPermanentlyAsync: refused — the game config still mounts the mod folders.");
+                    return false;
+                }
+            }
+
+            const int attempts = 3;
+            for (int attempt = 1; ; attempt++)
+            {
+                bool modsGone = await Task.Run(() => TryDeleteModsFolder(modsDir), cancellationToken).ConfigureAwait(false);
+                bool protectedGone = await Task.Run(() => ProtectedVpkStore.DeletePermanently(root, attempt == attempts ? _logger : null), cancellationToken).ConfigureAwait(false);
+                if (modsGone && protectedGone)
+                    return true;
+                if (attempt == attempts)
+                    return false;
+                await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private static bool TryDeleteModsFolder(string modsDir)
+        {
+            try
+            {
+                if (!Directory.Exists(modsDir))
+                    return true;
+                ProtectedVpkStore.NormalizeAttributesRecursively(modsDir);
+                Directory.Delete(modsDir, true);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                FallbackLogger.LogFileOnly($"DeleteModFilesPermanentlyAsync: mod folder delete failed: {ex.Message}");
                 return false;
             }
         }
@@ -1152,6 +1230,13 @@ namespace ArdysaModsTools.Core.Services
                     InstallReport.Step("Securing and splitting mod packages...");
                     await SplitAndSecureInstalledPackageAsync(targetPath, destVpkPath, statusCallback, cancellationToken).ConfigureAwait(false);
                     progress?.Report(95);
+
+                    if (!await InstallIsIntactAsync(targetPath, cancellationToken).ConfigureAwait(false))
+                    {
+                        _logger?.Log("ERROR: The selected VPK carries no item definitions.");
+                        InstallReport.Fail("The selected VPK has no item definitions — use the official ModsPack file, or a package generated by this app.");
+                        return false;
+                    }
                 }
 
                 if (!RemoveLoosePackageText(modsDir))
@@ -1163,81 +1248,8 @@ namespace ArdysaModsTools.Core.Services
 
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (rebuild)
-                {
-                    statusCallback?.Invoke(Loc.T("progress.verifying"));
-                    string probeDir = Path.Combine(SafeTempPathHelper.GetSafeTempPath(), $"amt_probe_{Guid.NewGuid():N}");
-                    string probeFile = Path.Combine(probeDir, "items_game.txt");
-
-                    try
-                    {
-                        Directory.CreateDirectory(probeDir);
-
-                        bool extracted = await _itemsGameExtractor.ExtractModItemsGameAsync(
-                            targetPath, probeFile, msg => statusCallback?.Invoke(msg), cancellationToken).ConfigureAwait(false);
-
-                        if (!extracted || !File.Exists(probeFile))
-                        {
-                            _logger?.Log("ERROR: Post-install verification failed — could not extract items_game.txt from installed packages.");
-                            InstallReport.Fail("Package verification failed — your previous install was restored.");
-                            return false;
-                        }
-
-                        var baseline = await ItemsGameBaselineStore.ReadAsync(targetPath, cancellationToken).ConfigureAwait(false);
-                        if (baseline == null || baseline.PatchedIds == null || baseline.PatchedIds.Count == 0)
-                        {
-                            _logger?.Log("ERROR: Post-install verification failed — baseline record missing or empty.");
-                            InstallReport.Fail("Package verification failed — your previous install was restored.");
-                            return false;
-                        }
-
-                        string itemsGameText = await File.ReadAllTextAsync(probeFile, cancellationToken).ConfigureAwait(false);
-                        var indexedSpans = ItemsGameBlockIndex.IndexSpans(itemsGameText);
-
-                        var missingIds = new List<string>();
-                        foreach (var id in baseline.PatchedIds)
-                        {
-                            if (!indexedSpans.ContainsKey(id))
-                                missingIds.Add(id);
-                        }
-
-                        if (missingIds.Count > 0)
-                        {
-                            _logger?.Log($"ERROR: Post-install verification failed — {missingIds.Count} patched item ID(s) missing from installed package: {string.Join(", ", missingIds.Take(5))}");
-                            InstallReport.Fail("Package verification failed — some modified item definitions are missing.");
-                            return false;
-                        }
-
-                        bool hasLocalization = false;
-                        string protVpk = ProtectedVpkStore.VpkPath(targetPath);
-
-                        if (File.Exists(protVpk))
-                        {
-                            string? listing = await TryListVpkContentsAsync(protVpk, cancellationToken).ConfigureAwait(false);
-                            if (listing != null && ListingContainsPath(listing, @"resource\localization\dota_english.txt"))
-                                hasLocalization = true;
-                        }
-
-                        if (!hasLocalization && File.Exists(destVpkPath))
-                        {
-                            string? listing = await TryListVpkContentsAsync(destVpkPath, cancellationToken).ConfigureAwait(false);
-                            if (listing != null && ListingContainsPath(listing, @"resource\localization\dota_english.txt"))
-                                hasLocalization = true;
-                        }
-
-                        if (!hasLocalization)
-                        {
-                            _logger?.Log("ERROR: Post-install verification failed — localization files missing from package.");
-                            InstallReport.Fail("Package verification failed — localization files are missing.");
-                            return false;
-                        }
-                    }
-                    finally
-                    {
-                        try { if (Directory.Exists(probeDir)) Directory.Delete(probeDir, true); }
-                        catch (Exception ex) { FallbackLogger.LogFileOnly($"Probe cleanup failed: {ex.Message}"); }
-                    }
-                }
+                if (rebuild && !await VerifyInstalledPackagesAsync(targetPath, destVpkPath, statusCallback, cancellationToken).ConfigureAwait(false))
+                    return false;
 
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -1318,11 +1330,81 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
+        private async Task<bool> VerifyInstalledPackagesAsync(
+            string targetPath, string mainVpkPath, Action<string>? statusCallback, CancellationToken ct)
+        {
+            statusCallback?.Invoke(Loc.T("progress.verifying"));
+            string probeDir = Path.Combine(SafeTempPathHelper.GetSafeTempPath(), $"amt_probe_{Guid.NewGuid():N}");
+            string probeFile = Path.Combine(probeDir, "items_game.txt");
+
+            try
+            {
+                Directory.CreateDirectory(probeDir);
+
+                bool extracted = await _itemsGameExtractor.ExtractModItemsGameAsync(
+                    targetPath, probeFile, msg => statusCallback?.Invoke(msg), ct).ConfigureAwait(false);
+                if (!extracted || !File.Exists(probeFile))
+                {
+                    _logger?.Log("ERROR: Post-install verification failed — could not read the package from the installed mod files.");
+                    InstallReport.Fail("Package verification failed — your previous install was restored.");
+                    return false;
+                }
+
+                var baseline = await ItemsGameBaselineStore.ReadAsync(targetPath, ct).ConfigureAwait(false);
+                if (baseline == null || baseline.PatchedIds == null || baseline.PatchedIds.Count == 0)
+                {
+                    _logger?.Log("ERROR: Post-install verification failed — baseline record missing or empty.");
+                    InstallReport.Fail("Package verification failed — your previous install was restored.");
+                    return false;
+                }
+
+                string itemsGameText = await File.ReadAllTextAsync(probeFile, ct).ConfigureAwait(false);
+                var indexedSpans = ItemsGameBlockIndex.IndexSpans(itemsGameText);
+                var missingIds = baseline.PatchedIds.Where(id => !indexedSpans.ContainsKey(id)).ToList();
+                if (missingIds.Count > 0)
+                {
+                    _logger?.Log($"ERROR: Post-install verification failed — {missingIds.Count} patched item ID(s) missing from installed package: {string.Join(", ", missingIds.Take(5))}");
+                    InstallReport.Fail("Package verification failed — some modified item definitions are missing.");
+                    return false;
+                }
+
+                bool hasLocalization = false;
+                foreach (var vpk in new[] { ProtectedVpkStore.VpkPath(targetPath), mainVpkPath })
+                {
+                    if (hasLocalization || !File.Exists(vpk)) continue;
+                    string? listing = await TryListVpkContentsAsync(vpk, ct).ConfigureAwait(false);
+                    hasLocalization = listing != null && ListingContainsPath(listing, @"resource\localization\dota_english.txt");
+                }
+                if (!hasLocalization)
+                {
+                    _logger?.Log("ERROR: Post-install verification failed — localization files missing from package.");
+                    InstallReport.Fail("Package verification failed — localization files are missing.");
+                    return false;
+                }
+
+                InstallReport.Ok("Installed packages verified.");
+                return true;
+            }
+            finally
+            {
+                try { if (Directory.Exists(probeDir)) Directory.Delete(probeDir, true); }
+                catch (Exception ex) { FallbackLogger.LogFileOnly($"Probe cleanup failed: {ex.Message}"); }
+            }
+        }
+
         internal sealed class InstallSnapshot : IDisposable
         {
             private sealed class Entry
             {
-                public Entry(string path) { Live = path; Bak = path + ".bak"; Had = File.Exists(path); }
+                public const string Suffix = ".amtsnap";
+
+                public Entry(string path)
+                {
+                    Live = path;
+                    Bak = path + Suffix;
+                    RecoverCrashedSnapshot(Live, Bak);
+                    Had = File.Exists(path);
+                }
                 public readonly string Live;
                 public readonly string Bak;
                 public readonly bool Had;
@@ -1397,6 +1479,13 @@ namespace ArdysaModsTools.Core.Services
                         FallbackLogger.LogFileOnly($"InstallSnapshot rollback failed for {f.Live}: {ex.Message}");
                     }
                 }
+            }
+
+            private static void RecoverCrashedSnapshot(string live, string bak)
+            {
+                if (File.Exists(live) || !File.Exists(bak)) return;
+                try { File.Move(bak, live); }
+                catch (Exception ex) { FallbackLogger.LogFileOnly($"InstallSnapshot: could not recover {bak}: {ex.Message}"); }
             }
 
             private static void TryDelete(string path)
@@ -1506,17 +1595,22 @@ namespace ArdysaModsTools.Core.Services
             return (false, string.Empty);
         }
 
-        private async Task<bool> SplitAndSecureInstalledPackageAsync(
+        private bool SkipSplit(string destVpkPath, string reason)
+        {
+            _logger?.LogDebug($"[SPLIT] skipped — {reason}");
+            FallbackLogger.LogFileOnly($"SplitAndSecureInstalledPackage: skipped — {reason}");
+            VpkSignatureSection.TryApply(destVpkPath);
+            return true;
+        }
+
+        internal async Task<bool> SplitAndSecureInstalledPackageAsync(
             string targetPath,
             string destVpkPath,
             Action<string>? statusCallback,
             CancellationToken ct)
         {
-            if (!ProtectedVpkStore.IsMounted(targetPath))
-            {
-                VpkSignatureSection.TryApply(destVpkPath);
-                return true;
-            }
+            if (!ProtectedVpkStore.CanSplit(targetPath))
+                return SkipSplit(destVpkPath, "gameinfo does not mount the protected search path");
 
             string appPath = AppDomain.CurrentDomain.BaseDirectory;
             string hlExtractPath = Path.Combine(appPath, "HLExtract.exe");
@@ -1525,10 +1619,7 @@ namespace ArdysaModsTools.Core.Services
                 vpkToolPath = Path.Combine(appPath, "vpk.exe");
 
             if (!File.Exists(hlExtractPath) || !File.Exists(vpkToolPath))
-            {
-                VpkSignatureSection.TryApply(destVpkPath);
-                return true;
-            }
+                return SkipSplit(destVpkPath, "HLExtract.exe or vpk.exe is missing");
 
             string tempRoot = Path.Combine(SafeTempPathHelper.GetSafeTempPath(), $"amt_manual_split_{Guid.NewGuid():N}");
             string extractDir = Path.Combine(tempRoot, "root");
@@ -1546,19 +1637,13 @@ namespace ArdysaModsTools.Core.Services
                 if (extractResult == null
                     || !Directory.Exists(extractDir)
                     || !Directory.EnumerateFileSystemEntries(extractDir).Any())
-                {
-                    VpkSignatureSection.TryApply(destVpkPath);
-                    return true;
-                }
+                    return SkipSplit(destVpkPath, "the installed package could not be extracted");
 
-                ProtectedVpkStore.Ensure(targetPath);
-                int protectedMoved = ProtectedVpkStore.MovePackageText(extractDir, protectedDir, _logger, ct);
+                int protectedMoved = ProtectedVpkStore.Split(
+                    targetPath, extractDir, protectedDir, assetPaths: null, logger: _logger, ct: ct);
 
                 if (protectedMoved == 0)
-                {
-                    VpkSignatureSection.TryApply(destVpkPath);
-                    return true;
-                }
+                    return SkipSplit(destVpkPath, "the package carries no item data or localization to move");
 
                 statusCallback?.Invoke(Loc.T("progress.repacking") ?? "Securing packages...");
                 string? newVpkPath = await _recompiler.RecompileAsync(
@@ -1566,33 +1651,29 @@ namespace ArdysaModsTools.Core.Services
                     line => _logger?.LogDebug($"[VPK] {line}"), ct).ConfigureAwait(false);
 
                 if (string.IsNullOrWhiteSpace(newVpkPath))
-                {
-                    VpkSignatureSection.TryApply(destVpkPath);
-                    return true;
-                }
+                    return SkipSplit(destVpkPath, "the stripped main package failed to build");
                 VpkSignatureSection.TryApply(newVpkPath);
 
                 string? newProtectedVpkPath = await _recompiler.RecompileAsync(
                     vpkToolPath, protectedDir, buildDir, tempRoot,
                     line => _logger?.LogDebug($"[VPK] {line}"), ct).ConfigureAwait(false);
 
-                if (!string.IsNullOrWhiteSpace(newProtectedVpkPath) &&
-                    !string.Equals(newProtectedVpkPath, newVpkPath, StringComparison.OrdinalIgnoreCase))
-                {
-                    VpkSignatureSection.TryApply(newProtectedVpkPath);
-                    await ProtectedVpkStore.DeployAsync(targetPath, newProtectedVpkPath,
-                        msg => statusCallback?.Invoke(msg), ct, _logger).ConfigureAwait(false);
-                }
+                bool protectedBuilt = !string.IsNullOrWhiteSpace(newProtectedVpkPath) &&
+                    !string.Equals(newProtectedVpkPath, newVpkPath, StringComparison.OrdinalIgnoreCase);
 
-                File.Copy(newVpkPath, destVpkPath, overwrite: true);
-                VpkSignatureSection.TryApply(destVpkPath);
+                if (!protectedBuilt)
+                    return SkipSplit(destVpkPath, "the protected package failed to build — the installed package was left intact");
+                VpkSignatureSection.TryApply(newProtectedVpkPath);
+
+                if (!await ProtectedVpkStore.DeployInstallPairAsync(targetPath, destVpkPath, newVpkPath, newProtectedVpkPath,
+                        msg => statusCallback?.Invoke(msg), _logger).ConfigureAwait(false))
+                    return SkipSplit(destVpkPath, "the packages failed to deploy — the installed package was left intact");
+
                 return true;
             }
             catch (Exception ex)
             {
-                FallbackLogger.LogFileOnly($"SplitAndSecureInstalledPackageAsync exception: {ex.Message}");
-                VpkSignatureSection.TryApply(destVpkPath);
-                return true;
+                return SkipSplit(destVpkPath, $"unexpected failure — {ex.Message}");
             }
             finally
             {
