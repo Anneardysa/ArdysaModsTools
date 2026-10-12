@@ -33,7 +33,33 @@ public class HeroSelectionState
     [JsonPropertyName("prismatic")]
     public int? PrismaticIndex { get; set; }
 
+    [JsonPropertyName("effects")]
+    public List<int> EffectIndices { get; set; } = new();
+
+    [JsonPropertyName("particles")]
+    public List<ParticlePick> Particles { get; set; } = new();
+
+    [JsonPropertyName("stems")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SelectionStems? Stems { get; set; }
+
     [JsonIgnore]
     public bool HasAnySelection =>
-        SetIndex.HasValue || ItemIndices.Count > 0 || BaseIndex.HasValue || PrismaticIndex.HasValue;
+        SetIndex.HasValue || ItemIndices.Count > 0 || BaseIndex.HasValue || PrismaticIndex.HasValue
+        || (EffectIndices?.Count ?? 0) > 0;
+}
+
+public sealed class ParticlePick
+{
+    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("host")] public string Host { get; set; } = string.Empty;
+}
+
+public class SelectionStems
+{
+    [JsonPropertyName("set")] public string? Set { get; set; }
+    [JsonPropertyName("items")] public List<string> Items { get; set; } = new();
+    [JsonPropertyName("base")] public string? Base { get; set; }
+    [JsonPropertyName("prismatic")] public string? Prismatic { get; set; }
+    [JsonPropertyName("effects")] public List<string> Effects { get; set; } = new();
 }

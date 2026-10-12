@@ -5,6 +5,8 @@ import { closeInstallLogModal, store } from "./store";
 import type { ConsoleLine, InstallLogLine, LogCategory } from "./types";
 import css from "./shell.module.css";
 
+const DISCORD_INVITE = "https://discord.gg/5xKg4fyumv";
+
 function lineText(l: ConsoleLine): string {
    if (l.segments) return window.renderLogSegments ? window.renderLogSegments(l.segments) : "";
    return l.text ?? "";
@@ -87,6 +89,14 @@ export function FailureModal() {
                      <T k="play.postGenerate.note">Launch Dota 2 through this app for your mods to work correctly.</T>
                   </div>
                )}
+               {!ok && (
+                  <div id="failure-report-hint" className={css.confirmText}>
+                     {t(
+                        "shell.failure.reportHint",
+                        "Still not working? Send us a report on Discord and attach the log file so we can fix it.",
+                     )}
+                  </div>
+               )}
                {!revealed ? (
                   <button id="failure-showlog" type="button" data-no-drag className={`${css.obBtn} ${css.ghost}`} onClick={() => setRevealed(true)}>
                      <T k="shell.toast.showLog">Show Log</T>
@@ -128,12 +138,34 @@ export function FailureModal() {
                      <T k="play.postGenerate.button">Play Dota 2</T>
                   </button>
                )}
+               {!ok && (
+                  <button
+                     id="failure-report"
+                     type="button"
+                     data-no-drag
+                     className={`${css.obBtn} ${css.primary}`}
+                     onClick={() => send("openUrl", { url: DISCORD_INVITE })}
+                  >
+                     {t("shell.failure.sendReport", "Send Report")}
+                  </button>
+               )}
+               {!ok && (
+                  <button
+                     id="failure-openlog"
+                     type="button"
+                     data-no-drag
+                     className={`${css.obBtn} ${css.ghost}`}
+                     onClick={() => send("openLogFolder")}
+                  >
+                     {t("shell.failure.openLog", "Open Log Folder")}
+                  </button>
+               )}
                {revealed && (
                   <button id="failure-copy" type="button" data-no-drag className={`${css.obBtn} ${css.ghost}`} onClick={copyLog}>
                      {t("shell.failure.copy", "Copy Log")}
                   </button>
                )}
-               <button ref={closeRef} id="failure-close" type="button" data-no-drag className={`${css.obBtn} ${ok ? css.ghost : css.primary}`} onClick={closeInstallLogModal}>
+               <button ref={closeRef} id="failure-close" type="button" data-no-drag className={`${css.obBtn} ${css.ghost}`} onClick={closeInstallLogModal}>
                   {t(ok ? "common.done" : "common.close", ok ? "Done" : "Close")}
                </button>
             </div>

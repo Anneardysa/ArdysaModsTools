@@ -59,6 +59,10 @@ namespace ArdysaModsTools.UI.Interfaces
 
         void SetButtonEnabled(string buttonName, bool enabled);
 
+        void RefreshButtonsVisibility();
+
+        void SetUtilitiesGreyedOut(bool greyedOut);
+
         #endregion
 
         #region Dialogs

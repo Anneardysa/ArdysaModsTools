@@ -70,6 +70,38 @@ public static class HeroModelMapper
                 }
             }
 
+            if (hs.SetNames != null && hs.SetNames.Count > 0)
+            {
+                hm.SetNames = new Dictionary<string, string>(hs.SetNames, StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (hs.Incompatible != null && hs.Incompatible.Count > 0)
+            {
+                hm.Incompatible = hs.Incompatible.Where(r => r != null).ToList();
+            }
+
+            if (hs.Notices != null && hs.Notices.Count > 0)
+            {
+                hm.Notices = new Dictionary<string, List<SetNotice>>(hs.Notices, StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (hs.BaseLocks != null && hs.BaseLocks.Count > 0)
+            {
+                hm.BaseLocks = hs.BaseLocks.ToDictionary(
+                    kv => kv.Key, kv => kv.Value.ToList(), StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (hs.AbilityNames != null && hs.AbilityNames.Count > 0)
+            {
+                hm.AbilityNames = new Dictionary<string, string>(hs.AbilityNames, StringComparer.OrdinalIgnoreCase);
+            }
+
+            if (hs.AbilityIcons != null && hs.AbilityIcons.Count > 0)
+                hm.AbilityIcons = new Dictionary<string, string>(hs.AbilityIcons, StringComparer.OrdinalIgnoreCase);
+
+            if (hs.EffectIcons != null && hs.EffectIcons.Count > 0)
+                hm.EffectIcons = new Dictionary<string, string>(hs.EffectIcons, StringComparer.OrdinalIgnoreCase);
+
             if (hs.Ids != null && hs.Ids.Length > 0)
             {
                 hm.ItemIds.Clear();
@@ -134,7 +166,8 @@ public static class HeroModelMapper
         Persona,
         Item,
         BaseHero,
-        Prismatic
+        Prismatic,
+        AbilityEffect
     }
 
     public static SkinCategory ClassifySet(List<string>? assetUrls)
@@ -148,6 +181,8 @@ public static class HeroModelMapper
 
         if (archiveFileName.StartsWith("prismatic_", StringComparison.OrdinalIgnoreCase))
             return SkinCategory.Prismatic;
+        if (archiveFileName.StartsWith(Core.Helpers.AbilityEffectGuard.ArchivePrefix, StringComparison.OrdinalIgnoreCase))
+            return SkinCategory.AbilityEffect;
         if (archiveFileName.StartsWith("persona_", StringComparison.OrdinalIgnoreCase))
             return SkinCategory.Persona;
         if (archiveFileName.StartsWith("item_", StringComparison.OrdinalIgnoreCase))
@@ -181,17 +216,48 @@ public static class HeroModelMapper
             return null;
 
         var basename = Path.GetFileNameWithoutExtension(archiveFileName);
-        if (!basename.StartsWith("item_", StringComparison.OrdinalIgnoreCase))
+        var prefix = Core.Helpers.AbilityEffectGuard.ArchivePrefix;
+        bool isEffect = basename.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        if (!isEffect && !basename.StartsWith("item_", StringComparison.OrdinalIgnoreCase))
             return null;
 
-        var afterPrefix = basename.Substring(5);
+        var afterPrefix = basename.Substring(isEffect ? prefix.Length : 5);
         if (string.IsNullOrEmpty(afterPrefix))
             return null;
 
         var underscoreIdx = afterPrefix.IndexOf('_');
-        return underscoreIdx > 0
+        var tag = underscoreIdx > 0
             ? afterPrefix.Substring(0, underscoreIdx).ToLowerInvariant()
             : afterPrefix.ToLowerInvariant();
+        return isEffect && !Core.Helpers.AbilityEffectGuard.IsValidTag(tag) ? null : tag;
+    }
+
+    public static string SetDisplayName(HeroModel? hero, string setName)
+    {
+        if (hero?.SetNames is { Count: > 0 } names && hero.Sets != null
+            && hero.Sets.TryGetValue(setName, out var urls)
+            && ExtractArchiveStem(urls) is string stem
+            && names.TryGetValue(stem, out var label) && !string.IsNullOrWhiteSpace(label))
+            return label;
+        return setName;
+    }
+
+    public static string? ExtractArchiveStem(List<string>? assetUrls)
+    {
+        if (assetUrls == null || assetUrls.Count == 0)
+            return null;
+
+        var archiveFileName = ExtractArchiveFileName(assetUrls);
+        if (string.IsNullOrEmpty(archiveFileName))
+            return null;
+
+        var stem = Path.GetFileNameWithoutExtension(archiveFileName);
+
+        if (stem.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) ||
+            stem.EndsWith(".rar", StringComparison.OrdinalIgnoreCase))
+            stem = Path.GetFileNameWithoutExtension(stem);
+
+        return string.IsNullOrEmpty(stem) ? null : stem;
     }
 
     private static string? ExtractArchiveFileName(List<string> assetUrls)

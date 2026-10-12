@@ -19,6 +19,13 @@
    --warn-accent: #f5c451;
    --warn-glow: rgba(245, 196, 81, 0.22);
 
+   --gold: #f5c451;
+   --gold-fill: #f5c451;
+   --gold-ink: #1a1a1a;
+   --gold-dim: rgba(245, 196, 81, 0.1);
+   --gold-line: rgba(245, 196, 81, 0.38);
+   --gold-glow: rgba(245, 196, 81, 0.3);
+
    --danger: #f85149;
    --danger-soft: #ff8983;
    --danger-dim: rgba(248, 81, 73, 0.08);

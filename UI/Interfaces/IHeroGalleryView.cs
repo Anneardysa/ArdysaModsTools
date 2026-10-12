@@ -48,6 +48,14 @@ namespace ArdysaModsTools.UI.Interfaces
 
         Task SaveSelectionsAsync();
 
+        Task ApplyDetectedSelectionsAsync(IReadOnlyDictionary<string, HeroSelectionState> selections);
+
+        Task ShowDetectionAsync(bool found, int count);
+
+        Task ShowDetectionFailedAsync();
+
+        Task ShowParticleSlotsAsync(string heroId, int setIndex, Core.Data.ParticleSlots? slots);
+
         void StoreResult(ModGenerationResult result);
 
         void CloseWithSuccess();

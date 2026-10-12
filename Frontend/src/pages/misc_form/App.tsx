@@ -1,22 +1,34 @@
-import { useRef, useState } from "react";
 import { send, useEscape } from "../../bridge/host";
-import { translate } from "../../bridge/i18n";
+import { T, translate } from "../../bridge/i18n";
 import { AlertModal, LogModal } from "./AlertModal";
 import { CachingOverlay } from "./CachingOverlay";
+import { EtherealDialog } from "./EtherealDialog";
 import { Header } from "./Header";
+import { activeOptionOf, hasEthereal } from "./helpers";
 import { ModeModal } from "./ModeModal";
-import { OptionModal } from "./OptionModal";
-import { OptionsGrid } from "./OptionsGrid";
+import { OptionPane } from "./OptionPane";
 import { ProgressOverlay } from "./ProgressOverlay";
-import { applyResetOption, store, type Choice } from "./store";
+import { Sidebar } from "./Sidebar";
+import {
+   chooseMode,
+   clearSelections,
+   closeAlert,
+   closeTopLayer,
+   closeTribute,
+   generate,
+   playFromAlert,
+   store,
+} from "./store";
 import { TitleBar } from "./TitleBar";
 import { TributeModal } from "./TributeModal";
 import css from "./misc.module.css";
 
-
 export function App() {
    const options = store.use((s) => s.options);
+   const loadError = store.use((s) => s.loadError);
    const selections = store.use((s) => s.selections);
+   const search = store.use((s) => s.search);
+   const etherealOpen = store.use((s) => s.etherealOpen);
    const version = store.use((s) => s.version);
    const status = store.use((s) => s.status);
    const generating = store.use((s) => s.generating);
@@ -26,179 +38,13 @@ export function App() {
    const progress = store.use((s) => s.progress);
    const modeModalOpen = store.use((s) => s.modeModalOpen);
    const alert = store.use((s) => s.alert);
+   const logModalOpen = store.use((s) => s.logModalOpen);
+   const tribute = store.use((s) => s.tribute);
+   const activeOptionId = store.use((s) => s.activeOptionId);
 
-   const [optionModalIndex, setOptionModalIndex] = useState(-1);
-   const [styleOverlay, setStyleOverlay] = useState<{ optId: string; choice: Choice } | null>(null);
-   const [etherealOverlay, setEtherealOverlay] = useState<{ optId: string; choiceId: string } | null>(null);
-   const [etherealSelections, setEtherealSelections] = useState<string[]>([]);
-   const [tribute, setTribute] = useState<{ choiceName: string | null } | null>(null);
-   const [logModalOpen, setLogModalOpen] = useState(false);
+   useEscape(closeTopLayer);
 
-   const tributeShownFor = useRef<Set<string>>(new Set());
-   const shouldGenerateAfterTribute = useRef(false);
-
-   const opts = options ?? [];
-
-   const close = () => send("close");
-   useEscape(() => {
-      if (!generating) close();
-   });
-
-   const closeOptionModal = () => {
-      setStyleOverlay(null);
-
-      if (optionModalIndex >= 0) {
-         const opt = opts[optionModalIndex];
-         if (opt?.isSpecialVpk) {
-            const currentSel = selections[opt.id];
-            const defaultChoice = opt.choices?.[0]?.id ?? "default";
-            if (currentSel && currentSel !== defaultChoice && !tributeShownFor.current.has(opt.id)) {
-               tributeShownFor.current.add(opt.id);
-               setOptionModalIndex(-1);
-               setTribute({ choiceName: currentSel });
-               return;
-            }
-         }
-      }
-      setOptionModalIndex(-1);
-   };
-
-   const navigateOption = (dir: number) => {
-      if (opts.length === 0) return;
-      setOptionModalIndex((i) => (i + dir + opts.length) % opts.length);
-   };
-
-   const enforceExclusion = (optId: string, currentChoiceId: string) => {
-      const opt = opts.find((o) => o.id === optId);
-      if (!opt?.excludesWith || opt.excludesWith.length === 0) return;
-
-      const defaultChoice = opt.choices?.[0]?.id || "default";
-      if (currentChoiceId === defaultChoice) return;
-
-      for (const excludedId of opt.excludesWith) {
-         const excludedOpt = opts.find((o) => o.id === excludedId);
-         if (!excludedOpt) continue;
-         const excludedDefault = excludedOpt.choices?.[0]?.id || "default";
-         const currentExcluded = selections[excludedId];
-         if (currentExcluded && currentExcluded !== excludedDefault) {
-            applyResetOption(excludedId, excludedDefault);
-            send("selectionChanged", { optionId: excludedId, choiceId: excludedDefault });
-         }
-      }
-   };
-
-   const selectBaseChoice = (optId: string, choice: Choice) => {
-      let resultingChoiceId: string;
-      if (choice.styles && choice.styles.length > 0) {
-         const currentSelection = selections[optId];
-         const hasSelectedStyle = choice.styles.some((s) => s.id === currentSelection);
-         if (hasSelectedStyle) {
-            resultingChoiceId = currentSelection!;
-         } else {
-            resultingChoiceId = choice.styles[0]!.id;
-            store.set((s) => ({ selections: { ...s.selections, [optId]: resultingChoiceId } }));
-            send("selectionChanged", { optionId: optId, choiceId: resultingChoiceId });
-         }
-         setStyleOverlay({ optId, choice });
-      } else {
-         resultingChoiceId = choice.id;
-         store.set((s) => ({ selections: { ...s.selections, [optId]: resultingChoiceId } }));
-         send("selectionChanged", { optionId: optId, choiceId: resultingChoiceId });
-      }
-      enforceExclusion(optId, resultingChoiceId);
-   };
-
-   const selectStyle = (styleId: string) => {
-      if (!styleOverlay) return;
-      const { optId } = styleOverlay;
-      store.set((s) => ({ selections: { ...s.selections, [optId]: styleId } }));
-      send("selectionChanged", { optionId: optId, choiceId: styleId });
-   };
-
-   const openEtherealOverlay = (optId: string, choiceId: string) => {
-      const saved = selections["CourierEthereal"] || "";
-      setEtherealSelections(
-         saved
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
-      );
-      setEtherealOverlay({ optId, choiceId });
-   };
-
-   const toggleEthereal = (effectName: string) => {
-      const idx = etherealSelections.indexOf(effectName);
-      const next =
-         idx >= 0 ? etherealSelections.filter((n) => n !== effectName) : etherealSelections.length < 2 ? [...etherealSelections, effectName] : etherealSelections;
-      if (next === etherealSelections) return;
-
-      setEtherealSelections(next);
-      const joined = next.join(",");
-      store.set((s) => ({ selections: { ...s.selections, CourierEthereal: joined } }));
-      send("selectionChanged", { optionId: "CourierEthereal", choiceId: joined });
-   };
-
-   const clearSelections = () => {
-      if (generating) return;
-      const hadSelections = Object.keys(selections).some((id) => {
-         const opt = opts.find((o) => o.id === id);
-         const def = opt?.choices?.[0]?.id;
-         return selections[id] && selections[id] !== def;
-      });
-      store.set({ selections: {} });
-      setEtherealSelections([]);
-      send("clearSelections");
-      store.set({
-         status: hadSelections
-            ? translate("miscForm.status.cleared", "Selections cleared")
-            : translate("miscForm.status.alreadyDefault", "Already at default"),
-      });
-   };
-
-   const generate = () => {
-      if (generating) return;
-      let specialChoiceName: string | null = null;
-      const hasSpecialSelected = opts.some((opt) => {
-         if (!opt.isSpecialVpk) return false;
-         const sel = selections[opt.id];
-         const def = opt.choices?.[0]?.id || "default";
-         if (sel && sel !== def) {
-            specialChoiceName = sel;
-            return true;
-         }
-         return false;
-      });
-
-      if (hasSpecialSelected) {
-         shouldGenerateAfterTribute.current = true;
-         setTribute({ choiceName: specialChoiceName });
-      } else {
-         send("generate", { selections });
-      }
-   };
-
-   const closeTribute = () => {
-      setTribute(null);
-      if (shouldGenerateAfterTribute.current) {
-         shouldGenerateAfterTribute.current = false;
-         send("generate", { selections });
-      }
-   };
-
-   const closeAlert = () => {
-      store.set((s) => ({ alert: { ...s.alert, visible: false } }));
-      send("alertDismissed");
-   };
-
-   const playFromAlert = () => {
-      store.set((s) => ({ alert: { ...s.alert, visible: false } }));
-      send("alertPlay");
-   };
-
-   const chooseMode = (mode: "clean" | "add" | null) => {
-      store.set({ modeModalOpen: false });
-      send("modeSelected", { mode });
-   };
+   const opt = options ? activeOptionOf(options, activeOptionId) : undefined;
 
    return (
       <>
@@ -206,7 +52,8 @@ export function App() {
          <TitleBar />
 
          <Header
-            options={options}
+            options={loadError !== null ? [] : options}
+            selections={selections}
             generating={generating}
             onClear={clearSelections}
             onLoad={() => send("loadPreset")}
@@ -215,9 +62,28 @@ export function App() {
          />
 
          <main className={css.mfMain}>
-            <div className={css.mfScroll}>
-               <OptionsGrid options={opts} selections={selections} flashResetId={flashResetId} onOpen={setOptionModalIndex} />
-            </div>
+            {loadError !== null ? (
+               <div className={css.mainState} role="alert">
+                  <h2 className={css.mainStateTitle}>
+                     <T k="miscForm.loadError">Couldn't load the option list</T>
+                  </h2>
+                  {loadError && <p>{loadError}</p>}
+                  <p>
+                     <T k="miscForm.loadErrorHint">Close and reopen Miscellaneous. If it keeps failing, check your connection.</T>
+                  </p>
+               </div>
+            ) : options && options.length === 0 ? (
+               <div className={css.mainState}>
+                  <p>
+                     <T k="miscForm.noOptions">No options available. Check your connection and reopen this window.</T>
+                  </p>
+               </div>
+            ) : options && opt ? (
+               <>
+                  <Sidebar options={options} selections={selections} activeId={opt.id} flashResetId={flashResetId} />
+                  <OptionPane opt={opt} selections={selections} search={search} />
+               </>
+            ) : null}
          </main>
 
          <footer className={css.statusBar}>
@@ -233,24 +99,7 @@ export function App() {
             />
          )}
 
-         {optionModalIndex >= 0 && (
-            <OptionModal
-               options={opts}
-               index={optionModalIndex}
-               selections={selections}
-               styleOverlay={styleOverlay}
-               etherealOverlay={etherealOverlay}
-               etherealSelections={etherealSelections}
-               onNavigate={navigateOption}
-               onClose={closeOptionModal}
-               onSelectBaseChoice={selectBaseChoice}
-               onCloseStyleOverlay={() => setStyleOverlay(null)}
-               onSelectStyle={selectStyle}
-               onOpenEtherealOverlay={openEtherealOverlay}
-               onCloseEtherealOverlay={() => setEtherealOverlay(null)}
-               onToggleEthereal={toggleEthereal}
-            />
-         )}
+         {etherealOpen && opt && hasEthereal(opt) && <EtherealDialog opt={opt} selections={selections} />}
 
          {tribute && <TributeModal choiceName={tribute.choiceName} onClose={closeTribute} />}
 
@@ -265,9 +114,7 @@ export function App() {
             />
          )}
 
-         {modeModalOpen && (
-            <ModeModal onSelect={chooseMode} onDismiss={() => chooseMode(null)} />
-         )}
+         {modeModalOpen && <ModeModal onSelect={chooseMode} onDismiss={() => chooseMode(null)} />}
 
          {alert.visible && (
             <AlertModal
@@ -276,13 +123,13 @@ export function App() {
                type={alert.type}
                hasLog={alert.hasLog}
                onClose={closeAlert}
-               onShowLog={() => setLogModalOpen(true)}
+               onShowLog={() => store.set({ logModalOpen: true })}
                onPlay={playFromAlert}
             />
          )}
 
          {logModalOpen && (
-            <LogModal lines={progress.lines} onClose={() => setLogModalOpen(false)} onCopy={(text) => send("copyConsole", { text })} />
+            <LogModal lines={progress.lines} onClose={() => store.set({ logModalOpen: false })} onCopy={(text) => send("copyConsole", { text })} />
          )}
       </>
    );

@@ -54,11 +54,27 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public async Task HiddenMarker_SelfContained_ClassifiesOfficialNoRebuild()
+        public async Task HiddenMarker_SelfContained_ClassifiesOfficialNeedsRebuild()
         {
             string vpk = ForgeVpk(HiddenMarker, ItemsGame);
             var svc = new ModInstallerService();
+            Assert.That(await svc.ClassifyVpkAsync(vpk), Is.EqualTo((VpkOrigin.Official, true)));
+        }
+
+        [Test]
+        public async Task HiddenMarker_WithSkinManifestAndItemData_ClassifiesOfficialNoRebuild()
+        {
+            string vpk = ForgeVpk(HiddenMarker, LegacyMarker, ItemsGame);
+            var svc = new ModInstallerService();
             Assert.That(await svc.ClassifyVpkAsync(vpk), Is.EqualTo((VpkOrigin.Official, false)));
+        }
+
+        [Test]
+        public async Task HiddenMarker_WithDecoyButNoItemData_ClassifiesOfficialNeedsRebuild()
+        {
+            string vpk = ForgeVpk(HiddenMarker, LegacyMarker);
+            var svc = new ModInstallerService();
+            Assert.That(await svc.ClassifyVpkAsync(vpk), Is.EqualTo((VpkOrigin.Official, true)));
         }
 
         [Test]
@@ -67,6 +83,15 @@ namespace ArdysaModsTools.Tests.Services
             string vpk = ForgeVpk(LegacyMarker);
             var svc = new ModInstallerService();
             Assert.That((await svc.ClassifyVpkAsync(vpk)).Origin, Is.EqualTo(VpkOrigin.Unofficial));
+        }
+
+        [Test]
+        public void SkinManifestUsesTheDecoyPathNotTheHiddenMarker()
+        {
+            Assert.That(ArdysaModsTools.Core.Services.Hero.SkinManifestStore.TreeRelativePath,
+                Is.EqualTo(LegacyMarker));
+            Assert.That(ArdysaModsTools.Core.Services.Hero.SkinManifestStore.TreeRelativePath,
+                Is.Not.EqualTo(HiddenMarker));
         }
 
         [Test]

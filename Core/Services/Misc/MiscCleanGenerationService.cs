@@ -35,6 +35,7 @@ namespace ArdysaModsTools.Core.Services
         private readonly IVpkRecompiler _recompiler;
         private readonly IVpkReplacer _replacer;
         private readonly IGameItemsGameExtractor _itemsGameExtractor;
+        private readonly LocalizationPatcherService _localizationPatcher;
         private readonly IAppLogger? _logger;
         private readonly HttpClient _httpClient;
 
@@ -58,6 +59,7 @@ namespace ArdysaModsTools.Core.Services
             _recompiler = recompiler ?? new VpkRecompilerService(logger);
             _replacer = replacer ?? new VpkReplacerService(logger);
             _itemsGameExtractor = itemsGameExtractor ?? new GameItemsGameExtractorService(logger);
+            _localizationPatcher = new LocalizationPatcherService(logger);
             _logger = logger;
             _httpClient = HttpClientProvider.Client;
         }
@@ -101,7 +103,9 @@ namespace ArdysaModsTools.Core.Services
                     string extractDir;
                     try
                     {
-                        extractDir = await _originalProvider.GetExtractedOriginalAsync(log, ct, speedProgress, null).ConfigureAwait(false);
+                        string pristineBase = await _originalProvider.GetExtractedOriginalAsync(log, ct, speedProgress, null).ConfigureAwait(false);
+                        extractDir = Path.Combine(tempRoot, "base");
+                        Core.Helpers.DirectoryCopy.Tree(pristineBase, extractDir, ct);
                     }
                     catch (Exception ex)
                     {
@@ -127,15 +131,14 @@ namespace ArdysaModsTools.Core.Services
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
 
+                    bool locSuccess = await _localizationPatcher
+                        .PatchLocalizationAsync(extractDir, log, ct).ConfigureAwait(false);
+
+                    ct.ThrowIfCancellationRequested();
+
                     string protectedDir = Path.Combine(tempRoot, "protected");
-                    int protectedMoved = 0;
-                    var protectedPaths = _modifier.GetProtectedPaths();
-                    if (protectedPaths.Count > 0)
-                    {
-                        ProtectedVpkStore.Ensure(targetPath);
-                        protectedMoved = ProtectedVpkStore.MoveProtected(
-                            extractDir, protectedDir, protectedPaths, _logger, ct);
-                    }
+                    int protectedMoved = ProtectedVpkStore.Split(
+                        targetPath, extractDir, protectedDir, _modifier.GetProtectedPaths(), _logger, ct);
 
                     if (protectedMoved > 0)
                     {
@@ -153,6 +156,7 @@ namespace ArdysaModsTools.Core.Services
                         log("[VPK] Recompilation returned null - check logs above for details");
                         return Fail("VPK recompilation failed.", log);
                     }
+                    VpkSignatureSection.TryApply(newVpkPath);
 
                     ct.ThrowIfCancellationRequested();
 
@@ -170,22 +174,20 @@ namespace ArdysaModsTools.Core.Services
                             log("[VPK] Protected package build returned null - check logs above for details");
                             return Fail("VPK recompilation failed.", log);
                         }
+                        VpkSignatureSection.TryApply(newProtectedVpkPath);
                     }
 
                     ct.ThrowIfCancellationRequested();
 
                     log("Installing...");
-                    var replaceSuccess = await _replacer.ReplaceAsync(
-                        targetPath, newVpkPath, log, ct).ConfigureAwait(false);
 
-                    if (!replaceSuccess)
+                    if (!await ProtectedVpkStore.DeployPairAsync(
+                            targetPath, newProtectedVpkPath,
+                            () => _replacer.ReplaceAsync(targetPath, newVpkPath, log, ct),
+                            log, _logger).ConfigureAwait(false))
                         return Fail("VPK replacement failed.", log);
 
                     await ItemsGameBaselineStore.CommitAsync(targetPath, _modifier.GetModifiedItemIds(), ct).ConfigureAwait(false);
-
-                    if (!await ProtectedVpkStore.DeployAsync(
-                            targetPath, newProtectedVpkPath, log, CancellationToken.None, _logger).ConfigureAwait(false))
-                        return Fail("VPK replacement failed.", log);
 
                     log("Finalizing...");
                     var extractionLog = new MiscExtractionLog
@@ -203,6 +205,8 @@ namespace ArdysaModsTools.Core.Services
                     var patchSuccess = await PatchSignaturesAndGameInfoAsync(targetPath, ct).ConfigureAwait(false);
 
                     var warnings = new List<string>(_modifier.GetWarnings());
+                    if (!locSuccess)
+                        warnings.Add("Some localization files could not be refreshed — in-game text may be outdated or missing for those languages.");
                     if (!patchSuccess)
                     {
                         _logger?.Log("Warning: Failed to patch signatures/gameinfo, but VPK was installed.");

@@ -39,7 +39,6 @@ namespace ArdysaModsTools.UI.Forms
         {
             _conflict = conflict ?? throw new ArgumentNullException(nameof(conflict));
             InitializeComponent();
-            FontHelper.ApplyToForm(this);
         }
 
         private void InitializeComponent()
@@ -118,7 +117,7 @@ namespace ArdysaModsTools.UI.Forms
             var titleLabel = new Label
             {
                 Text = "MOD CONFLICT DETECTED",
-                Font = new Font("JetBrains Mono", 14f, FontStyle.Bold),
+                Font = FontHelper.Create(14f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(255, 100, 100),
                 AutoSize = true,
                 Location = new Point(65, 18)
@@ -141,7 +140,7 @@ namespace ArdysaModsTools.UI.Forms
             var typeLabel = new Label
             {
                 Text = $"[{_conflict.Severity}] {_conflict.Type} Conflict",
-                Font = new Font("JetBrains Mono", 10f, FontStyle.Bold),
+                Font = FontHelper.Create(10f, FontStyle.Bold),
                 ForeColor = GetSeverityColor(_conflict.Severity),
                 AutoSize = true,
                 Location = new Point(15, 12)
@@ -150,7 +149,7 @@ namespace ArdysaModsTools.UI.Forms
             var descLabel = new Label
             {
                 Text = _conflict.Description,
-                Font = new Font("JetBrains Mono", 9f),
+                Font = FontHelper.Create(9f),
                 ForeColor = Color.White,
                 Size = new Size(Width - 80, 40),
                 Location = new Point(15, 35)
@@ -159,7 +158,7 @@ namespace ArdysaModsTools.UI.Forms
             var filesLabel = new Label
             {
                 Text = $"Affected files: {_conflict.AffectedFiles.Count}",
-                Font = new Font("JetBrains Mono", 8f),
+                Font = FontHelper.Create(8f),
                 ForeColor = Color.FromArgb(136, 136, 136),
                 AutoSize = true,
                 Location = new Point(15, 72)
@@ -203,7 +202,7 @@ namespace ArdysaModsTools.UI.Forms
             var strategyLabel = new Label
             {
                 Text = $"[{option.Strategy}]",
-                Font = new Font("JetBrains Mono", 9f, FontStyle.Bold),
+                Font = FontHelper.Create(9f, FontStyle.Bold),
                 ForeColor = GetStrategyColor(option.Strategy),
                 AutoSize = true,
                 Location = new Point(12, 8),
@@ -213,7 +212,7 @@ namespace ArdysaModsTools.UI.Forms
             var descLabel = new Label
             {
                 Text = option.Description,
-                Font = new Font("JetBrains Mono", 9f),
+                Font = FontHelper.Create(9f),
                 ForeColor = Color.White,
                 Size = new Size(card.Width - 30, 20),
                 Location = new Point(12, 28),
@@ -283,7 +282,7 @@ namespace ArdysaModsTools.UI.Forms
                 BackColor = Color.FromArgb(51, 51, 51),
                 ForeColor = Color.FromArgb(100, 100, 100),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("JetBrains Mono", 10F, FontStyle.Bold),
+                Font = FontHelper.Create(10F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 BorderRadius = 0,
                 BorderColor = Color.FromArgb(51, 51, 51),
@@ -308,7 +307,7 @@ namespace ArdysaModsTools.UI.Forms
                 BackColor = Color.Black,
                 ForeColor = Color.FromArgb(136, 136, 136),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("JetBrains Mono", 10F, FontStyle.Bold),
+                Font = FontHelper.Create(10F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 BorderRadius = 0,
                 BorderColor = Color.FromArgb(51, 51, 51),

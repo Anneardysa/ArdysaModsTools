@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Carousel } from "./Carousel";
+import { ChangelogModal } from "./ChangelogModal";
 import { ConfirmModal, resolveShellConfirm } from "./ConfirmModal";
 import { Console } from "./Console";
 import { ElevationModal } from "./ElevationModal";
@@ -11,7 +12,7 @@ import { PatchMenuDropdown } from "./PatchMenuDropdown";
 import { PathFoundBanner } from "./PathFoundBanner";
 import { PromoCards } from "./PromoCards";
 import { Sidebar } from "./Sidebar";
-import { closeInstallLogModal, closeNewsModal, closePatchMenu, closeSyncDetailsModal, closeSyncModal, finishOnboarding, onboardNext, onboardPrev, store } from "./store";
+import { closeChangelogModal, closeInstallLogModal, closeNewsModal, closePatchMenu, closeSyncDetailsModal, closeSyncModal, finishOnboarding, onboardNext, onboardPrev, store } from "./store";
 import { SyncModal } from "./SyncModal";
 import { SyncDetailModal } from "./SyncDetailModal";
 import { TitleBar } from "./TitleBar";
@@ -48,6 +49,11 @@ export function App() {
 
          if (s.installLogModal) {
             if (e.key === "Escape") closeInstallLogModal();
+            return;
+         }
+
+         if (s.changelogModal) {
+            if (e.key === "Escape") closeChangelogModal();
             return;
          }
 
@@ -91,12 +97,13 @@ export function App() {
 
          <PatchMenuDropdown />
          <NewsModal />
-         <ConfirmModal />
+         <ChangelogModal />
          <ElevationModal />
          <SyncModal />
          <SyncDetailModal />
          <LaunchModal />
          <FailureModal />
+         <ConfirmModal />
          <ToastHost />
          <Onboarding />
       </>

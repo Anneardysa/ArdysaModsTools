@@ -44,7 +44,9 @@ namespace ArdysaModsTools.UI.Forms
         private readonly TrayService? _trayService;
         private readonly IAssetPreloadService? _assetPreloadService;
         private readonly IConnectionTestService _connectionTestService;
+        private readonly IAppRepairService _appRepairService;
         private CancellationTokenSource? _testCts;
+        private CancellationTokenSource? _repairCts;
 
         private readonly ILocalizationService? _loc = Loc.Service;
 
@@ -68,7 +70,8 @@ namespace ArdysaModsTools.UI.Forms
             UpdaterService updaterService,
             TrayService? trayService,
             IAssetPreloadService? assetPreloadService = null,
-            IConnectionTestService? connectionTestService = null)
+            IConnectionTestService? connectionTestService = null,
+            IAppRepairService? appRepairService = null)
         {
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _lifecycleService = lifecycleService ?? throw new ArgumentNullException(nameof(lifecycleService));
@@ -77,6 +80,7 @@ namespace ArdysaModsTools.UI.Forms
             _trayService = trayService;
             _assetPreloadService = assetPreloadService;
             _connectionTestService = connectionTestService ?? new Core.Services.Cdn.ConnectionTestService();
+            _appRepairService = appRepairService ?? new Core.Services.App.AppRepairService();
 
             InitializeComponent();
             SetupForm();
@@ -273,6 +277,18 @@ namespace ArdysaModsTools.UI.Forms
 
                     case "cancelConnectionTest":
                         HandleCancelConnectionTest();
+                        break;
+
+                    case "runRepairScan":
+                        await HandleRepairScanAsync();
+                        break;
+
+                    case "runRepairFix":
+                        await HandleRepairFixAsync(message);
+                        break;
+
+                    case "cancelRepair":
+                        HandleCancelRepair();
                         break;
 
                     case "applyRecommendedServer":
@@ -589,6 +605,100 @@ namespace ArdysaModsTools.UI.Forms
             }
         }
 
+        private async Task HandleRepairScanAsync()
+        {
+            if (_repairCts != null) return;
+
+            _repairCts = new CancellationTokenSource();
+            var ct = _repairCts.Token;
+
+            try
+            {
+                var progress = new Progress<Core.Models.AppRepairProgress>(async p =>
+                {
+                    if (this.IsDisposed || _webView?.CoreWebView2 == null) return;
+                    await ExecuteScriptAsync($"setRepairProgress({JsonSerializer.Serialize(p)})");
+                });
+
+                var report = await _appRepairService.ScanAsync(progress, ct);
+
+                if (!ct.IsCancellationRequested && !this.IsDisposed && _webView?.CoreWebView2 != null)
+                    await ExecuteScriptAsync($"setRepairReport({JsonSerializer.Serialize(report)})");
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                if (!this.IsDisposed && _webView?.CoreWebView2 != null)
+                    await ToastAsync("toast.error", "error", new { error = ex.Message });
+            }
+            finally
+            {
+                _repairCts?.Dispose();
+                _repairCts = null;
+                if (!this.IsDisposed && _webView?.CoreWebView2 != null)
+                    await ExecuteScriptAsync("resetRepairButton()");
+            }
+        }
+
+        private async Task HandleRepairFixAsync(JsonElement message)
+        {
+            if (_repairCts != null) return;
+
+            _repairCts = new CancellationTokenSource();
+            var ct = _repairCts.Token;
+
+            try
+            {
+                var ids = message.GetProperty("ids").EnumerateArray()
+                    .Select(e => e.GetString() ?? "")
+                    .Where(s => s.Length > 0)
+                    .ToArray();
+
+                var progress = new Progress<Core.Models.AppRepairProgress>(async p =>
+                {
+                    if (this.IsDisposed || _webView?.CoreWebView2 == null) return;
+                    await ExecuteScriptAsync($"setRepairProgress({JsonSerializer.Serialize(p)})");
+                });
+
+                var report = await _appRepairService.RepairAsync(ids, progress, ct);
+
+                if (!ct.IsCancellationRequested && !this.IsDisposed && _webView?.CoreWebView2 != null)
+                {
+                    await ExecuteScriptAsync($"setRepairReport({JsonSerializer.Serialize(report)})");
+                    await ToastAsync(report.HasFailures ? "toast.repair.failed" : "toast.repair.done",
+                        report.HasFailures ? "error" : "success");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                if (!this.IsDisposed && _webView?.CoreWebView2 != null)
+                    await ToastAsync("toast.error", "error", new { error = ex.Message });
+            }
+            finally
+            {
+                _repairCts?.Dispose();
+                _repairCts = null;
+                if (!this.IsDisposed && _webView?.CoreWebView2 != null)
+                    await ExecuteScriptAsync("resetRepairButton()");
+            }
+        }
+
+        private void HandleCancelRepair()
+        {
+            try
+            {
+                _repairCts?.Cancel();
+            }
+            catch
+            {
+            }
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -597,6 +707,8 @@ namespace ArdysaModsTools.UI.Forms
                 {
                     _testCts?.Cancel();
                     _testCts?.Dispose();
+                    _repairCts?.Cancel();
+                    _repairCts?.Dispose();
                 }
                 catch
                 {

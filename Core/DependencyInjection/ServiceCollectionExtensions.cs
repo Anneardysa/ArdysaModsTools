@@ -64,6 +64,12 @@ namespace ArdysaModsTools.Core.DependencyInjection
 
             services.AddSingleton<ILocalizationService, Services.Localization.LocalizationService>();
             services.AddTransient<IAutoexecService, Services.Misc.AutoexecService>();
+            services.AddTransient<IMapCleanupService, Services.Misc.MapCleanupService>();
+
+            services.AddTransient<IRankChangerService>(sp =>
+                ActivatorUtilities.CreateInstance<Services.Utilities.RankChangerService>(sp, FileAppLogger.Instance));
+            services.AddTransient<IHeroBadgeService>(sp =>
+                ActivatorUtilities.CreateInstance<Services.Utilities.HeroBadgeService>(sp, FileAppLogger.Instance));
 
             services.AddSingleton<IAssetPreloadService, Services.Cache.AssetPreloadService>();
 
@@ -86,6 +92,9 @@ namespace ArdysaModsTools.Core.DependencyInjection
             services.AddTransient<IHeroGenerationService, HeroGenerationService>();
 
             services.AddSingleton<ISkinSelectorCooldownService, ArdysaModsTools.Core.Services.Hero.SkinSelectorCooldownService>();
+
+            services.AddSingleton<ISkinManifestReader>(sp =>
+                new ArdysaModsTools.Core.Services.Hero.SkinManifestReader(sp.GetService<IAppLogger>()));
 
             services.AddTransient<IHeroDatabaseService>(sp =>
                 new HeroDatabaseService(System.AppContext.BaseDirectory, sp.GetService<IAppLogger>()));
@@ -120,6 +129,7 @@ namespace ArdysaModsTools.Core.DependencyInjection
                 provider => (view, path) => new UI.Presenters.Dota2PerformancePresenter(
                     view,
                     provider.GetRequiredService<IAutoexecService>(),
+                    provider.GetRequiredService<IMapCleanupService>(),
                     provider.GetRequiredService<IAppLogger>(),
                     path));
             

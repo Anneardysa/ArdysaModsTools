@@ -20,6 +20,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services.Cdn
@@ -103,9 +104,10 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
         #region Public API
 
-        public async Task<string?> DownloadStringWithFallbackAsync(string url, CancellationToken ct = default)
+        public async Task<string?> DownloadStringWithFallbackAsync(
+            string url, CancellationToken ct = default, TimeSpan? attemptTimeout = null)
         {
-            var result = await DownloadWithFallbackAsync(url, ct).ConfigureAwait(false);
+            var result = await DownloadWithFallbackAsync(url, ct, attemptTimeout).ConfigureAwait(false);
             if (result.Success && result.Data != null)
             {
                 if (result.Data.Length >= 3 && result.Data[0] == 0xEF && result.Data[1] == 0xBB && result.Data[2] == 0xBF)
@@ -115,7 +117,8 @@ namespace ArdysaModsTools.Core.Services.Cdn
             return null;
         }
 
-        public async Task<CdnDownloadResult> DownloadWithFallbackAsync(string url, CancellationToken ct = default)
+        public async Task<CdnDownloadResult> DownloadWithFallbackAsync(
+            string url, CancellationToken ct = default, TimeSpan? attemptTimeout = null)
         {
             if (string.IsNullOrEmpty(url))
                 return CdnDownloadResult.Fail("URL is empty", 0, 0);
@@ -148,7 +151,7 @@ namespace ArdysaModsTools.Core.Services.Cdn
                     try
                     {
                         var result = await DownloadRetryPolicy.ExecuteWithRetryAsync(
-                            token => TryDownloadAsync(targetUrl, token),
+                            token => TryDownloadAsync(targetUrl, token, attemptTimeout),
                             log: null,
                             ct).ConfigureAwait(false);
 
@@ -174,6 +177,16 @@ namespace ArdysaModsTools.Core.Services.Cdn
                     catch (Exception ex)
                     {
                         lastError = ex.Message;
+
+                        if (CdnAuthFailure.IsUnauthorized(ex))
+                        {
+                            stopwatch.Stop();
+                            Interlocked.Increment(ref _totalFailures);
+                            Debug.WriteLine($"[CdnFallback] Unauthorized: {targetUrl}");
+                            return CdnDownloadResult.Fail(
+                                $"{ErrorCodes.DL_CDN_UNAUTHORIZED}: {CdnAuthFailure.Reason}",
+                                fallbackCount, stopwatch.ElapsedMilliseconds);
+                        }
 
                         bool isNotFound = ex is HttpRequestException hre &&
                             (hre.StatusCode == System.Net.HttpStatusCode.NotFound ||
@@ -247,7 +260,7 @@ namespace ArdysaModsTools.Core.Services.Cdn
                 string testUrl = $"{cdnBase.TrimEnd('/')}/{testAssetPath}";
 
                 var sw = Stopwatch.StartNew();
-                bool success = false;
+                bool success;
 
                 try
                 {
@@ -255,9 +268,8 @@ namespace ArdysaModsTools.Core.Services.Cdn
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     cts.CancelAfter(TimeSpan.FromSeconds(10));
 
-                    using var request = new HttpRequestMessage(HttpMethod.Head, testUrl);
-                    var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
-                    success = response.IsSuccessStatusCode;
+                    var probe = await CdnProbe.ProbeAsync(client, testUrl, cts.Token).ConfigureAwait(false);
+                    success = probe.Success;
                 }
                 catch
                 {
@@ -276,11 +288,11 @@ namespace ArdysaModsTools.Core.Services.Cdn
         #region Private Helpers
 
         private async Task<(byte[] Data, string? ETag, string? LastModified)> TryDownloadAsync(
-            string url, CancellationToken ct)
+            string url, CancellationToken ct, TimeSpan? timeout = null)
         {
             var client = HttpClientProvider.Client;
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(CdnConfig.TimeoutSeconds));
+            cts.CancelAfter(timeout ?? TimeSpan.FromSeconds(CdnConfig.TimeoutSeconds));
 
             using var response = await client.GetAsync(url, cts.Token).ConfigureAwait(false);
 

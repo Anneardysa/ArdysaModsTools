@@ -382,5 +382,36 @@ namespace ArdysaModsTools.Tests.Services
                 Assert.That(baseline.PatchedIds, Does.Contain("555"));
             });
         }
+
+        [Test]
+        public async Task Merge_WhenDota2IsReplacedWhileTheRepackRuns_DiscardsTheRebuildInsteadOfInstallingIt()
+        {
+            SetupItemData(VanillaWithExtraItem, Modded);
+
+            _recompiler.Setup(r => r.RecompileAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<string>(), It.IsAny<Action<string>>(), It.IsAny<CancellationToken>(),
+                    It.IsAny<IProgress<SpeedMetrics>>()))
+                .Returns((string _, string __, string buildDir, string ___, Action<string> ____,
+                          CancellationToken _____, IProgress<SpeedMetrics> ______) =>
+                {
+                    Write(DotaPaths.GameVpk, "game vpk delivered by a Dota 2 update");
+
+                    Directory.CreateDirectory(buildDir);
+                    var built = Path.Combine(buildDir, "pak01_dir.vpk");
+                    File.WriteAllText(built, "rebuilt");
+                    return Task.FromResult<string?>(built);
+                });
+
+            var result = await NewService().MergeAsync(_root);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(ItemsGameMergeOutcome.GameChanged));
+                Assert.That(result.IsPlayable, Is.False, "a superseded rebuild must never read as ready to play");
+                _replacer.Verify(r => r.ReplaceAsync(It.IsAny<string>(), It.IsAny<string>(),
+                        It.IsAny<Action<string>>(), It.IsAny<CancellationToken>()),
+                    Times.Never, "installing a package merged onto item data the game no longer ships is the crash");
+            });
+        }
     }
 }

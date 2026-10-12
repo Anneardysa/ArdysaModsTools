@@ -3,7 +3,6 @@ import { send } from "../../bridge/host";
 import { T, translate, useLocale } from "../../bridge/i18n";
 import { ATTRIBUTE_ICONS } from "./attributeIcons";
 import { DetectionBadge } from "./DetectionBadge";
-import { setCooldown } from "./store";
 import type { CooldownState, DetectionState, FilterCategory } from "./types";
 import css from "./gallery.module.css";
 
@@ -66,9 +65,8 @@ export function Header({
    const remainingQuota = maxQuota > 0 ? Math.max(0, maxQuota - (cooldown.dailyUsed || 0)) : 0;
 
    const handleGenerateClick = (e: React.MouseEvent) => {
-      if (e.shiftKey || e.ctrlKey) {
+      if (onDebug && (e.shiftKey || e.ctrlKey)) {
          send("resetCooldown");
-         setCooldown({ active: false, remainingSeconds: 0, totalSeconds: 600, dailyUsed: 0, dailyMax: 0, isDailyLimit: false });
          return;
       }
       onGenerate();

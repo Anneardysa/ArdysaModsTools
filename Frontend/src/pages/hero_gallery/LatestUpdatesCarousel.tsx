@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { T } from "../../bridge/i18n";
+import { memo, useEffect, useRef, useState } from "react";
+import { T, useLocale } from "../../bridge/i18n";
 import type { LatestUpdate } from "./types";
 import css from "./gallery.module.css";
 
@@ -15,13 +15,28 @@ function daysText(daysAgo: number): string {
    return `${daysAgo}d ago`;
 }
 
-function UpdateCard({ update, onSelect }: { update: LatestUpdate; onSelect: () => void }) {
+function UpdateCard({ update, onSelect, onFocus }: { update: LatestUpdate; onSelect: () => void; onFocus: () => void }) {
    return (
-      <div className={css.updateCard} onClick={onSelect}>
+      <div
+         className={css.updateCard}
+         role="button"
+         tabIndex={0}
+         aria-label={`${update.heroName}, ${daysText(update.daysAgo)}`}
+         onClick={onSelect}
+         onFocus={onFocus}
+         onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+               e.preventDefault();
+               onSelect();
+            }
+         }}
+      >
          <div className={css.updateCardImage}>
             <img
                src={update.setThumbnail || PLACEHOLDER}
                alt={update.heroName}
+               loading="lazy"
+               decoding="async"
                onError={(e) => {
                   e.currentTarget.onerror = null;
                   e.currentTarget.src = PLACEHOLDER;
@@ -38,7 +53,7 @@ function UpdateCard({ update, onSelect }: { update: LatestUpdate; onSelect: () =
    );
 }
 
-export function LatestUpdatesCarousel({
+export const LatestUpdatesCarousel = memo(function LatestUpdatesCarousel({
    updates,
    collapsed,
    onToggleCollapsed,
@@ -49,6 +64,7 @@ export function LatestUpdatesCarousel({
    onToggleCollapsed: () => void;
    onSelectUpdate: (heroId: string, setIndex: number) => void;
 }) {
+   const { t } = useLocale();
    const wrapperRef = useRef<HTMLDivElement>(null);
    const [index, setIndex] = useState(0);
    const [visibleCards, setVisibleCards] = useState(1);
@@ -104,7 +120,7 @@ export function LatestUpdatesCarousel({
                <span id="updatesCount" className={css.updatesCount}>{count} new</span>
             </div>
             <button type="button" data-no-drag className={`${css.btn} ${css.ghost}`} onClick={onToggleCollapsed}>
-               {collapsed ? "Show" : <T k="heroGallery.toggleHide">Hide</T>}
+               {collapsed ? <T k="heroGallery.toggleShow">Show</T> : <T k="heroGallery.toggleHide">Hide</T>}
                <svg
                   style={{ width: 13, height: 13, transition: "transform 0.3s", transform: collapsed ? "rotate(180deg)" : "rotate(0deg)" }}
                   fill="none"
@@ -120,14 +136,15 @@ export function LatestUpdatesCarousel({
             </button>
          </div>
 
-         <div className={`${css.latestUpdatesContainer} ${collapsed ? css.collapsed : ""}`}>
+         <div className={`${css.latestUpdatesContainer} ${collapsed ? css.collapsed : ""}`} {...(collapsed ? { inert: "" } : {})}>
             <div className={css.carouselWrapper} ref={wrapperRef}>
                <button
                   type="button"
                   data-no-drag
+                  disabled={clampedIndex <= 0}
                   className={`${css.carouselArrow} ${css.carouselArrowLeft} ${clampedIndex <= 0 ? css.disabled : ""}`}
                   onClick={() => setIndex(Math.max(0, clampedIndex - step))}
-                  aria-label="Previous"
+                  aria-label={t("heroGallery.carouselPrev", "Previous updates")}
                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                      <path d="M15 19l-7-7 7-7" />
@@ -136,16 +153,25 @@ export function LatestUpdatesCarousel({
 
                <div className={css.carouselTrack} style={{ transform: `translateX(-${offset}px)` }}>
                   {updates.map((u, i) => (
-                     <UpdateCard key={`${u.heroId}-${u.setIndex}-${i}`} update={u} onSelect={() => onSelectUpdate(u.heroId, u.setIndex)} />
+                     <UpdateCard
+                        key={`${u.heroId}-${u.setIndex}-${i}`}
+                        update={u}
+                        onSelect={() => onSelectUpdate(u.heroId, u.setIndex)}
+                        onFocus={() => {
+                           if (i < clampedIndex || i >= clampedIndex + visibleCards) setIndex(Math.min(maxScrollIndex, i));
+                           if (wrapperRef.current) wrapperRef.current.scrollLeft = 0;
+                        }}
+                     />
                   ))}
                </div>
 
                <button
                   type="button"
                   data-no-drag
+                  disabled={clampedIndex >= maxScrollIndex}
                   className={`${css.carouselArrow} ${css.carouselArrowRight} ${clampedIndex >= maxScrollIndex ? css.disabled : ""}`}
                   onClick={() => setIndex(Math.min(maxScrollIndex, clampedIndex + step))}
-                  aria-label="Next"
+                  aria-label={t("heroGallery.carouselNext", "Next updates")}
                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                      <path d="M9 5l7 7-7 7" />
@@ -177,4 +203,4 @@ export function LatestUpdatesCarousel({
          </div>
       </section>
    );
-}
+});

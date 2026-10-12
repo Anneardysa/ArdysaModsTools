@@ -1,5 +1,6 @@
 import { send, startDragUnlessInteractive } from "../../bridge/host";
 import { T, translate, useLocale } from "../../bridge/i18n";
+import { Icon } from "./icons";
 import { store } from "./store";
 
 export function TitleBar() {
@@ -34,7 +35,7 @@ export function TitleBar() {
                </svg>
             </span>
             <span className="font-bold text-xs tracking-[2px] uppercase">
-               <span className="text-amt-text-muted">// </span>
+               <span className="text-amt-text-dim">// </span>
                <span className="text-amt-accent">AMT</span>
             </span>
             <span className="text-amt-text-dim font-medium text-[11px] tracking-[1px] uppercase">
@@ -43,7 +44,7 @@ export function TitleBar() {
             <span
                id="presetBadge"
                className="text-[11px] px-2 py-0.5 border tracking-wider"
-               style={{ color: activePreset ? "var(--ink)" : "var(--mute)", borderColor: activePreset ? "var(--ink)" : "var(--hairline)" }}
+               style={{ color: activePreset ? "var(--amber-ink)" : "var(--body)", borderColor: activePreset ? "var(--amber-line)" : "var(--hairline-strong)" }}
             >
                {badgeLabel}
             </span>
@@ -52,7 +53,7 @@ export function TitleBar() {
             id="closeBtn"
             type="button"
             data-no-drag
-            className="h-9 w-10 flex items-center justify-center text-amt-text-muted hover:text-white hover:bg-[rgba(248,81,73,0.85)] border border-transparent transition-colors flex-shrink-0"
+            className="h-9 w-10 flex items-center justify-center text-amt-text-dim hover:text-white hover:bg-[rgba(248,81,73,0.85)] border border-transparent transition-colors flex-shrink-0"
             onClick={(e) => {
                e.stopPropagation();
                send("close");
@@ -60,10 +61,7 @@ export function TitleBar() {
             title={t("common.close", "Close")}
             aria-label={t("common.close", "Close")}
          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-[14px] h-[14px]" aria-hidden="true">
-               <line x1="6" y1="6" x2="18" y2="18" />
-               <line x1="18" y1="6" x2="6" y2="18" />
-            </svg>
+            <Icon name="x_close" size={14} />
          </button>
       </div>
    );

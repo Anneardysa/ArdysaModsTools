@@ -89,10 +89,19 @@ namespace ArdysaModsTools.Core.Services
                 message.Contains("gameinfo_branchspecific", StringComparison.OrdinalIgnoreCase))
                 return;
 
+            string? view = ConsoleView(message, IsProblem(message));
+            if (view == null)
+            {
+                FallbackLogger.LogFileOnly($"[Debug] {message}");
+                return;
+            }
+
+            FallbackLogger.LogFileOnly(message);
+
             if (_richTextBox != null)
-                LogToRichTextBox(message, CategorizeMessage(message));
+                LogToRichTextBox(view, CategorizeMessage(view));
             else
-                _webSink?.Invoke(CleanMessage(message), CategorizeKey(message));
+                _webSink?.Invoke(CleanMessage(view), CategorizeKey(view));
         }
 
         public void LogCategorized(string message, string category)
@@ -101,10 +110,18 @@ namespace ArdysaModsTools.Core.Services
                 message.Contains("gameinfo_branchspecific", StringComparison.OrdinalIgnoreCase))
                 return;
 
+            string? view = ConsoleView(message, category is "error" or "warning");
+            if (view == null)
+            {
+                FallbackLogger.LogFileOnly($"[Debug] {message}");
+                return;
+            }
+            if (view != message) FallbackLogger.LogFileOnly(message);
+
             if (_richTextBox != null)
-                LogToRichTextBox(message, ColorForCategory(category));
+                LogToRichTextBox(view, ColorForCategory(category));
             else
-                _webSink?.Invoke(CleanMessage(message), category);
+                _webSink?.Invoke(CleanMessage(view), category);
         }
 
         public void LogLocalized(string category, params LogSegment[] segments)
@@ -113,7 +130,7 @@ namespace ArdysaModsTools.Core.Services
 
             if (_richTextBox == null && _webI18nSink != null)
             {
-                _webI18nSink(SerializeSegments(segments), category);
+                _webI18nSink(LogRedaction.Apply(SerializeSegments(segments)), category);
                 return;
             }
 
@@ -183,6 +200,46 @@ namespace ArdysaModsTools.Core.Services
             _buffer.Clear();
         }
 
+        internal const string ComponentTagPattern =
+            @"\[[A-Z][A-Za-z0-9]*(?:Service|Presenter|Form|WebView|Watcher|Sentry|Guard|Handler|Helper|Manager|Provider)\]";
+
+        private static readonly System.Text.RegularExpressions.Regex ComponentTag =
+            new("^" + ComponentTagPattern + @"\s*", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        private static readonly string[] LevelPrefixes = { "Error: ", "Warning: ", "Info: " };
+
+        private static bool IsProblem(string message) =>
+            message.StartsWith("Error: ", StringComparison.OrdinalIgnoreCase) ||
+            message.StartsWith("Warning: ", StringComparison.OrdinalIgnoreCase);
+
+        internal static string? ConsoleView(string message, bool problem)
+        {
+            string prefix = string.Empty, body = message;
+            foreach (var p in LevelPrefixes)
+                if (message.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+                {
+                    prefix = message[..p.Length];
+                    body = message[p.Length..];
+                    break;
+                }
+
+            if (body.StartsWith("[DIAG", StringComparison.Ordinal) ||
+                (body.StartsWith("===", StringComparison.Ordinal) && body.Contains("DIAGNOSTIC", StringComparison.Ordinal)))
+                return null;
+
+            var tag = ComponentTag.Match(body);
+            if (tag.Success)
+            {
+                if (!problem) return null;
+                body = body[tag.Length..];
+            }
+
+            int nl = body.IndexOfAny(new[] { '\r', '\n' });
+            if (nl >= 0) body = body[..nl];
+
+            return prefix + body;
+        }
+
         #region IAppLogger Implementation
 
         public void Log(string message, LogLevel level = LogLevel.Info)
@@ -220,12 +277,12 @@ namespace ArdysaModsTools.Core.Services
         private static string CleanMessage(string message)
         {
             if (message.StartsWith("Error: ", StringComparison.OrdinalIgnoreCase))
-                return message[7..];
+                return LogRedaction.Apply(message[7..]);
             if (message.StartsWith("Warning: ", StringComparison.OrdinalIgnoreCase))
-                return message[9..];
+                return LogRedaction.Apply(message[9..]);
             if (message.StartsWith("Info: ", StringComparison.OrdinalIgnoreCase))
-                return message[6..];
-            return message;
+                return LogRedaction.Apply(message[6..]);
+            return LogRedaction.Apply(message);
         }
 
         private static Color CategorizeMessage(string message) => ColorForCategory(CategorizeKey(message));

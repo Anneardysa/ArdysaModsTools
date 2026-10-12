@@ -2,17 +2,28 @@ import { send } from "../../bridge/host";
 import { createStore } from "../../bridge/store";
 import {
    EMPTY_SELECTION,
+   MAX_PARTICLES,
+   canCarryParticles,
    filterHeroes,
+   findParticle,
+   getBlockedIndices,
+   getEffectsWithSameTag,
    getHeroSelection,
    getItemsWithSameTag,
+   getSetDisplayName,
    getSelectionSummary,
    getSetCategory,
    hasAnySelection,
    heroHasCustomSets,
    isBaseActive,
+   carrierOf,
+   isCarriedByPickedItem,
+   isLockedByBase,
    isPersonaActive,
+   normalizeSlot,
+   sanitizeSelection,
 } from "./helpers";
-import type { AlertType, ConfirmItem, CooldownState, FilterCategory, Hero, HeroSelectionState, LatestUpdate, Selections, TileType } from "./types";
+import type { AlertType, ConfirmItem, CooldownState, DetectionState, FilterCategory, Hero, HeroSelectionState, LatestUpdate, ParticleEntry, ParticleSlots, Selections, TileType, VisualTile } from "./types";
 
 export type ConfirmState =
    | { visible: false }
@@ -21,7 +32,7 @@ export type ConfirmState =
 
 export type StylePreviewState = {
    heroId: string;
-   tileType: "set" | "persona" | "item" | "base" | "prismatic";
+   tileType: TileType;
    groupIndices: number[];
    group: string;
    groupCover: string | null;
@@ -29,6 +40,8 @@ export type StylePreviewState = {
 
 export const store = createStore<{
    heroes: Hero[];
+   heroesLoad: "loading" | "ready" | "failed";
+   particles: ParticleEntry[];
    selections: Selections;
    favorites: Set<string>;
    version: string;
@@ -50,6 +63,11 @@ export const store = createStore<{
 
    stylePreview: StylePreviewState;
 
+   particlePicker: { heroId: string; slot: number } | null;
+   particleSlots: Record<string, ParticleSlots | "loading" | "failed">;
+
+   visualOrder: VisualTile[];
+
    confirm: ConfirmState;
 
    alert: { visible: boolean; title: string; message: string; type: AlertType; hasLog: boolean };
@@ -57,8 +75,12 @@ export const store = createStore<{
    logModalOpen: boolean;
 
    cooldown: CooldownState;
+
+   detection: DetectionState;
 }>({
    heroes: [],
+   heroesLoad: "loading",
+   particles: [],
    selections: {},
    favorites: new Set(),
    version: "",
@@ -77,8 +99,11 @@ export const store = createStore<{
    modalHeroId: null,
    focusedSetIndex: 0,
    highlightSetIndex: null,
+   visualOrder: [],
 
    stylePreview: null,
+   particlePicker: null,
+   particleSlots: {},
 
    confirm: { visible: false },
 
@@ -87,7 +112,25 @@ export const store = createStore<{
    logModalOpen: false,
 
    cooldown: { active: false, remainingSeconds: 0, totalSeconds: 600, dailyUsed: 0, dailyMax: 0, isDailyLimit: false },
+
+   detection: { phase: "scanning" },
 });
+
+export function setDetection(found: boolean, count: number) {
+   store.set({ detection: { phase: "done", found, count } });
+}
+
+export function setDetectionFailed() {
+   store.set({ detection: { phase: "failed" } });
+}
+
+export function applyDetectedSelections(selections: Selections) {
+   if (Object.keys(store.get().selections).length === 0) {
+      applyLoadedSelections(selections);
+      return;
+   }
+   notifySelectionChanged();
+}
 
 function notifySelectionChanged() {
    send("selectionChanged", { selections: store.get().selections });
@@ -102,48 +145,103 @@ function withCleanup(selections: Selections, heroId: string): Selections {
 function updateSelection(heroId: string, mutate: (sel: HeroSelectionState) => HeroSelectionState) {
    const s = store.get();
    const current = getHeroSelection(s.selections, heroId);
-   const next = mutate({ ...current, items: [...current.items] });
+   let next = mutate({ ...current, items: [...current.items], effects: [...(current.effects ?? [])], particles: [...(current.particles ?? [])] });
+   const hero = s.heroes.find((h) => h.id === heroId);
+   if (hero && (next.particles?.length ?? 0) > 0 && !canCarryParticles(hero, next)) {
+      next = { ...next, particles: [] };
+      store.set({ status: "Particles removed: they need a set, item or arcana to ride on" });
+   }
    const selections = withCleanup({ ...s.selections, [heroId]: next }, heroId);
    store.set({ selections });
    notifySelectionChanged();
 }
 
-export function selectSet(hero: Hero, setIndex: number) {
+function blockedBySelection(hero: Hero, setIndex: number): boolean {
+   const sel = getHeroSelection(store.get().selections, hero.id);
+   if (!getBlockedIndices(hero, sel).has(setIndex)) return false;
+
+   const name = getSetDisplayName(hero.sets[setIndex], setIndex);
+   if (isLockedByBase(hero, sel, setIndex)) {
+      const arcana = getSetDisplayName(hero.sets[sel.base!], sel.base!);
+      store.set({ status: `${name} is locked: ${arcana} owns the ${normalizeSlot(hero.sets[setIndex]?.tag)} slot` });
+      return true;
+   }
+   const carrier = carrierOf(hero, sel, setIndex);
+   if (carrier != null) {
+      store.set({ status: `${name} is already part of ${getSetDisplayName(hero.sets[carrier], carrier)}` });
+      return true;
+   }
+   const active = (hero.sets[setIndex]?.conflicts ?? []).find((i) => isSelected(sel, i));
+   const blocker = active != null ? getSetDisplayName(hero.sets[active], active) : null;
+   store.set({
+      status: blocker
+         ? `${name} cannot be combined with ${blocker}; remove it first`
+         : `${name} cannot be combined with your current selection`,
+   });
+   return true;
+}
+
+function isSelected(sel: HeroSelectionState, idx: number): boolean {
+   return sel.set === idx || sel.base === idx || sel.prismatic === idx || sel.items.includes(idx)
+      || (sel.effects?.includes(idx) ?? false);
+}
+
+export function selectSet(hero: Hero, setIndex: number): boolean {
+   if (blockedBySelection(hero, setIndex)) return false;
    updateSelection(hero.id, (sel) => {
       if (sel.set === setIndex) return { ...sel, set: null };
       const isPersona = getSetCategory(hero.sets[setIndex]) === "persona";
-      return isPersona ? { set: setIndex, items: [], base: null, prismatic: null } : { ...sel, set: setIndex };
+      return isPersona ? { set: setIndex, items: [], base: null, prismatic: null, effects: [], particles: [] } : { ...sel, set: setIndex };
    });
    store.set({ focusedSetIndex: setIndex });
+   return true;
 }
 
 export function toggleItem(hero: Hero, setIndex: number) {
    const sel = getHeroSelection(store.get().selections, hero.id);
    if (isPersonaActive(hero, sel)) return;
+   if (!sel.items.includes(setIndex) && blockedBySelection(hero, setIndex)) return;
 
+   let droppedEffects = 0;
    updateSelection(hero.id, (s) => {
       if (s.items.includes(setIndex)) {
          return { ...s, items: s.items.filter((i) => i !== setIndex) };
       }
       const conflicts = new Set(getItemsWithSameTag(hero, setIndex));
-      return { ...s, items: [...s.items.filter((i) => !conflicts.has(i)), setIndex] };
+      const next = { ...s, items: [...s.items.filter((i) => !conflicts.has(i)), setIndex] };
+      const effects = (s.effects ?? []).filter((i) => !isCarriedByPickedItem(hero, next, i));
+      droppedEffects = (s.effects ?? []).length - effects.length;
+      return { ...next, effects };
    });
-   store.set({ focusedSetIndex: setIndex });
+   const status = droppedEffects > 0
+      ? `Removed ${droppedEffects} ability effect${droppedEffects > 1 ? "s" : ""}: ${getSetDisplayName(hero.sets[setIndex], setIndex)} already includes ${droppedEffects > 1 ? "them" : "it"}`
+      : null;
+   store.set({ focusedSetIndex: setIndex, ...(status ? { status } : {}) });
 }
 
 export function toggleBase(hero: Hero, setIndex: number) {
    const sel = getHeroSelection(store.get().selections, hero.id);
    if (isPersonaActive(hero, sel)) return;
+   if (sel.base !== setIndex && blockedBySelection(hero, setIndex)) return;
 
    let droppedPrismatic = false;
+   let droppedLocked = 0;
    updateSelection(hero.id, (s) => {
       if (s.base === setIndex) {
          droppedPrismatic = s.prismatic != null;
          return { ...s, base: null, prismatic: null };
       }
-      return { ...s, base: setIndex };
+      const next = { ...s, base: setIndex };
+      const items = next.items.filter((i) => !isLockedByBase(hero, next, i));
+      droppedLocked = next.items.length - items.length;
+      return { ...next, items };
    });
-   store.set({ focusedSetIndex: setIndex, ...(droppedPrismatic ? { status: "Prismatic cleared — it requires an active Base Hero" } : {}) });
+   const status = droppedPrismatic
+      ? "Prismatic cleared: it needs an active Base Hero"
+      : droppedLocked > 0
+         ? `Removed ${droppedLocked} item${droppedLocked > 1 ? "s" : ""}: ${getSetDisplayName(hero.sets[setIndex], setIndex)} owns that slot`
+         : null;
+   store.set({ focusedSetIndex: setIndex, ...(status ? { status } : {}) });
 }
 
 export function togglePrismatic(hero: Hero, setIndex: number) {
@@ -152,8 +250,108 @@ export function togglePrismatic(hero: Hero, setIndex: number) {
       store.set({ status: "Select a Base Hero first to enable Prismatic" });
       return;
    }
+   if (sel.prismatic !== setIndex && blockedBySelection(hero, setIndex)) return;
    updateSelection(hero.id, (s) => ({ ...s, prismatic: s.prismatic === setIndex ? null : setIndex }));
    store.set({ focusedSetIndex: setIndex });
+}
+
+export function toggleEffect(hero: Hero, setIndex: number) {
+   const sel = getHeroSelection(store.get().selections, hero.id);
+   if (isPersonaActive(hero, sel)) {
+      store.set({ status: "A Persona replaces ability effects" });
+      return;
+   }
+   const effects = sel.effects ?? [];
+   if (!effects.includes(setIndex) && blockedBySelection(hero, setIndex)) return;
+
+   updateSelection(hero.id, (s) => {
+      const current = s.effects ?? [];
+      if (current.includes(setIndex)) return { ...s, effects: current.filter((i) => i !== setIndex) };
+      const sameAbility = new Set(getEffectsWithSameTag(hero, setIndex));
+      return { ...s, effects: [...current.filter((i) => !sameAbility.has(i)), setIndex] };
+   });
+   store.set({ focusedSetIndex: setIndex });
+}
+
+export function setParticle(hero: Hero, slot: number, id: string, host: string): boolean {
+   const s = store.get();
+   const sel = getHeroSelection(s.selections, hero.id);
+   const picks = sel.particles ?? [];
+   const entry = findParticle(s.particles, id);
+   const hostEntry = (hero.particleHosts ?? []).find((h) => h.id === host);
+
+   if (isPersonaActive(hero, sel)) {
+      store.set({ status: "A Persona replaces particles" });
+      return false;
+   }
+   if (!canCarryParticles(hero, sel)) {
+      store.set({ status: "Pick a set, item or arcana first. Particles ride on a worn item." });
+      return false;
+   }
+   if (!entry || !hostEntry) {
+      store.set({ status: "That particle cannot go on this hero" });
+      return false;
+   }
+   if (!Number.isInteger(slot) || slot < 0 || slot > picks.length || slot >= MAX_PARTICLES) {
+      store.set({ status: `A hero carries at most ${MAX_PARTICLES} particles` });
+      return false;
+   }
+   if (picks.some((p, i) => i !== slot && p.id === entry.id && p.host === host)) {
+      store.set({ status: `${entry.name} is already on the ${hostEntry.label}` });
+      return false;
+   }
+
+   updateSelection(hero.id, (cur) => {
+      const particles = [...(cur.particles ?? [])];
+      particles[slot] = { id: entry.id, host };
+      return { ...cur, particles };
+   });
+   store.set({ status: `${entry.name} added to the ${hostEntry.label}` });
+   return true;
+}
+
+export function openParticlePicker(hero: Hero, slot: number) {
+   const sel = getHeroSelection(store.get().selections, hero.id);
+   const count = sel.particles?.length ?? 0;
+   if (isPersonaActive(hero, sel)) {
+      store.set({ status: "A Persona replaces particles" });
+      return;
+   }
+   if (!canCarryParticles(hero, sel)) {
+      store.set({ status: "Pick a set, item or arcana first. Particles ride on a worn item." });
+      return;
+   }
+   if (slot < 0 || slot > count || slot >= MAX_PARTICLES) {
+      store.set({ status: `A hero carries at most ${MAX_PARTICLES} particles` });
+      return;
+   }
+   store.set({ particlePicker: { heroId: hero.id, slot } });
+}
+
+export function closeParticlePicker() {
+   store.set({ particlePicker: null });
+}
+
+export const particleSlotsKey = (heroId: string, setIndex: number) => `${heroId}:${setIndex}`;
+
+export function requestParticleSlots(hero: Hero, setIndex: number) {
+   const key = particleSlotsKey(hero.id, setIndex);
+   const have = store.get().particleSlots[key];
+   if (have && have !== "failed") return;
+   store.set({ particleSlots: { ...store.get().particleSlots, [key]: "loading" } });
+   send("particleSlots", { heroId: hero.id, setIndex });
+}
+
+export function particleSlotsLoaded(heroId: string, setIndex: number, slots: ParticleSlots | null) {
+   const valid = slots && Array.isArray(slots.slots) ? slots : null;
+   store.set({ particleSlots: { ...store.get().particleSlots, [particleSlotsKey(heroId, setIndex)]: valid ?? "failed" } });
+}
+
+export function removeParticle(hero: Hero, slot: number) {
+   const pick = getHeroSelection(store.get().selections, hero.id).particles?.[slot];
+   if (!pick) return;
+   updateSelection(hero.id, (cur) => ({ ...cur, particles: (cur.particles ?? []).filter((_, i) => i !== slot) }));
+   store.set({ status: `${findParticle(store.get().particles, pick.id)?.name ?? "Particle"} removed` });
 }
 
 export function deselectHero(heroId: string) {
@@ -177,7 +375,31 @@ function doClearAllSelections() {
 }
 
 export function applyLoadedSelections(selections: Selections) {
-   store.set({ selections });
+   const { heroes, particles } = store.get();
+   const cleaned: Selections = {};
+   const dropped: string[] = [];
+
+   for (const [heroId, sel] of Object.entries(selections ?? {})) {
+      const hero = heroes.find((h) => h.id === heroId);
+      if (!hero || !sel) {
+         if (sel) cleaned[heroId] = sel;
+         continue;
+      }
+      const result = sanitizeSelection(hero, sel, particles);
+      cleaned[heroId] = result.sel;
+      for (const name of result.dropped) dropped.push(`${hero.displayName || hero.name}: ${name}`);
+   }
+
+   store.set({ selections: cleaned });
+   if (dropped.length > 0) {
+      store.set({ status: `Dropped ${dropped.length} incompatible pick${dropped.length > 1 ? "s" : ""}: ${dropped.join(", ")}` });
+      notifySelectionChanged();
+   }
+}
+
+export function applyPresetSelections(selections: Selections) {
+   store.set({ status: `Loaded ${Object.keys(selections ?? {}).length} selection(s)` });
+   applyLoadedSelections(selections);
 }
 
 export function loadHighlightedHeroes(heroIds: string[]) {
@@ -207,7 +429,7 @@ export function openHeroModal(heroId: string) {
 }
 
 export function closeModal() {
-   store.set({ modalHeroId: null, stylePreview: null });
+   store.set({ modalHeroId: null, stylePreview: null, particlePicker: null, visualOrder: [] });
 }
 
 export function navigateHero(direction: 1 | -1) {
@@ -229,10 +451,50 @@ export function navigateSet(direction: 1 | -1) {
    const s = store.get();
    const hero = s.heroes.find((h) => h.id === s.modalHeroId);
    if (!hero || hero.sets.length === 0) return;
-   let idx = s.focusedSetIndex + direction;
-   if (idx < 0) idx = hero.sets.length - 1;
-   if (idx >= hero.sets.length) idx = 0;
-   store.set({ focusedSetIndex: idx });
+
+   const order = s.visualOrder;
+   if (order.length === 0) {
+      let idx = s.focusedSetIndex + direction;
+      if (idx < 0) idx = hero.sets.length - 1;
+      if (idx >= hero.sets.length) idx = 0;
+      store.set({ focusedSetIndex: idx });
+      return;
+   }
+
+   const at = order.findIndex((t) => t.idx === s.focusedSetIndex);
+   const next = at === -1 ? (direction === 1 ? 0 : order.length - 1) : (at + direction + order.length) % order.length;
+   store.set({ focusedSetIndex: order[next]!.idx });
+}
+
+export function setVisualOrder(order: VisualTile[]) {
+   store.set({ visualOrder: order });
+}
+
+export function activateFocusedSet(hero: Hero): void {
+   const s = store.get();
+   const tile = s.visualOrder.find((t) => t.idx === s.focusedSetIndex);
+   const idx = s.focusedSetIndex;
+   const group = hero.sets[idx]?.styleGroup;
+   if (group && hero.sets.filter((x) => x.styleGroup === group).length > 1) {
+      openStylePreview(hero, group, tile?.tileType ?? "set");
+      return;
+   }
+   switch (tile?.tileType) {
+      case "item":
+         toggleItem(hero, idx);
+         return;
+      case "base":
+         toggleBase(hero, idx);
+         return;
+      case "prismatic":
+         togglePrismatic(hero, idx);
+         return;
+      case "effect":
+         toggleEffect(hero, idx);
+         return;
+      default:
+         if (selectSet(hero, idx)) closeModal();
+   }
 }
 
 export function navigateToUpdate(heroId: string, setIndex: number) {
@@ -285,6 +547,8 @@ export function selectStyleFromPreview(hero: Hero, idx: number) {
       toggleBase(hero, idx);
    } else if (tileType === "prismatic") {
       togglePrismatic(hero, idx);
+   } else if (tileType === "effect") {
+      toggleEffect(hero, idx);
    } else {
       selectSet(hero, idx);
    }
@@ -298,6 +562,7 @@ export function deselectStylePreview() {
       if (tileType === "item") return { ...s, items: s.items.filter((i) => !groupIndices.includes(i)) };
       if (tileType === "base") return s.base != null && groupIndices.includes(s.base) ? { ...s, base: null, prismatic: null } : s;
       if (tileType === "prismatic") return s.prismatic != null && groupIndices.includes(s.prismatic) ? { ...s, prismatic: null } : s;
+      if (tileType === "effect") return { ...s, effects: (s.effects ?? []).filter((i) => !groupIndices.includes(i)) };
       return s.set != null && groupIndices.includes(s.set) ? { ...s, set: null } : s;
    });
    store.set({ stylePreview: null });

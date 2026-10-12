@@ -36,6 +36,16 @@ export function LaunchModal() {
                      {panel.confirmLabel}
                   </button>
                )}
+               {panel.steamActions && (
+                  <>
+                     <button id="launch-steam-downloads" type="button" data-no-drag className={`${css.obBtn} ${css.primary}`} onClick={() => send("steamDownloads")}>
+                        {panel.steamActions.downloads}
+                     </button>
+                     <button id="launch-steam-clear-cache" type="button" data-no-drag className={`${css.obBtn} ${css.ghost}`} onClick={() => send("steamClearCache")}>
+                        {panel.steamActions.clearCache}
+                     </button>
+                  </>
+               )}
                {panel.canCancel && (
                   <button id="launch-cancel" type="button" data-no-drag className={`${css.obBtn} ${css.ghost}`} onClick={() => send("cancelLaunch")}>
                      {panel.cancelLabel}

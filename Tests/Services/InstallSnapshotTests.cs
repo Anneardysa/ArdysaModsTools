@@ -16,6 +16,7 @@
  */
 using NUnit.Framework;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Tests.Helpers;
 
 namespace ArdysaModsTools.Tests.Services
 {
@@ -25,6 +26,7 @@ namespace ArdysaModsTools.Tests.Services
         private string _dir = null!;
         private string _vpk = null!;
         private string _hash = null!;
+        private string _protectedVpk = null!;
 
         [SetUp]
         public void Setup()
@@ -33,6 +35,9 @@ namespace ArdysaModsTools.Tests.Services
             Directory.CreateDirectory(_dir);
             _vpk = Path.Combine(_dir, "pak01_dir.vpk");
             _hash = Path.Combine(_dir, "ModsPack.hash");
+            string protDir = Path.Combine(_dir, "mod");
+            Directory.CreateDirectory(protDir);
+            _protectedVpk = Path.Combine(protDir, "pak01_dir.vpk");
         }
 
         [TearDown]
@@ -67,11 +72,13 @@ namespace ArdysaModsTools.Tests.Services
         {
             File.WriteAllText(_vpk, "old-vpk");
             File.WriteAllText(_hash, "old-hash");
+            File.WriteAllText(_protectedVpk, "old-protected");
 
-            using (var snapshot = ModInstallerService.InstallSnapshot.Capture(_vpk))
+            using (var snapshot = ModInstallerService.InstallSnapshot.Capture(_vpk, _protectedVpk))
             {
                 File.WriteAllText(_vpk, "new-vpk");
                 File.WriteAllText(_hash, "new-hash");
+                File.WriteAllText(_protectedVpk, "new-protected");
                 snapshot.Commit();
             }
 
@@ -79,8 +86,30 @@ namespace ArdysaModsTools.Tests.Services
             {
                 Assert.That(File.ReadAllText(_vpk), Is.EqualTo("new-vpk"));
                 Assert.That(File.ReadAllText(_hash), Is.EqualTo("new-hash"));
+                Assert.That(File.ReadAllText(_protectedVpk), Is.EqualTo("new-protected"));
                 Assert.That(File.Exists(_vpk + ".bak"), Is.False);
                 Assert.That(File.Exists(_hash + ".bak"), Is.False);
+                Assert.That(File.Exists(_protectedVpk + ".bak"), Is.False);
+            });
+        }
+
+        [Test]
+        public void Dispose_WithoutCommit_RestoresProtectedPackage()
+        {
+            File.WriteAllText(_vpk, "old-vpk");
+            File.WriteAllText(_protectedVpk, "old-protected");
+
+            using (var snapshot = ModInstallerService.InstallSnapshot.Capture(_vpk, _protectedVpk))
+            {
+                File.WriteAllText(_vpk, "new-vpk");
+                File.WriteAllText(_protectedVpk, "half-written-protected");
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(File.ReadAllText(_vpk), Is.EqualTo("old-vpk"));
+                Assert.That(File.ReadAllText(_protectedVpk), Is.EqualTo("old-protected"));
+                Assert.That(File.Exists(_protectedVpk + ".bak"), Is.False);
             });
         }
 
@@ -98,6 +127,47 @@ namespace ArdysaModsTools.Tests.Services
                 Assert.That(File.Exists(_vpk), Is.False);
                 Assert.That(File.Exists(_hash), Is.False);
             });
+        }
+
+        [Test]
+        public async Task Dispose_AfterARealProtectedDeploy_StillRestoresTheOldProtectedPackage()
+        {
+            byte[] oldProtected = TestVpk.Build(TestVpk.ItemsGame("\"items_game\" { \"OLD_PROTECTED\" \"1\" }"));
+            byte[] newProtected = TestVpk.Build(TestVpk.ItemsGame("\"items_game\" { \"NEW_PROTECTED\" \"1\" }"));
+            string newBuild = Path.Combine(_dir, "built_protected.vpk");
+            File.WriteAllBytes(_vpk, TestVpk.Minimal());
+            File.WriteAllBytes(_protectedVpk, oldProtected);
+            File.WriteAllBytes(newBuild, newProtected);
+
+            using (var snapshot = ModInstallerService.InstallSnapshot.Capture(_vpk, _protectedVpk))
+            {
+                bool deployed = await VpkReplacerService.DeployVpkAsync(
+                    _protectedVpk, newBuild, hideOutput: true, _ => { }, CancellationToken.None);
+                Assert.That(deployed, Is.True, "precondition: the rebuild's protected deploy landed");
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(File.Exists(_protectedVpk), Is.True, "the previous protected package must come back");
+                Assert.That(File.ReadAllBytes(_protectedVpk), Is.EqualTo(oldProtected));
+                Assert.That(Directory.GetFiles(Path.GetDirectoryName(_protectedVpk)!), Has.Length.EqualTo(1),
+                    "no backup left behind in game/mod");
+            });
+        }
+
+        [Test]
+        public void Capture_WhenACrashLeftOnlyTheBackup_TakesItBackAsThePreviousInstall()
+        {
+            File.WriteAllText(_protectedVpk, "old-protected");
+            ModInstallerService.InstallSnapshot.Capture(_vpk, _protectedVpk);
+            Assert.That(File.Exists(_protectedVpk), Is.False, "precondition: only the backup survived");
+
+            using (ModInstallerService.InstallSnapshot.Capture(_vpk, _protectedVpk))
+            {
+                File.WriteAllText(_protectedVpk, "half-written");
+            }
+
+            Assert.That(File.ReadAllText(_protectedVpk), Is.EqualTo("old-protected"));
         }
     }
 }

@@ -205,12 +205,19 @@ namespace ArdysaModsTools.Core.Services
 
                     log("Installing...");
 
-                    if (!await ProtectedVpkStore.DeployAsync(
-                            targetPath, newProtectedVpk, log, CancellationToken.None, _logger).ConfigureAwait(false))
-                        return Fail("Could not install the rebuilt protected mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
-
-                    if (!await _replacer.ReplaceAsync(targetPath, newVpk, log, ct).ConfigureAwait(false))
-                        return Fail("Could not install the rebuilt mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
+                    bool mainFailed = false;
+                    if (!await ProtectedVpkStore.DeployPairAsync(
+                            targetPath, newProtectedVpk,
+                            async () =>
+                            {
+                                bool ok = await _replacer.ReplaceAsync(targetPath, newVpk, log, ct).ConfigureAwait(false);
+                                mainFailed = !ok;
+                                return ok;
+                            },
+                            log, _logger).ConfigureAwait(false))
+                        return Fail(mainFailed
+                            ? "Could not install the rebuilt mod package."
+                            : "Could not install the rebuilt protected mod package.", log, ErrorCodes.VPK_REPLACE_FAILED);
 
                     await ItemsGameBaselineStore.RebindAndMergePatchedIdsAsync(targetPath, packageBeforeRebuild, _modifier.GetModifiedItemIds(), _modifier.GetUnpatchedItemIds(), ct).ConfigureAwait(false);
 

@@ -61,13 +61,9 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
         #region Constants
 
-        private const string LatencyTestFile = "Assets/set_update.json";
-
         private const string SpeedTestFile = "Assets/heroes.json";
 
         private static readonly TimeSpan CacheExpiry = TimeSpan.FromHours(6);
-
-        private static readonly TimeSpan LatencyTimeout = TimeSpan.FromSeconds(10);
 
         private static readonly TimeSpan SpeedTimeout = TimeSpan.FromSeconds(30);
 
@@ -280,27 +276,6 @@ namespace ArdysaModsTools.Core.Services.Cdn
             {
                 var client = HttpClientProvider.Client;
 
-                long latencyMs = 0;
-                bool headOk = false;
-                try
-                {
-                    var headSw = Stopwatch.StartNew();
-                    using var latencyCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    latencyCts.CancelAfter(LatencyTimeout);
-
-                    string testUrl = $"{cdnUrl.TrimEnd('/')}/{LatencyTestFile}";
-                    using var request = new HttpRequestMessage(HttpMethod.Head, testUrl);
-                    using var response = await client.SendAsync(request, latencyCts.Token).ConfigureAwait(false);
-
-                    headSw.Stop();
-                    latencyMs = headSw.ElapsedMilliseconds;
-                    headOk = response.IsSuccessStatusCode;
-                }
-                catch (Exception ex) when (!(ex is OperationCanceledException && ct.IsCancellationRequested))
-                {
-                    Debug.WriteLine($"[SmartCdn] HEAD probe failed for {cdnName}: {ex.Message} — verifying via GET");
-                }
-
                 var getSw = Stopwatch.StartNew();
                 using var speedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 speedCts.CancelAfter(SpeedTimeout);
@@ -313,8 +288,7 @@ namespace ArdysaModsTools.Core.Services.Cdn
                     ? (data.Length / 1024) * 1000 / getSw.ElapsedMilliseconds
                     : 0;
 
-                if (!headOk || latencyMs <= 0)
-                    latencyMs = getSw.ElapsedMilliseconds;
+                long latencyMs = getSw.ElapsedMilliseconds;
 
                 return new CdnLatencyResult
                 {

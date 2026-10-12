@@ -62,7 +62,8 @@ namespace ArdysaModsTools.UI
             }
         }
 
-        public static PrivateFontCollection? PrivateFonts => _privateFonts;
+        public static bool EmbeddedFontsLoaded =>
+            _privateFonts?.Families.Any(f => f.Name.StartsWith("JetBrains", StringComparison.OrdinalIgnoreCase)) == true;
 
         private static void LoadEmbeddedFonts()
         {
@@ -188,40 +189,6 @@ namespace ArdysaModsTools.UI
                 f.Name.Equals(fontName, StringComparison.OrdinalIgnoreCase));
         }
 
-        public static bool IsFontInstalled(string fontName)
-        {
-            using var installedFonts = new InstalledFontCollection();
-            return installedFonts.Families.Any(f =>
-                f.Name.Equals(fontName, StringComparison.OrdinalIgnoreCase));
-        }
-
-        public static void ApplyToForm(System.Windows.Forms.Control control)
-        {
-            try
-            {
-                if (control.Font != null && ShouldReplaceFontFamily(control.Font.FontFamily.Name))
-                {
-                    control.Font = CreateFont(FontFamily, control.Font.Size, control.Font.Style, control.Font.Unit);
-                }
-
-                foreach (System.Windows.Forms.Control child in control.Controls)
-                {
-                    ApplyToForm(child);
-                }
-            }
-            catch
-            {
-            }
-        }
-
-        private static bool ShouldReplaceFontFamily(string familyName)
-        {
-            if (familyName.StartsWith("JetBrains", StringComparison.OrdinalIgnoreCase))
-            {
-                return !IsFontAvailable("JetBrains Mono");
-            }
-            return false;
-        }
     }
 }
 

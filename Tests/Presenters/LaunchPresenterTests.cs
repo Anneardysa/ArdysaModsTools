@@ -36,6 +36,8 @@ namespace ArdysaModsTools.Tests.Presenters
     {
         private const string Target = @"C:\Games\steamapps\common\dota 2 beta";
 
+        private static readonly TimeSpan Fast = TimeSpan.FromMilliseconds(5);
+
         private RichTextBox _console = null!;
         private Logger _logger = null!;
         private Mock<IMainFormView> _view = null!;
@@ -43,6 +45,8 @@ namespace ArdysaModsTools.Tests.Presenters
         private Mock<IModInstallerService> _modInstaller = null!;
         private Mock<ISteamAppStateService> _steam = null!;
         private List<string> _launched = null!;
+
+        private Func<bool> _steamRunning = null!;
         private List<LaunchPanelState?> _panels = null!;
 
         [SetUp]
@@ -55,6 +59,7 @@ namespace ArdysaModsTools.Tests.Presenters
             _modInstaller = new Mock<IModInstallerService>();
             _steam = new Mock<ISteamAppStateService>();
             _launched = new List<string>();
+            _steamRunning = () => true;
             _panels = new List<LaunchPanelState?>();
 
             _view.Setup(v => v.SetLaunchPanel(It.IsAny<LaunchPanelState>()))
@@ -77,7 +82,7 @@ namespace ArdysaModsTools.Tests.Presenters
 
         private LaunchPresenter NewPresenter() =>
             new(_view.Object, _logger, _merge.Object, _modInstaller.Object, _steam.Object,
-                url => { _launched.Add(url); return true; });
+                url => { _launched.Add(url); return true; }, () => _steamRunning(), Fast);
 
         private LaunchPresenter NewPresenterThatSeesTheGameStart()
         {
@@ -88,7 +93,7 @@ namespace ArdysaModsTools.Tests.Presenters
                     _launched.Add(url);
                     presenter.NotifyDotaRunning(true);
                     return true;
-                });
+                }, () => _steamRunning(), Fast);
             return presenter;
         }
 
@@ -103,7 +108,8 @@ namespace ArdysaModsTools.Tests.Presenters
 
             LaunchPresenter presenter = null!;
             presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _modInstaller.Object, _steam.Object,
-                url => { order.Add("launch"); _launched.Add(url); presenter.NotifyDotaRunning(true); return true; });
+                url => { order.Add("launch"); _launched.Add(url); presenter.NotifyDotaRunning(true); return true; },
+                () => _steamRunning());
 
             await presenter.LaunchAsync(Target);
 
@@ -140,7 +146,8 @@ namespace ArdysaModsTools.Tests.Presenters
 
             LaunchPresenter presenter = null!;
             presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _modInstaller.Object, _steam.Object,
-                url => { order.Add("launch"); _launched.Add(url); presenter.NotifyDotaRunning(true); return true; });
+                url => { order.Add("launch"); _launched.Add(url); presenter.NotifyDotaRunning(true); return true; },
+                () => _steamRunning());
 
             await presenter.LaunchAsync(Target, needsPatch: true);
 
@@ -421,7 +428,7 @@ namespace ArdysaModsTools.Tests.Presenters
         public async Task Launch_WhenSteamRefusesTheRequest_ReportsItInsteadOfWaitingForever()
         {
             var presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _modInstaller.Object, _steam.Object,
-                _ => false);
+                _ => false, () => _steamRunning());
 
             await presenter.LaunchAsync(Target);
 
@@ -494,6 +501,350 @@ namespace ArdysaModsTools.Tests.Presenters
 
             _steam.Verify(s => s.Read(It.IsAny<string>()), Times.AtLeast(1));
             Assert.That(_launched, Is.Empty);
+        }
+
+
+        [Test]
+        public async Task Launch_WhenSteamIsClosedWithAnUpdateWaiting_SaysToOpenSteamInsteadOfWaitingForever()
+        {
+            _steam.Setup(s => s.Read(It.IsAny<string>()))
+                  .Returns(new SteamAppState { ManifestFound = true, StateFlags = 6 });
+            _steamRunning = () => false;
+
+            await NewPresenter().LaunchAsync(Target);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(_launched, Is.Empty,
+                    "handing the game to Steam here would let Steam install the update and start the game itself");
+                _merge.Verify(m => m.MergeAsync(It.IsAny<string>(), It.IsAny<IProgress<string>>(),
+                                                It.IsAny<IProgress<int>>(), It.IsAny<CancellationToken>()),
+                              Times.Never, "rebuilding against data the pending update will replace is wasted work");
+                _view.Verify(v => v.SetLaunchPanel(It.Is<LaunchPanelState>(s =>
+                    s.IsError && s.DetailKey == "play.panel.steamClosedDetail")), Times.AtLeastOnce);
+                _view.Verify(v => v.ShowShellToast("play.panel.steamClosed", "play.panel.steamClosedDetail",
+                                                   "warning", It.IsAny<int>()), Times.Once,
+                             "the user is being asked to do something, so it has to reach them as a notification");
+            });
+        }
+
+        [Test]
+        public async Task Launch_WhenSteamIsClosedAndNothingIsPending_LaunchesAnyway()
+        {
+            _steamRunning = () => false;
+
+            await NewPresenterThatSeesTheGameStart().LaunchAsync(Target);
+
+            Assert.That(_launched, Is.EqualTo(new[] { "steam://rungameid/570" }));
+        }
+
+        [Test]
+        public async Task RepairOnly_WhenSteamIsClosedWithAnUpdateWaiting_StopsInsteadOfWaitingForever()
+        {
+            _steam.Setup(s => s.Read(It.IsAny<string>()))
+                  .Returns(new SteamAppState { ManifestFound = true, StateFlags = 6 });
+            _steamRunning = () => false;
+
+            await NewPresenter().RepairOnlyAsync(Target);
+
+            _merge.Verify(m => m.MergeAsync(It.IsAny<string>(), It.IsAny<IProgress<string>>(),
+                                            It.IsAny<IProgress<int>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+
+        [Test]
+        public async Task Launch_WhenDota2ChangesWhileTheRepairRuns_RebuildsOnTheNewItemDataBeforeLaunching()
+        {
+            int merges = 0;
+            _merge.Setup(m => m.MergeAsync(It.IsAny<string>(), It.IsAny<IProgress<string>>(),
+                                           It.IsAny<IProgress<int>>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync(() => new ItemsGameMergeResult
+                  {
+                      Outcome = ++merges == 1
+                          ? ItemsGameMergeOutcome.GameChanged
+                          : ItemsGameMergeOutcome.Merged
+                  });
+
+            var presenter = NewPresenterThatSeesTheGameStart();
+            var run = presenter.LaunchAsync(Target);
+
+            Assert.That(await WaitForTheQuestionAsync(), Is.True);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(merges, Is.EqualTo(2), "the superseded rebuild must not be the one that ships");
+                Assert.That(_launched, Is.Empty, "nothing may launch until the package matches the game");
+                _modInstaller.Verify(m => m.UpdatePatcherAsync(It.IsAny<string>(), It.IsAny<Action<string>>(),
+                                                               It.IsAny<CancellationToken>()), Times.Once,
+                    "the update that landed mid-repair is exactly what reverts the game config");
+            });
+
+            presenter.ConfirmLaunch();
+            await run;
+
+            Assert.That(_launched, Is.EqualTo(new[] { "steam://rungameid/570" }));
+        }
+
+        [Test]
+        public async Task Launch_WhenDota2KeepsChangingUnderTheRepair_StopsInsteadOfLaunching()
+        {
+            int merges = 0;
+            _merge.Setup(m => m.MergeAsync(It.IsAny<string>(), It.IsAny<IProgress<string>>(),
+                                           It.IsAny<IProgress<int>>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync(() => { merges++; return new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.GameChanged }; });
+
+            await NewPresenter().LaunchAsync(Target);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(_launched, Is.Empty);
+                Assert.That(merges, Is.EqualTo(3), "bounded: it must not rebuild the package forever");
+                _view.Verify(v => v.SetLaunchPanel(It.Is<LaunchPanelState>(s =>
+                    s.IsError && s.DetailKey == "play.merge.gameChangedGaveUp")), Times.AtLeastOnce);
+            });
+        }
+
+        [Test]
+        public async Task RepairOnly_WhenDota2ChangesWhileTheRepairRuns_RepairsAgainOnTheNewItemData()
+        {
+            int merges = 0;
+            _merge.Setup(m => m.MergeAsync(It.IsAny<string>(), It.IsAny<IProgress<string>>(),
+                                           It.IsAny<IProgress<int>>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync(() => new ItemsGameMergeResult
+                  {
+                      Outcome = ++merges == 1
+                          ? ItemsGameMergeOutcome.GameChanged
+                          : ItemsGameMergeOutcome.Merged
+                  });
+
+            await NewPresenter().RepairOnlyAsync(Target);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(merges, Is.EqualTo(2));
+                _view.Verify(v => v.ShowShellToast(It.IsAny<string>(), It.IsAny<string>(), "success", It.IsAny<int>()),
+                             Times.Once, "the fix only reports success once the package really matches the game");
+            });
+        }
+
+
+        private async Task<bool> WaitForPanelAsync(Func<LaunchPanelState, bool> match, int timeoutMs = 10000)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+            while (DateTime.UtcNow < deadline)
+            {
+                lock (_panels)
+                {
+                    if (_panels.Any(p => p != null && match(p))) return true;
+                }
+                await Task.Delay(10);
+            }
+            return false;
+        }
+
+        private static bool IsStalled(LaunchPanelState p) => p.ShowSteamActions && p.HeadingKey == "play.panel.steamStalled";
+
+        [Test]
+        public async Task Launch_WhenSteamNeverStartsTheUpdate_ShowsStalledPanelWithSteamActions()
+        {
+            _steam.Setup(s => s.Read(It.IsAny<string>()))
+                  .Returns(new SteamAppState { ManifestFound = true, StateFlags = 6, BytesToDownload = 5000 });
+
+            var presenter = NewPresenter();
+            var run = presenter.LaunchAsync(Target);
+
+            Assert.That(await WaitForPanelAsync(IsStalled), Is.True, "a manifest that never moves must surface as stalled");
+
+            presenter.Cancel();
+            await run;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(_launched, Is.Empty);
+                _merge.Verify(m => m.MergeAsync(It.IsAny<string>(), It.IsAny<IProgress<string>>(),
+                                                It.IsAny<IProgress<int>>(), It.IsAny<CancellationToken>()), Times.Never);
+                _view.Verify(v => v.ShowShellToast("play.panel.steamStalled", It.IsAny<string>(), "warning", It.IsAny<int>()),
+                             Times.Once, "the user may be away from the window — tell them once, not every poll");
+            });
+        }
+
+        [Test]
+        public async Task Launch_WhenSteamPausedTheUpdate_ShowsStalledOnTheFirstPoll()
+        {
+            _steam.Setup(s => s.Read(It.IsAny<string>()))
+                  .Returns(new SteamAppState { ManifestFound = true, StateFlags = 1542 });
+
+            var presenter = new LaunchPresenter(_view.Object, _logger, _merge.Object, _modInstaller.Object,
+                _steam.Object, url => { _launched.Add(url); return true; }, () => true);
+            var run = presenter.LaunchAsync(Target);
+
+            Assert.That(await WaitForPanelAsync(IsStalled, 1500), Is.True);
+
+            presenter.Cancel();
+            await run;
+        }
+
+        [Test]
+        public async Task Launch_WhenTheUpdateFailed_ShowsTheFailurePanelWithItsCode()
+        {
+            _steam.Setup(s => s.Read(It.IsAny<string>()))
+                  .Returns(new SteamAppState { ManifestFound = true, StateFlags = 6, UpdateResult = 12 });
+
+            var presenter = NewPresenter();
+            var run = presenter.LaunchAsync(Target);
+
+            Assert.That(await WaitForPanelAsync(p => p.ShowSteamActions
+                && p.HeadingKey == "play.panel.steamUpdateFailed"
+                && p.DetailKey == "play.panel.steamUpdateFailedDetail"
+                && p.DetailVars != null), Is.True);
+
+            presenter.Cancel();
+            await run;
+        }
+
+        [Test]
+        public async Task Launch_WhileTheDownloadMoves_NeverShowsStalled()
+        {
+            long bytes = 0;
+            _steam.Setup(s => s.Read(It.IsAny<string>()))
+                  .Returns(() => new SteamAppState
+                  {
+                      ManifestFound = true, StateFlags = 1026,
+                      BytesToDownload = 1_000_000, BytesDownloaded = Interlocked.Increment(ref bytes)
+                  });
+
+            var presenter = NewPresenter();
+            var run = presenter.LaunchAsync(Target);
+            await Task.Delay(600);
+
+            presenter.Cancel();
+            await run;
+
+            lock (_panels)
+                Assert.That(_panels.Any(p => p?.ShowSteamActions == true), Is.False);
+        }
+
+        [Test]
+        public async Task Launch_WhenTheUpdateStartsAfterAStall_GoesBackToUpdatingThenRepairsAndAsks()
+        {
+            int reads = 0;
+            _steam.Setup(s => s.Read(It.IsAny<string>()))
+                  .Returns(() =>
+                  {
+                      int n = Interlocked.Increment(ref reads);
+                      return n <= 40 ? new SteamAppState { ManifestFound = true, StateFlags = 6, BytesToDownload = 100 }
+                           : n <= 45 ? new SteamAppState { ManifestFound = true, StateFlags = 1026, BytesToDownload = 100, BytesDownloaded = n }
+                           : new SteamAppState { ManifestFound = true, StateFlags = 4 };
+                  });
+
+            var presenter = NewPresenterThatSeesTheGameStart();
+            var run = presenter.LaunchAsync(Target);
+
+            Assert.That(await WaitForTheQuestionAsync(), Is.True);
+
+            lock (_panels)
+            {
+                int stalled = _panels.FindIndex(p => p != null && IsStalled(p));
+                int resumed = _panels.FindLastIndex(p => p?.HeadingKey == "play.panel.steamUpdating");
+                Assert.That(stalled, Is.GreaterThanOrEqualTo(0));
+                Assert.That(resumed, Is.GreaterThan(stalled), "progress must take the panel back to 'updating'");
+            }
+
+            presenter.ConfirmLaunch();
+            await run;
+            Assert.That(_launched, Is.EqualTo(new[] { "steam://rungameid/570" }));
+        }
+
+        [Test]
+        public async Task OpenSteamDownloads_WhileStalled_OpensSteamDownloads()
+        {
+            _steam.Setup(s => s.Read(It.IsAny<string>()))
+                  .Returns(new SteamAppState { ManifestFound = true, StateFlags = 1542 });
+
+            var presenter = NewPresenter();
+            var run = presenter.LaunchAsync(Target);
+            Assert.That(await WaitForPanelAsync(IsStalled), Is.True);
+
+            presenter.OpenSteamDownloads();
+            presenter.Cancel();
+            await run;
+
+            Assert.That(_launched, Is.EqualTo(new[] { "steam://open/downloads" }));
+        }
+
+        [Test]
+        public async Task SteamActions_WhenNotOffered_DoNothing()
+        {
+            var presenter = NewPresenter();
+
+            presenter.OpenSteamDownloads();
+            await presenter.ClearSteamDownloadCacheAsync();
+
+            Assert.That(_launched, Is.Empty);
+            _view.Verify(v => v.ShowShellConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()), Times.Never);
+        }
+
+        [TestCase(true, new[] { "steam://flushconfig" })]
+        [TestCase(false, new string[0])]
+        public async Task ClearCache_AsksFirstAndOnlyClearsOnYes(bool answer, string[] expected)
+        {
+            _steam.Setup(s => s.Read(It.IsAny<string>()))
+                  .Returns(new SteamAppState { ManifestFound = true, StateFlags = 1542 });
+            _view.Setup(v => v.ShowShellConfirmAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+                 .ReturnsAsync(answer);
+
+            var presenter = NewPresenter();
+            var run = presenter.LaunchAsync(Target);
+            Assert.That(await WaitForPanelAsync(IsStalled), Is.True);
+
+            await presenter.ClearSteamDownloadCacheAsync();
+            presenter.Cancel();
+            await run;
+
+            Assert.That(_launched, Is.EqualTo(expected), "the cache clear signs the user out of Steam — never without a yes");
+        }
+
+        [Test]
+        public async Task Launch_WhenSteamBlinksDuringTheWait_KeepsWaiting()
+        {
+            int checks = 0;
+            _steamRunning = () => Interlocked.Increment(ref checks) is < 3 or > 8;
+            _steam.Setup(s => s.Read(It.IsAny<string>())).Returns(NthReadUpdating(12));
+
+            var presenter = NewPresenterThatSeesTheGameStart();
+            var run = presenter.LaunchAsync(Target);
+
+            Assert.That(await WaitForTheQuestionAsync(), Is.True, "a Steam restart must not end the wait");
+            presenter.ConfirmLaunch();
+            await run;
+
+            _view.Verify(v => v.SetLaunchPanel(It.Is<LaunchPanelState>(s => s != null && s.HeadingKey == "play.panel.steamClosed")), Times.Never);
+        }
+
+        [Test]
+        public async Task Launch_AfterWaitingOutAnUpdate_RestoresTheConfigBeforeRepairing()
+        {
+            var order = new List<string>();
+            _steam.Setup(s => s.Read(It.IsAny<string>())).Returns(NthReadUpdating(2));
+            _modInstaller.Setup(m => m.UpdatePatcherAsync(It.IsAny<string>(), It.IsAny<Action<string>>(),
+                                                           It.IsAny<CancellationToken>()))
+                         .Callback(() => order.Add("patch"))
+                         .ReturnsAsync(PatchResult.Success);
+            _merge.Setup(m => m.MergeAsync(It.IsAny<string>(), It.IsAny<IProgress<string>>(),
+                                           It.IsAny<IProgress<int>>(), It.IsAny<CancellationToken>()))
+                  .Callback(() => order.Add("merge"))
+                  .ReturnsAsync(new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.Merged });
+
+            var presenter = NewPresenterThatSeesTheGameStart();
+            var run = presenter.LaunchAsync(Target, needsPatch: false);
+
+            Assert.That(await WaitForTheQuestionAsync(), Is.True);
+            presenter.ConfirmLaunch();
+            await run;
+
+            Assert.That(order, Is.EqualTo(new[] { "patch", "merge" }));
         }
     }
 }

@@ -155,7 +155,7 @@ Steam — see [Play Dota 2](#play-dota-2) below for why that matters.
 | --------------------- | ------------------------------------------------------ | ---------------------- |
 | **Play Dota 2**       | Repairs your mods if needed, then launches the game    | Sidebar (primary button) |
 | **Install ModsPack**  | Download and install the main curated mod pack         | Sidebar                |
-| **Skin Selector**     | Create custom hero skins from community sets           | Sidebar                |
+| **Skin Selector**     | Create custom hero skins from community sets; auto-detects installed skins on open | Sidebar |
 | **Miscellaneous**     | Customize weather, terrain, HUD, and more              | Sidebar                |
 | **Patch Update**      | Re-apply the game-config patch after a Dota 2 update   | Sidebar                |
 | **Disable Mods**      | Restore vanilla Dota 2                                 | Sidebar                |
@@ -328,6 +328,22 @@ The Hero Set Generator:
    - The priorities in the merging pipeline are automatically handled: `Set / Custom Set / Persona → Selected Items → Base Hero` (so base hero overrides items, and items override sets/personas).
    - Monitor progress via the sidebar preview panel on the progress overlay.
 
+#### Detecting Already-Installed Skins
+
+Every time you open **Select Hero**, AMT scans your current Dota 2 install to see which skins are
+already there. The result sits in a small badge right next to the search box:
+
+- **● Scanning ModsPack** (the dot pulses) — the scan is running (a few seconds; longer on a cold disk).
+- **● N Detected in ModsPack** (badge fills in solid) — N skins are installed, and those heroes/sets
+  are automatically re-ticked in the grid, so you can adjust or re-generate from exactly what's live.
+- **○ 0 Detected in ModsPack** — a clean board, nothing from the Skin Selector is installed.
+
+Hover the badge for the full sentence.
+
+The check reads what is *actually inside the installed package*, not a saved list — so it stays
+correct after you reinstall Dota 2, run Steam's **Verify integrity of game files**, or copy in
+someone else's package.
+
 #### Batch Generation
 
 You can generate multiple heroes at once:
@@ -347,6 +363,18 @@ Mark frequently used heroes as favorites:
 
 > [!TIP]
 > Hero set generation can take 2-5 minutes per hero depending on set size. Plan accordingly when generating multiple heroes.
+
+#### Generation cooldown
+
+There's a short wait between generations — **10 minutes by default** — to keep the download
+servers healthy for everyone. If you press **Generate** during the wait, AMT shows how much
+time is left instead of starting. The wait covers the whole batch, not each hero, so select
+every hero you want before generating.
+
+- The interval can be shortened or switched off from the server side; some builds run with no
+  cooldown at all.
+- "Please wait" with a **clock warning** means your PC's clock is wrong — fix the system date
+  and time and it clears.
 
 ---
 
@@ -537,6 +565,18 @@ To free up disk space:
 - The application stores temporary files during operations
 - These are automatically cleaned on exit
 - Manual cleanup happens during reinstall
+
+### Repair App
+
+**Settings → Repair App** fixes problems with AMT itself (not your mods or Dota 2). It
+checks five things and repairs the ones it can with one click:
+
+- The **WebView2 runtime** is installed — if it's missing, Repair App downloads and installs
+  it (this is the usual fix for *"Skin Selector won't open"* or blank windows).
+- AMT's settings folder is usable and not left in a broken state by a previous crash.
+- Leftover repair folders from an earlier self-heal are cleared.
+
+A fix marked *applies on restart* takes effect the next time you open AMT.
 
 ---
 
@@ -759,13 +799,11 @@ Yes, under the **GNU General Public License v3.0** — the source is published a
 Two honest caveats about that repository:
 
 - It is a **published mirror** of a private development repo, updated automatically on every
-  change. It is one-way, so pull requests aren't merged there — see
+  change. It is one-way and does not accept code from outside the project, so pull requests are
+  closed. See
   [CONTRIBUTING.md](https://github.com/Anneardysa/ArdysaModsTools/blob/main/.github/CONTRIBUTING.md).
 - **Source comments are stripped** from `.cs` files when publishing. The code is complete and
   compiles; it just isn't annotated.
-
-Releases are also Authenticode-signed by the [SignPath Foundation](https://signpath.org), so you
-can verify a download came from us and hasn't been tampered with.
 
 ---
 

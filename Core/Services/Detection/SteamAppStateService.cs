@@ -15,6 +15,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using ArdysaModsTools.Core.Interfaces;
@@ -28,8 +29,13 @@ namespace ArdysaModsTools.Core.Services
         private const string Dota2AppId = "570";
 
         private static readonly Regex ValuePattern = new(
-            "\"(StateFlags|BytesToDownload|BytesDownloaded)\"\\s*\"(\\d+)\"",
+            "\"(StateFlags|BytesToDownload|BytesDownloaded|BytesToStage|BytesStaged|buildid|TargetBuildID|UpdateResult|ScheduledAutoUpdate|AutoUpdateBehavior)\"\\s*\"(\\d+)\"",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex LanguagePattern = new(
+            "\"language\"\\s*\"([^\"]*)\"", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        private static readonly Regex SafeLanguage = new("^[a-z]{2,20}$", RegexOptions.Compiled);
 
         private readonly IAppLogger? _logger;
 
@@ -50,25 +56,31 @@ namespace ArdysaModsTools.Core.Services
                 using var reader = new StreamReader(fs);
                 string text = reader.ReadToEnd();
 
-                long flags = 0, toDownload = 0, downloaded = 0;
+                var values = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
                 foreach (Match m in ValuePattern.Matches(text))
                 {
-                    if (!long.TryParse(m.Groups[2].Value, out long value)) continue;
-
-                    switch (m.Groups[1].Value.ToLowerInvariant())
-                    {
-                        case "stateflags": flags = value; break;
-                        case "bytestodownload": toDownload = value; break;
-                        case "bytesdownloaded": downloaded = value; break;
-                    }
+                    if (long.TryParse(m.Groups[2].Value, out long value))
+                        values[m.Groups[1].Value] = value;
                 }
+
+                long Get(string key) => values.TryGetValue(key, out long v) ? v : 0;
 
                 return new SteamAppState
                 {
                     ManifestFound = true,
-                    StateFlags = flags,
-                    BytesToDownload = toDownload,
-                    BytesDownloaded = downloaded
+                    StateFlags = Get("StateFlags"),
+                    BytesToDownload = Get("BytesToDownload"),
+                    BytesDownloaded = Get("BytesDownloaded"),
+                    BytesToStage = Get("BytesToStage"),
+                    BytesStaged = Get("BytesStaged"),
+                    BuildId = Get("buildid"),
+                    TargetBuildId = Get("TargetBuildID"),
+                    UpdateResult = Get("UpdateResult"),
+                    ScheduledAutoUpdate = Get("ScheduledAutoUpdate"),
+                    AutoUpdateBehavior = Get("AutoUpdateBehavior"),
+                    Language = LanguagePattern.Match(text) is { Success: true } lang && SafeLanguage.IsMatch(lang.Groups[1].Value)
+                        ? lang.Groups[1].Value
+                        : null
                 };
             }
             catch (Exception ex)

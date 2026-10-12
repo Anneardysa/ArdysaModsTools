@@ -44,6 +44,8 @@ namespace ArdysaModsTools.Core.Constants
 
         public const string GameVpk = "game/dota/pak01_dir.vpk";
 
+        public const string PanoramaFonts = "game/dota/panorama/fonts";
+
         public const string Signatures = "game/bin/win64/dota.signatures";
 
         public const string GameInfo = "game/dota/gameinfo_branchspecific.gi";

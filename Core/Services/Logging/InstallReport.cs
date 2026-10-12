@@ -47,6 +47,7 @@ namespace ArdysaModsTools.Core.Services
         private static void Add(string text, string category)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
+            text = LogRedaction.Apply(text);
             lock (_lock) _lines.Add((text, category));
         }
     }

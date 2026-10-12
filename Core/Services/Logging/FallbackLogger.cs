@@ -31,6 +31,8 @@ namespace ArdysaModsTools.Core.Services
 
         private static void Write(string message, bool toUi)
         {
+            message = LogRedaction.Apply(message);
+
             try
             {
                 string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {message}";
@@ -48,6 +50,8 @@ namespace ArdysaModsTools.Core.Services
         {
             try { _logFile = path; } catch { }
         }
+
+        public static string LogFilePath => _logFile;
     }
 }
 

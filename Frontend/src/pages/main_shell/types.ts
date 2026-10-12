@@ -1,6 +1,6 @@
 export type BadgeKind = "neutral" | "info" | "success" | "warning" | "danger" | "loading";
 
-export type ButtonKey = "autoDetect" | "manualDetect" | "install" | "disable" | "patch" | "misc" | "hero" | "tweak";
+export type ButtonKey = "autoDetect" | "manualDetect" | "install" | "disable" | "patch" | "misc" | "hero" | "tweak" | "utilities";
 
 export type ButtonStates = Partial<Record<ButtonKey, boolean>> & { detectHighlight?: boolean };
 
@@ -53,6 +53,7 @@ export type LaunchPanelPayload = {
    isError: boolean;
    cancelLabel: string;
    confirmLabel: string | null;
+   steamActions?: { downloads: string; clearCache: string } | null;
 } | null;
 
 export type CarouselSlide = { image: string; link: string; title: string };
@@ -75,6 +76,14 @@ export type ConfirmPayload = {
    cancelText: string;
    countdown: number;
    accent: "" | "warn";
+};
+
+export type ChangelogPayload = {
+   tag: string;
+   name: string;
+   date: string | null;
+   body: string;
+   url: string;
 };
 
 export type InstallLogLine = { t: string; c: string };

@@ -39,6 +39,55 @@ namespace ArdysaModsTools.Core.Constants
 
         public const string MiscPath = "Assets/misc";
 
+        public const string ParticleThumbsPath = ImagesPath + "/particles";
+
+        public const string DatasetPath = "dataset";
+
+        #endregion
+
+        #region Request Signing
+
+        private static readonly string[] ImageExtensions =
+            [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico"];
+
+        public static bool IsProtectedPath(string? assetPath)
+        {
+            if (string.IsNullOrEmpty(assetPath))
+                return false;
+
+            string path = assetPath.Contains("://", StringComparison.Ordinal)
+                ? ExtractAssetPath(assetPath) ?? string.Empty
+                : assetPath;
+
+            int queryIndex = path.IndexOf('?');
+            if (queryIndex != -1)
+                path = path.Substring(0, queryIndex);
+
+            path = path.Replace('\\', '/').TrimStart('/');
+            if (path.Length == 0)
+                return false;
+
+            if (path.StartsWith(ModelsPath + "/", StringComparison.Ordinal) ||
+                path.StartsWith(DatasetPath + "/", StringComparison.Ordinal))
+                return true;
+
+            if (path.StartsWith(MiscPath + "/", StringComparison.Ordinal))
+                return !IsImagePath(path);
+
+            return false;
+        }
+
+        private static bool IsImagePath(string path)
+        {
+            foreach (var extension in ImageExtensions)
+            {
+                if (path.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
         #endregion
 
         #region Configuration

@@ -83,11 +83,12 @@ Select Hero → Choose hero → Select set → Generate → Wait
 ![Hero Selection](images/skin-selector.png)
 
 1. Click **Select Hero** from main window
-2. Find your hero (use search or scroll)
-3. Click hero card and choose a set from dropdown
-4. Repeat for multiple heroes if desired
-5. Click **Generate**
-6. Wait 2-5 minutes per hero
+2. A banner scans and re-selects any skins you already have installed
+3. Find your hero (use search or scroll)
+4. Click hero card and choose a set from dropdown
+5. Repeat for multiple heroes if desired
+6. Click **Generate**
+7. Wait 2-5 minutes per hero
 
 ### Add Miscellaneous Mods
 

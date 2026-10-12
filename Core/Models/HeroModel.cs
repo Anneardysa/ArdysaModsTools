@@ -66,6 +66,27 @@ namespace ArdysaModsTools.Models
         public Dictionary<string, SetStyleInfo> SetStyles { get; set; } = new Dictionary<string, SetStyleInfo>(StringComparer.OrdinalIgnoreCase);
 
         [JsonIgnore]
+        public Dictionary<string, string> SetNames { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        [JsonIgnore]
+        public List<SetIncompatibilityRule> Incompatible { get; set; } = new List<SetIncompatibilityRule>();
+
+        [JsonIgnore]
+        public Dictionary<string, List<SetNotice>> Notices { get; set; } = new Dictionary<string, List<SetNotice>>(StringComparer.OrdinalIgnoreCase);
+
+        [JsonIgnore]
+        public Dictionary<string, List<string>> BaseLocks { get; set; } = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        [JsonIgnore]
+        public Dictionary<string, string> AbilityNames { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        [JsonIgnore]
+        public Dictionary<string, string> AbilityIcons { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        [JsonIgnore]
+        public Dictionary<string, string> EffectIcons { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        [JsonIgnore]
         public IReadOnlyList<string> Skins
         {
             get

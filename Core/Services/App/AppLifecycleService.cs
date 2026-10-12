@@ -67,7 +67,7 @@ namespace ArdysaModsTools.Core.Services.App
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[AppLifecycleService] Failed to set startup: {ex.Message}");
+                FallbackLogger.Log($"Could not set run at startup: {ex.Message}");
                 return false;
             }
         }
@@ -84,12 +84,12 @@ namespace ArdysaModsTools.Core.Services.App
                 if (!string.Equals(value, expected, StringComparison.OrdinalIgnoreCase))
                 {
                     key!.SetValue(AppName, expected);
-                    FallbackLogger.Log("[AppLifecycleService] Updated startup registry path to current exe");
+                    FallbackLogger.LogFileOnly("[AppLifecycleService] Updated startup registry path to current exe");
                 }
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[AppLifecycleService] EnsureStartupPathCurrent failed: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[AppLifecycleService] EnsureStartupPathCurrent failed: {ex.Message}");
             }
         }
 
@@ -105,7 +105,7 @@ namespace ArdysaModsTools.Core.Services.App
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[AppLifecycleService] Game-session handoff failed: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[AppLifecycleService] Game-session handoff failed: {ex.Message}");
                 return false;
             }
         }
@@ -119,7 +119,7 @@ namespace ArdysaModsTools.Core.Services.App
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[AppLifecycleService] Failed to restart: {ex.Message}");
+                FallbackLogger.Log($"Could not restart the app: {ex.Message}");
             }
         }
     }

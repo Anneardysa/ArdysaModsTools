@@ -1174,6 +1174,31 @@
    line-height: 1.6;
 }
 
+.checkRowLeft {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+   min-width: 0;
+}
+.checkLed {
+   width: 8px;
+   height: 8px;
+   border-radius: 50%;
+   flex-shrink: 0;
+}
+.checkDiagnostic {
+   display: block;
+   margin-top: 3px;
+   font-size: 9.5px;
+   font-family: var(--mono);
+   color: var(--mute);
+   word-break: break-all;
+}
+.checkList {
+   display: flex;
+   flex-direction: column;
+}
+
 [data-theme="light"] .connectionModal {
    background: #ffffff;
    border-color: #000000;

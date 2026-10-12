@@ -240,6 +240,35 @@ namespace ArdysaModsTools.Tests.Helpers
             });
         }
 
+        [Test]
+        public void LightTheme_DarkensTheAppealGoldButNotItsSolidFill()
+        {
+            var htmlDir = LocateHtmlDir();
+            var theme = File.ReadAllText(Path.Combine(htmlDir, "theme.css"));
+
+            var pagesUsingGold = new[] { "main_shell.html", "hero_gallery.html", "misc_form.html" };
+
+            Assert.Multiple(() =>
+            {
+                foreach (var page in pagesUsingGold)
+                {
+                    var css = File.ReadAllText(Path.Combine(htmlDir, page));
+                    Assert.That(css, Does.Contain("--gold:"), $"{page} must ship the dark default");
+                    Assert.That(css, Does.Contain("--gold-fill:"), $"{page} must ship the pinned CTA fill");
+                    Assert.That(css, Does.Contain("--gold-ink:"), $"{page} must ship the pinned CTA ink");
+                }
+
+                Assert.That(theme, Does.Contain("--gold:"), "light theme must darken the badge ink/border");
+                Assert.That(theme, Does.Contain("--gold-dim:"), "light theme must restate the tint");
+                Assert.That(theme, Does.Contain("--gold-line:"), "light theme must restate the hairline");
+
+                Assert.That(theme, Does.Not.Contain("--gold-fill:"),
+                    "the solid CTA keeps one fill in both themes — see --gold-ink's note in tokens.css");
+                Assert.That(theme, Does.Not.Contain("--gold-ink:"),
+                    "the solid CTA's ink is pinned dark in both themes, never --on-primary");
+            });
+        }
+
         private static string LocateHtmlDir()
         {
             var dir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);

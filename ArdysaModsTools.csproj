@@ -39,10 +39,10 @@
   <!-- APPLICATION METADATA                           -->
   <!-- ============================================== -->
   <PropertyGroup>
-    <Version>2.9.0-beta</Version>
-    <AssemblyVersion>2.9.0.2440</AssemblyVersion>
-    <FileVersion>2.9.0.2440</FileVersion>
-    <InformationalVersion>2.9.0-beta</InformationalVersion>
+    <Version>2.10.0-beta</Version>
+    <AssemblyVersion>2.10.0.2467</AssemblyVersion>
+    <FileVersion>2.10.0.2467</FileVersion>
+    <InformationalVersion>2.10.0-beta</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company>Ardysa</Company>
     <Authors>Ardysa</Authors>
@@ -217,6 +217,12 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Assets\Icons\fav_on.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
+    
+    <!-- Performance Tweak > Map Cleanup: our own blank resources (sources in Assets\Performance\source,
+         compiled once with Dota's resourcecompiler) and the path lists MapCleanupService writes them to. -->
+    <EmbeddedResource Include="Assets\Performance\blank.vmdl_c;Assets\Performance\blank.vmat_c;Assets\Performance\remove_foliage.txt;Assets\Performance\remove_map_props.txt">
+      <LogicalName>ArdysaModsTools.Assets.Performance.%(Filename)%(Extension)</LogicalName>
     </EmbeddedResource>
     
     <!-- Social Icons -->

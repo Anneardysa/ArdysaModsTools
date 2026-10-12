@@ -24,6 +24,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Helpers;
@@ -39,21 +40,29 @@ namespace ArdysaModsTools.Core.Services.Cache
 
         public static AssetCacheService Instance => _instance.Value;
 
-        private const string RefreshTimestampFile = ".last_refresh";
+        private const string EpochsFile = ".epochs";
         private const string MissingAssetsFile = ".missing_assets";
 
         private static readonly TimeSpan KnownMissingTtl = TimeSpan.FromDays(7);
 
+        internal const int PreloadConcurrency = 8;
+
         private AssetCacheService()
-        {
-            _cacheDirectory = Path.Combine(
+            : this(Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "ArdysaModsTools",
-                "AssetCache"
-            );
+                "AssetCache"))
+        {
+        }
+
+        internal AssetCacheService(string cacheDirectory,
+            Func<string, CancellationToken, Task<AssetFetchResult>>? fetch = null)
+        {
+            _cacheDirectory = cacheDirectory;
+            _fetch = fetch ?? FetchRemoteAsync;
 
             EnsureCacheDirectoryExists();
-            _lastBatchRefreshTimeUtc = LoadPersistedRefreshTime();
+            LoadEpochs();
             LoadMissingAssets();
         }
 
@@ -62,14 +71,15 @@ namespace ArdysaModsTools.Core.Services.Cache
         #region Fields
 
         private readonly string _cacheDirectory;
-        
+        private readonly Func<string, CancellationToken, Task<AssetFetchResult>> _fetch;
+
         private readonly ConcurrentDictionary<string, Task<byte[]?>> _pendingDownloads = new();
         
         private readonly ConcurrentDictionary<string, (byte[] data, DateTime accessed)> _memoryCache = new();
         private const int MaxMemoryCacheItems = 50;
 
-        private DateTime _lastBatchRefreshTimeUtc = DateTime.MinValue;
-        private readonly object _refreshTimeLock = new();
+        private readonly Dictionary<string, string> _epochs = new();
+        private readonly object _epochLock = new();
 
         private readonly ConcurrentDictionary<string, DateTime> _missingAssets = new();
         private readonly object _missingLock = new();
@@ -86,7 +96,7 @@ namespace ArdysaModsTools.Core.Services.Cache
 
         public async Task<byte[]?> GetAssetBytesAsync(string url, CancellationToken ct = default)
         {
-            if (string.IsNullOrEmpty(url))
+            if (string.IsNullOrEmpty(url) || !Uri.TryCreate(url, UriKind.Absolute, out _))
                 return null;
 
             string cacheKey = GetCacheKey(url);
@@ -138,68 +148,11 @@ namespace ArdysaModsTools.Core.Services.Cache
             
             string cacheKey = GetCacheKey(url);
             
-            if (_memoryCache.ContainsKey(cacheKey))
+            if (_memoryCache.TryGetValue(cacheKey, out var entry) && entry.data.Length > 0)
                 return true;
             
             string cacheFilePath = GetCacheFilePath(cacheKey);
             return File.Exists(cacheFilePath) && AssetCacheFile.IsValidCacheFile(cacheFilePath);
-        }
-
-        public async Task<bool> IsStaleAsync(string url, CancellationToken ct = default)
-        {
-            if (string.IsNullOrEmpty(url)) return false;
-
-            string cacheKey = GetCacheKey(url);
-
-            if (_memoryCache.TryGetValue(cacheKey, out var memEntry) && memEntry.data.Length == 0)
-                return false;
-
-            string cacheFilePath = GetCacheFilePath(cacheKey);
-            
-            var cached = await AssetCacheFile.ReadAsync(cacheFilePath, url).ConfigureAwait(false);
-            if (cached == null) return true;
-
-            if (string.IsNullOrEmpty(cached.ETag) && string.IsNullOrEmpty(cached.LastModified))
-                return false;
-
-            try
-            {
-                var client = HttpClientProvider.Client;
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(TimeSpan.FromSeconds(5));
-
-                using var request = new HttpRequestMessage(HttpMethod.Head, url);
-                var response = await client.SendAsync(request, cts.Token).ConfigureAwait(false);
-
-                if (!response.IsSuccessStatusCode)
-                    return false;
-
-                string? serverEtag = response.Headers.ETag?.Tag;
-                if (!string.IsNullOrEmpty(cached.ETag) && !string.IsNullOrEmpty(serverEtag))
-                {
-                    if (cached.ETag != serverEtag)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AssetCacheService] Stale (ETag mismatch): {url}");
-                        return true;
-                    }
-                }
-
-                string? serverLastModified = response.Content.Headers.LastModified?.ToString("R");
-                if (!string.IsNullOrEmpty(cached.LastModified) && !string.IsNullOrEmpty(serverLastModified))
-                {
-                    if (cached.LastModified != serverLastModified)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AssetCacheService] Stale (Last-Modified mismatch): {url}");
-                        return true;
-                    }
-                }
-
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         public async Task PreloadAssetsAsync(IEnumerable<string> urls, CancellationToken ct = default)
@@ -228,11 +181,13 @@ namespace ArdysaModsTools.Core.Services.Cache
             int downloaded = 0;
             int skipped = 0;
             int failed = 0;
+            int completed = 0;
+            var progressLock = new object();
             int total = urls.Count;
 
-            using var semaphore = new SemaphoreSlim(4);
+            using var semaphore = new SemaphoreSlim(PreloadConcurrency);
 
-            var tasks = urls.Select(async (url, index) =>
+            var tasks = urls.Select(async url =>
             {
                 if (ct.IsCancellationRequested) return;
                 if (string.IsNullOrEmpty(url)) return;
@@ -240,8 +195,6 @@ namespace ArdysaModsTools.Core.Services.Cache
                 await semaphore.WaitAsync(ct).ConfigureAwait(false);
                 try
                 {
-                    progress?.Report((index + 1, total, url));
-
                     if (IsCached(url))
                     {
                         Interlocked.Increment(ref skipped);
@@ -261,6 +214,8 @@ namespace ArdysaModsTools.Core.Services.Cache
                 finally
                 {
                     semaphore.Release();
+                    lock (progressLock)
+                        progress?.Report((++completed, total, url));
                 }
             });
 
@@ -269,109 +224,68 @@ namespace ArdysaModsTools.Core.Services.Cache
             return (downloaded, skipped, failed);
         }
 
-        public async Task<(int refreshed, int skipped, int failed)> RefreshStaleAssetsAsync(
-            IReadOnlyList<string> urls,
-            IProgress<(int current, int total, string url)>? progress = null,
-            CancellationToken ct = default)
+        public bool InvalidateOnEpochChange(string epochKey, string currentVersion, IEnumerable<string> urlsIfChanged) =>
+            InvalidateOnEpochChange(epochKey, currentVersion, _ => urlsIfChanged);
+
+        public bool InvalidateOnEpochChange(string epochKey, string currentVersion, Func<string, IEnumerable<string>> urlsChangedSince)
         {
-            int refreshed = 0;
-            int skipped = 0;
-            int failed = 0;
-            int total = urls.Count;
-            int current = 0;
+            if (string.IsNullOrEmpty(epochKey) || string.IsNullOrEmpty(currentVersion))
+                return false;
 
-            using var semaphore = new SemaphoreSlim(8);
-
-            var tasks = urls.Select(async url =>
+            lock (_epochLock)
             {
-                if (ct.IsCancellationRequested) return;
-                if (string.IsNullOrEmpty(url)) return;
-
-                await semaphore.WaitAsync(ct).ConfigureAwait(false);
-                try
+                if (_epochs.TryGetValue(epochKey, out var lastSeen))
                 {
-                    var idx = Interlocked.Increment(ref current);
-                    progress?.Report((idx, total, url));
-
-                    bool isStale = await IsStaleAsync(url, ct).ConfigureAwait(false);
-                    
-                    if (isStale)
-                    {
-                        Invalidate(url);
-                        var result = await GetAssetBytesAsync(url, ct).ConfigureAwait(false);
-                        if (result != null && result.Length > 0)
-                        {
-                            Interlocked.Increment(ref refreshed);
-                        }
-                        else
-                        {
-                            Interlocked.Increment(ref failed);
-                        }
-                    }
-                    else
-                    {
-                        Interlocked.Increment(ref skipped);
-                    }
+                    if (lastSeen == currentVersion)
+                        return false;
                 }
-                catch
+                else
                 {
-                    Interlocked.Increment(ref failed);
+                    _epochs[epochKey] = currentVersion;
+                    PersistEpochs();
+                    return false;
                 }
-                finally
+
+                int invalidated = 0;
+                foreach (var url in urlsChangedSince(lastSeen))
                 {
-                    semaphore.Release();
+                    Invalidate(url);
+                    invalidated++;
                 }
-            });
 
-            await Task.WhenAll(tasks).ConfigureAwait(false);
+                ForgetMisses();
 
-            return (refreshed, skipped, failed);
-        }
-
-        public bool ShouldRefreshAssets(TimeSpan cooldown)
-        {
-            lock (_refreshTimeLock)
-            {
-                return (DateTime.UtcNow - _lastBatchRefreshTimeUtc) > cooldown;
+                _epochs[epochKey] = currentVersion;
+                PersistEpochs();
+                FallbackLogger.LogFileOnly(
+                    $"[AssetCacheService] Epoch '{epochKey}' changed {lastSeen} -> {currentVersion}, invalidated {invalidated} thumbnail(s)");
+                return true;
             }
         }
 
-        public void MarkRefreshed()
-        {
-            lock (_refreshTimeLock)
-            {
-                _lastBatchRefreshTimeUtc = DateTime.UtcNow;
-                PersistRefreshTime(_lastBatchRefreshTimeUtc);
-                System.Diagnostics.Debug.WriteLine(
-                    $"[AssetCacheService] Batch refresh marked at {_lastBatchRefreshTimeUtc:HH:mm:ss}");
-            }
-        }
-
-        private DateTime LoadPersistedRefreshTime()
+        private void LoadEpochs()
         {
             try
             {
-                var path = Path.Combine(_cacheDirectory, RefreshTimestampFile);
-                if (File.Exists(path))
+                var path = Path.Combine(_cacheDirectory, EpochsFile);
+                if (!File.Exists(path)) return;
+
+                var data = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path));
+                if (data != null)
                 {
-                    var text = File.ReadAllText(path).Trim();
-                    if (DateTime.TryParse(text, System.Globalization.CultureInfo.InvariantCulture,
-                        System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
-                    {
-                        return parsed;
-                    }
+                    foreach (var kvp in data)
+                        _epochs[kvp.Key] = kvp.Value;
                 }
             }
             catch {  }
-            return DateTime.MinValue;
         }
 
-        private void PersistRefreshTime(DateTime utcTime)
+        private void PersistEpochs()
         {
             try
             {
-                var path = Path.Combine(_cacheDirectory, RefreshTimestampFile);
-                File.WriteAllText(path, utcTime.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+                var path = Path.Combine(_cacheDirectory, EpochsFile);
+                File.WriteAllText(path, JsonSerializer.Serialize(_epochs));
             }
             catch {  }
         }
@@ -397,15 +311,27 @@ namespace ArdysaModsTools.Core.Services.Cache
             PersistMissingAssets();
         }
 
+        private void ForgetMisses()
+        {
+            foreach (var (key, entry) in _memoryCache)
+                if (entry.data.Length == 0) _memoryCache.TryRemove(key, out _);
+            if (_missingAssets.IsEmpty) return;
+            _missingAssets.Clear();
+            PersistMissingAssets();
+        }
+
         private void RemoveMissing(string cacheKey)
         {
             if (_missingAssets.TryRemove(cacheKey, out _))
                 PersistMissingAssets();
         }
 
-        private static bool IsNotFoundError(string? error)
+        internal static bool IsNotFoundError(string? error)
         {
             if (string.IsNullOrEmpty(error)) return false;
+
+            if (error.Contains("HTTP 401") || error.Contains(ErrorCodes.DL_CDN_UNAUTHORIZED)) return false;
+
             return error.Contains("404") || error.Contains("403");
         }
 
@@ -451,14 +377,14 @@ namespace ArdysaModsTools.Core.Services.Cache
             }
             catch {  }
 
-            lock (_refreshTimeLock)
+            lock (_epochLock)
             {
-                _lastBatchRefreshTimeUtc = DateTime.MinValue;
+                _epochs.Clear();
             }
             try
             {
-                var refreshPath = Path.Combine(_cacheDirectory, RefreshTimestampFile);
-                if (File.Exists(refreshPath)) File.Delete(refreshPath);
+                var epochsPath = Path.Combine(_cacheDirectory, EpochsFile);
+                if (File.Exists(epochsPath)) File.Delete(epochsPath);
             }
             catch {  }
 
@@ -538,11 +464,8 @@ namespace ArdysaModsTools.Core.Services.Cache
             }
         }
 
-        private string GetCacheKey(string url)
-        {
-            var uri = new Uri(url);
-            return uri.GetLeftPart(UriPartial.Path);
-        }
+        private static string GetCacheKey(string url) =>
+            Uri.TryCreate(url, UriKind.Absolute, out var uri) ? uri.GetLeftPart(UriPartial.Path) : url;
 
         private string GetCacheFilePath(string cacheKey)
         {
@@ -554,60 +477,19 @@ namespace ArdysaModsTools.Core.Services.Cache
         {
             try
             {
-                byte[] data;
-                string? etag;
-                string? lastModified;
-                string actualUrl = url;
-
-                if (CdnConfig.IsModsPackUrl(url))
+                var fetched = await _fetch(url, ct).ConfigureAwait(false);
+                if (fetched.Data == null)
                 {
-                    var cdnResult = await CdnFallbackService.Instance
-                        .DownloadWithFallbackAsync(url, ct)
-                        .ConfigureAwait(false);
-
-                    if (!cdnResult.Success)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"[AssetCacheService] CDN fallback failed: {url} -> {cdnResult.ErrorMessage}");
-                        if (IsNotFoundError(cdnResult.ErrorMessage))
-                            MarkMissing(cacheKey);
-                        AddToMemoryCache(cacheKey, Array.Empty<byte>());
-                        return null;
-                    }
-
-                    data = cdnResult.Data!;
-                    etag = cdnResult.ETag;
-                    lastModified = cdnResult.LastModified;
-                    actualUrl = cdnResult.SuccessfulUrl ?? url;
-
-                    if (cdnResult.FallbacksAttempted > 0)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"[AssetCacheService] Used fallback CDN (attempts: {cdnResult.FallbacksAttempted}): {actualUrl}");
-                    }
+                    if (fetched.NotFound)
+                        MarkMissing(cacheKey);
+                    AddToMemoryCache(cacheKey, Array.Empty<byte>());
+                    return null;
                 }
-                else
-                {
-                    var client = HttpClientProvider.Client;
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    cts.CancelAfter(TimeSpan.FromSeconds(30));
 
-                    var response = await client.GetAsync(url, cts.Token).ConfigureAwait(false);
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"[AssetCacheService] Download failed: {url} -> {response.StatusCode}");
-                        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden)
-                            MarkMissing(cacheKey);
-                        AddToMemoryCache(cacheKey, Array.Empty<byte>());
-                        return null;
-                    }
-
-                    data = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
-                    etag = response.Headers.ETag?.Tag;
-                    lastModified = response.Content.Headers.LastModified?.ToString("R");
-                }
+                byte[] data = fetched.Data;
+                string? etag = fetched.ETag;
+                string? lastModified = fetched.LastModified;
+                string actualUrl = fetched.ActualUrl ?? url;
 
                 if (data.Length == 0)
                 {
@@ -640,6 +522,49 @@ namespace ArdysaModsTools.Core.Services.Cache
                 AddToMemoryCache(cacheKey, Array.Empty<byte>());
                 return null;
             }
+        }
+
+        private static async Task<AssetFetchResult> FetchRemoteAsync(string url, CancellationToken ct)
+        {
+            if (CdnConfig.IsModsPackUrl(url))
+            {
+                var cdnResult = await CdnFallbackService.Instance
+                    .DownloadWithFallbackAsync(url, ct)
+                    .ConfigureAwait(false);
+
+                if (!cdnResult.Success)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[AssetCacheService] CDN fallback failed: {url} -> {cdnResult.ErrorMessage}");
+                    return new AssetFetchResult(null, null, null, IsNotFoundError(cdnResult.ErrorMessage), null);
+                }
+
+                if (cdnResult.FallbacksAttempted > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[AssetCacheService] Used fallback CDN (attempts: {cdnResult.FallbacksAttempted}): {cdnResult.SuccessfulUrl ?? url}");
+                }
+
+                return new AssetFetchResult(cdnResult.Data, cdnResult.ETag, cdnResult.LastModified, false, cdnResult.SuccessfulUrl);
+            }
+
+            var client = HttpClientProvider.Client;
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(30));
+
+            var response = await client.GetAsync(url, cts.Token).ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    $"[AssetCacheService] Download failed: {url} -> {response.StatusCode}");
+                return new AssetFetchResult(null, null, null,
+                    response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Forbidden, null);
+            }
+
+            var data = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            return new AssetFetchResult(data, response.Headers.ETag?.Tag,
+                response.Content.Headers.LastModified?.ToString("R"), false, url);
         }
 
         private void AddToMemoryCache(string key, byte[] data)
@@ -683,4 +608,7 @@ namespace ArdysaModsTools.Core.Services.Cache
 
         #endregion
     }
+
+    internal readonly record struct AssetFetchResult(
+        byte[]? Data, string? ETag, string? LastModified, bool NotFound, string? ActualUrl);
 }

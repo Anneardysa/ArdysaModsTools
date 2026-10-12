@@ -61,7 +61,7 @@ namespace ArdysaModsTools.Core.Helpers
         {
             "ArdysaHero_", "ArdysaMisc_", "ArdysaMods_", "ArdysaModsPack_", "ArdysaMerge_",
             "ArdysaItemsGame_", "ArdysaSkinManifest_", "ArdysaSync_", "ArdysaSyncReport_",
-            "amt_manual_split_", "amt_probe_",
+            "amt_manual_split_", "amt_probe_", "ArdysaRank_", "ArdysaBadge_",
         };
 
         private static readonly string[] SelectHeroDecryptedSubdirs = { "HeroSets", "dec" };
@@ -104,18 +104,29 @@ namespace ArdysaModsTools.Core.Helpers
             catch { return Array.Empty<string>(); }
         }
 
-        private static bool TryDeleteTree(string path)
+        private static bool TryDeleteTree(string path) => TryDeleteWorkDir(path);
+
+        public static bool TryDeleteWorkDir(string path, int maxAttempts = 3)
         {
-            try
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                NormalizeAttributes(path);
-                Directory.Delete(path, true);
-                return true;
+                try
+                {
+                    if (!Directory.Exists(path)) return true;
+                    NormalizeAttributes(path);
+                    Directory.Delete(path, true);
+                    return true;
+                }
+                catch when (attempt < maxAttempts)
+                {
+                    System.Threading.Thread.Sleep(50 * attempt);
+                }
+                catch
+                {
+                    return false;
+                }
             }
-            catch
-            {
-                return false;
-            }
+            return false;
         }
 
         private static void NormalizeAttributes(string path)

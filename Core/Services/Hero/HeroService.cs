@@ -39,6 +39,19 @@ namespace ArdysaModsTools.Core.Services
 
         public Dictionary<string, SetStyleInfo> SetStyles { get; init; } = new();
 
+        public Dictionary<string, string> SetNames { get; init; } = new();
+
+        public List<SetIncompatibilityRule> Incompatible { get; init; } = new();
+
+        public Dictionary<string, List<SetNotice>> Notices { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, List<string>> BaseLocks { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, string> AbilityNames { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, string> AbilityIcons { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, string> EffectIcons { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+
         public BasePriorityPolicy BasePriority { get; init; } = new BasePriorityPolicy();
 
         public int? Method
@@ -288,6 +301,8 @@ namespace ArdysaModsTools.Core.Services
                 string[] ids = Array.Empty<string>();
                 var sets = new Dictionary<string, string[]>();
                 var setStyles = new Dictionary<string, SetStyleInfo>();
+                var setNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var incompatible = new List<SetIncompatibilityRule>();
 
                 if (el.TryGetProperty("name", out var ne) && ne.ValueKind == JsonValueKind.String) name = ne.GetString();
                 if (el.TryGetProperty("used_by_heroes", out var ue) && ue.ValueKind == JsonValueKind.String) used = ue.GetString();
@@ -342,6 +357,52 @@ namespace ArdysaModsTools.Core.Services
                     }
                 }
 
+                if (el.TryGetProperty("set_names", out var namesEl) && namesEl.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var prop in namesEl.EnumerateObject())
+                    {
+                        if (prop.Value.ValueKind != JsonValueKind.String) continue;
+                        var display = prop.Value.GetString();
+                        if (!string.IsNullOrWhiteSpace(prop.Name) && !string.IsNullOrWhiteSpace(display))
+                            setNames[prop.Name.Trim()] = display!.Trim();
+                    }
+                }
+
+                if (el.TryGetProperty("incompatible", out var incEl) && incEl.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var ruleEl in incEl.EnumerateArray())
+                    {
+                        if (ruleEl.ValueKind != JsonValueKind.Object) continue;
+                        var left = ReadStemArray(ruleEl, "sets");
+                        if (left.Length == 0) continue;
+                        incompatible.Add(new SetIncompatibilityRule
+                        {
+                            Sets = left,
+                            With = ReadStemArray(ruleEl, "with")
+                        });
+                    }
+                }
+
+                var notices = el.TryGetProperty("notices", out var noticesEl)
+                    ? ReadNotices(noticesEl)
+                    : new Dictionary<string, List<SetNotice>>(StringComparer.OrdinalIgnoreCase);
+
+                var baseLocks = el.TryGetProperty("base_locks", out var locksEl)
+                    ? ReadBaseLocks(locksEl)
+                    : new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+                var abilityNames = el.TryGetProperty("ability_names", out var abilityEl)
+                    ? ReadAbilityNames(abilityEl)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                var abilityIcons = el.TryGetProperty("ability_icons", out var abilityIconsEl)
+                    ? ReadIconUrls(abilityIconsEl, AbilityEffectGuard.IsValidTag)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                var effectIcons = el.TryGetProperty("effect_icons", out var effectIconsEl)
+                    ? ReadIconUrls(effectIconsEl, IsEffectStem)
+                    : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
                 if (string.IsNullOrWhiteSpace(name)) return null;
 
                 return new HeroSummary
@@ -353,6 +414,13 @@ namespace ArdysaModsTools.Core.Services
                     Ids = ids,
                     Sets = sets,
                     SetStyles = setStyles,
+                    SetNames = setNames,
+                    Incompatible = incompatible,
+                    Notices = notices,
+                    BaseLocks = baseLocks,
+                    AbilityNames = abilityNames,
+                    AbilityIcons = abilityIcons,
+                    EffectIcons = effectIcons,
                     BasePriority = basePriority
                 };
             }
@@ -360,6 +428,175 @@ namespace ArdysaModsTools.Core.Services
             {
                 return null;
             }
+        }
+
+        internal const int MaxNoticesPerSet = 4;
+        internal const int MaxNoticeTextLength = 160;
+
+        internal static Dictionary<string, List<SetNotice>> ReadNotices(JsonElement noticesEl)
+        {
+            var result = new Dictionary<string, List<SetNotice>>(StringComparer.OrdinalIgnoreCase);
+            if (noticesEl.ValueKind != JsonValueKind.Object)
+                return result;
+
+            foreach (var prop in noticesEl.EnumerateObject())
+            {
+                var stem = prop.Name.Trim();
+                if (stem.Length == 0 || prop.Value.ValueKind != JsonValueKind.Array) continue;
+
+                if (!result.TryGetValue(stem, out var list))
+                    list = new List<SetNotice>();
+
+                foreach (var item in prop.Value.EnumerateArray())
+                {
+                    if (list.Count >= MaxNoticesPerSet) break;
+                    var notice = ReadNotice(item);
+                    if (notice != null && !list.Contains(notice))
+                        list.Add(notice);
+                }
+
+                if (list.Count > 0)
+                    result[stem] = list;
+            }
+
+            return result;
+        }
+
+        internal const int MaxLockedSlotsPerBase = 8;
+
+        internal static Dictionary<string, List<string>> ReadBaseLocks(JsonElement locksEl)
+        {
+            var result = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            if (locksEl.ValueKind != JsonValueKind.Object)
+                return result;
+
+            foreach (var prop in locksEl.EnumerateObject())
+            {
+                var stem = prop.Name.Trim();
+                if (!stem.StartsWith("base_", StringComparison.OrdinalIgnoreCase)) continue;
+
+                var raw = prop.Value.ValueKind switch
+                {
+                    JsonValueKind.String => new[] { prop.Value },
+                    JsonValueKind.Array => prop.Value.EnumerateArray().ToArray(),
+                    _ => Array.Empty<JsonElement>()
+                };
+
+                if (!result.TryGetValue(stem, out var slots))
+                    slots = new List<string>();
+                foreach (var v in raw)
+                {
+                    if (slots.Count >= MaxLockedSlotsPerBase) break;
+                    if (v.ValueKind != JsonValueKind.String) continue;
+                    var slot = v.GetString()?.Trim().ToLowerInvariant();
+                    if (!string.IsNullOrEmpty(slot) && !slots.Contains(slot))
+                        slots.Add(slot);
+                }
+
+                if (slots.Count > 0)
+                    result[stem] = slots;
+            }
+
+            return result;
+        }
+
+        internal const int MaxAbilityNameLength = 64;
+
+        internal static Dictionary<string, string> ReadAbilityNames(JsonElement namesEl)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (namesEl.ValueKind != JsonValueKind.Object)
+                return result;
+
+            foreach (var prop in namesEl.EnumerateObject())
+            {
+                var tag = prop.Name.Trim().ToLowerInvariant();
+                if (!AbilityEffectGuard.IsValidTag(tag) || prop.Value.ValueKind != JsonValueKind.String) continue;
+                var label = prop.Value.GetString()?.Trim();
+                if (string.IsNullOrEmpty(label)) continue;
+                result[tag] = label.Length > MaxAbilityNameLength ? label[..MaxAbilityNameLength] : label;
+            }
+
+            return result;
+        }
+
+        private static readonly string[] IconExtensions = { ".png", ".jpg", ".jpeg", ".webp" };
+
+        private static bool IsEffectStem(string stem) =>
+            stem.Length > AbilityEffectGuard.ArchivePrefix.Length
+            && stem.StartsWith(AbilityEffectGuard.ArchivePrefix, StringComparison.Ordinal);
+
+        internal static Dictionary<string, string> ReadIconUrls(JsonElement mapEl, Func<string, bool> isValidKey)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (mapEl.ValueKind != JsonValueKind.Object)
+                return result;
+
+            foreach (var prop in mapEl.EnumerateObject())
+            {
+                var key = prop.Name.Trim().ToLowerInvariant();
+                if (!isValidKey(key) || prop.Value.ValueKind != JsonValueKind.String) continue;
+                var url = prop.Value.GetString()?.Trim();
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                    || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp)
+                    || !IconExtensions.Any(ext => uri.AbsolutePath.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+                result[key] = uri.AbsoluteUri;
+            }
+
+            return result;
+        }
+
+        private static SetNotice? ReadNotice(JsonElement item)
+        {
+            string? type, anim = null, text = null;
+            if (item.ValueKind == JsonValueKind.String)
+            {
+                type = item.GetString();
+            }
+            else if (item.ValueKind == JsonValueKind.Object)
+            {
+                type = ReadNoticeString(item, "type");
+                anim = ReadNoticeString(item, "anim");
+                text = ReadNoticeString(item, "text");
+            }
+            else
+            {
+                return null;
+            }
+
+            type = type?.Trim().ToLowerInvariant();
+            if (string.IsNullOrEmpty(type)) return null;
+
+            if (!SetNotice.IsKnownType(type))
+                return text == null ? null : new SetNotice(SetNotice.Custom, Text: text);
+
+            return type switch
+            {
+                SetNotice.Custom => text == null ? null : new SetNotice(SetNotice.Custom, Text: text),
+                SetNotice.AnimBug => new SetNotice(SetNotice.AnimBug, Anim: anim),
+                _ => new SetNotice(type)
+            };
+        }
+
+        private static string? ReadNoticeString(JsonElement obj, string name)
+        {
+            if (!obj.TryGetProperty(name, out var v) || v.ValueKind != JsonValueKind.String) return null;
+            var s = v.GetString()?.Trim();
+            if (string.IsNullOrEmpty(s)) return null;
+            return s.Length > MaxNoticeTextLength ? s[..MaxNoticeTextLength].TrimEnd() : s;
+        }
+
+        private static string[] ReadStemArray(JsonElement parent, string propertyName)
+        {
+            if (!parent.TryGetProperty(propertyName, out var arr) || arr.ValueKind != JsonValueKind.Array)
+                return Array.Empty<string>();
+
+            return arr.EnumerateArray()
+                .Where(x => x.ValueKind == JsonValueKind.String)
+                .Select(x => x.GetString()?.Trim() ?? string.Empty)
+                .Where(x => x.Length > 0)
+                .ToArray();
         }
 
         private static BasePriorityPolicy ParseBasePriority(JsonElement el)

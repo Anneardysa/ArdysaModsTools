@@ -120,7 +120,8 @@ namespace ArdysaModsTools.Core.Services
                 : null;
 
             bool verifiedDuringDownload = false;
-            if (!File.Exists(localZipPath))
+            bool servedFromCache = File.Exists(localZipPath);
+            if (!servedFromCache)
             {
                 if (isSplit)
                 {
@@ -139,14 +140,32 @@ namespace ArdysaModsTools.Core.Services
 
             ct.ThrowIfCancellationRequested();
 
-            if (expected != null && !verifiedDuringDownload)
+            if (!verifiedDuringDownload)
             {
-                bool ok = await AssetHashVerifier.VerifyFileAsync(localZipPath, expected, ct).ConfigureAwait(false);
+                bool ok = expected != null
+                    && await AssetHashVerifier.VerifyFileAsync(localZipPath, expected, ct).ConfigureAwait(false);
+
+                if (!ok && servedFromCache && expected != null)
+                {
+                    log("Cached set is out of date — downloading the latest.");
+                    try { if (File.Exists(localZipPath)) File.Delete(localZipPath); } catch { }
+
+                    if (isSplit)
+                        await DownloadSplitZipAsync(zipUrl, localZipPath, log, ct, speedProgress).ConfigureAwait(false);
+                    else
+                        await DownloadFileAsync(zipUrl, localZipPath, log, ct, speedProgress, expected).ConfigureAwait(false);
+
+                    ok = await AssetHashVerifier.VerifyFileAsync(localZipPath, expected, ct).ConfigureAwait(false);
+                }
+
                 if (!ok)
                 {
                     try { if (File.Exists(localZipPath)) File.Delete(localZipPath); } catch { }
-                    var dlEx = new DownloadException(ErrorCodes.DL_HASH_MISMATCH,
-                        $"Integrity check failed for set '{setName}' ({heroId}). The file was removed; please retry.", zipUrl);
+                    string code = expected == null ? ErrorCodes.DL_NO_HASH : ErrorCodes.DL_HASH_MISMATCH;
+                    string reason = expected == null
+                        ? $"No manifest hash for set '{setName}' ({heroId}); refusing to install an unverified file."
+                        : $"Integrity check failed for set '{setName}' ({heroId}). The file was removed; please retry.";
+                    var dlEx = new DownloadException(code, reason, zipUrl);
                     _logger?.Log($"[{dlEx.ErrorCode}] {dlEx.Message}");
                     throw dlEx;
                 }
@@ -352,6 +371,10 @@ namespace ArdysaModsTools.Core.Services
                     {
                         destStream.SetLength(partStartOffset);
                         destStream.Position = partStartOffset;
+
+                        if (CdnAuthFailure.IsUnauthorized(ex))
+                            throw CdnAuthFailure.ToException(partUrl);
+
                         var cdnBase = CdnConfig.ExtractBaseUrl(partUrl) ?? partUrl;
                         SmartCdnSelector.Instance.ReportFailure(cdnBase);
                         _logger?.Log($"Split part {partNumber} failed from {cdnName}: {ex.Message}");

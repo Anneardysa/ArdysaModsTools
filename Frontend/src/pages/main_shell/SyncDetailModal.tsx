@@ -260,7 +260,7 @@ export function SyncDetailModal() {
                      filteredItems.map((it) => (
                         <div
                            key={`${it.id}-${it.status}-${it.category}`}
-                           className={`${css.syncItemCard} ${css[it.status] ?? ""}`}
+                           className={css.syncItemCard}
                         >
                            <div className={css.syncItemHeader}>
                               <button
@@ -272,7 +272,7 @@ export function SyncDetailModal() {
                               >
                                  {copiedCardId === it.id ? (
                                     <>
-                                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 10, height: 10, color: "#3fb950" }}>
+                                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 10, height: 10, color: "var(--verify-ok)" }}>
                                           <polyline points="20 6 9 17 4 12" />
                                        </svg>
                                        <span>Copied</span>
@@ -306,7 +306,7 @@ export function SyncDetailModal() {
                      title="Copy item list to clipboard"
                   >
                      {copiedList ? (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13, color: "#3fb950" }}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13, color: "var(--verify-ok)" }}>
                            <polyline points="20 6 9 17 4 12" />
                         </svg>
                      ) : (

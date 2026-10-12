@@ -16,6 +16,7 @@
  */
 using NUnit.Framework;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Tests.Helpers;
 
 namespace ArdysaModsTools.Tests.Services
 {
@@ -63,7 +64,7 @@ namespace ArdysaModsTools.Tests.Services
         private static string NewVpk(string path)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllBytes(path, new byte[] { 1, 2, 3, 4 });
+            File.WriteAllBytes(path, TestVpk.Minimal());
             return path;
         }
 
@@ -124,9 +125,90 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public void IsMounted_NoGameInfoFile_ReturnsFalse()
+        public void CanSplit_NoGameInfoFile_ReturnsFalse()
         {
-            Assert.That(ProtectedVpkStore.IsMounted(_targetPath), Is.False);
+            Assert.That(ProtectedVpkStore.CanSplit(_targetPath), Is.False);
+        }
+
+        [Test]
+        public void CanSplit_PatchedGameInfo_ReturnsTrue()
+        {
+            WriteGameInfo(MountingGameInfo);
+            Assert.That(ProtectedVpkStore.CanSplit(_targetPath), Is.True);
+        }
+
+        [Test]
+        public void CanSplit_VanillaGameInfo_ReturnsTrue()
+        {
+            WriteGameInfo("\t\t\tGame\t\t\t\tdota\r\n\t\t\tGame\t\t\t\tcore\r\n");
+            Assert.That(ProtectedVpkStore.CanSplit(_targetPath), Is.True);
+        }
+
+        [Test]
+        public void CanSplit_LegacyPatchedGameInfo_ReturnsFalse()
+        {
+            WriteGameInfo("\t\t\tGame\t\t\t\t_ArdysaMods\r\n\t\t\tGame\t\t\t\tdota\r\n");
+            Assert.That(ProtectedVpkStore.CanSplit(_targetPath), Is.False);
+        }
+
+        private void WriteGameInfo(string text)
+        {
+            string gi = Path.Combine(_targetPath, "game", "dota", "gameinfo_branchspecific.gi");
+            Directory.CreateDirectory(Path.GetDirectoryName(gi)!);
+            File.WriteAllText(gi, text);
+        }
+
+        #endregion
+
+        #region Split
+
+        [Test]
+        public void Split_LegacyPatchedGameInfo_LeavesAssetsAndPackageTextInTheMainTree()
+        {
+            WriteGameInfo("\t\t\tGame\t\t\t\t_ArdysaMods\r\n\t\t\tGame\t\t\t\tdota\r\n");
+            var asset = WriteAsset("models/heroes/x/x.vmdl_c");
+            var itemsGame = WriteAsset("scripts/items/items_game.txt");
+
+            int moved = ProtectedVpkStore.Split(
+                _targetPath, _extractDir, _protectedDir, new[] { "models/heroes/x/x.vmdl_c" });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(moved, Is.Zero);
+                Assert.That(File.Exists(asset), Is.True, "the asset must stay in the package the game mounts");
+                Assert.That(File.Exists(itemsGame), Is.True);
+                Assert.That(Directory.Exists(_protectedDir), Is.False, "nothing is staged for a package that is never mounted");
+            });
+        }
+
+        [Test]
+        public void Split_PatchedGameInfo_MovesBothTheAssetsAndThePackageText()
+        {
+            WriteGameInfo(MountingGameInfo);
+            var asset = WriteAsset("models/heroes/x/x.vmdl_c");
+            var plainAsset = WriteAsset("models/heroes/y/y.vmdl_c");
+            WriteAsset("scripts/items/items_game.txt");
+
+            int moved = ProtectedVpkStore.Split(
+                _targetPath, _extractDir, _protectedDir, new[] { "models/heroes/x/x.vmdl_c" });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(moved, Is.EqualTo(2));
+                Assert.That(File.Exists(asset), Is.False);
+                Assert.That(File.Exists(Path.Combine(_protectedDir, "models", "heroes", "x", "x.vmdl_c")), Is.True);
+                Assert.That(File.Exists(Path.Combine(_protectedDir, "scripts", "items", "items_game.txt")), Is.True);
+                Assert.That(File.Exists(plainAsset), Is.True, "an unprotected asset stays in the main package");
+            });
+        }
+
+        [Test]
+        public void Split_NoAssetPaths_StillMovesThePackageText()
+        {
+            WriteGameInfo(MountingGameInfo);
+            WriteAsset("scripts/items/items_game.txt");
+
+            Assert.That(ProtectedVpkStore.Split(_targetPath, _extractDir, _protectedDir), Is.EqualTo(1));
         }
 
         #endregion
@@ -165,7 +247,81 @@ namespace ArdysaModsTools.Tests.Services
 
         #endregion
 
+        #region MovePackageText / BorrowPackageText
+
+        [Test]
+        public void MovePackageText_MovesItemDataAndLocalizationOnly()
+        {
+            var itemsGame = WriteAsset("scripts/items/items_game.txt");
+            var locale = WriteAsset("resource/localization/abilities_english.txt");
+            var otherScript = WriteAsset("scripts/vscripts/other.lua");
+            var model = WriteAsset("models/heroes/x/x.vmdl_c");
+
+            int moved = ProtectedVpkStore.MovePackageText(_extractDir, _protectedDir);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(moved, Is.EqualTo(2));
+                Assert.That(File.Exists(itemsGame), Is.False, "item data must leave the main tree");
+                Assert.That(File.Exists(locale), Is.False, "localization must leave the main tree");
+                Assert.That(File.Exists(Path.Combine(_protectedDir, "scripts", "items", "items_game.txt")), Is.True);
+                Assert.That(File.Exists(Path.Combine(_protectedDir, "resource", "localization", "abilities_english.txt")), Is.True);
+                Assert.That(File.Exists(otherScript), Is.True);
+                Assert.That(File.Exists(model), Is.True);
+            });
+        }
+
+        [Test]
+        public void BorrowPackageText_IsTheExactReverseOfMove()
+        {
+            WriteAsset("scripts/items/items_game.txt");
+            WriteAsset("resource/localization/abilities_english.txt");
+
+            ProtectedVpkStore.MovePackageText(_extractDir, _protectedDir);
+            int borrowed = ProtectedVpkStore.BorrowPackageText(_protectedDir, _extractDir);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(borrowed, Is.EqualTo(2));
+                Assert.That(File.ReadAllText(Path.Combine(_extractDir, "scripts", "items", "items_game.txt")),
+                    Is.EqualTo("scripts/items/items_game.txt"), "content survives the round trip");
+                Assert.That(File.ReadAllText(Path.Combine(_extractDir, "resource", "localization", "abilities_english.txt")),
+                    Is.EqualTo("resource/localization/abilities_english.txt"));
+                Assert.That(Directory.GetFiles(_protectedDir, "*", SearchOption.AllDirectories), Is.Empty);
+            });
+        }
+
+        [Test]
+        public void MovePackageText_NothingToMove_IsNoOp()
+        {
+            WriteAsset("models/heroes/x/x.vmdl_c");
+
+            Assert.That(ProtectedVpkStore.MovePackageText(_extractDir, _protectedDir), Is.Zero);
+        }
+
+        #endregion
+
         #region Deploy / Clear
+
+        [Test]
+        public async Task GetActiveModVpkStamp_ChangesWhenTheProtectedPackageGoesAway()
+        {
+            string mainVpk = ProtectedVpkStore.MainVpkPath(_targetPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(mainVpk)!);
+            File.Copy(NewVpk(Path.Combine(_root, "main.vpk")), mainVpk);
+            await ProtectedVpkStore.DeployAsync(_targetPath, NewVpk(Path.Combine(_root, "prot.vpk")), _ => { });
+
+            var withProtected = ProtectedVpkStore.GetActiveModVpkStamp(_targetPath);
+            ProtectedVpkStore.Clear(_targetPath);
+            var withoutProtected = ProtectedVpkStore.GetActiveModVpkStamp(_targetPath);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(withProtected, Is.Not.Null);
+                Assert.That(withoutProtected, Is.Not.Null, "the main package is still installed");
+                Assert.That(withoutProtected, Is.Not.EqualTo(withProtected));
+            });
+        }
 
         [Test]
         public async Task DeployAsync_InstallsSuperhiddenPackage()
@@ -184,8 +340,178 @@ namespace ArdysaModsTools.Tests.Services
                 var dirAttrs = File.GetAttributes(ProtectedVpkStore.Dir(_targetPath));
                 Assert.That(dirAttrs.HasFlag(FileAttributes.Hidden), Is.True, "folder Hidden");
                 Assert.That(dirAttrs.HasFlag(FileAttributes.System), Is.True, "folder System");
-                Assert.That(File.ReadAllBytes(ProtectedVpk), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
+                Assert.That(File.ReadAllBytes(ProtectedVpk), Is.EqualTo(TestVpk.Minimal()));
             });
+        }
+
+        #region DeployPairAsync — protected + main as one unit
+
+        private static readonly byte[] PreviousProtected = TestVpk.Build(TestVpk.Blob("models/old", "prev", "vmdl_c", 32));
+        private const FileAttributes Superhidden = FileAttributes.Hidden | FileAttributes.System;
+
+        private void InstallPreviousProtected()
+        {
+            Directory.CreateDirectory(ProtectedVpkStore.Dir(_targetPath));
+            File.WriteAllBytes(ProtectedVpk, PreviousProtected);
+            File.SetAttributes(ProtectedVpk, Superhidden);
+        }
+
+        private void AssertPreviousProtectedIsBack()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(File.ReadAllBytes(ProtectedVpk), Is.EqualTo(PreviousProtected), "previous protected package restored");
+                Assert.That(File.GetAttributes(ProtectedVpk) & Superhidden, Is.EqualTo(Superhidden), "still superhidden");
+                Assert.That(File.Exists(ProtectedVpk + ".bak"), Is.False, ".bak settled");
+            });
+        }
+
+        [Test]
+        public async Task DeployPair_MainSucceeds_CommitsTheNewProtectedPackage()
+        {
+            InstallPreviousProtected();
+            int mainCalls = 0;
+
+            bool ok = await ProtectedVpkStore.DeployPairAsync(_targetPath, NewVpk(Path.Combine(_root, "n.vpk")),
+                () => { mainCalls++; return Task.FromResult(true); }, _ => { });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ok, Is.True);
+                Assert.That(mainCalls, Is.EqualTo(1));
+                Assert.That(File.ReadAllBytes(ProtectedVpk), Is.EqualTo(TestVpk.Minimal()));
+                Assert.That(File.GetAttributes(ProtectedVpk) & Superhidden, Is.EqualTo(Superhidden));
+                Assert.That(File.Exists(ProtectedVpk + ".bak"), Is.False);
+            });
+        }
+
+        [Test]
+        public async Task DeployPair_MainFails_PutsThePreviousProtectedPackageBack()
+        {
+            InstallPreviousProtected();
+
+            bool ok = await ProtectedVpkStore.DeployPairAsync(_targetPath, NewVpk(Path.Combine(_root, "n.vpk")),
+                () => Task.FromResult(false), _ => { });
+
+            Assert.That(ok, Is.False);
+            AssertPreviousProtectedIsBack();
+        }
+
+        [Test]
+        public void DeployPair_MainThrows_RethrowsAndPutsThePreviousProtectedPackageBack()
+        {
+            InstallPreviousProtected();
+
+            Assert.That(() => ProtectedVpkStore.DeployPairAsync(_targetPath, NewVpk(Path.Combine(_root, "n.vpk")),
+                    () => throw new IOException("disk full"), _ => { }),
+                Throws.InstanceOf<IOException>());
+
+            AssertPreviousProtectedIsBack();
+        }
+
+        [Test]
+        public void DeployPair_MainCanceled_RethrowsAndPutsThePreviousProtectedPackageBack()
+        {
+            InstallPreviousProtected();
+
+            Assert.That(() => ProtectedVpkStore.DeployPairAsync(_targetPath, NewVpk(Path.Combine(_root, "n.vpk")),
+                    () => Task.FromCanceled<bool>(new CancellationToken(true)), _ => { }),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            AssertPreviousProtectedIsBack();
+        }
+
+        [Test]
+        public async Task DeployPair_MainFails_WithNoPreviousProtected_LeavesNone()
+        {
+            bool ok = await ProtectedVpkStore.DeployPairAsync(_targetPath, NewVpk(Path.Combine(_root, "n.vpk")),
+                () => Task.FromResult(false), _ => { });
+
+            Assert.That(ok, Is.False);
+            Assert.That(File.Exists(ProtectedVpk), Is.False, "nothing was installed before, so nothing stays");
+            Assert.That(File.Exists(ProtectedVpk + ".bak"), Is.False);
+        }
+
+        [Test]
+        public async Task DeployPair_NullSourceAndMainFails_RestoresTheRemovedPackage()
+        {
+            InstallPreviousProtected();
+
+            bool ok = await ProtectedVpkStore.DeployPairAsync(_targetPath, null, () => Task.FromResult(false), _ => { });
+
+            Assert.That(ok, Is.False);
+            AssertPreviousProtectedIsBack();
+        }
+
+        [Test]
+        public async Task DeployPair_NullSourceAndMainSucceeds_RemovesThePackage()
+        {
+            InstallPreviousProtected();
+
+            bool ok = await ProtectedVpkStore.DeployPairAsync(_targetPath, null, () => Task.FromResult(true), _ => { });
+
+            Assert.That(ok, Is.True);
+            Assert.That(File.Exists(ProtectedVpk), Is.False);
+            Assert.That(File.Exists(ProtectedVpk + ".bak"), Is.False);
+        }
+
+        [Test]
+        public async Task DeployPair_ProtectedRefused_NeverTouchesTheMainPackage()
+        {
+            InstallPreviousProtected();
+            var corrupt = Path.Combine(_root, "corrupt.vpk");
+            File.WriteAllBytes(corrupt, new byte[] { 1, 2, 3 });
+            bool mainCalled = false;
+
+            bool ok = await ProtectedVpkStore.DeployPairAsync(_targetPath, corrupt,
+                () => { mainCalled = true; return Task.FromResult(true); }, _ => { });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ok, Is.False);
+                Assert.That(mainCalled, Is.False, "main swap must not run after the protected one failed");
+            });
+            AssertPreviousProtectedIsBack();
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("relative_dota")]
+        public async Task DeployPair_EmptyOrRelativeTarget_ReturnsFalse_WithoutCallingMain(string? target)
+        {
+            bool mainCalled = false;
+
+            bool ok = await ProtectedVpkStore.DeployPairAsync(target!, NewVpk(Path.Combine(_root, "n.vpk")),
+                () => { mainCalled = true; return Task.FromResult(true); }, _ => { });
+
+            Assert.That(ok, Is.False);
+            Assert.That(mainCalled, Is.False);
+        }
+
+        #endregion
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("relative_dota")]
+        public async Task DeployAsync_EmptyOrRelativeTarget_ReturnsFalseAndCreatesNothing(string? target)
+        {
+            var cwdGame = Path.Combine(Environment.CurrentDirectory, "relative_dota");
+            var cwdMod = Path.Combine(Environment.CurrentDirectory, "game", "mod");
+            foreach (var stale in new[] { cwdGame, cwdMod })
+                if (Directory.Exists(stale)) { SafeDelete(stale); }
+
+            bool ok = await ProtectedVpkStore.DeployAsync(target!, NewVpk(Path.Combine(_root, "rel.vpk")), _ => { });
+
+            Assert.That(ok, Is.False);
+            Assert.That(Directory.Exists(cwdGame) || Directory.Exists(cwdMod), Is.False,
+                "Ensure must not run against the working directory");
+        }
+
+        private static void SafeDelete(string dir)
+        {
+            foreach (var p in Directory.GetFileSystemEntries(dir, "*", SearchOption.AllDirectories).Append(dir))
+                try { File.SetAttributes(p, FileAttributes.Normal); } catch { }
+            Directory.Delete(dir, true);
         }
 
         [Test]
@@ -204,7 +530,7 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         [Test]
-        public async Task Clear_RemovesSuperhiddenPackage_AndResetsAttributes()
+        public async Task Clear_RemovesSuperhiddenPackage_ButKeepsTheFolderSuperhidden()
         {
             string sampleProtVpk = NewVpk(Path.Combine(_root, "sample_prot.vpk"));
             await ProtectedVpkStore.DeployAsync(_targetPath, sampleProtVpk, _ => { });
@@ -213,6 +539,10 @@ namespace ArdysaModsTools.Tests.Services
             Directory.CreateDirectory(tempDir);
             File.WriteAllText(Path.Combine(tempDir, "hero_extraction_log.json"), "{}");
             File.WriteAllText(Path.Combine(tempDir, "hero_selections.json"), "{}");
+
+            string strayFile = Path.Combine(ProtectedVpkStore.Dir(_targetPath), "models", "stray.vmdl_c");
+            Directory.CreateDirectory(Path.GetDirectoryName(strayFile)!);
+            File.WriteAllText(strayFile, "stray");
 
             Assert.That(File.Exists(ProtectedVpkStore.VpkPath(_targetPath)), Is.True);
             Assert.That(Directory.Exists(ProtectedVpkStore.Dir(_targetPath)), Is.True);
@@ -227,11 +557,14 @@ namespace ArdysaModsTools.Tests.Services
                 Assert.That(File.Exists(Path.Combine(tempDir, "hero_selections.json")), Is.False, "selections log removed");
 
                 string modsDir = ProtectedVpkStore.Dir(_targetPath);
-                if (Directory.Exists(modsDir))
-                {
-                    Assert.That(new DirectoryInfo(modsDir).Attributes.HasFlag(FileAttributes.Hidden), Is.False);
-                    Assert.That(new DirectoryInfo(modsDir).Attributes.HasFlag(FileAttributes.System), Is.False);
-                }
+                var dirAttrs = new DirectoryInfo(modsDir).Attributes;
+                Assert.That(dirAttrs.HasFlag(FileAttributes.Hidden), Is.True, "game/mod folder must stay superhidden");
+                Assert.That(dirAttrs.HasFlag(FileAttributes.System), Is.True, "game/mod folder must stay superhidden");
+
+                Assert.That(File.Exists(strayFile), Is.True, "a leftover file is not deleted by Clear()");
+                var fileAttrs = File.GetAttributes(strayFile);
+                Assert.That(fileAttrs.HasFlag(FileAttributes.Hidden), Is.True, "a leftover file must not sit exposed either");
+                Assert.That(fileAttrs.HasFlag(FileAttributes.System), Is.True, "a leftover file must not sit exposed either");
             });
         }
 
@@ -260,9 +593,66 @@ namespace ArdysaModsTools.Tests.Services
             File.WriteAllText(subFile, "test");
             File.SetAttributes(subFile, FileAttributes.ReadOnly);
 
-            ProtectedVpkStore.DeletePermanently(_targetPath);
+            bool deleted = ProtectedVpkStore.DeletePermanently(_targetPath);
 
+            Assert.That(deleted, Is.True);
             Assert.That(Directory.Exists(modDir), Is.False);
+        }
+
+        [Test]
+        public void DeletePermanently_NoFolder_ReturnsTrue()
+        {
+            Assert.That(ProtectedVpkStore.DeletePermanently(_targetPath), Is.True);
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("  ")]
+        [TestCase("dota")]
+        public void DeletePermanently_EmptyOrRelativePath_ReturnsFalseAndTouchesNothing(string? path)
+        {
+            string original = Environment.CurrentDirectory;
+            string cwdModDir = Path.Combine(_root, "game", "mod");
+            string rootedModDir = ProtectedVpkStore.Dir(_targetPath);
+            Directory.CreateDirectory(cwdModDir);
+            Directory.CreateDirectory(rootedModDir);
+            try
+            {
+                Environment.CurrentDirectory = _root;
+
+                Assert.That(ProtectedVpkStore.DeletePermanently(path!), Is.False);
+                Assert.That(Directory.Exists(cwdModDir), Is.True, "must never resolve against the working directory");
+                Assert.That(Directory.Exists(rootedModDir), Is.True);
+            }
+            finally
+            {
+                Environment.CurrentDirectory = original;
+            }
+        }
+
+        [Test]
+        public void DeletePermanently_WhenLocked_ReturnsFalseAndReHidesSurvivors()
+        {
+            ProtectedVpkStore.Ensure(_targetPath);
+            string modDir = ProtectedVpkStore.Dir(_targetPath);
+            string survivor = Path.Combine(modDir, "sub", "keep.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(survivor)!);
+            File.WriteAllText(survivor, "x");
+            File.WriteAllBytes(ProtectedVpk, new byte[] { 1 });
+
+            bool deleted;
+            using (new FileStream(ProtectedVpk, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                deleted = ProtectedVpkStore.DeletePermanently(_targetPath);
+
+            var dirAttrs = File.GetAttributes(modDir);
+            Assert.Multiple(() =>
+            {
+                Assert.That(deleted, Is.False);
+                Assert.That(File.Exists(ProtectedVpk), Is.True);
+                Assert.That(dirAttrs.HasFlag(FileAttributes.Hidden), Is.True, "Normalize stripped it; a failed delete must restore it");
+                Assert.That(dirAttrs.HasFlag(FileAttributes.System), Is.True, "Normalize stripped it; a failed delete must restore it");
+                Assert.That(File.GetAttributes(ProtectedVpk).HasFlag(FileAttributes.Hidden), Is.True, "the surviving package must be re-hidden");
+            });
         }
     }
 }

@@ -553,5 +553,68 @@ namespace ArdysaModsTools.Tests.Helpers
                 Assert.That(result.Text, Does.Not.Contain("Ember Spirit's Head Item"));
             });
         }
+
+        #region Misc assets survive the merge verbatim
+
+        private static string ItemsFile(string block) =>
+            "\"items_game\"\n{\n\t\"items\"\n{\n" + block + "\n\t}\n}\n";
+
+        [Test]
+        public void Merge_MiscDefaultItem_KeepsAuthoredBlockVerbatim(
+            [ValueSource(nameof(MiscDefaultIds))] string id)
+        {
+            var vanilla = ItemsFile(
+                $"\t\t\"{id}\"\n\t\t{{\n" +
+                "\t\t\t\"name\"\t\t\"Default Thing\"\n" +
+                "\t\t\t\"prefab\"\t\t\"cursor_pack\"\n" +
+                "\t\t\t\"baseitem\"\t\t\"1\"\n" +
+                "\t\t\t\"item_quality\"\t\t\"base\"\n" +
+                "\t\t\t\"item_slot\"\t\t\"weapon\"\n\t\t}");
+
+            var authored =
+                $"\"{id}\"\n{{\n" +
+                "\t\"name\"\t\t\"Emerald Sea Cursor Pack\"\n" +
+                "\t\"prefab\"\t\t\"cursor_pack\"\n" +
+                "\t\"baseitem\"\t\t\"1\"\n" +
+                "\t\"item_rarity\"\t\t\"rare\"\n" +
+                "\t\"visuals\"\n\t{\n\t\t\"asset_modifier0\"\n\t\t{\n" +
+                "\t\t\t\"type\"\t\t\"cursor_pack\"\n" +
+                "\t\t\t\"asset\"\t\t\"resource/cursor/workshop/emerald_ocean_cursor_pack\"\n" +
+                "\t\t}\n\t}\n}";
+
+            var result = ItemsGameMerger.Merge(vanilla, ItemsFile(authored), new[] { id });
+
+            Assert.That(result.Applied, Is.EqualTo(1));
+            Assert.That(result.Text, Does.Contain(authored), "Authored block must survive byte for byte");
+            Assert.That(result.Text, Does.Not.Contain("\"item_quality\""), "Vanilla key must not be resurrected");
+            Assert.That(result.Text, Does.Not.Contain("\"item_slot\""), "Vanilla key must not be resurrected");
+        }
+
+        private static readonly string[] MiscDefaultIds =
+            System.Linq.Enumerable.ToArray(ArdysaModsTools.Core.Constants.MiscItemIds.Defaults);
+
+        [Test]
+        public void Merge_HeroItem_StillCarriesVanillaKeys()
+        {
+            var vanilla = ItemsFile(
+                "\t\t\"777\"\n\t\t{\n" +
+                "\t\t\t\"name\"\t\t\"Axe's Axe\"\n" +
+                "\t\t\t\"prefab\"\t\t\"wearable\"\n" +
+                "\t\t\t\"model_player\"\t\t\"models/vanilla_axe.vmdl\"\n" +
+                "\t\t\t\"used_by_heroes\"\n\t\t\t{\n\t\t\t\t\"npc_dota_hero_axe\"\t\t\"1\"\n\t\t\t}\n\t\t}");
+
+            var package = ItemsFile(
+                "\t\t\"777\"\n\t\t{\n" +
+                "\t\t\t\"model_player\"\t\t\"models/MODDED_axe.vmdl\"\n" +
+                "\t\t\t\"used_by_heroes\"\n\t\t\t{\n\t\t\t\t\"npc_dota_hero_axe\"\t\t\"1\"\n\t\t\t}\n\t\t}");
+
+            var result = ItemsGameMerger.Merge(vanilla, package, new[] { "777" });
+
+            Assert.That(result.Text, Does.Contain("models/MODDED_axe.vmdl"), "Mod's change must win");
+            Assert.That(result.Text, Does.Contain("\"Axe's Axe\""), "Vanilla-only key must be carried over");
+            Assert.That(result.Text, Does.Contain("\"prefab\""), "Vanilla-only key must be carried over");
+        }
+
+        #endregion
     }
 }

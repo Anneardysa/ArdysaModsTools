@@ -14,7 +14,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System;
+using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using ArdysaModsTools.Core.Services.App;
+using ArdysaModsTools.Core.Services.Cache;
 using NUnit.Framework;
 
 namespace ArdysaModsTools.Tests.Services
@@ -46,6 +51,44 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(CacheCleaningService.ShouldClearForVersion(null, "2.2.20-beta (Build 2286)"), Is.False);
             Assert.That(CacheCleaningService.ShouldClearForVersion("", "2.2.20-beta (Build 2286)"), Is.False);
             Assert.That(CacheCleaningService.ShouldClearForVersion("   ", "2.2.20-beta (Build 2286)"), Is.False);
+        }
+
+
+        private static bool ListsAssetCache(CacheClearScope scope)
+        {
+            string assetCache = Path.GetFullPath(AssetCacheService.Instance.CacheDirectory);
+            return new CacheCleaningService().GetCacheFolders(scope).Any(f =>
+                string.Equals(Path.GetFullPath(f.FolderPath).TrimEnd('\\'), assetCache.TrimEnd('\\'),
+                    StringComparison.OrdinalIgnoreCase));
+        }
+
+        [Test]
+        public void GetCacheFolders_AppUpdate_KeepsAssetCache()
+        {
+            Assert.That(ListsAssetCache(CacheClearScope.AppUpdate), Is.False);
+        }
+
+        [Test]
+        public void GetCacheFolders_Everything_IncludesAssetCache()
+        {
+            Assert.That(ListsAssetCache(CacheClearScope.Everything), Is.True);
+        }
+
+        [Test]
+        public void PostUpdateClearInProgramCs_UsesAppUpdateScope()
+        {
+            var dir = new DirectoryInfo(AppDomain.CurrentDomain.BaseDirectory);
+            while (dir != null && !File.Exists(Path.Combine(dir.FullName, "build.txt")))
+                dir = dir.Parent;
+            Assert.That(dir, Is.Not.Null, "could not locate the repo root (no build.txt in any parent)");
+
+            string program = File.ReadAllText(Path.Combine(dir!.FullName, "Program.cs"));
+            var calls = Regex.Matches(program, @"ClearAllCacheAsync\(([^)]*)\)");
+
+            Assert.That(calls, Is.Not.Empty, "Program.cs no longer clears caches on update — update this guard");
+            foreach (Match call in calls)
+                Assert.That(call.Groups[1].Value.Trim(), Is.EqualTo("CacheClearScope.AppUpdate"),
+                    "launch-time clears must keep the thumbnail AssetCache");
         }
     }
 }

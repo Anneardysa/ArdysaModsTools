@@ -17,6 +17,7 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,27 +43,44 @@ namespace ArdysaModsTools.Core.Services.Config
 
         public string RequiredVersion { get; init; } = "";
 
+        public bool IsOffline { get; init; }
+
+        public string FeatureName { get; init; } = "";
+
         public static FeatureCheckResult Allowed(
-            string displayName, bool devModeBypass = false) => new()
+            string displayName, bool devModeBypass = false, string featureName = "") => new()
         {
             IsAllowed = true,
             IsDevModeBypass = devModeBypass,
+            FeatureName = featureName,
             FeatureDisplayName = displayName
         };
 
         public static FeatureCheckResult Blocked(
-            string displayName, string message) => new()
+            string displayName, string message, string featureName = "") => new()
         {
             IsAllowed = false,
+            FeatureName = featureName,
+            FeatureDisplayName = displayName,
+            BlockedMessage = message
+        };
+
+        public static FeatureCheckResult Offline(
+            string featureName, string displayName, string message) => new()
+        {
+            IsAllowed = false,
+            IsOffline = true,
+            FeatureName = featureName,
             FeatureDisplayName = displayName,
             BlockedMessage = message
         };
 
         public static FeatureCheckResult Outdated(
-            string displayName, string message, string requiredVersion) => new()
+            string displayName, string message, string requiredVersion, string featureName = "") => new()
         {
             IsAllowed = false,
             IsOutdated = true,
+            FeatureName = featureName,
             FeatureDisplayName = displayName,
             BlockedMessage = message,
             RequiredVersion = requiredVersion
@@ -81,11 +99,29 @@ namespace ArdysaModsTools.Core.Services.Config
 
         internal static readonly string DefaultCacheFilePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "ArdysaModsTools", "feature_access_cache.json");
+            "ArdysaModsTools", "feature_access_cache.dat");
+
+        internal const string LegacyCacheFileName = "feature_access_cache.json";
+
+        private static readonly byte[] DiskCacheEntropy = System.Text.Encoding.UTF8.GetBytes("AMT.FeatureAccess.Cache.v1");
+
+        internal static readonly TimeSpan DiskCacheMaxAge = TimeSpan.FromDays(7);
+
+        private static readonly TimeSpan ClockTolerance = TimeSpan.FromHours(1);
 
         public static string CacheFilePath { get; internal set; } = DefaultCacheFilePath;
 
-        private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(5);
+        internal static readonly Func<CancellationToken, Task<string?>> DefaultFetcher = ct =>
+            CdnFallbackService.Instance.DownloadStringWithFallbackAsync(
+                $"{CdnConfig.R2BaseUrl}/{ConfigPath}", ct, AttemptTimeout);
+
+        internal static Func<CancellationToken, Task<string?>> Fetcher { get; set; } = DefaultFetcher;
+
+        internal static string? LastFailureReason { get; private set; }
+
+        private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(20);
+
+        private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(7);
 
         private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(5);
 
@@ -106,6 +142,8 @@ namespace ArdysaModsTools.Core.Services.Config
         private static DateTime _cacheTime = DateTime.MinValue;
         private static DateTime _lastFailedFetch = DateTime.MinValue;
 
+        private static Task<FeatureAccessConfig?>? _inflight;
+
         #endregion
 
         #region Public API
@@ -113,62 +151,70 @@ namespace ArdysaModsTools.Core.Services.Config
         public static async Task<FeatureAccessConfig> GetConfigAsync()
             => await TryGetConfigAsync().ConfigureAwait(false) ?? FeatureAccessConfig.CreateDefault();
 
-        private static async Task<FeatureAccessConfig?> TryGetConfigAsync()
+        internal static Task<FeatureAccessConfig?> TryGetConfigAsync()
         {
-            if (IsCacheValid())
+            lock (_lock)
             {
-                return _cachedConfig!;
-            }
+                if (_cachedConfig != null && DateTime.UtcNow - _cacheTime < CacheDuration)
+                    return Task.FromResult<FeatureAccessConfig?>(_cachedConfig);
 
-            if (IsInFailureBackoff())
-            {
-                return GetCachedOrDefault();
+                return _inflight ??= Task.Run(FetchAsync);
             }
+        }
 
+        private static async Task<FeatureAccessConfig?> FetchAsync()
+        {
             try
             {
-                var url = $"{CdnConfig.R2BaseUrl}/{ConfigPath}";
-                using var cts = new CancellationTokenSource(RequestTimeout);
-                var json = await CdnFallbackService.Instance.DownloadStringWithFallbackAsync(url, cts.Token).ConfigureAwait(false);
+                if (IsInFailureBackoff() && GetFallbackPolicy() is { } fallback)
+                    return fallback;
 
-                if (string.IsNullOrEmpty(json))
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                string reason;
+                try
                 {
-                    System.Diagnostics.Debug.WriteLine("[FeatureAccess] Failed to download config from all CDNs");
-                    return GetCachedOrDefault();
+                    using var cts = new CancellationTokenSource(RequestTimeout);
+                    var json = await Fetcher(cts.Token).ConfigureAwait(false);
+
+                    if (string.IsNullOrEmpty(json))
+                    {
+                        reason = "no response from any CDN host";
+                    }
+                    else if (JsonSerializer.Deserialize<FeatureAccessConfig>(json, _jsonOptions) is { } config)
+                    {
+                        UpdateCache(config);
+                        LastFailureReason = null;
+                        await SaveCacheAsync(json).ConfigureAwait(false);
+                        return config;
+                    }
+                    else
+                    {
+                        reason = "policy JSON is null";
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    reason = $"timed out after {RequestTimeout.TotalSeconds:0}s";
+                }
+                catch (HttpRequestException ex)
+                {
+                    reason = $"network error: {ex.Message}";
+                }
+                catch (JsonException ex)
+                {
+                    reason = $"invalid policy JSON: {ex.Message}";
+                }
+                catch (Exception ex)
+                {
+                    reason = $"{ex.GetType().Name}: {ex.Message}";
                 }
 
-                var config = JsonSerializer.Deserialize<FeatureAccessConfig>(json, _jsonOptions);
-
-                if (config != null)
-                {
-                    UpdateCache(config);
-                    await SaveCacheAsync(json).ConfigureAwait(false);
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[FeatureAccess] Loaded: SkinSelector={config.SkinSelector.Enabled}, " +
-                        $"Miscellaneous={config.Miscellaneous.Enabled}, " +
-                        $"InstallModsPack={config.InstallModsPack.Enabled}, " +
-                        $"Utilities={config.Utilities?.Enabled}");
-                    return config;
-                }
+                return OnFetchFailed(reason, sw.ElapsedMilliseconds);
             }
-            catch (TaskCanceledException)
+            finally
             {
-                System.Diagnostics.Debug.WriteLine("[FeatureAccess] Request timed out");
+                lock (_lock) { _inflight = null; }
             }
-            catch (HttpRequestException ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[FeatureAccess] Network error: {ex.Message}");
-            }
-            catch (JsonException ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[FeatureAccess] Invalid JSON: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[FeatureAccess] Unexpected error: {ex.Message}");
-            }
-
-            return GetCachedOrDefault();
         }
 
         public static async Task<bool> IsFeatureEnabledAsync(string featureName)
@@ -196,7 +242,7 @@ namespace ArdysaModsTools.Core.Services.Config
             {
                 System.Diagnostics.Debug.WriteLine(
                     $"[DEV] Bypassing feature gate for {DisplayNameOf(featureName)}");
-                return FeatureCheckResult.Allowed(DisplayNameOf(featureName), devModeBypass: true);
+                return FeatureCheckResult.Allowed(DisplayNameOf(featureName), devModeBypass: true, featureName);
             }
 
             try
@@ -208,7 +254,7 @@ namespace ArdysaModsTools.Core.Services.Config
             {
                 System.Diagnostics.Debug.WriteLine(
                     $"[FeatureAccess] Check failed for {DisplayNameOf(featureName)}: {ex.Message}");
-                return FeatureCheckResult.Blocked(DisplayNameOf(featureName), OfflineMessage());
+                return FeatureCheckResult.Offline(featureName, DisplayNameOf(featureName), OfflineMessage());
             }
         }
 
@@ -218,12 +264,12 @@ namespace ArdysaModsTools.Core.Services.Config
             var displayName = DisplayNameOf(featureName);
 
             if (config == null)
-                return FeatureCheckResult.Blocked(displayName, OfflineMessage());
+                return FeatureCheckResult.Offline(featureName, displayName, OfflineMessage());
 
             var feature = GetFeatureAccess(config, featureName);
 
             if (!feature.Enabled || feature.GreyOut)
-                return FeatureCheckResult.Blocked(displayName, feature.GetDisplayMessage());
+                return FeatureCheckResult.Blocked(displayName, feature.GetDisplayMessage(), featureName);
 
             if (!MeetsMinimumVersion(feature, current, out string required))
             {
@@ -234,10 +280,11 @@ namespace ArdysaModsTools.Core.Services.Config
                 return FeatureCheckResult.Outdated(
                     displayName,
                     feature.GetOutdatedMessage(required, current.ToString(), fallback),
-                    required);
+                    required,
+                    featureName);
             }
 
-            return FeatureCheckResult.Allowed(displayName);
+            return FeatureCheckResult.Allowed(displayName, featureName: featureName);
         }
 
         private static string DisplayNameOf(string featureName) => featureName switch
@@ -253,8 +300,9 @@ namespace ArdysaModsTools.Core.Services.Config
         {
             string text = Loc.T(OfflineMessageKey);
             if (string.Equals(text, OfflineMessageKey, StringComparison.Ordinal))
-                text = "This feature needs to check for updates before it can run. " +
-                       "Connect to the internet and try again.";
+                text = "This feature checks with the Ardysa server before it runs, and that check " +
+                       "couldn't get through.\n\nYour internet may be working fine — some ISPs and " +
+                       "networks block our server.";
             return text;
         }
 
@@ -286,6 +334,14 @@ namespace ArdysaModsTools.Core.Services.Config
             }
         }
 
+        internal static void ResetForTests()
+        {
+            InvalidateCache();
+            lock (_lock) { _inflight = null; }
+            LastFailureReason = null;
+            Fetcher = DefaultFetcher;
+        }
+
         public static FeatureAccessConfig? CurrentConfig
         {
             get
@@ -313,47 +369,42 @@ namespace ArdysaModsTools.Core.Services.Config
 
         #region Private Helpers
 
-        private static bool IsCacheValid()
-        {
-            lock (_lock)
-            {
-                return _cachedConfig != null &&
-                       DateTime.UtcNow - _cacheTime < CacheDuration;
-            }
-        }
-
         private static void UpdateCache(FeatureAccessConfig config)
         {
             lock (_lock)
             {
                 _cachedConfig = config;
                 _cacheTime = DateTime.UtcNow;
+                _lastFailedFetch = DateTime.MinValue;
             }
         }
 
-        private static FeatureAccessConfig? GetCachedOrDefault()
+        private static FeatureAccessConfig? OnFetchFailed(string reason, long elapsedMs)
+        {
+            lock (_lock) { _lastFailedFetch = DateTime.UtcNow; }
+            LastFailureReason = reason;
+
+            var fallback = GetFallbackPolicy();
+            FallbackLogger.LogFileOnly(
+                $"[FeatureAccess] Policy fetch failed after {elapsedMs} ms ({reason}); " +
+                (fallback != null ? "using last-known-good policy." : "no policy from any source, gated features blocked."));
+            return fallback;
+        }
+
+        private static FeatureAccessConfig? GetFallbackPolicy()
         {
             lock (_lock)
             {
-                _lastFailedFetch = DateTime.UtcNow;
-
                 if (_cachedConfig != null)
-                {
-                    System.Diagnostics.Debug.WriteLine("[FeatureAccess] Using stale cache");
                     return _cachedConfig;
-                }
             }
 
             var fromDisk = LoadDiskCache();
             if (fromDisk != null)
             {
-                System.Diagnostics.Debug.WriteLine("[FeatureAccess] Using on-disk last-known-good");
                 lock (_lock) { _cachedConfig ??= fromDisk; }
-                return fromDisk;
             }
-
-            System.Diagnostics.Debug.WriteLine("[FeatureAccess] No policy available from any source");
-            return null;
+            return fromDisk;
         }
 
         private static bool IsInFailureBackoff()
@@ -365,22 +416,43 @@ namespace ArdysaModsTools.Core.Services.Config
             }
         }
 
+        private sealed record DiskCacheEnvelope(DateTime SavedUtc, string Policy);
+
         private static FeatureAccessConfig? LoadDiskCache()
         {
+            DeleteLegacyCache();
             try
             {
                 if (!File.Exists(CacheFilePath)) return null;
-                return JsonSerializer.Deserialize<FeatureAccessConfig>(
-                    File.ReadAllText(CacheFilePath), _jsonOptions);
+
+                var plain = ProtectedData.Unprotect(
+                    File.ReadAllBytes(CacheFilePath), DiskCacheEntropy, DataProtectionScope.CurrentUser);
+                var envelope = JsonSerializer.Deserialize<DiskCacheEnvelope>(plain);
+                if (envelope == null) return null;
+
+                var age = DateTime.UtcNow - envelope.SavedUtc;
+                if (age < -ClockTolerance || age > DiskCacheMaxAge)
+                {
+                    FallbackLogger.LogFileOnly($"[FeatureAccess] Ignoring cached policy saved {envelope.SavedUtc:u} (age {age}).");
+                    return null;
+                }
+
+                return JsonSerializer.Deserialize<FeatureAccessConfig>(envelope.Policy, _jsonOptions);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[FeatureAccess] Disk cache unreadable: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[FeatureAccess] Cached policy rejected: {ex.GetType().Name}");
                 return null;
             }
         }
 
-        private static async Task SaveCacheAsync(string json)
+        private static Task SaveCacheAsync(string json)
+        {
+            WriteDiskCache(json, DateTime.UtcNow);
+            return Task.CompletedTask;
+        }
+
+        internal static void WriteDiskCache(string json, DateTime savedUtc)
         {
             string tempPath = CacheFilePath + ".tmp";
             try
@@ -389,14 +461,35 @@ namespace ArdysaModsTools.Core.Services.Config
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
 
-                await File.WriteAllTextAsync(tempPath, json).ConfigureAwait(false);
+                var blob = ProtectedData.Protect(
+                    JsonSerializer.SerializeToUtf8Bytes(new DiskCacheEnvelope(savedUtc, json)),
+                    DiskCacheEntropy, DataProtectionScope.CurrentUser);
+
+                File.WriteAllBytes(tempPath, blob);
+                if (File.Exists(CacheFilePath))
+                    File.SetAttributes(CacheFilePath, FileAttributes.Normal);
                 File.Move(tempPath, CacheFilePath, overwrite: true);
+                File.SetAttributes(CacheFilePath, FileAttributes.Hidden | FileAttributes.NotContentIndexed);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[FeatureAccess] Failed to save cache: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[FeatureAccess] Failed to save cached policy: {ex.Message}");
                 try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
             }
+
+            DeleteLegacyCache();
+        }
+
+        private static void DeleteLegacyCache()
+        {
+            try
+            {
+                string legacy = Path.Combine(Path.GetDirectoryName(CacheFilePath) ?? "", LegacyCacheFileName);
+                if (File.Exists(legacy) && !string.Equals(
+                        Path.GetFullPath(legacy), Path.GetFullPath(CacheFilePath), StringComparison.OrdinalIgnoreCase))
+                    File.Delete(legacy);
+            }
+            catch { }
         }
 
         private static FeatureAccess GetFeatureAccess(FeatureAccessConfig config, string featureName)

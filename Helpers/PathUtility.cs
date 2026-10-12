@@ -67,6 +67,24 @@ namespace ArdysaModsTools.Helpers
             string normalized = NormalizeTargetPath(targetPath);
             return Path.Combine(normalized, "game", "_ArdysaMods", "pak01_dir.vpk");
         }
+
+        public static bool IsModInstalled(string? targetPath)
+        {
+            if (string.IsNullOrWhiteSpace(targetPath))
+                return false;
+
+            try
+            {
+                string normalized = NormalizeTargetPath(targetPath);
+                string mainVpk = Path.Combine(normalized, "game", "_ArdysaMods", "pak01_dir.vpk");
+                string protVpk = Path.Combine(normalized, "game", "mod", "pak01_dir.vpk");
+                return File.Exists(mainVpk) || File.Exists(protVpk);
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }
 

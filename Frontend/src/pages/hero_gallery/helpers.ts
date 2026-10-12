@@ -1,5 +1,5 @@
 import { translate } from "../../bridge/i18n";
-import type { Hero, HeroSelectionState, SetEntry, SetNotice, Selections, FilterCategory, TileType } from "./types";
+import type { Hero, HeroSelectionState, ParticleEntry, ParticlePick, SetEntry, SetNotice, Selections, FilterCategory, TileType } from "./types";
 
 const NOTICE_CONFLICT_NAMES = 3;
 
@@ -32,7 +32,7 @@ export function getSetNoticeLines(hero: Hero, indices: number[]): string[] {
 function noticeLine(n: SetNotice): string | null {
    switch (n?.type) {
       case "anim_demo_only":
-         return translate("hero.notice.animDemoOnly", "Animation is bugged in Demo Mode only — public matches are fine.");
+         return translate("hero.notice.animDemoOnly", "Animation is bugged in Demo Mode only; public matches are fine.");
       case "anim_bug":
          return n.anim
             ? translate("hero.notice.animBug", `${n.anim} animation is bugged.`, { anim: n.anim })
@@ -44,7 +44,54 @@ function noticeLine(n: SetNotice): string | null {
    }
 }
 
-export const EMPTY_SELECTION: HeroSelectionState = { set: null, items: [], base: null, prismatic: null, effects: [] };
+export const EMPTY_SELECTION: HeroSelectionState = { set: null, items: [], base: null, prismatic: null, effects: [], particles: [] };
+
+export const MAX_PARTICLES = 2;
+
+export function particleCarriers(hero: Hero, sel: HeroSelectionState | undefined): { idx: number; kind: "set" | "item" | "base" }[] {
+   if (!sel || isPersonaActive(hero, sel)) return [];
+   const out: { idx: number; kind: "set" | "item" | "base" }[] = [];
+   const set = sel.set != null ? hero.sets[sel.set] : undefined;
+   if (set && !isDefaultSetEntry(set) && ["legacyset", "customset"].includes(getSetCategory(set))) out.push({ idx: sel.set!, kind: "set" });
+   for (const i of sel.items) if (getSetCategory(hero.sets[i]) === "item") out.push({ idx: i, kind: "item" });
+   if (sel.base != null && getSetCategory(hero.sets[sel.base]) === "basehero") out.push({ idx: sel.base, kind: "base" });
+   return out;
+}
+
+export function canCarryParticles(hero: Hero, sel: HeroSelectionState | undefined): boolean {
+   return particleCarriers(hero, sel).length > 0;
+}
+
+export function findParticle(catalog: ParticleEntry[], id: string | null | undefined): ParticleEntry | undefined {
+   const key = (id ?? "").trim().toLowerCase();
+   return key ? catalog.find((p) => p.id.toLowerCase() === key) : undefined;
+}
+
+export function sanitizeParticles(
+   hero: Hero,
+   sel: HeroSelectionState,
+   catalog: ParticleEntry[],
+): { particles: ParticlePick[]; dropped: string[] } {
+   const picks = sel.particles ?? [];
+   const nameOf = (p: ParticlePick | null | undefined) => findParticle(catalog, p?.id)?.name ?? `particle ${p?.id ?? "?"}`;
+   if (picks.length === 0) return { particles: [], dropped: [] };
+   if (!canCarryParticles(hero, sel)) return { particles: [], dropped: picks.map(nameOf) };
+
+   const hosts = new Set((hero.particleHosts ?? []).map((h) => h.id));
+   const particles: ParticlePick[] = [];
+   const dropped: string[] = [];
+   for (const pick of picks) {
+      const entry = findParticle(catalog, pick?.id);
+      const host = (pick?.host ?? "").trim();
+      if (particles.length >= MAX_PARTICLES || !entry || !hosts.has(host)
+         || particles.some((k) => k.id === entry.id && k.host === host)) {
+         dropped.push(nameOf(pick));
+         continue;
+      }
+      particles.push({ id: entry.id, host });
+   }
+   return { particles, dropped };
+}
 
 export function getHeroSelection(selections: Selections, heroId: string): HeroSelectionState {
    return selections[heroId] ?? EMPTY_SELECTION;
@@ -100,6 +147,8 @@ export function getSelectionSummary(hero: Hero, sel: HeroSelectionState | undefi
    }
    const effects = sel.effects?.length ?? 0;
    if (effects > 0) parts.push(`${effects} effect${effects > 1 ? "s" : ""}`);
+   const particles = sel.particles?.length ?? 0;
+   if (particles > 0) parts.push(`${particles} particle${particles > 1 ? "s" : ""}`);
    return parts.length > 0 ? parts.join(" + ") : null;
 }
 
@@ -299,10 +348,16 @@ export function slotCovers(slot: string, tag: string): boolean {
 export function sanitizeSelection(
    hero: Hero,
    sel: HeroSelectionState,
+   catalog: ParticleEntry[] = [],
 ): { sel: HeroSelectionState; dropped: string[] } {
    const dropped: string[] = [];
    const kept: number[] = [];
-   const next: HeroSelectionState = { ...sel, items: [...(sel.items ?? [])], effects: [...(sel.effects ?? [])] };
+   const next: HeroSelectionState = {
+      ...sel,
+      items: [...(sel.items ?? [])],
+      effects: [...(sel.effects ?? [])],
+      particles: [...(sel.particles ?? [])],
+   };
 
    const isEffect = (idx: number | null | undefined): boolean =>
       idx != null && getSetCategory(hero.sets[idx]) === "abilityeffect";
@@ -349,6 +404,10 @@ export function sanitizeSelection(
    });
    consider(next.base, () => { next.base = null; next.prismatic = null; });
    consider(next.prismatic, () => { next.prismatic = null; });
+   if (next.base == null && next.prismatic != null) {
+      dropped.push(getSetDisplayName(hero.sets[next.prismatic], next.prismatic));
+      next.prismatic = null;
+   }
 
    next.items = next.items.filter((idx) => {
       if (!isLockedByBase(hero, next, idx)) return true;
@@ -373,6 +432,10 @@ export function sanitizeSelection(
       if (keep) effectTags.add(tag);
       return keep;
    });
+
+   const particles = sanitizeParticles(hero, next, catalog);
+   next.particles = particles.particles;
+   dropped.push(...particles.dropped);
 
    return { sel: next, dropped };
 }

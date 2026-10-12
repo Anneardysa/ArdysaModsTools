@@ -27,7 +27,6 @@ namespace ArdysaModsTools.UI.Forms
         public PatchRequiredDialog(string successMessage = "ModsPack installed successfully!")
         {
             InitializeComponent(successMessage);
-            UI.FontHelper.ApplyToForm(this);
         }
 
         private void InitializeComponent(string successMessage)
@@ -55,7 +54,7 @@ namespace ArdysaModsTools.UI.Forms
             var badgeLabel = new Label
             {
                 Text = "[ ATTENTION ]",
-                Font = new Font("JetBrains Mono", 10f, FontStyle.Bold),
+                Font = FontHelper.Create(10f, FontStyle.Bold),
                 ForeColor = Color.FromArgb(255, 180, 50),
                 BackColor = Color.FromArgb(30, 30, 30),
                 AutoSize = false,
@@ -86,7 +85,7 @@ namespace ArdysaModsTools.UI.Forms
             var titleLabel = new Label
             {
                 Text = "PATCH UPDATE REQUIRED",
-                Font = new Font("JetBrains Mono", 14f, FontStyle.Bold),
+                Font = FontHelper.Create(14f, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = false,
                 Size = new Size(Width - 60, 32),
@@ -99,7 +98,7 @@ namespace ArdysaModsTools.UI.Forms
             var descLabel = new Label
             {
                 Text = $"{successMessage}\n\nHowever, Dota 2 files need to be patched for mods to work.",
-                Font = new Font("JetBrains Mono", 9f),
+                Font = FontHelper.Create(9f),
                 ForeColor = Color.FromArgb(170, 170, 170),
                 AutoSize = false,
                 Size = new Size(Width - 60, 60),
@@ -122,7 +121,7 @@ namespace ArdysaModsTools.UI.Forms
                 BackColor = Color.FromArgb(255, 180, 50),
                 ForeColor = Color.Black,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("JetBrains Mono", 10F, FontStyle.Bold),
+                Font = FontHelper.Create(10F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 BorderRadius = 0,
                 BorderColor = Color.FromArgb(255, 180, 50),
@@ -146,7 +145,7 @@ namespace ArdysaModsTools.UI.Forms
                 BackColor = Color.Black,
                 ForeColor = Color.FromArgb(136, 136, 136),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("JetBrains Mono", 10F, FontStyle.Bold),
+                Font = FontHelper.Create(10F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 BorderRadius = 0,
                 BorderColor = Color.FromArgb(51, 51, 51),

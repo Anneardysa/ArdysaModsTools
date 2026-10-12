@@ -224,6 +224,11 @@ namespace ArdysaModsTools.Core.Services
                     {
                         ids.Add(CourierPatcherService.DefaultCourierItemId);
                     }
+                    if (string.Equals(category, "Ward", StringComparison.OrdinalIgnoreCase) &&
+                        selections.TryGetValue("WardEthereal", out var wardEth) && !string.IsNullOrWhiteSpace(wardEth))
+                    {
+                        ids.Add(WardPatcherService.DefaultWardItemId);
+                    }
                     continue;
                 }
 
@@ -245,11 +250,8 @@ namespace ArdysaModsTools.Core.Services
                     ids.Add("586");
                 }
 
-                if (string.Equals(category, "multikill_banner", StringComparison.OrdinalIgnoreCase))
-                {
-                    ids.Add("10731");
-                    ids.Add("11548");
-                }
+                if (Constants.MiscItemIds.SlotExclusive.TryGetValue(category, out var slot))
+                    ids.UnionWith(slot.Ids);
 
                 string keyCandidate = selectedKey.Contains(':') ? selectedKey.Split(':')[0] : selectedKey;
                 if (int.TryParse(keyCandidate, out _))
@@ -351,6 +353,7 @@ namespace ArdysaModsTools.Core.Services
             content = await ApplyZipModAsync(content, extractDir, selections, "roshan", "Roshan", copyToRoot: true, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
             content = await ApplyZipModAsync(content, extractDir, selections, "kill_streak", "Kill Streak", copyToRoot: false, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
             content = await ApplyZipModAsync(content, extractDir, selections, "multikill_banner", "Kill Banner", copyToRoot: false, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
+            content = await ApplyZipModAsync(content, extractDir, selections, "tormentor", "Tormentor", copyToRoot: true, mergeTxt: true, log, ct, speedProgress).ConfigureAwait(false);
 
             _modifiedItemIds.UnionWith(ResolveItemIdsForSelections(selections));
 
@@ -418,6 +421,40 @@ namespace ArdysaModsTools.Core.Services
             return content;
         }
 
+        internal static string ApplyEthereal(string block, string? selection, string label, Action<string> log, out bool applied)
+        {
+            applied = false;
+            if (string.IsNullOrWhiteSpace(selection)) return block;
+
+            var effectPaths = selection.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(Data.EtherealEffects.GetParticlePath)
+                .OfType<string>()
+                .ToList();
+            if (effectPaths.Count == 0) return block;
+
+            string? visualsBlock = CourierPatcherService.ExtractVisualsBlock(block);
+            if (visualsBlock == null) return block;
+
+            string updatedVisuals = CourierPatcherService.AppendEtherealEffects(
+                visualsBlock, effectPaths, CourierPatcherService.CountExistingParticles(block), replaceExisting: true);
+            applied = true;
+            log($"Ethereal effects applied to {label} ({effectPaths.Count} effect{(effectPaths.Count > 1 ? "s" : "")}).");
+            return block.Replace(visualsBlock, updatedVisuals);
+        }
+
+        private static bool TryApplyEtherealToDefault(ref string content, string itemId, string prefab,
+            string? selection, string label, Action<string> log)
+        {
+            string? block = KeyValuesBlockHelper.ExtractBlockById(content, itemId);
+            if (string.IsNullOrEmpty(block)) return false;
+
+            string updated = ApplyEthereal(block, selection, label, log, out bool applied);
+            if (!applied) return false;
+
+            content = KeyValuesBlockHelper.ReplaceIdBlock(content, itemId, updated, out _, requireItemMarkers: true, requirePrefab: prefab);
+            return true;
+        }
+
         private async Task<string> ApplyCourierModAsync(string content, string vpkPath, string extractDir,
             Dictionary<string, string> selections, Action<string> log, CancellationToken ct)
         {
@@ -433,37 +470,8 @@ namespace ArdysaModsTools.Core.Services
                 log("Restoring Default Courier...");
                 content = KeyValuesBlockHelper.ReplaceIdBlock(content, CourierPatcherService.DefaultCourierItemId, DefaultCourierBlock, out _, requireItemMarkers: true, requirePrefab: "courier");
 
-                if (selections.TryGetValue("CourierEthereal", out var defEthereal) && !string.IsNullOrEmpty(defEthereal))
-                {
-                    var effectNames = defEthereal.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                    var effectPaths = new List<string>();
-                    foreach (var name in effectNames)
-                    {
-                        var path = Core.Data.EtherealEffects.GetParticlePath(name);
-                        if (path != null) effectPaths.Add(path);
-                    }
-
-                    if (effectPaths.Count > 0)
-                    {
-                        string? defBlock = KeyValuesBlockHelper.ExtractBlockById(content, CourierPatcherService.DefaultCourierItemId);
-                        if (!string.IsNullOrEmpty(defBlock))
-                        {
-                            int existingParticles = CourierPatcherService.CountExistingParticles(defBlock);
-                            string? visualsBlock = CourierPatcherService.ExtractVisualsBlock(defBlock);
-                            if (visualsBlock != null)
-                            {
-                                string updatedVisuals = CourierPatcherService.AppendEtherealEffects(
-                                    visualsBlock, effectPaths, existingParticles, replaceExisting: true);
-                                string updatedBlock = defBlock.Replace(visualsBlock, updatedVisuals);
-
-                                content = KeyValuesBlockHelper.ReplaceIdBlock(content,
-                                    CourierPatcherService.DefaultCourierItemId, updatedBlock, out _, requireItemMarkers: true, requirePrefab: "courier");
-                                log($"Ethereal effects applied to Default Courier ({effectPaths.Count} effect{(effectPaths.Count > 1 ? "s" : "")}).");
-                            }
-                        }
-                    }
-                }
-                else
+                if (!TryApplyEtherealToDefault(ref content, CourierPatcherService.DefaultCourierItemId, "courier",
+                        selections.GetValueOrDefault("CourierEthereal"), "Default Courier", log))
                 {
                     _unpatchedItemIds.Add(CourierPatcherService.DefaultCourierItemId);
                 }
@@ -508,32 +516,7 @@ namespace ArdysaModsTools.Core.Services
                 return content;
             }
 
-            if (selections.TryGetValue("CourierEthereal", out var etherealSelection) && !string.IsNullOrEmpty(etherealSelection))
-            {
-                var effectNames = etherealSelection.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                var effectPaths = new List<string>();
-
-                foreach (var name in effectNames)
-                {
-                    var path = Core.Data.EtherealEffects.GetParticlePath(name);
-                    if (path != null) effectPaths.Add(path);
-                }
-
-                if (effectPaths.Count > 0)
-                {
-                    int existingParticles = CourierPatcherService.CountExistingParticles(mergedBlock);
-
-                    string? visualsBlock = CourierPatcherService.ExtractVisualsBlock(mergedBlock);
-                    if (visualsBlock != null)
-                    {
-                        string updatedVisuals = CourierPatcherService.AppendEtherealEffects(
-                            visualsBlock, effectPaths, existingParticles, replaceExisting: true);
-
-                        mergedBlock = mergedBlock.Replace(visualsBlock, updatedVisuals);
-                        log($"Ethereal effects applied ({effectPaths.Count} effect{(effectPaths.Count > 1 ? "s" : "")}).");
-                    }
-                }
-            }
+            mergedBlock = ApplyEthereal(mergedBlock, selections.GetValueOrDefault("CourierEthereal"), "Courier", log, out _);
 
             content = KeyValuesBlockHelper.ReplaceIdBlock(content, CourierPatcherService.DefaultCourierItemId, mergedBlock, out bool replaced, requireItemMarkers: true);
 
@@ -707,7 +690,12 @@ namespace ArdysaModsTools.Core.Services
             {
                 log("Restoring Default Ward...");
                 content = KeyValuesBlockHelper.ReplaceIdBlock(content, WardPatcherService.DefaultWardItemId, DefaultWardBlock, out _, requireItemMarkers: true, requirePrefab: "ward");
-                _unpatchedItemIds.Add(WardPatcherService.DefaultWardItemId);
+
+                if (!TryApplyEtherealToDefault(ref content, WardPatcherService.DefaultWardItemId, "ward",
+                        selections.GetValueOrDefault("WardEthereal"), "Default Ward", log))
+                {
+                    _unpatchedItemIds.Add(WardPatcherService.DefaultWardItemId);
+                }
                 return content;
             }
 
@@ -747,6 +735,8 @@ namespace ArdysaModsTools.Core.Services
                 log("Warning: Failed to build merged ward block.");
                 return content;
             }
+
+            mergedBlock = ApplyEthereal(mergedBlock, selections.GetValueOrDefault("WardEthereal"), "Ward", log, out _);
 
             content = KeyValuesBlockHelper.ReplaceIdBlock(content, WardPatcherService.DefaultWardItemId, mergedBlock, out bool replaced, requireItemMarkers: true);
 
@@ -1167,9 +1157,12 @@ namespace ArdysaModsTools.Core.Services
             if (!TryGetSelection(selections, category, out var selection) || string.IsNullOrEmpty(selection))
                 return content;
 
+            bool restoreChoice = selection.StartsWith("Default", StringComparison.OrdinalIgnoreCase) ||
+                                 selection.StartsWith("Disable", StringComparison.OrdinalIgnoreCase);
+
             var rawUrl = ModConfigurationData.GetUrl(category, selection);
             var url = Config.EnvironmentConfig.ConvertToFastUrl(rawUrl);
-            if (string.IsNullOrEmpty(url))
+            if (string.IsNullOrEmpty(url) || (restoreChoice && !mergeTxt))
             {
                 log($"Restoring default {modName}...");
                 if (AllCategoryItemIds.TryGetValue(category, out var zipId))
@@ -1294,7 +1287,11 @@ namespace ArdysaModsTools.Core.Services
                 }
 
                 if (mergeTxt && txtBuffer.Length > 0)
-                    content = MergeBlocksIntoItemsGame(content, txtBuffer.ToString(), modName, log);
+                {
+                    content = MergeBlocksIntoItemsGame(content, txtBuffer.ToString(), category, modName, log, out var replacedIds);
+                    if (restoreChoice)
+                        _unpatchedItemIds.UnionWith(replacedIds);
+                }
 
                 if (copied > 0 || txtBuffer.Length > 0)
                     log($"{modName} applied.");
@@ -1307,8 +1304,10 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private string MergeBlocksIntoItemsGame(string content, string txt, string modName, Action<string> log)
+        private string MergeBlocksIntoItemsGame(string content, string txt, string category, string modName,
+            Action<string> log, out List<string> replacedIds)
         {
+            replacedIds = new List<string>();
             var blocks = KeyValuesBlockHelper.ParseKvBlocks(txt);
             if (blocks.Count == 0)
             {
@@ -1318,11 +1317,33 @@ namespace ArdysaModsTools.Core.Services
                 return content;
             }
 
+            if (Constants.MiscItemIds.SlotExclusive.TryGetValue(category, out var slot))
+            {
+                var missing = slot.Ids.Where(id => !blocks.ContainsKey(id)).ToList();
+                int flagged = slot.Ids.Count(id => blocks.TryGetValue(id, out var b) &&
+                    KeyValuesBlockHelper.TryGetTopLevelValue(b, "baseitem", out var v) && v == "1");
+                if (missing.Count > 0 || flagged > 1)
+                {
+                    var warning = missing.Count > 0
+                        ? $"{modName}: package patch is missing item(s) {string.Join(", ", missing)} — skipped."
+                        : $"{modName}: package patch equips {flagged} items at once — skipped.";
+                    log($"Warning: {warning}");
+                    _warnings.Add(warning);
+                    return content;
+                }
+
+                foreach (var slotItemId in FindSlotItemIds(content, category))
+                    if (Array.IndexOf(slot.Ids, slotItemId) < 0)
+                        _logger?.Log($"[AssetModifier] {modName}: package has slot item {slotItemId} missing from MiscItemIds.SlotExclusive — add it there and to the asset.");
+            }
+
             foreach (var (id, authoredBlock) in blocks)
             {
                 KeyValuesBlockHelper.TryGetTopLevelValue(authoredBlock, "prefab", out var prefab);
                 content = KeyValuesBlockHelper.ReplaceIdBlock(content, id, authoredBlock, out bool didReplace, requireItemMarkers: true, requirePrefab: prefab);
-                if (!didReplace)
+                if (didReplace)
+                    replacedIds.Add(id);
+                else
                 {
                     var warning = $"{modName}: block ID '{id}' not found in package.";
                     log($"Warning: {warning}");
@@ -1330,6 +1351,34 @@ namespace ArdysaModsTools.Core.Services
                 }
             }
             return content;
+        }
+
+        internal static IEnumerable<string> FindSlotItemIds(string content, string slot)
+        {
+            string needle = $"\"{slot}\"";
+            for (int at = content.IndexOf(needle, StringComparison.Ordinal); at >= 0;
+                 at = content.IndexOf(needle, at + needle.Length, StringComparison.Ordinal))
+            {
+                int k = at - 1;
+                while (k >= 0 && (content[k] == ' ' || content[k] == '\t')) k--;
+                if (!EndsWithAt(content, k, "\"prefab\"") && !EndsWithAt(content, k, "\"item_slot\"")) continue;
+
+                int open = content.LastIndexOfAny(new[] { '{', '}' }, k);
+                if (open < 0 || content[open] != '{') continue;
+
+                int end = open - 1;
+                while (end >= 0 && char.IsWhiteSpace(content[end])) end--;
+                if (end < 1 || content[end] != '"') continue;
+                int start = content.LastIndexOf('"', end - 1);
+                if (start < 0 || end - start < 2) continue;
+
+                string id = content.Substring(start + 1, end - start - 1);
+                if (id.All(char.IsAsciiDigit)) yield return id;
+            }
+
+            static bool EndsWithAt(string s, int last, string token) =>
+                last - token.Length + 1 >= 0 &&
+                string.CompareOrdinal(s, last - token.Length + 1, token, 0, token.Length) == 0;
         }
 
         private async Task<bool> VerifyBufferedAssetAsync(

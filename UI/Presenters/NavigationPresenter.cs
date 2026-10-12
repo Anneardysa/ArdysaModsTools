@@ -23,6 +23,7 @@ using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Localization;
 using ArdysaModsTools.Core.Services.Update;
@@ -155,11 +156,6 @@ namespace ArdysaModsTools.UI.Presenters
             if (dialogResult == DialogResult.Abort)
             {
                 _logger.Log("WebView2 failed to initialize.");
-                _view.ShowStyledMessage(
-                    "Skin Selector Unavailable",
-                    "The Skin Selector requires the Microsoft Edge WebView2 runtime, which could not be initialized.\n\n" +
-                    "Please install or repair the WebView2 runtime, then try again.",
-                    StyledMessageType.Warning);
                 dialogResult = DialogResult.Cancel;
             }
             
@@ -275,10 +271,9 @@ namespace ArdysaModsTools.UI.Presenters
                 try
                 {
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                    using var request = new HttpRequestMessage(HttpMethod.Head, url);
-                    using var response = await client.SendAsync(request, cts.Token);
-                    
-                    if (response.IsSuccessStatusCode)
+                    var probe = await CdnProbe.ProbeAsync(client, url, cts.Token).ConfigureAwait(false);
+
+                    if (probe.Success)
                     {
                         _logger.Log($"[NET] Connected via {new Uri(baseUrl).Host}");
                         return true;
@@ -316,9 +311,9 @@ namespace ArdysaModsTools.UI.Presenters
                 return true;
             }
 
-            if (!result.IsAllowed)
+            if (!result.IsAllowed &&
+                !await UIHelpers.ShowFeatureBlockedAsync(_view, result, _updater, _logger.Log))
             {
-                await UIHelpers.ShowFeatureBlockedAsync(_view, result, _updater, _logger.Log);
                 return false;
             }
 

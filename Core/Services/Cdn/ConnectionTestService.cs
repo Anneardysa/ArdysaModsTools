@@ -288,6 +288,7 @@ namespace ArdysaModsTools.Core.Services.Cdn
                 catch (HttpRequestException ex)
                 {
                     lastError = ClassifyHttpError(ex);
+                    FallbackLogger.LogFileOnly($"[ConnectionTest] {url}: {DescribeChain(ex)}");
                 }
                 catch (Exception ex)
                 {
@@ -510,9 +511,12 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
             if (reachable.Count == 0)
             {
-                return ("auto", "Auto (Smart Selection)",
-                    "All servers are currently unreachable. Please check your internet connection, DNS, or firewall.",
-                    "error");
+                var causes = results.Select(r => r.ErrorDetail).Distinct().ToList();
+                string message = causes.Count == 1 && !string.IsNullOrEmpty(causes[0])
+                    ? $"All servers are currently unreachable. {causes[0].TrimEnd('.')}. " +
+                      "Install ModsPack, Skin Selector and Miscellaneous need this connection."
+                    : "All servers are currently unreachable. Please check your internet connection, DNS, or firewall.";
+                return ("auto", "Auto (Smart Selection)", message, "error");
             }
 
             if (reachable.Count == 1)
@@ -543,31 +547,58 @@ namespace ArdysaModsTools.Core.Services.Cdn
                 "success");
         }
 
-        private static string ClassifyHttpError(HttpRequestException ex)
+        internal const string IspBlockMessage =
+            "Your network or ISP is blocking secure connections to this server. " +
+            "Turn on Cloudflare WARP (1.1.1.1) or another VPN, then retest.";
+
+        internal const string ClockMessage =
+            "Your PC's date or time is wrong, so the server's certificate looks invalid. " +
+            "Turn on \"Set time automatically\" in Windows, then retest.";
+
+        internal const string InterceptMessage =
+            "Secure connections are being intercepted (antivirus web shield or proxy). " +
+            "Turn off HTTPS/SSL scanning for this app, or use Cloudflare WARP (1.1.1.1), then retest.";
+
+        internal static string ClassifyHttpError(Exception ex)
         {
-            string msg = ex.Message.ToLowerInvariant();
+            var chain = new List<Exception>();
+            for (Exception? e = ex; e != null; e = e.InnerException) chain.Add(e);
+            string all = string.Join(" | ", chain.Select(e => e.Message)).ToLowerInvariant();
 
-            if (msg.Contains("name resolution") || msg.Contains("nodename nor servname") || msg.Contains("no such host"))
-            {
-                return "DNS resolution failed (check your DNS settings or ISP)";
-            }
+            bool Socket(params System.Net.Sockets.SocketError[] codes) => chain.Any(e =>
+                e is System.Net.Sockets.SocketException se && codes.Contains(se.SocketErrorCode));
 
-            if (msg.Contains("ssl") || msg.Contains("tls") || msg.Contains("certificate") || msg.Contains("handshake"))
-            {
-                return "SSL/TLS handshake error (possible firewall or inspection proxy)";
-            }
+            if (Socket(System.Net.Sockets.SocketError.HostNotFound, System.Net.Sockets.SocketError.NoData) ||
+                all.Contains("name resolution") || all.Contains("nodename nor servname") || all.Contains("no such host"))
+                return "DNS resolution failed (check your DNS settings, or use Cloudflare WARP 1.1.1.1)";
 
-            if (msg.Contains("refused") || msg.Contains("actively refused"))
-            {
+            if (all.Contains("nottimevalid") || all.Contains("certificate has expired") || all.Contains("not yet valid"))
+                return ClockMessage;
+
+            if (all.Contains("untrustedroot") || all.Contains("partialchain"))
+                return InterceptMessage;
+
+            if (Socket(System.Net.Sockets.SocketError.ConnectionRefused) || all.Contains("actively refused"))
                 return "Connection refused by server/firewall";
-            }
 
-            if (msg.Contains("timed out") || msg.Contains("timeout"))
-            {
+            if (Socket(System.Net.Sockets.SocketError.ConnectionReset, System.Net.Sockets.SocketError.ConnectionAborted) ||
+                chain.Any(e => e is System.Security.Authentication.AuthenticationException) ||
+                all.Contains("forcibly closed") || all.Contains("closed the transport stream") ||
+                all.Contains("ssl") || all.Contains("tls") || all.Contains("handshake"))
+                return IspBlockMessage;
+
+            if (Socket(System.Net.Sockets.SocketError.TimedOut) || all.Contains("timed out") || all.Contains("timeout"))
                 return "Connection timed out (possible ISP restriction or network throttling)";
-            }
 
-            return ex.Message;
+            return chain[^1].Message;
+        }
+
+        private static string DescribeChain(Exception ex)
+        {
+            var parts = new List<string>();
+            for (Exception? e = ex; e != null; e = e.InnerException)
+                parts.Add($"{e.GetType().Name}: {e.Message}");
+            return string.Join(" -> ", parts);
         }
     }
 }

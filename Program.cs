@@ -99,6 +99,10 @@ namespace ArdysaModsTools
                 Log($"Exe: {Environment.ProcessPath}");
                 Log($"Dir: {AppDomain.CurrentDomain.BaseDirectory}");
 
+
+                if (!UI.FontHelper.EmbeddedFontsLoaded)
+                    Log("WARNING: bundled JetBrains Mono not loaded — Assets/Fonts is missing or unreadable; UI falls back to a system font");
+
                 Log("Loading environment config...");
                 EnvironmentConfig.LoadFromEnvFile();
                 Log("Environment config loaded OK");
@@ -225,6 +229,22 @@ namespace ArdysaModsTools
                     }
                     Log("Single instance OK, creating main form...");
 
+                    try
+                    {
+                        int swept = Core.Helpers.SafeTempPathHelper.SweepStaleWorkDirs();
+                        if (swept > 0) Log($"Swept {swept} stale temp work director{(swept == 1 ? "y" : "ies")}.");
+                    }
+                    catch (Exception ex) { Log($"Temp sweep skipped: {ex.Message}"); }
+
+#if DEBUG
+                    if (Environment.GetCommandLineArgs().Any(a => a.Equals("--skin-tester", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Log("Skin Tester mode");
+                        Application.Run(new UI.Forms.SkinTesterForm(configForLang));
+                        return;
+                    }
+#endif
+
                     var webview2 = Core.Helpers.WebView2Runtime.Detect();
                     Log($"WebView2: source={webview2.Source} version={webview2.Version ?? "-"} diag={webview2.Diagnostic ?? "none"}");
                     if (!webview2.IsInstalled)
@@ -256,7 +276,7 @@ namespace ArdysaModsTools
                     if (CacheCleaningService.ShouldClearForVersion(lastRunVersion, runningVersion))
                     {
                         Log($"Version changed ({lastRunVersion} -> {runningVersion}), clearing cache...");
-                        var cleared = new CacheCleaningService().ClearAllCacheAsync().GetAwaiter().GetResult();
+                        var cleared = new CacheCleaningService().ClearAllCacheAsync(CacheClearScope.AppUpdate).GetAwaiter().GetResult();
                         Log($"Post-update cache clear: {cleared.FilesDeleted} files, " +
                             $"{CacheCleaningService.FormatBytes(cleared.BytesFreed)} freed");
                     }

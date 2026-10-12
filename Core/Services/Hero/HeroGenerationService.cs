@@ -21,6 +21,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Data;
 using ArdysaModsTools.Core.Exceptions;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
@@ -48,6 +49,7 @@ namespace ArdysaModsTools.Core.Services
         private readonly IHeroIndexProvider _indexProvider;
         private readonly IAppLogger? _logger;
         private readonly HttpClient _httpClient;
+        private readonly IModInstallerService _installer;
 
         private static string[] GameInfoUrls => new[]
         {
@@ -63,8 +65,10 @@ namespace ArdysaModsTools.Core.Services
             IGameItemsGameExtractor? itemsGameExtractor = null,
             IHeroIndexProvider? indexProvider = null,
             IAppLogger? logger = null,
-            HttpClient? httpClient = null)
+            HttpClient? httpClient = null,
+            IModInstallerService? installer = null)
         {
+            _installer = installer ?? new ModInstallerService(logger);
             _originalProvider = originalProvider ?? new OriginalVpkService(logger: logger);
             _downloader = downloader ?? new HeroSetDownloaderService();
             _patcher = patcher ?? new HeroSetPatcherService(logger);
@@ -91,19 +95,46 @@ namespace ArdysaModsTools.Core.Services
                 null,
                 null,
                 null,
-                ct).ConfigureAwait(false);
+                ct: ct).ConfigureAwait(false);
             return result;
         }
 
-        public async Task<OperationResult> GenerateBatchAsync(
+        public Task<OperationResult> GenerateBatchAsync(
             string targetPath,
             IReadOnlyList<(HeroModel hero, string setName)> heroSets,
             Action<string> log,
             IProgress<(int current, int total, string heroName)>? progress = null,
             IProgress<(int percent, string stage)>? stageProgress = null,
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null,
+            IReadOnlyDictionary<string, IReadOnlyList<ParticlePick>>? particles = null,
             CancellationToken ct = default)
+            => GenerateCoreAsync(targetPath, heroSets, log, progress, stageProgress, speedProgress, releaseDir: null, ct, particles);
+
+        public Task<OperationResult> GenerateModsPackAsync(
+            string targetPath,
+            IReadOnlyList<(HeroModel hero, string setName)> heroSets,
+            string releaseDir,
+            Action<string> log,
+            IProgress<(int percent, string stage)>? stageProgress = null,
+            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null,
+            CancellationToken ct = default)
+            => string.IsNullOrWhiteSpace(releaseDir)
+                ? Task.FromResult(Fail("No release folder given.", log))
+                : GenerateCoreAsync(targetPath, heroSets, log, null, stageProgress, speedProgress, releaseDir, ct);
+
+        private async Task<OperationResult> GenerateCoreAsync(
+            string targetPath,
+            IReadOnlyList<(HeroModel hero, string setName)> heroSets,
+            Action<string> log,
+            IProgress<(int current, int total, string heroName)>? progress,
+            IProgress<(int percent, string stage)>? stageProgress,
+            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress,
+            string? releaseDir,
+            CancellationToken ct,
+            IReadOnlyDictionary<string, IReadOnlyList<ParticlePick>>? particles = null)
         {
+            bool modsPackRelease = releaseDir != null;
+            if (modsPackRelease) particles = null;
             try
             {
                 ct.ThrowIfCancellationRequested();
@@ -129,6 +160,8 @@ namespace ArdysaModsTools.Core.Services
 
                 if (heroesToProcess.Count == 0)
                 {
+                    if (modsPackRelease)
+                        return Fail("No custom sets selected — a ModsPack package needs at least one.", report, targetPath);
                     report.Save(targetPath);
                     return new OperationResult
                     {
@@ -138,6 +171,24 @@ namespace ArdysaModsTools.Core.Services
                         Warnings = report.Warnings.Count > 0 ? report.Warnings.ToList() : null,
                         LogLines = report.Lines.ToList()
                     };
+                }
+
+                var requested = heroSets
+                    .Where(x => x.hero != null && !string.IsNullOrWhiteSpace(x.setName)
+                        && !x.setName.Equals("Default Set", StringComparison.OrdinalIgnoreCase))
+                    .Select(x => (x.hero.Id, x.setName))
+                    .ToList();
+                if (modsPackRelease)
+                {
+                    var skipped = ModsPackReleasePackage.CompareSets(
+                        requested, heroesToProcess.Select(x => (x.hero.Id, x.setName)), "the build");
+                    if (skipped != null)
+                        return Fail($"ModsPack package not built: {skipped}", report, targetPath);
+
+                    if (Directory.Exists(releaseDir) || File.Exists(releaseDir) || Directory.Exists(releaseDir + ".partial"))
+                        return Fail($"The release folder already exists: {releaseDir}", report, targetPath);
+                    try { Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(releaseDir!))!); }
+                    catch (Exception ex) { return Fail($"Cannot create the release folder: {ex.Message}", report, targetPath); }
                 }
 
                 int totalHeroes = heroesToProcess.Count;
@@ -161,12 +212,13 @@ namespace ArdysaModsTools.Core.Services
                     stageProgress?.Report((0, Loc.T("progress.preparing")));
                     log("Preparing...");
                     string extractDir;
+                    string pristineBase;
                     var baseProgress = new Progress<int>(p => 
                         stageProgress?.Report((p / 5, Loc.T("progress.downloadingBase", new { percent = p }))));
                     
                     try
                     {
-                        string pristineBase = await _originalProvider.GetExtractedOriginalAsync(log, ct, speedProgress, baseProgress).ConfigureAwait(false);
+                        pristineBase = await _originalProvider.GetExtractedOriginalAsync(log, ct, speedProgress, baseProgress).ConfigureAwait(false);
 
                         extractDir = Path.Combine(tempRoot, "base");
                         Core.Helpers.DirectoryCopy.Tree(pristineBase, extractDir, ct);
@@ -198,6 +250,8 @@ namespace ArdysaModsTools.Core.Services
 
                     var manifestEntries = new List<SkinManifestEntry>();
 
+                    var builtHeroes = new List<HeroModel>();
+
                     stageProgress?.Report((20, "Processing"));
 
                     var heroGroups = heroesToProcess.GroupBy(x => x.hero.Id).ToList();
@@ -209,6 +263,7 @@ namespace ArdysaModsTools.Core.Services
                         var group = heroGroups[g];
                         var firstItem = group.First();
                         var hero = firstItem.hero;
+                        var ownTokens = HeroScopeGuard.OwnTokens(hero.Id);
 
                         var extractedList = new List<(HeroModel hero, string setName, HeroModelMapper.SkinCategory category, string folderPath, string zipUrl, bool encrypted)>();
 
@@ -280,6 +335,9 @@ namespace ArdysaModsTools.Core.Services
                                 continue;
                             }
 
+                            if (modsPackRelease && selEncrypted)
+                                log($"Note: '{item.setName}' ({item.hero.DisplayName}) is an encrypted set — its models ship decrypted in the ModsPack package.");
+
                             var category = HeroModelMapper.ClassifySet(item.hero.Sets, item.setName);
                             extractedList.Add((item.hero, item.setName, category, setFolder, zipUrl, selEncrypted));
                         }
@@ -324,6 +382,10 @@ namespace ArdysaModsTools.Core.Services
                         var heroLayerRoots = new Dictionary<string, (string Root, bool Encrypted)>(StringComparer.OrdinalIgnoreCase);
                         var heroLayerVariants = new Dictionary<string, IReadOnlyDictionary<string, ISet<string>>>(StringComparer.OrdinalIgnoreCase);
                         var heroLayerBlocks = new Dictionary<string, Dictionary<string, (string block, string heroId)>>(StringComparer.OrdinalIgnoreCase);
+                        var blocksBefore = new Dictionary<string, (string block, string heroId)>(mergedBlocks);
+                        var weightsBefore = new Dictionary<string, int>(blockWeights);
+                        var protectedBefore = new HashSet<string>(protectedPaths, StringComparer.OrdinalIgnoreCase);
+                        int manifestBefore = manifestEntries.Count, installedBefore = extractionLog.InstalledSets.Count;
                         try
                         {
                             EnsureEffectLayersAreSafe(orderedList
@@ -344,7 +406,18 @@ namespace ArdysaModsTools.Core.Services
                                             $"No index found for set '{selection.setName}' — cloud index not synced to R2 and no bundled index.txt inside the set.");
                                 }
 
-                                var (contentRoot, copiedFiles) = await MergeSetAssetsAsync(selection.folderPath, extractDir, ct).ConfigureAwait(false);
+                                var parsedBlocks = indexText == null ? null : _patcher.ParseIndexText(indexText, hero.Id, hero.ItemIds);
+                                var foreignFiles = new List<string>();
+                                Func<string, bool>? foreign = null;
+                                if (indexText != null)
+                                {
+                                    string named = string.Join("\n", (parsedBlocks?.Values ?? Enumerable.Empty<(string block, string heroId)>()).Select(b => b.block));
+                                    foreign = rel => HeroScopeGuard.IsForeign(rel, ownTokens, named);
+                                }
+                                var (contentRoot, copiedFiles) = await MergeSetAssetsAsync(selection.folderPath, extractDir, ct, foreign, foreignFiles).ConfigureAwait(false);
+                                if (foreignFiles.Count > 0)
+                                    report.Log($"Note: '{selection.setName}' ships {foreignFiles.Count} file(s) of another hero, left out: " +
+                                               string.Join(", ", foreignFiles.Take(3)) + (foreignFiles.Count > 3 ? ", ..." : ""));
                                 heroLayerRoots[selection.setName] = (contentRoot, selection.encrypted);
                                 heroLayerFiles[selection.setName] = new HashSet<string>(copiedFiles, StringComparer.OrdinalIgnoreCase);
                                 foreach (var rel in copiedFiles)
@@ -371,7 +444,7 @@ namespace ArdysaModsTools.Core.Services
                                 }
                                 else
                                 {
-                                    var heroBlocks = _patcher.ParseIndexText(indexText!, hero.Id, hero.ItemIds);
+                                    var heroBlocks = parsedBlocks;
                                     if (heroBlocks == null || heroBlocks.Count == 0)
                                     {
                                         report.Warn($"{hero.DisplayName}: {selection.category} '{selection.setName}' contributed 0 patchable blocks — none of its index.txt ids are in this hero's id list (it cannot apply).");
@@ -419,14 +492,15 @@ namespace ArdysaModsTools.Core.Services
                                 heroSucceeded = true;
                             }
 
+                            var overlays = LayersAppliedOverTheLock(extractedList.Select(x => (x.category, x.setName)));
                             if (baseSelection != default)
                                 ApplyBaseSlotLock(hero, baseSelection.setName, mergedBlocks, heroBlockOwner,
                                     heroLayerBlocks, heroLayerFiles, heroFileOwner, heroLayerRoots, extractDir,
                                     protectedPaths, trace: s => _logger?.LogDebug(s), warn: report.Warn,
-                                    yieldTo: LayersAppliedOverTheLock(extractedList.Select(x => (x.category, x.setName))));
+                                    yieldTo: overlays);
                             ApplyBodyOwnership(hero, mergedBlocks, heroBlockOwner, heroLayerFiles, heroLayerVariants,
                                 heroFileOwner, heroLayerRoots, extractDir, protectedPaths,
-                                trace: s => _logger?.LogDebug(s), warn: s => report.Log($"Note: {s}"));
+                                trace: s => _logger?.LogDebug(s), warn: s => report.Log($"Note: {s}"), overlays: overlays);
                             ApplyWornModelYield(hero.DisplayName, mergedBlocks, heroBlockOwner, heroLayerFiles,
                                 heroFileOwner, heroLayerRoots, extractDir, protectedPaths,
                                 trace: s => _logger?.LogDebug(s), warn: report.Warn);
@@ -434,12 +508,23 @@ namespace ArdysaModsTools.Core.Services
                             if (heroSucceeded)
                             {
                                 successfulHeroes.Add(hero.DisplayName);
+                                builtHeroes.Add(hero);
                             }
                         }
                         catch (Exception ex)
                         {
                             failedHeroes.Add((hero.DisplayName, ex.Message));
                             _logger?.LogDebug($"Error merging assets for {hero.DisplayName}: {ex}");
+
+                            mergedBlocks.Clear();
+                            foreach (var kv in blocksBefore) mergedBlocks[kv.Key] = kv.Value;
+                            blockWeights.Clear();
+                            foreach (var kv in weightsBefore) blockWeights[kv.Key] = kv.Value;
+                            protectedPaths.Clear();
+                            protectedPaths.UnionWith(protectedBefore);
+                            manifestEntries.RemoveRange(manifestBefore, manifestEntries.Count - manifestBefore);
+                            extractionLog.InstalledSets.RemoveRange(installedBefore, extractionLog.InstalledSets.Count - installedBefore);
+                            RestoreFromPristine(heroFileOwner.Keys.Concat(heroLayerFiles.Values.SelectMany(f => f)), pristineBase, extractDir);
                         }
                         finally
                         {
@@ -467,9 +552,24 @@ namespace ArdysaModsTools.Core.Services
                         return Fail($"All heroes failed: {errors}", report, targetPath);
                     }
 
+                    if (modsPackRelease && failedHeroes.Count > 0)
+                        return Fail("ModsPack package not built — every selected set must build: "
+                            + string.Join("; ", failedHeroes.Select(f => $"{f.heroName}: {f.reason}")), report, targetPath);
+
                     ct.ThrowIfCancellationRequested();
 
+                    if (particles is { Count: > 0 })
+                        ApplyHeroParticles(builtHeroes, particles, mergedBlocks, manifestEntries, log, report.Warn);
+
                     string[] patchedIds = mergedBlocks.Keys.ToArray();
+
+                    string? releaseIndex = null;
+                    if (modsPackRelease)
+                    {
+                        releaseIndex = ModsPackReleasePackage.BuildIndex(mergedBlocks, out var indexError);
+                        if (releaseIndex == null)
+                            return Fail($"ModsPack package not built: {indexError}", report, targetPath);
+                    }
 
                     if (mergedBlocks.Count > 0)
                     {
@@ -519,8 +619,15 @@ namespace ArdysaModsTools.Core.Services
                         Entries = manifestEntries
                     }, ct).ConfigureAwait(false);
 
+                    if (modsPackRelease)
+                    {
+                        var treeError = ModsPackReleasePackage.PrepareTree(extractDir, requested);
+                        if (treeError != null)
+                            return Fail($"ModsPack package not built: {treeError}", report, targetPath);
+                    }
+
                     string protectedDir = Path.Combine(tempRoot, "protected");
-                    int protectedMoved = ProtectedVpkStore.Split(
+                    int protectedMoved = modsPackRelease ? 0 : ProtectedVpkStore.Split(
                         targetPath, extractDir, protectedDir, protectedPaths, _logger, ct);
 
                     if (protectedMoved > 0)
@@ -538,10 +645,50 @@ namespace ArdysaModsTools.Core.Services
 
                     if (string.IsNullOrWhiteSpace(newVpkPath))
                     {
+                        ct.ThrowIfCancellationRequested();
                         log("[VPK] Recompilation returned null - check logs above for details");
                         return Fail("VPK recompilation failed.", report, targetPath);
                     }
-                    VpkSignatureSection.TryApply(newVpkPath);
+                    if (modsPackRelease)
+                    {
+                        var sealError = await ModsPackReleasePackage.SealAsync(
+                            newVpkPath, slim: false, _installer.ClassifyVpkAsync, ct).ConfigureAwait(false);
+                        if (sealError != null)
+                            return Fail($"ModsPack package failed verification: {sealError}", report, targetPath);
+
+                        string installVpk = Path.Combine(tempRoot, "install", "pak01_dir.vpk");
+                        Directory.CreateDirectory(Path.GetDirectoryName(installVpk)!);
+                        File.Move(newVpkPath, installVpk);
+                        newVpkPath = installVpk;
+
+                        stageProgress?.Report((72, "Building release package"));
+                        log("Building the slim release package...");
+                        var stripError = ModsPackReleasePackage.StripPackageText(extractDir);
+                        if (stripError != null)
+                            return Fail($"ModsPack package not built: {stripError}", report, targetPath);
+
+                        var slimVpk = await _recompiler.RecompileAsync(
+                            vpkToolPath, extractDir, buildDir, tempRoot,
+                            vpkLog => log($"[VPK] {vpkLog}"), ct).ConfigureAwait(false);
+                        if (string.IsNullOrWhiteSpace(slimVpk) || string.Equals(slimVpk, installVpk, StringComparison.OrdinalIgnoreCase))
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            return Fail("Release package recompilation failed.", report, targetPath);
+                        }
+                        sealError = await ModsPackReleasePackage.SealAsync(
+                            slimVpk, slim: true, _installer.ClassifyVpkAsync, ct).ConfigureAwait(false);
+                        if (sealError != null)
+                            return Fail($"ModsPack release package failed verification: {sealError}", report, targetPath);
+
+                        var exportError = await ModsPackReleasePackage.ExportAsync(releaseDir!, slimVpk, releaseIndex!, ct).ConfigureAwait(false);
+                        if (exportError != null)
+                            return Fail($"ModsPack release files not written: {exportError}", report, targetPath);
+                        log("ModsPack verified: installed package + slim release package, origin marker, signature section, manifest.");
+                    }
+                    else
+                    {
+                        VpkSignatureSection.TryApply(newVpkPath);
+                    }
 
                     ct.ThrowIfCancellationRequested();
 
@@ -556,6 +703,7 @@ namespace ArdysaModsTools.Core.Services
                         if (string.IsNullOrWhiteSpace(newProtectedVpkPath) ||
                             string.Equals(newProtectedVpkPath, newVpkPath, StringComparison.OrdinalIgnoreCase))
                         {
+                            ct.ThrowIfCancellationRequested();
                             log("[VPK] Protected package build returned null - check logs above for details");
                             return Fail("VPK recompilation failed.", report, targetPath);
                         }
@@ -571,7 +719,9 @@ namespace ArdysaModsTools.Core.Services
                             targetPath, newProtectedVpkPath,
                             () => _replacer.ReplaceAsync(targetPath, newVpkPath, log, ct),
                             log, _logger).ConfigureAwait(false))
-                        return Fail("VPK replacement failed.", report, targetPath);
+                        return Fail(modsPackRelease
+                            ? $"VPK replacement failed — the release files are complete in {releaseDir}, only the in-game test install did not happen."
+                            : "VPK replacement failed.", report, targetPath);
 
                     await ItemsGameBaselineStore.CommitAsync(targetPath, patchedIds, ct).ConfigureAwait(false);
 
@@ -589,7 +739,9 @@ namespace ArdysaModsTools.Core.Services
                     {
                         message += $". {failedHeroes.Count} failed.";
                     }
-                    
+                    if (modsPackRelease)
+                        message += $". Release files: {releaseDir}";
+
                     stageProgress?.Report((100, "Done"));
                     log("Done!");
                     report.Save(targetPath);
@@ -643,7 +795,8 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        internal async Task<(string contentRoot, List<string> files)> MergeSetAssetsAsync(string setFolder, string extractDir, CancellationToken ct)
+        internal async Task<(string contentRoot, List<string> files)> MergeSetAssetsAsync(string setFolder, string extractDir,
+            CancellationToken ct, Func<string, bool>? skip = null, List<string>? skipped = null)
         {
             var copiedFiles = new List<string>();
 
@@ -667,6 +820,11 @@ namespace ArdysaModsTools.Core.Services
                     continue;
                 if (IsUnderVariants(relativePath))
                     continue;
+                if (skip != null && skip(relativePath.Replace('\\', '/')))
+                {
+                    skipped?.Add(relativePath.Replace('\\', '/'));
+                    continue;
+                }
 
                 var destPath = Path.Combine(extractDir, relativePath);
 
@@ -720,6 +878,22 @@ namespace ArdysaModsTools.Core.Services
             catch { }
 
             return folder;
+        }
+
+        public async Task<ParticleSlots?> GetParticleSlotsAsync(HeroModel hero, string setName, CancellationToken ct = default)
+        {
+            if (hero?.Sets == null || string.IsNullOrWhiteSpace(setName)
+                || !hero.Sets.TryGetValue(setName, out var urls) || urls == null)
+                return null;
+            var zipUrl = urls.FirstOrDefault(u => u != null && u.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
+            if (zipUrl == null) return null;
+
+            var text = await _indexProvider.GetIndexTextAsync(zipUrl, _ => { }, ct).ConfigureAwait(false);
+            if (string.IsNullOrEmpty(text)) return null;
+            var blocks = _patcher.ParseIndexText(text, hero.Id, hero.ItemIds);
+            return HeroParticleInjector.Slots(
+                blocks ?? new Dictionary<string, (string block, string heroId)>(),
+                HeroModelMapper.ClassifySet(urls), HeroModelMapper.ExtractItemTag(urls));
         }
 
         private async Task<string?> ResolveIndexTextAsync(string zipUrl, string setFolder, Action<string> log, CancellationToken ct)
@@ -857,6 +1031,60 @@ namespace ArdysaModsTools.Core.Services
                 Layer = LayerOf(category),
                 Sha256 = sha
             };
+        }
+
+        internal static void ApplyHeroParticles(
+            IReadOnlyCollection<HeroModel> builtHeroes,
+            IReadOnlyDictionary<string, IReadOnlyList<ParticlePick>> particles,
+            Dictionary<string, (string block, string heroId)> mergedBlocks,
+            List<SkinManifestEntry> manifest,
+            Action<string> log,
+            Action<string> warn)
+        {
+            foreach (var (heroId, picks) in particles)
+            {
+                var hero = builtHeroes.FirstOrDefault(h => string.Equals(h.Id, heroId, StringComparison.OrdinalIgnoreCase));
+                if (hero == null)
+                {
+                    if (picks.Count > 0) log($"Note: particles for {heroId} skipped, its skins did not build.");
+                    continue;
+                }
+
+                var labels = HeroParticleCatalog.HostsFor(hero).ToDictionary(h => h.Id, h => h.Label);
+                foreach (var pick in HeroParticleInjector.Sanitize(hero, picks))
+                {
+                    HeroParticleCatalog.TryGet(pick.Id, out var particle);
+                    string slot = labels[pick.Host];
+                    try
+                    {
+                        if (!mergedBlocks.TryGetValue(pick.Host, out var owned))
+                        {
+                            warn($"{hero.DisplayName}: {particle.Name} skipped, no picked set, item or base has the {slot}.");
+                            continue;
+                        }
+                        mergedBlocks[pick.Host] = (HeroParticleInjector.Inject(owned.block, particle.Path), hero.Id);
+                        manifest.Add(new SkinManifestEntry { HeroId = hero.Id, SetName = "particle:" + particle.Id, Layer = "particle", Host = pick.Host });
+                        log($"[Particles] {hero.DisplayName}: {particle.Name} on {slot}");
+                        if (!HeroParticleInjector.HasWearableModel(owned.block))
+                            log($"Note: {hero.DisplayName}: the {slot} has no wearable model, {particle.Name} may not render.");
+                    }
+                    catch (Exception ex)
+                    {
+                        warn($"{hero.DisplayName}: {particle.Name} skipped, {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        internal static void RestoreFromPristine(IEnumerable<string> relPaths, string pristineBase, string extractDir)
+        {
+            foreach (var rel in relPaths.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var target = Path.Combine(extractDir, rel);
+                var source = Path.Combine(pristineBase, rel);
+                if (File.Exists(source)) File.Copy(source, target, overwrite: true);
+                else if (File.Exists(target)) File.Delete(target);
+            }
         }
 
         internal static ISet<string> LayersAppliedOverTheLock(
@@ -1020,7 +1248,8 @@ namespace ArdysaModsTools.Core.Services
             string extractDir,
             HashSet<string> protectedPaths,
             Action<string> trace,
-            Action<string> warn)
+            Action<string> warn,
+            ISet<string>? overlays = null)
         {
             var slotModels = new HashSet<string>(
                 (hero.ItemIds ?? new List<int>())
@@ -1045,7 +1274,7 @@ namespace ArdysaModsTools.Core.Services
 
             BodyOwnership.Result Compute() => BodyOwnership.Compute(
                 Final(), layerFiles, layerVariants, fileOwner, hero.Id, slotModels, Label,
-                id => HeroDefaultItemRegistry.TryGetItem(id, out var info) ? info.ModelPlayer ?? "" : null, Stem);
+                id => HeroDefaultItemRegistry.TryGetItem(id, out var info) ? info.ModelPlayer ?? "" : null, Stem, overlays);
 
             var result = Compute();
             foreach (var w in result.Warnings)

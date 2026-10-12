@@ -16,7 +16,11 @@
  */
 using System;
 using System.IO;
+using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Config;
@@ -34,16 +38,16 @@ namespace ArdysaModsTools.Tests.Services
         {
             _cacheDir = Path.Combine(Path.GetTempPath(), "amt_fa_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_cacheDir);
-            FeatureAccessService.CacheFilePath = Path.Combine(_cacheDir, "feature_access_cache.json");
+            FeatureAccessService.CacheFilePath = Path.Combine(_cacheDir, "feature_access_cache.dat");
 
-            FeatureAccessService.InvalidateCache();
+            FeatureAccessService.ResetForTests();
         }
 
         [TearDown]
         public void TearDown()
         {
             FeatureAccessService.CacheFilePath = FeatureAccessService.DefaultCacheFilePath;
-            FeatureAccessService.InvalidateCache();
+            FeatureAccessService.ResetForTests();
             try { Directory.Delete(_cacheDir, true); } catch { }
         }
 
@@ -540,13 +544,49 @@ namespace ArdysaModsTools.Tests.Services
         [TestCase(FeatureAccessService.SkinSelectorFeature)]
         [TestCase(FeatureAccessService.MiscellaneousFeature)]
         [TestCase(FeatureAccessService.InstallModsPackFeature)]
+        [TestCase(FeatureAccessService.UtilitiesFeature)]
         public void Evaluate_WithNoPolicy_Blocks(string feature)
         {
             var result = FeatureAccessService.Evaluate(null, feature, new AppVersion("2.2.19-beta", 2267));
 
             Assert.That(result.IsAllowed, Is.False);
             Assert.That(result.IsOutdated, Is.False, "Offline is not an outdated-app problem.");
+            Assert.That(result.IsOffline, Is.True, "The UI must show the Retry notice, not 'unavailable'.");
+            Assert.That(result.FeatureName, Is.EqualTo(feature), "Retry re-checks this name.");
             Assert.That(result.BlockedMessage, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void Evaluate_DisabledOrOutdated_IsNotOffline_AndCarriesFeatureName()
+        {
+            var config = FeatureAccessConfig.CreateDefault();
+            config.Miscellaneous.Enabled = false;
+            config.SkinSelector.MinVersion = "9.9.9";
+
+            var disabled = FeatureAccessService.Evaluate(
+                config, FeatureAccessService.MiscellaneousFeature, new AppVersion("2.7.0", 2431));
+            var outdated = FeatureAccessService.Evaluate(
+                config, FeatureAccessService.SkinSelectorFeature, new AppVersion("2.7.0", 2431));
+            var allowed = FeatureAccessService.Evaluate(
+                config, FeatureAccessService.InstallModsPackFeature, new AppVersion("2.7.0", 2431));
+
+            Assert.That(disabled.IsOffline, Is.False);
+            Assert.That(outdated.IsOffline, Is.False);
+            Assert.That(outdated.IsOutdated, Is.True);
+            Assert.That(allowed.IsAllowed, Is.True);
+            Assert.That(disabled.FeatureName, Is.EqualTo(FeatureAccessService.MiscellaneousFeature));
+            Assert.That(outdated.FeatureName, Is.EqualTo(FeatureAccessService.SkinSelectorFeature));
+            Assert.That(allowed.FeatureName, Is.EqualTo(FeatureAccessService.InstallModsPackFeature));
+        }
+
+        [Test]
+        public void Evaluate_WithNoPolicy_MessageDoesNotBlameTheUsersInternet()
+        {
+            var result = FeatureAccessService.Evaluate(
+                null, FeatureAccessService.InstallModsPackFeature, new AppVersion("2.7.0", 2431));
+
+            Assert.That(result.BlockedMessage, Does.Not.Contain("Connect to the internet"));
+            Assert.That(result.BlockedMessage, Does.Not.Contain("current assets"));
         }
 
         [Test]
@@ -574,6 +614,37 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(result.IsAllowed, Is.False);
             Assert.That(result.IsOutdated, Is.False);
             Assert.That(result.BlockedMessage, Is.EqualTo("Down for maintenance."));
+        }
+
+        [Test]
+        public void Evaluate_WithUtilitiesDisabledInJson_Blocks()
+        {
+            var config = JsonSerializer.Deserialize<FeatureAccessConfig>(
+                "{\"utilities\": {\"enabled\": false, \"disabledMessage\": \"Rank Changer paused.\"}}",
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+            var result = FeatureAccessService.Evaluate(
+                config, FeatureAccessService.UtilitiesFeature, new AppVersion("2.2.19-beta", 2267));
+
+            Assert.That(result.IsAllowed, Is.False);
+            Assert.That(result.FeatureDisplayName, Is.EqualTo("Utilities"));
+            Assert.That(result.BlockedMessage, Is.EqualTo("Rank Changer paused."));
+            Assert.That(config.SkinSelector.Enabled, Is.True, "Other features stay untouched.");
+        }
+
+        [Test]
+        public void Evaluate_WithGreyOut_Blocks()
+        {
+            var config = JsonSerializer.Deserialize<FeatureAccessConfig>(
+                "{\"utilities\": {\"enabled\": true, \"greyOut\": true}}",
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+
+            var result = FeatureAccessService.Evaluate(
+                config, FeatureAccessService.UtilitiesFeature, new AppVersion("2.2.19-beta", 2267));
+
+            Assert.That(config.Utilities.GreyOut, Is.True);
+            Assert.That(result.IsAllowed, Is.False);
+            Assert.That(FeatureAccessConfig.CreateDefault().Utilities.GreyOut, Is.False, "Default is not greyed out.");
         }
 
         [Test]
@@ -616,6 +687,278 @@ namespace ArdysaModsTools.Tests.Services
                 config, FeatureAccessService.SkinSelectorFeature, new AppVersion("2.2.19-beta", 2267));
 
             Assert.That(result.IsAllowed, Is.True);
+        }
+
+        #endregion
+
+        #region Policy fetch — retry, backoff, coalescing (first-run "offline" block)
+
+        private const string ProductionJson = """
+            {
+              "_comment": "Remote feature gate. Placeholders: {required}, {current}.",
+              "skinSelector": { "enabled": true, "cooldownEnabled": true, "cooldownSeconds": 600,
+                "disabledMessage": "Skin Selector is under maintenance.", "minVersion": "2.7.0", "minBuild": 2431,
+                "outdatedMessage": "Rebuilt for {required}; you are on {current}." },
+              "miscellaneous": { "enabled": true, "cooldownEnabled": true, "cooldownSeconds": 600,
+                "minVersion": "2.7.0", "minBuild": 2431 },
+              "installModsPack": { "enabled": true,
+                "disabledMessage": "Install ModsPack is under maintenance.", "minVersion": "2.7.0", "minBuild": 2431 },
+              "utilities": { "enabled": false, "greyOut": true, "minVersion": "2.7.0", "minBuild": 2431 }
+            }
+            """;
+
+        private static readonly AppVersion Build2431 = new("2.7.0", 2431);
+
+        private static Func<int> UseFetcher(params Func<string?>[] responses)
+        {
+            int calls = 0;
+            FeatureAccessService.Fetcher = _ =>
+            {
+                int i = Interlocked.Increment(ref calls) - 1;
+                return Task.FromResult(responses[Math.Min(i, responses.Length - 1)]());
+            };
+            return () => Volatile.Read(ref calls);
+        }
+
+        private static string? Throw(Exception ex) => throw ex;
+
+        [Test]
+        public void ProductionJson_Build2431_AllowsGatedFeatures_AndKeepsUtilitiesGreyedOut()
+        {
+            var config = JsonSerializer.Deserialize<FeatureAccessConfig>(
+                ProductionJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            foreach (var f in new[] { FeatureAccessService.InstallModsPackFeature,
+                                      FeatureAccessService.SkinSelectorFeature,
+                                      FeatureAccessService.MiscellaneousFeature })
+                Assert.That(FeatureAccessService.Evaluate(config, f, Build2431).IsAllowed, Is.True, f);
+
+            Assert.That(FeatureAccessService.Evaluate(
+                config, FeatureAccessService.UtilitiesFeature, Build2431).IsAllowed, Is.False);
+            Assert.That(FeatureAccessService.Evaluate(
+                config, FeatureAccessService.InstallModsPackFeature, new AppVersion("2.7.0", 2430)).IsOutdated,
+                Is.True, "One build older must get the update prompt, not the offline notice.");
+        }
+
+        [Test]
+        public async Task FailedFetch_WithNoFallbackPolicy_NextCallRetriesImmediately()
+        {
+            var calls = UseFetcher(() => Throw(new TaskCanceledException()), () => ProductionJson);
+
+            var first = await FeatureAccessService.TryGetConfigAsync();
+            var second = await FeatureAccessService.TryGetConfigAsync();
+
+            Assert.That(first, Is.Null, "Precondition: first run with no cache has no policy.");
+            Assert.That(calls(), Is.EqualTo(2), "No fallback policy — backoff must not skip the retry.");
+            Assert.That(second, Is.Not.Null);
+            Assert.That(FeatureAccessService.Evaluate(
+                second, FeatureAccessService.InstallModsPackFeature, Build2431).IsAllowed, Is.True);
+        }
+
+        [TestCase("timeout")]
+        [TestCase("http")]
+        [TestCase("null")]
+        [TestCase("empty")]
+        [TestCase("badjson")]
+        [TestCase("jsonnull")]
+        public async Task FailedFetch_WithNoCache_YieldsNoPolicy_WhichBlocks(string failure)
+        {
+            UseFetcher(failure switch
+            {
+                "timeout" => () => Throw(new TaskCanceledException()),
+                "http" => () => Throw(new HttpRequestException("No such host is known.")),
+                "null" => () => null,
+                "empty" => () => "",
+                "badjson" => () => "<html>Just a moment...</html>",
+                _ => () => "null",
+            });
+
+            var config = await FeatureAccessService.TryGetConfigAsync();
+
+            Assert.That(config, Is.Null);
+            Assert.That(FeatureAccessService.Evaluate(
+                config, FeatureAccessService.InstallModsPackFeature, Build2431).IsAllowed, Is.False);
+            Assert.That(FeatureAccessService.LastFailureReason, Is.Not.Null.And.Not.Empty,
+                "Support needs to know WHY the gate had no policy.");
+        }
+
+        [Test]
+        public async Task SuccessfulFetch_PersistsLastKnownGood_WhichSurvivesARestartWhileOffline()
+        {
+            UseFetcher(() => ProductionJson);
+            Assert.That(await FeatureAccessService.TryGetConfigAsync(), Is.Not.Null);
+            Assert.That(File.Exists(FeatureAccessService.CacheFilePath), Is.True);
+            Assert.That(FeatureAccessService.LastFailureReason, Is.Null);
+
+            FeatureAccessService.ResetForTests();
+            UseFetcher(() => Throw(new HttpRequestException("offline")));
+
+            var config = await FeatureAccessService.TryGetConfigAsync();
+
+            Assert.That(FeatureAccessService.Evaluate(
+                config, FeatureAccessService.InstallModsPackFeature, Build2431).IsAllowed, Is.True);
+        }
+
+        [Test]
+        public async Task FailedFetch_WithDiskPolicy_BacksOffInsteadOfReprobing()
+        {
+            FeatureAccessService.WriteDiskCache(ProductionJson, DateTime.UtcNow);
+            var calls = UseFetcher(() => Throw(new TaskCanceledException()));
+
+            var first = await FeatureAccessService.TryGetConfigAsync();
+            var second = await FeatureAccessService.TryGetConfigAsync();
+
+            Assert.That(first, Is.Not.Null);
+            Assert.That(second, Is.Not.Null);
+            Assert.That(calls(), Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task InvalidateCache_ClearsBackoff_SoTheNextCallRefetches()
+        {
+            FeatureAccessService.WriteDiskCache(ProductionJson, DateTime.UtcNow);
+            var calls = UseFetcher(() => Throw(new TaskCanceledException()), () => ProductionJson);
+
+            await FeatureAccessService.TryGetConfigAsync();
+            FeatureAccessService.InvalidateCache();
+            await FeatureAccessService.TryGetConfigAsync();
+
+            Assert.That(calls(), Is.EqualTo(2));
+            Assert.That(FeatureAccessService.LastFailureReason, Is.Null);
+        }
+
+        [Test]
+        public async Task ConcurrentCalls_ShareOneFetch()
+        {
+            var gate = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            FeatureAccessService.Fetcher = _ => { Interlocked.Increment(ref calls); return gate.Task; };
+
+            var pending = Enumerable.Range(0, 3).Select(_ => FeatureAccessService.TryGetConfigAsync()).ToArray();
+            gate.SetResult(ProductionJson);
+            var results = await Task.WhenAll(pending);
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(results, Has.All.Not.Null);
+        }
+
+        [Test]
+        public async Task CheckFeatureAsync_AfterFailedStartupFetch_ClickIsAllowed()
+        {
+            Assume.That(FeatureAccessService.IsDevMode, Is.False, "Dev mode bypasses the gate entirely.");
+            UseFetcher(() => Throw(new TaskCanceledException()), () => ProductionJson);
+
+            await FeatureAccessService.GetConfigAsync();
+            var result = await FeatureAccessService.CheckFeatureAsync(FeatureAccessService.InstallModsPackFeature);
+
+            Assert.That(result.IsAllowed || result.IsOutdated, Is.True, result.BlockedMessage);
+        }
+
+        #endregion
+
+        #region Disk cache — protected, bound to this account, bounded age
+
+        private static void GoOffline() => UseFetcher(() => Throw(new HttpRequestException("offline")));
+
+        private static FeatureCheckResult EvaluateInstall(FeatureAccessConfig? config) =>
+            FeatureAccessService.Evaluate(config, FeatureAccessService.InstallModsPackFeature, Build2431);
+
+        [Test]
+        public async Task DiskCache_RoundTrip_ServesTheLastKnownGoodPolicy()
+        {
+            FeatureAccessService.WriteDiskCache(ProductionJson, DateTime.UtcNow.AddDays(-6));
+            GoOffline();
+
+            Assert.That(EvaluateInstall(await FeatureAccessService.TryGetConfigAsync()).IsAllowed, Is.True);
+        }
+
+        [Test]
+        public async Task DiskCache_HandWrittenPlainJson_IsRejected_AndTheGateBlocks()
+        {
+            File.WriteAllText(FeatureAccessService.CacheFilePath,
+                "{\"installModsPack\":{\"enabled\":true},\"skinSelector\":{\"enabled\":true}}");
+            GoOffline();
+
+            var config = await FeatureAccessService.TryGetConfigAsync();
+
+            Assert.That(config, Is.Null);
+            Assert.That(EvaluateInstall(config).IsOffline, Is.True);
+        }
+
+        [Test]
+        public async Task DiskCache_BlobWithAFlippedByte_IsRejected()
+        {
+            FeatureAccessService.WriteDiskCache(ProductionJson, DateTime.UtcNow);
+            File.SetAttributes(FeatureAccessService.CacheFilePath, FileAttributes.Normal);
+            var bytes = File.ReadAllBytes(FeatureAccessService.CacheFilePath);
+            bytes[bytes.Length / 2] ^= 0xFF;
+            File.WriteAllBytes(FeatureAccessService.CacheFilePath, bytes);
+            GoOffline();
+
+            Assert.That(await FeatureAccessService.TryGetConfigAsync(), Is.Null);
+        }
+
+        [Test]
+        public async Task DiskCache_DpapiBlobForAnotherPurpose_IsRejected()
+        {
+            var foreign = System.Security.Cryptography.ProtectedData.Protect(
+                System.Text.Encoding.UTF8.GetBytes(ProductionJson), null,
+                System.Security.Cryptography.DataProtectionScope.CurrentUser);
+            File.WriteAllBytes(FeatureAccessService.CacheFilePath, foreign);
+            GoOffline();
+
+            Assert.That(await FeatureAccessService.TryGetConfigAsync(), Is.Null);
+        }
+
+        [Test]
+        public async Task DiskCache_OlderThanMaxAge_IsNotUsed()
+        {
+            FeatureAccessService.WriteDiskCache(ProductionJson,
+                DateTime.UtcNow - FeatureAccessService.DiskCacheMaxAge - TimeSpan.FromHours(1));
+            GoOffline();
+
+            Assert.That(await FeatureAccessService.TryGetConfigAsync(), Is.Null);
+        }
+
+        [Test]
+        public async Task DiskCache_FromTheFuture_IsNotUsed()
+        {
+            FeatureAccessService.WriteDiskCache(ProductionJson, DateTime.UtcNow.AddDays(2));
+            GoOffline();
+
+            Assert.That(await FeatureAccessService.TryGetConfigAsync(), Is.Null);
+        }
+
+        [Test]
+        public async Task DiskCache_OnDisk_IsHiddenAndNotReadablePolicy()
+        {
+            UseFetcher(() => ProductionJson);
+            await FeatureAccessService.TryGetConfigAsync();
+
+            var path = FeatureAccessService.CacheFilePath;
+            Assert.That(File.GetAttributes(path).HasFlag(FileAttributes.Hidden), Is.True);
+            string asText = System.Text.Encoding.UTF8.GetString(File.ReadAllBytes(path));
+            Assert.That(asText, Does.Not.Contain("installModsPack").And.Not.Contain("enabled"));
+        }
+
+        [Test]
+        public async Task LegacyPlaintextCache_IsIgnored_AndDeleted()
+        {
+            string legacy = Path.Combine(_cacheDir, FeatureAccessService.LegacyCacheFileName);
+            File.WriteAllText(legacy, ProductionJson);
+            GoOffline();
+
+            var offline = await FeatureAccessService.TryGetConfigAsync();
+
+            Assert.That(offline, Is.Null, "Legacy plaintext must not be trusted.");
+            Assert.That(File.Exists(legacy), Is.False, "Removed even while offline.");
+
+            File.WriteAllText(legacy, ProductionJson);
+            FeatureAccessService.ResetForTests();
+            UseFetcher(() => ProductionJson);
+            await FeatureAccessService.TryGetConfigAsync();
+
+            Assert.That(File.Exists(legacy), Is.False, "Removed after a successful save too.");
         }
 
         #endregion

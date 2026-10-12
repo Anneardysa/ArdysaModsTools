@@ -168,7 +168,7 @@ namespace ArdysaModsTools.Core.Services.Localization
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[LocalizationService] Failed to load locale '{code}': {ex.Message}");
+                FallbackLogger.LogFileOnly($"[LocalizationService] Failed to load locale '{code}': {ex.Message}");
                 return new Dictionary<string, string>(StringComparer.Ordinal);
             }
         }
@@ -184,7 +184,7 @@ namespace ArdysaModsTools.Core.Services.Localization
             {
                 var name = m.Groups[1].Value;
                 if (values.TryGetValue(name, out var v))
-                    return Convert.ToString(v, CultureInfo.CurrentCulture) ?? string.Empty;
+                    return LogRedaction.Apply(Convert.ToString(v, CultureInfo.CurrentCulture) ?? string.Empty);
                 return m.Value;
             });
         }

@@ -79,10 +79,13 @@ namespace ArdysaModsTools.Tests.Services
         {
             _extractor
                 .Setup(e => e.ExtractItemsGameAsync(It.IsAny<string>(), It.IsAny<string>(),
-                                                    It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>()))
-                .Returns((string vpk, string dest, Action<string>? _, CancellationToken __) =>
+                                                    It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>(),
+                                                    It.IsAny<bool>()))
+                .Returns((string vpk, string dest, Action<string>? _, CancellationToken __, bool ___) =>
                 {
-                    string? body = vpk.Contains("_ArdysaMods") ? modItemData : gameItemData;
+                    string? body = Path.GetFileName(Path.GetDirectoryName(vpk)!) == "dota"
+                        ? gameItemData
+                        : modItemData;
                     if (body == null) return Task.FromResult(false);
 
                     Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
@@ -150,7 +153,7 @@ namespace ArdysaModsTools.Tests.Services
 
             Assert.That(verdict.State, Is.EqualTo(ItemsGameSyncState.InSync));
             _extractor.Verify(e => e.ExtractItemsGameAsync(It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>()), Times.Never);
+                It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>(), It.IsAny<bool>()), Times.Never);
         }
 
         [Test]
@@ -293,7 +296,8 @@ namespace ArdysaModsTools.Tests.Services
             BuildPackages();
             _extractor
                 .Setup(e => e.ExtractItemsGameAsync(It.IsAny<string>(), It.IsAny<string>(),
-                                                    It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>()))
+                                                    It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>(),
+                                                    It.IsAny<bool>()))
                 .ThrowsAsync(new IOException("the game is running and holds the file"));
 
             ItemsGameSyncVerdict verdict = null!;
@@ -308,7 +312,8 @@ namespace ArdysaModsTools.Tests.Services
             using var cts = new CancellationTokenSource();
             _extractor
                 .Setup(e => e.ExtractItemsGameAsync(It.IsAny<string>(), It.IsAny<string>(),
-                                                    It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>()))
+                                                    It.IsAny<Action<string>?>(), It.IsAny<CancellationToken>(),
+                                                    It.IsAny<bool>()))
                 .Returns(() => { cts.Cancel(); throw new OperationCanceledException(); });
 
             var service = NewService();
@@ -438,6 +443,18 @@ namespace ArdysaModsTools.Tests.Services
                 Assert.That(report.Items[0].Status, Is.EqualTo("modified"));
                 Assert.That(report.Items[0].Category, Does.Contain("Ogre Magi"));
             });
+        }
+
+        [TestCase("29339", "Tormentor")]
+        [TestCase("29588", "Tormentor")]
+        [TestCase("34576", "Tormentor")]
+        [TestCase("10731", "Kill Banner")]
+        [TestCase("11548", "Kill Banner")]
+        [TestCase("801", "Roshan")]
+        public void DetermineCategory_MiscItems_UseTheirMiscCategory(string id, string expected)
+        {
+            string slot = expected == "Kill Banner" ? "multikill_banner" : "";
+            Assert.That(ItemsGameSyncService.DetermineCategory(id, "x", slot), Is.EqualTo(expected));
         }
 
         [Test]

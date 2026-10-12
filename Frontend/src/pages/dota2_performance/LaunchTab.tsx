@@ -2,6 +2,7 @@ import { useState } from "react";
 import { send } from "../../bridge/host";
 import { T, translate, useLocale } from "../../bridge/i18n";
 import { LAUNCH_OPTIONS } from "./data";
+import { Icon } from "./icons";
 import { addCustomLaunch, removeCustomLaunch, showToast, store, toggleLaunchOption } from "./store";
 
 function launchString(enabled: Record<string, boolean>, custom: string[]): string {
@@ -33,15 +34,15 @@ export function LaunchTab() {
 
    return (
       <div className="flex-1 overflow-y-auto p-5 space-y-4">
-         <div className="glass rounded-lg p-5 fade-in">
+         <div className="glass p-5">
             <div className="text-base font-bold tracking-wider mb-1">
                <T k="perf.launch.title">[ LAUNCH_OPTIONS ]</T>
             </div>
             <div className="text-xs text-amt-text-dim mb-1">
                <T k="perf.launch.steamHint">// steam &gt; right-click dota 2 &gt; properties &gt; launch options</T>
             </div>
-            <div className="text-xs text-amt-warning mb-4">
-               <T k="perf.launch.copyHint">// copy-only — NOT written by [ APPLY ]. your selection is remembered automatically.</T>
+            <div className="text-xs text-amt-amber mb-4">
+               <T k="perf.launch.copyHint">// copy-only. NOT written by [ APPLY ]. your selection is remembered automatically.</T>
             </div>
 
             <div id="launchTags" className="flex flex-wrap gap-3 mb-5">
@@ -88,7 +89,7 @@ export function LaunchTab() {
                            }
                         }}
                      >
-                        x
+                        <Icon name="x_close" size={11} />
                      </span>
                   </div>
                ))}
@@ -98,21 +99,22 @@ export function LaunchTab() {
                <T k="perf.launch.generated">GENERATED_STRING</T>
             </div>
             <div className="flex items-center gap-3">
-               <div id="launchString" className="flex-1 bg-amt-bg border border-amt-border rounded-lg px-4 py-3 text-sm text-amt-text break-all select-text" style={{ userSelect: "text" }}>
+               <div id="launchString" className="flex-1 bg-amt-bg border border-amt-border px-4 py-3 text-sm text-amt-text break-all select-text" style={{ userSelect: "text" }}>
                   {generated}
                </div>
                <button
                   type="button"
                   data-no-drag
                   onClick={copy}
-                  className="action-btn px-4 py-3 rounded-lg text-xs font-bold border border-amt-border hover:border-amt-border-strong text-amt-text-dim hover:text-amt-accent transition-colors flex-shrink-0"
+                  className="action-btn px-4 py-3 text-xs font-bold border border-amt-border hover:border-amt-border-strong text-amt-text-dim hover:text-amt-text flex-shrink-0"
                >
+                  <Icon name="duplicate" size={13} />
                   <T k="perf.launch.copy">COPY</T>
                </button>
             </div>
          </div>
 
-         <div className="glass rounded-lg p-5 fade-in">
+         <div className="glass p-5">
             <div className="text-base font-bold tracking-wider mb-1">
                <T k="perf.launch.customTitle">[ CUSTOM ]</T>
             </div>
@@ -133,13 +135,14 @@ export function LaunchTab() {
                      if (e.key === "Enter") submitCustom();
                   }}
                />
-               <button type="button" data-no-drag onClick={submitCustom} className="action-btn px-4 py-2 rounded-lg text-xs font-bold bg-amt-accent hover:bg-amt-accent-hover text-amt-on-accent transition-colors">
+               <button type="button" data-no-drag onClick={submitCustom} className="action-btn px-4 py-2 text-xs font-bold bg-amt-accent hover:bg-amt-accent-hover text-amt-on-accent">
+                  <Icon name="plus" size={13} />
                   <T k="perf.launch.add">ADD</T>
                </button>
             </div>
          </div>
 
-         <div className="glass rounded-lg p-5 fade-in">
+         <div className="glass p-5">
             <div className="text-base font-bold tracking-wider mb-3">
                <T k="perf.launch.referenceTitle">[ REFERENCE ]</T>
             </div>

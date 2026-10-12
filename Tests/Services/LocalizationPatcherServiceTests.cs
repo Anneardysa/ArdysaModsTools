@@ -14,6 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+using System;
+using System.IO;
 using System.Linq;
 using System.Text;
 using ArdysaModsTools.Core.Services;
@@ -26,6 +28,37 @@ namespace ArdysaModsTools.Tests.Services
     {
         private static byte[] WithBom(string content) =>
             Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(content)).ToArray();
+
+        [Test]
+        public void TryServeFromCache_CachedCopyExists_CopiedOverTarget()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "AmtLocCache_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                var cached = Path.Combine(dir, "dota_english.txt");
+                var target = Path.Combine(dir, "out_dota_english.txt");
+                File.WriteAllBytes(cached, WithBom("\"lang\" { }"));
+                File.WriteAllText(target, "stale garbage");
+
+                Assert.That(LocalizationPatcherService.TryServeFromCache(cached, target), Is.True);
+                Assert.That(File.ReadAllBytes(target), Is.EqualTo(File.ReadAllBytes(cached)));
+            }
+            finally
+            {
+                Directory.Delete(dir, true);
+            }
+        }
+
+        [Test]
+        public void TryServeFromCache_NoCachedCopy_ReportsFailure()
+        {
+            var missing = Path.Combine(Path.GetTempPath(), "AmtLocCache_" + Guid.NewGuid().ToString("N"), "dota_french.txt");
+            var target = Path.Combine(Path.GetTempPath(), "AmtLocCache_" + Guid.NewGuid().ToString("N") + ".txt");
+
+            Assert.That(LocalizationPatcherService.TryServeFromCache(missing, target), Is.False);
+            Assert.That(File.Exists(target), Is.False);
+        }
 
         [Test]
         public void LooksLikeLocalization_RealFileWithBom_Accepted()

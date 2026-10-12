@@ -479,7 +479,7 @@ namespace ArdysaModsTools.Core.Services
             return Directory.EnumerateFiles(folder, "*.txt", SearchOption.AllDirectories).FirstOrDefault();
         }
 
-        private static string? FindItemsGame(string folder)
+        internal static string? FindItemsGame(string folder)
         {
             var candidates = new[]
             {

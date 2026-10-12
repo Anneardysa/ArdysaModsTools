@@ -204,8 +204,8 @@ public sealed class ActiveProcessSentry : IDisposable
                     {
                         proc.Kill(entireProcessTree: true);
                         killed++;
-                        logger?.Log($"ActiveProcessSentry: Terminated unauthorized process '{name}' (PID: {proc.Id}).");
-                        FallbackLogger.Log($"[ActiveProcessSentry] Terminated threat process: '{name}'");
+                        logger?.LogDebug($"ActiveProcessSentry: Terminated unauthorized process '{name}' (PID: {proc.Id}).");
+                        FallbackLogger.LogFileOnly($"[ActiveProcessSentry] Terminated threat process: '{name}'");
                     }
                 }
                 catch (Exception ex)
@@ -244,8 +244,8 @@ public sealed class ActiveProcessSentry : IDisposable
                     string? detected = DetectRunningThreat();
                     if (!string.IsNullOrEmpty(detected))
                     {
-                        _logger?.Log($"ActiveProcessSentry: detected unauthorized process '{detected}' during active session!");
-                        FallbackLogger.Log($"[ActiveProcessSentry] Threat detected: '{detected}'");
+                        _logger?.LogDebug($"ActiveProcessSentry: detected unauthorized process '{detected}' during active session!");
+                        FallbackLogger.LogFileOnly($"[ActiveProcessSentry] Threat detected: '{detected}'");
 
                         bool handled = _threatCallback?.Invoke(detected) ?? false;
                         if (handled)

@@ -28,6 +28,8 @@ namespace ArdysaModsTools.Tests.Helpers
 
             var assembly = Regex.Match(csproj, @"<AssemblyVersion>([^<]+)</AssemblyVersion>");
             var file = Regex.Match(csproj, @"<FileVersion>([^<]+)</FileVersion>");
+            var version = Regex.Match(csproj, @"<Version>([^<]+)</Version>");
+            var informational = Regex.Match(csproj, @"<InformationalVersion>([^<]+)</InformationalVersion>");
             Assert.That(assembly.Success, Is.True, "csproj has no <AssemblyVersion>");
             Assert.That(file.Success, Is.True, "csproj has no <FileVersion>");
 
@@ -40,6 +42,12 @@ namespace ArdysaModsTools.Tests.Helpers
                     $"AssemblyVersion ends in {assemblyBuild} but build.txt says {build} — bump both in the same commit");
                 Assert.That(fileBuild, Is.EqualTo(build),
                     $"FileVersion ends in {fileBuild} but build.txt says {build} — bump both in the same commit");
+
+                if (version.Success && informational.Success)
+                {
+                    Assert.That(informational.Groups[1].Value, Is.EqualTo(version.Groups[1].Value),
+                        $"InformationalVersion ({informational.Groups[1].Value}) must match Version ({version.Groups[1].Value}) — update both together");
+                }
             });
         }
 

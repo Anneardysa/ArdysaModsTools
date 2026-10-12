@@ -1,7 +1,9 @@
 import { T, translate } from "../../bridge/i18n";
+import { store } from "./store";
 import css from "./gallery.module.css";
 
-export function CachingOverlay({ current, total }: { current: number; total: number }) {
+export function CachingOverlay() {
+   const { current, total } = store.use((s) => s.cachingStatus);
    const pct = total > 0 ? Math.round((current / total) * 100) : 0;
 
    return (
@@ -17,7 +19,7 @@ export function CachingOverlay({ current, total }: { current: number; total: num
             </h2>
             <p id="cachingStatus" className={css.cachingStatus}>{translate("common.preparingThumbs", "Preparing thumbnails...")}</p>
             <div className={css.coBar}>
-               <div id="cachingBar" className={css.cachingBar} style={{ width: `${pct}%` }} />
+               <div id="cachingBar" className={css.cachingBar} style={{ transform: `scaleX(${pct / 100})` }} />
             </div>
             <div className={css.coMeta}>
                <span id="cachingCount">

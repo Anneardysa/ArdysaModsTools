@@ -125,12 +125,19 @@ namespace ArdysaModsTools.Core.Services
             var tasks = new List<Task<(bool success, bool fromCache)>>();
 
             int filesDone = 0;
+            int progressStep = Math.Max(1, totalFiles / 4);
             async Task<(bool success, bool fromCache)> RunOneAsync(string filename)
             {
                 var result = await DownloadOrCopyFileAsync(filename, localizationDir, hashManifest, semaphore, ct).ConfigureAwait(false);
                 if (!result.success)
                     failed.Add(filename);
-                onFileDone?.Invoke(Interlocked.Increment(ref filesDone), totalFiles);
+
+                int done = Interlocked.Increment(ref filesDone);
+                onFileDone?.Invoke(done, totalFiles);
+
+                if (done < totalFiles && done % progressStep == 0)
+                    log?.Invoke($"Localization: {done}/{totalFiles} files...");
+
                 return result;
             }
 
@@ -184,17 +191,9 @@ namespace ArdysaModsTools.Core.Services
                 if (!string.IsNullOrEmpty(remoteTag) &&
                     hashManifest.TryGetValue(filename, out var cachedTag) &&
                     cachedTag == remoteTag &&
-                    File.Exists(cachedPath))
+                    TryServeFromCache(cachedPath, targetPath, LogDiag))
                 {
-                    try
-                    {
-                        File.Copy(cachedPath, targetPath, overwrite: true);
-                        return (true, true);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogDiag($"[LOC] Failed to copy cached {filename}: {ex.Message}");
-                    }
+                    return (true, true);
                 }
 
                 var result = await CdnFallbackService.Instance
@@ -203,14 +202,14 @@ namespace ArdysaModsTools.Core.Services
                 if (!result.Success || result.Data == null)
                 {
                     LogDiag($"[LOC] All CDNs failed for {filename}: {result.ErrorMessage}");
-                    return (false, false);
+                    return ServeStale(filename, cachedPath, targetPath, "all CDNs failed");
                 }
 
                 if (!LooksLikeLocalization(result.Data))
                 {
                     LogDiag($"[LOC] Rejected {filename} from {result.SuccessfulUrl}: " +
                             $"not a localization file ({result.Data.Length} bytes) — likely an interstitial page.");
-                    return (false, false);
+                    return ServeStale(filename, cachedPath, targetPath, "CDN served a non-localization payload");
                 }
 
                 string? tag = result.ETag ?? result.LastModified;
@@ -252,23 +251,39 @@ namespace ArdysaModsTools.Core.Services
             }
         }
 
-        private async Task<string?> TryGetRemoteTagAsync(string url, CancellationToken ct)
+        private (bool success, bool fromCache) ServeStale(string filename, string cachedPath, string targetPath, string why)
+        {
+            if (!TryServeFromCache(cachedPath, targetPath, LogDiag))
+                return (false, false);
+
+            LogDiag($"[LOC] Served {filename} from the cached copy ({why}) — text may be outdated.");
+            return (true, true);
+        }
+
+        internal static bool TryServeFromCache(string cachedPath, string targetPath, Action<string>? diag = null)
         {
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Head, url);
-                var response = await _http.SendAsync(request, ct).ConfigureAwait(false);
+                if (!File.Exists(cachedPath))
+                    return false;
 
-                if (!response.IsSuccessStatusCode)
-                    return null;
-
-                return response.Headers.ETag?.Tag
-                    ?? response.Content.Headers.LastModified?.ToString("R");
+                File.Copy(cachedPath, targetPath, overwrite: true);
+                return true;
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                diag?.Invoke($"[LOC] Failed to copy cached {Path.GetFileName(cachedPath)}: {ex.Message}");
+                return false;
             }
+        }
+
+        private async Task<string?> TryGetRemoteTagAsync(string url, CancellationToken ct)
+        {
+            var probe = await CdnProbe.ProbeAsync(_http, url, ct).ConfigureAwait(false);
+            if (!probe.Success)
+                return null;
+
+            return probe.ETag ?? probe.LastModified;
         }
 
         public static bool LooksLikeLocalization(byte[] data)

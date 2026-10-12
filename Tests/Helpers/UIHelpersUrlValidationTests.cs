@@ -63,6 +63,8 @@ namespace ArdysaModsTools.Tests.Helpers
         [TestCase("https://ardysamods.my.id")]
         [TestCase("https://github.com/Anneardysa/ArdysaModsTools")]
         [TestCase("steam://rungameid/570")]
+        [TestCase("steam://open/downloads")]
+        [TestCase("steam://flushconfig")]
         public void IsValidExternalUrl_WhitelistedScheme_ValidatesSuccessfullyWithoutSpawningProcess(string validUrl)
         {
             var logs = new List<string>();

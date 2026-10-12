@@ -107,6 +107,11 @@ internal sealed class ProbeForm : Form
       core.WebMessageReceived += (_, e) => Console.WriteLine($"[postMessage] {e.WebMessageAsJson}");
       _web.CoreWebView2.Settings.AreDevToolsEnabled = true;
 
+      core.SetVirtualHostNameToFolderMapping(
+         "amt-assets",
+         Path.Combine(_repoRoot, "Assets", "Images"),
+         CoreWebView2HostResourceAccessKind.DenyCors);
+
       var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
       void OnDom(object? s, CoreWebView2DOMContentLoadedEventArgs e) => ready.TrySetResult(true);
       core.DOMContentLoaded += OnDom;

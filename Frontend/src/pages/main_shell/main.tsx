@@ -23,6 +23,7 @@ import {
    setSetupChecks,
    setSyncDetails,
    setStatus,
+   showChangelogModal,
    showChecking,
    showInstallLog,
    showPathFound,
@@ -35,6 +36,7 @@ import type {
    BadgeKind,
    ButtonStates,
    CarouselSlide,
+   ChangelogPayload,
    ConfirmPayload,
    InstallLogPayload,
    LaunchPanelPayload,
@@ -107,6 +109,7 @@ expose({
       openPatchMenu({ left: r.left, top: r.bottom + 6, minWidth: r.width });
    },
 
+   showChangelogModal: (payload: ChangelogPayload | string) => showChangelogModal(parseJson(payload)),
    showShellConfirm: (payload: ConfirmPayload | string) => showShellConfirm(parseJson(payload)),
    showToast: (payload: ToastPayload | string) => pushToast(parseJson(payload)),
    showInstallFailure: (payload: Omit<InstallLogPayload, "variant"> | string) => {

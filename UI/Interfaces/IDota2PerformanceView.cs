@@ -9,6 +9,8 @@ namespace ArdysaModsTools.UI.Interfaces
         Task ShowToastAsync(string message, string type);
 
         Task ShowCfgBannerAsync(string message, string state);
+
+        Task SetMapCleanupStatusAsync(string json);
         void InvokeSafeClose();
         void StartDrag();
         void CopyTextToClipboard(string text);

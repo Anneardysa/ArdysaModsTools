@@ -62,7 +62,7 @@ namespace ArdysaModsTools.Core.Services.Update
 
             _installationType = InstallationDetector.Detect();
 
-            _logger.Log($"Update service initialized. Version: {CurrentVersion}, Build: {CurrentBuildNumber}, Type: {InstallationDetector.GetInstallationTypeName(_installationType)}");
+            _logger.LogDebug($"Update service initialized. Version: {CurrentVersion}, Build: {CurrentBuildNumber}, Type: {InstallationDetector.GetInstallationTypeName(_installationType)}");
         }
 
         public async Task<bool> CheckForUpdatesAsync()
@@ -121,7 +121,7 @@ namespace ArdysaModsTools.Core.Services.Update
             var updateInfo = await TryGetUpdateFromR2ManifestAsync();
             if (updateInfo != null)
             {
-                _logger.Log($"Got update info from CDN: v{updateInfo.Version}");
+                _logger.LogDebug($"Got update info from CDN: v{updateInfo.Version}");
                 return updateInfo;
             }
 
@@ -133,9 +133,8 @@ namespace ArdysaModsTools.Core.Services.Update
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                string manifestUrl = $"{CdnConfig.ReleaseManifestUrl}?t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
                 var content = await CdnFallbackService.Instance
-                    .DownloadStringWithFallbackAsync(manifestUrl, cts.Token)
+                    .DownloadStringWithFallbackAsync(CdnConfig.ReleaseManifestUrl, cts.Token)
                     .ConfigureAwait(false);
 
                 if (string.IsNullOrWhiteSpace(content))

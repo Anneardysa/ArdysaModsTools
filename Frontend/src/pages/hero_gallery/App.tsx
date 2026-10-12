@@ -1,23 +1,28 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { send } from "../../bridge/host";
 import { useLocale } from "../../bridge/i18n";
 import { AlertModal, LogModal } from "./AlertModal";
 import { CachingOverlay } from "./CachingOverlay";
 import { ConfirmModal } from "./ConfirmModal";
+import { closeDebug, debugStore, openDebug } from "./debug";
+import { DebugModal } from "./DebugModal";
 import { filterHeroes, hasAnySelection } from "./helpers";
 import { Header } from "./Header";
 import { HeroGrid } from "./HeroGrid";
 import { LatestUpdatesCarousel } from "./LatestUpdatesCarousel";
+import { ParticlePicker } from "./ParticlePanel";
 import { SetModal } from "./SetModal";
 import {
+   activateFocusedSet,
    closeModal,
+   closeParticlePicker,
    closeStylePreview,
    navigateHero,
    navigateSet,
    navigateToUpdate,
    requestClearAllSelections,
    requestGenerate,
-   selectSet,
+   resolveConfirm,
    store,
    toggleFavorite,
 } from "./store";
@@ -26,9 +31,17 @@ import { TitleBar } from "./TitleBar";
 import type { FilterCategory } from "./types";
 import css from "./gallery.module.css";
 
+const openHero = (id: string) => store.set({ modalHeroId: id, focusedSetIndex: 0 });
+const toggleUpdatesCollapsed = () => store.set((s) => ({ updatesCollapsed: !s.updatesCollapsed }));
+const closeAlert = () => {
+   store.set((s) => ({ alert: { ...s.alert, visible: false } }));
+   send("alertDismissed");
+};
+
 export function App() {
    const { t } = useLocale();
    const heroes = store.use((s) => s.heroes);
+   const heroesLoad = store.use((s) => s.heroesLoad);
    const selections = store.use((s) => s.selections);
    const favorites = store.use((s) => s.favorites);
    const version = store.use((s) => s.version);
@@ -39,30 +52,49 @@ export function App() {
    const latestUpdates = store.use((s) => s.latestUpdates);
    const updatesCollapsed = store.use((s) => s.updatesCollapsed);
    const cachingVisible = store.use((s) => s.cachingVisible);
-   const cachingStatus = store.use((s) => s.cachingStatus);
    const alert = store.use((s) => s.alert);
    const generationLogLines = store.use((s) => s.generationLogLines);
    const cooldown = store.use((s) => s.cooldown);
+   const detection = store.use((s) => s.detection);
+   const logModalOpen = store.use((s) => s.logModalOpen);
+   const debugEnabled = debugStore.use((s) => s.enabled);
 
-   const [logModalOpen, setLogModalOpen] = useState(false);
    const searchInputRef = useRef<HTMLInputElement>(null);
 
-   const filteredHeroes = filterHeroes(heroes, { filter: currentFilter, search: searchQuery, onlyWithSets: showOnlyWithSets, favorites });
-   const selectionCount = Object.values(selections).filter(hasAnySelection).length;
+   const filteredHeroes = useMemo(
+      () => filterHeroes(heroes, { filter: currentFilter, search: searchQuery, onlyWithSets: showOnlyWithSets, favorites }),
+      [heroes, currentFilter, searchQuery, showOnlyWithSets, favorites],
+   );
+   const selectionCount = useMemo(() => Object.values(selections).filter(hasAnySelection).length, [selections]);
 
    useEffect(() => {
       const onKeyDown = (e: KeyboardEvent) => {
          const s = store.get();
          const isSearchFocused = document.activeElement === searchInputRef.current;
 
-         if (s.modalHeroId != null) {
-            if (s.stylePreview) {
-               if (e.key === "Escape") {
-                  e.preventDefault();
-                  closeStylePreview();
-               }
-               return;
+         const closeTop: (() => void) | null = s.logModalOpen
+            ? () => store.set({ logModalOpen: false })
+            : s.alert.visible
+               ? closeAlert
+               : s.confirm.visible
+                  ? () => resolveConfirm(false)
+                  : debugStore.get().open
+                     ? closeDebug
+                     : s.particlePicker
+                        ? closeParticlePicker
+                        : s.stylePreview
+                           ? closeStylePreview
+                           : null;
+         if (closeTop) {
+            if (e.key === "Escape") {
+               e.preventDefault();
+               closeTop();
             }
+            return;
+         }
+
+         if (s.modalHeroId != null) {
+            if (e.key !== "Escape" && e.target instanceof Element && e.target.closest("input, select, textarea")) return;
             switch (e.key) {
                case "ArrowLeft":
                   e.preventDefault();
@@ -81,10 +113,10 @@ export function App() {
                   navigateSet(1);
                   break;
                case "Enter": {
+                  if (e.target instanceof Element && e.target.closest("button")) return;
                   e.preventDefault();
                   const hero = s.heroes.find((h) => h.id === s.modalHeroId);
-                  if (hero) selectSet(hero, s.focusedSetIndex);
-                  closeModal();
+                  if (hero) activateFocusedSet(hero);
                   break;
                }
                case "Escape":
@@ -140,30 +172,41 @@ export function App() {
             onLoad={() => send("loadPreset")}
             onClearAll={requestClearAllSelections}
             onGenerate={requestGenerate}
+            detection={detection}
             searchInputRef={searchInputRef}
+            onDebug={debugEnabled ? openDebug : undefined}
          />
 
          <main className={css.main}>
             <LatestUpdatesCarousel
                updates={latestUpdates}
                collapsed={updatesCollapsed}
-               onToggleCollapsed={() => store.set((s) => ({ updatesCollapsed: !s.updatesCollapsed }))}
+               onToggleCollapsed={toggleUpdatesCollapsed}
                onSelectUpdate={navigateToUpdate}
             />
-            <HeroGrid heroes={filteredHeroes} selections={selections} favorites={favorites} onOpen={(id) => store.set({ modalHeroId: id, focusedSetIndex: 0 })} onToggleFavorite={toggleFavorite} />
+            <HeroGrid
+               heroes={filteredHeroes}
+               selections={selections}
+               favorites={favorites}
+               onOpen={openHero}
+               onToggleFavorite={toggleFavorite}
+               loadState={heroes.length === 0 ? heroesLoad : "ready"}
+            />
          </main>
 
          <SetModal />
          <StylePreviewModal />
+         <ParticlePicker />
 
          <footer className={css.statusBar}>
             <span id="statusText" className={css.statusText}>{status || t("hero.status.ready", "Ready")}</span>
             <span id="versionText">{version}</span>
          </footer>
 
-         {cachingVisible && <CachingOverlay current={cachingStatus.current} total={cachingStatus.total} />}
+         {cachingVisible && <CachingOverlay />}
 
          <ConfirmModal />
+         <DebugModal />
 
          {alert.visible && (
             <AlertModal
@@ -171,12 +214,9 @@ export function App() {
                message={alert.message}
                type={alert.type}
                hasLog={alert.hasLog}
-               onClose={() => {
-                  store.set((s) => ({ alert: { ...s.alert, visible: false } }));
-                  send("alertDismissed");
-               }}
+               onClose={closeAlert}
                onShowLog={() => {
-                  setLogModalOpen(true);
+                  store.set({ logModalOpen: true });
                   send("generationLogOpened");
                }}
                onPlay={() => {
@@ -186,7 +226,7 @@ export function App() {
             />
          )}
 
-         {logModalOpen && <LogModal lines={generationLogLines} onClose={() => setLogModalOpen(false)} />}
+         {logModalOpen && <LogModal lines={generationLogLines} onClose={() => store.set({ logModalOpen: false })} />}
       </>
    );
 }

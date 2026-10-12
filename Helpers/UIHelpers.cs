@@ -143,20 +143,44 @@ namespace ArdysaModsTools.Helpers
                 OpenUrlWithErrorDialog(DiscordInviteUrl, "Discord", log);
         }
 
-        public static async Task ShowFeatureBlockedAsync(
+        public static async Task<bool> ShowFeatureBlockedAsync(
             IMainFormView view,
             FeatureCheckResult result,
             UpdaterService? updater = null,
-            Action<string>? log = null)
+            Action<string>? log = null,
+            Func<string, Task<FeatureCheckResult>>? recheck = null)
         {
-            if (!result.IsOutdated)
+            recheck ??= FeatureAccessService.CheckFeatureAsync;
+
+            while (result.IsOffline)
             {
-                await ShowFeatureUnavailableAsync(
-                    view, result.FeatureDisplayName, result.BlockedMessage ?? "", log);
-                return;
+                log?.Invoke($"'{result.FeatureDisplayName}' blocked: server unreachable " +
+                            $"({FeatureAccessService.LastFailureReason ?? "no policy cached"}).");
+
+                bool retry = await view.ShowShellConfirmAsync(
+                    eyebrow: Loc.T("feature.offline.title"),
+                    heading: result.FeatureDisplayName,
+                    body: result.BlockedMessage ?? "",
+                    note: Loc.T("feature.offline.note"),
+                    confirmText: Loc.T("feature.offline.retry"),
+                    cancelText: Loc.T("common.close"),
+                    accent: "warn");
+                if (!retry)
+                    return false;
+
+                view.ShowShellToast(Loc.T("feature.offline.title"), Loc.T("feature.offline.checking"), "info");
+                FeatureAccessService.InvalidateCache();
+                result = await recheck(result.FeatureName);
+                if (result.IsAllowed)
+                    return true;
             }
 
-            await ShowUpdateRequiredAsync(view, result, updater, log);
+            if (result.IsOutdated)
+                await ShowUpdateRequiredAsync(view, result, updater, log);
+            else
+                await ShowFeatureUnavailableAsync(
+                    view, result.FeatureDisplayName, result.BlockedMessage ?? "", log);
+            return false;
         }
 
         private static string DownloadPageUrl => $"{EnvironmentConfig.WebsiteBase}/#download";

@@ -60,6 +60,31 @@ export type ConnectionTestProgress = {
    message: string;
 };
 
+export type AppCheck = {
+   id: string;
+   state: "pass" | "fail" | "unknown" | "advisory";
+   titleKey: string;
+   detailKey: string;
+   detailVars?: Record<string, string | number> | null;
+   diagnostic?: string | null;
+   canAutoFix: boolean;
+   needsConfirm: boolean;
+   appliesOnRestart: boolean;
+};
+
+export type AppRepairReport = {
+   checks: AppCheck[];
+   scannedAt: string;
+   fixableIds: string[];
+   hasFailures: boolean;
+};
+
+export type AppRepairProgress = {
+   percent: number;
+   messageKey: string;
+   messageVars?: Record<string, string | number> | null;
+};
+
 export const store = createStore<{
    settings: Settings;
    version: string;
@@ -71,6 +96,11 @@ export const store = createStore<{
    connectionTestProgress: ConnectionTestProgress | null;
    connectionTestReport: ConnectionTestReport | null;
    isConnectionModalOpen: boolean;
+   repairBusy: boolean;
+   repairProgress: AppRepairProgress | null;
+   repairReport: AppRepairReport | null;
+   isRepairModalOpen: boolean;
+   repairConfirming: boolean;
 }>({
    settings: DEFAULT_SETTINGS,
    version: "",
@@ -82,4 +112,9 @@ export const store = createStore<{
    connectionTestProgress: null,
    connectionTestReport: null,
    isConnectionModalOpen: false,
+   repairBusy: false,
+   repairProgress: null,
+   repairReport: null,
+   isRepairModalOpen: false,
+   repairConfirming: false,
 });

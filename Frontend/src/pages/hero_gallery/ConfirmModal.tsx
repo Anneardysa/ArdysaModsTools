@@ -1,4 +1,5 @@
 import { T, useLocale } from "../../bridge/i18n";
+import { trapTab } from "./a11y";
 import { resolveConfirm, store } from "./store";
 import css from "./gallery.module.css";
 
@@ -12,7 +13,7 @@ export function ConfirmModal() {
    return (
       <div id="confirmModal" className={css.ov}>
          <div className={css.ovScrim} onClick={() => resolveConfirm(false)} />
-         <div className={css.dialog}>
+         <div className={css.dialog} role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage" onKeyDown={trapTab}>
             <div className={css.dialogBody}>
                <div className={css.dialogIco}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -21,11 +22,11 @@ export function ConfirmModal() {
                </div>
                <div className={css.dialogMain}>
                   <h3 id="confirmTitle" className={css.dialogTitle}>
-                     {confirm.kind === "clearAll" ? "Clear All Selections" : confirm.title}
+                     {confirm.kind === "clearAll" ? t("heroGallery.clearTitle", "Clear All Selections") : confirm.title}
                   </h3>
                   {confirm.kind === "clearAll" ? (
                      <div id="confirmMessage" className={css.dialogMsg}>
-                        This will reset all <strong>{confirm.count}</strong> hero selection(s) to default.
+                        {t("heroGallery.clearBody", `This resets ${confirm.count} hero selection(s) to default.`, { count: confirm.count })}
                      </div>
                   ) : (
                      <div id="confirmMessage" className={css.dialogMsg} dangerouslySetInnerHTML={{ __html: confirm.message }} />
@@ -53,11 +54,11 @@ export function ConfirmModal() {
                </div>
             </div>
             <div className={css.dialogActions}>
-               <button type="button" data-no-drag className={`${css.btn} ${css.ghost}`} onClick={() => resolveConfirm(false)}>
+               <button type="button" data-no-drag autoFocus className={`${css.btn} ${css.ghost}`} onClick={() => resolveConfirm(false)}>
                   {t("common.cancel", "Cancel")}
                </button>
                <button type="button" data-no-drag className={`${css.btn} ${css.primary}`} onClick={() => resolveConfirm(true)}>
-                  {confirm.kind === "clearAll" ? <T k="heroGallery.clearConfirm">Yes, Clear All</T> : "Continue"}
+                  {confirm.kind === "clearAll" ? <T k="heroGallery.clearConfirm">Yes, Clear All</T> : t("heroGallery.continue", "Continue")}
                </button>
             </div>
          </div>

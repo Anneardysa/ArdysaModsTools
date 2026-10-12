@@ -1,28 +1,22 @@
 # Pull requests on the public mirror.
 #
-# This repository is a one-way published mirror: every sync does a hard reset of main, so a PR
-# merged here would be erased by the next publish. We still want the diff — it just gets applied
-# upstream by hand rather than merged with the green button. The `policy` job explains that to
-# the author so nobody finds out after doing the work.
+# This repository is a one-way published mirror: every sync does a hard reset of main, and the
+# project does not accept code from outside it. The `policy` job tells the author so and closes
+# the PR. Bug reports and requests go through issues instead (see .github/CONTRIBUTING.md).
 #
-# Two triggers on purpose:
-#   pull_request_target - the policy job needs write access to comment, and fork PRs get a
-#                         read-only token on `pull_request`. It only ever posts a comment and
-#                         never checks out PR code, so running it from the base branch is safe.
-#   pull_request        - the build job DOES check out PR code, so it must run with the
-#                         read-only token and no access to secrets.
+# pull_request_target because closing and commenting need write access, and fork PRs get a
+# read-only token on `pull_request`. The job never checks out PR code, so running it from the
+# base branch is safe.
 
 name: Pull request
 
 on:
    pull_request_target:
-      types: [opened]
-   pull_request:
-      branches: [main]
+      types: [opened, reopened]
 
 jobs:
    policy:
-      if: github.event_name == 'pull_request_target'
+      if: ${{ !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) }}
       runs-on: ubuntu-latest
       permissions:
          pull-requests: write
@@ -38,26 +32,14 @@ jobs:
                  await github.rest.issues.createComment({
                     ...context.repo, issue_number: context.issue.number,
                     body: [
-                       "Thanks for this — before you read anything into what happens next, here's how",
-                       "pull requests work on this repository.",
+                       "Thanks for taking the time. This project does not accept code from outside the",
+                       "project, so this pull request is closed without being merged or applied.",
                        "",
-                       "**This repo is a one-way published mirror of a private upstream.** Every publish",
-                       "resets `main`, so anything merged here is erased by the next sync. That's a",
-                       "property of the publishing mechanism, not a judgement on your change.",
+                       "This repository is a one-way published mirror of a private upstream, and outside",
+                       "patches and collaborators are not taken.",
                        "",
-                       "**So your patch still lands — it just takes a different route.** A maintainer",
-                       "applies your diff upstream, credits you in the commit, and closes this PR with a",
-                       "link to the resulting public commit. If there's a linked issue, it closes when the",
-                       "fix ships in a release.",
-                       "",
-                       "What helps most:",
-                       "- Link the issue this fixes (open one if it doesn't exist — every change starts there)",
-                       "- Keep the diff focused; a small patch is applied in minutes",
-                       "- Say what you tested. The VPK binaries aren't published to this mirror, so a",
-                       "  mirror-only clone compiles and passes tests but can't run AMT end-to-end —",
-                       "  tell us what you could and couldn't verify",
-                       "",
-                       "The build check on this PR is real and worth watching.",
+                       "If you found a bug or want something changed, please open an issue and describe it:",
+                       "https://github.com/" + context.repo.owner + "/" + context.repo.repo + "/issues/new/choose",
                        "",
                        "Full details: [CONTRIBUTING.md](https://github.com/" +
                           context.repo.owner + "/" + context.repo.repo +
@@ -65,24 +47,6 @@ jobs:
                     ].join('\n'),
                  });
 
-   build:
-      if: github.event_name == 'pull_request'
-      runs-on: windows-latest
-      permissions:
-         contents: read
-      steps:
-         - uses: actions/checkout@v4
-
-         - uses: actions/setup-dotnet@v4
-           with:
-              dotnet-version: "8.0.x"
-
-         - name: Build
-           run: |
-              dotnet restore ArdysaModsTools.csproj
-              dotnet build ArdysaModsTools.csproj -c Release --no-restore
-
-         - name: Test
-           run: |
-              dotnet restore Tests/ArdysaModsTools.Tests.csproj
-              dotnet test Tests/ArdysaModsTools.Tests.csproj -c Release --no-restore
+                 await github.rest.pulls.update({
+                    ...context.repo, pull_number: context.issue.number, state: 'closed',
+                 });

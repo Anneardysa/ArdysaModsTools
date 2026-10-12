@@ -97,5 +97,32 @@ namespace ArdysaModsTools.Tests.Helpers
             Assert.That(safe, Is.False, $"Traversal path '{traversalPath}' must be blocked.");
             Assert.That(safePath, Is.Empty);
         }
+
+        #region TryDeleteWorkDir
+
+        [Test]
+        public void TryDeleteWorkDir_ReadOnlyFilesAndSubdirs_DeletesSuccessfully()
+        {
+            string subDir = Path.Combine(_dir, "sub");
+            Directory.CreateDirectory(subDir);
+            string readOnlyFile = Path.Combine(subDir, "locked.txt");
+            File.WriteAllText(readOnlyFile, "read-only test");
+            File.SetAttributes(readOnlyFile, FileAttributes.ReadOnly);
+            File.SetAttributes(subDir, FileAttributes.ReadOnly);
+
+            bool ok = SafeTempPathHelper.TryDeleteWorkDir(_dir);
+
+            Assert.That(ok, Is.True);
+            Assert.That(Directory.Exists(_dir), Is.False);
+        }
+
+        [Test]
+        public void TryDeleteWorkDir_NonExistentPath_ReturnsTrueWithoutThrowing()
+        {
+            string missing = Path.Combine(_dir, "does-not-exist");
+            Assert.That(SafeTempPathHelper.TryDeleteWorkDir(missing), Is.True);
+        }
+
+        #endregion
     }
 }

@@ -29,6 +29,12 @@ export const SETTINGS: Record<string, Category> = {
             default: "1.0",
             tip: "Lower = more FPS but softer image. Use with FSR.",
          },
+         r_dota_fsr_upsample: {
+            label: "FSR Upscaling",
+            type: "toggle",
+            default: "0",
+            tip: "Sharpens the image when Render Quality is below 100%.",
+         },
          r_fullscreen_gamma: {
             label: "Gamma",
             type: "input",
@@ -416,11 +422,19 @@ export const LAUNCH_OPTIONS: LaunchOption[] = [
    },
 ];
 
+export const MAP_CLEANUP_DEFAULTS: CvarValues = {
+   amt_remove_foliage: "0",
+   amt_remove_props: "0",
+};
+
 export const PRESETS: Record<PresetName, CvarValues> = {
    potato: {
-      fps_max: "57",
-      fps_max_ui: "20",
+      amt_remove_foliage: "1",
+      amt_remove_props: "1",
+      fps_max: "60",
+      fps_max_ui: "60",
       mat_viewportscale: "0.71",
+      r_dota_fsr_upsample: "1",
       r_fullscreen_gamma: "2.2",
       dota_portrait_animate: "0",
       r_deferred_additive_pass: "0",
@@ -463,9 +477,12 @@ export const PRESETS: Record<PresetName, CvarValues> = {
       cl_smooth: "1",
    },
    low: {
+      amt_remove_foliage: "1",
+      amt_remove_props: "1",
       fps_max: "90",
-      fps_max_ui: "30",
+      fps_max_ui: "60",
       mat_viewportscale: "0.81",
+      r_dota_fsr_upsample: "1",
       r_fullscreen_gamma: "2.2",
       dota_portrait_animate: "0",
       r_deferred_additive_pass: "0",
@@ -474,7 +491,7 @@ export const PRESETS: Record<PresetName, CvarValues> = {
       r_dota_normal_maps: "0",
       r_dota_allow_parallax_mapping: "0",
       dota_ambient_creatures: "0",
-      dota_ambient_cloth: "1",
+      dota_ambient_cloth: "0",
       r_grass_quality: "0",
       r_dota_fxaa: "0",
       r_deferred_specular: "0",
@@ -508,9 +525,12 @@ export const PRESETS: Record<PresetName, CvarValues> = {
       cl_smooth: "1",
    },
    medium: {
+      amt_remove_foliage: "0",
+      amt_remove_props: "0",
       fps_max: "120",
       fps_max_ui: "60",
       mat_viewportscale: "0.91",
+      r_dota_fsr_upsample: "1",
       r_fullscreen_gamma: "2.2",
       dota_portrait_animate: "1",
       r_deferred_additive_pass: "1",
@@ -553,9 +573,12 @@ export const PRESETS: Record<PresetName, CvarValues> = {
       cl_smooth: "1",
    },
    high: {
+      amt_remove_foliage: "0",
+      amt_remove_props: "0",
       fps_max: "240",
       fps_max_ui: "120",
       mat_viewportscale: "1.0",
+      r_dota_fsr_upsample: "0",
       r_fullscreen_gamma: "2.2",
       dota_portrait_animate: "1",
       r_deferred_additive_pass: "1",
@@ -598,9 +621,12 @@ export const PRESETS: Record<PresetName, CvarValues> = {
       cl_smooth: "1",
    },
    ultra: {
+      amt_remove_foliage: "0",
+      amt_remove_props: "0",
       fps_max: "0",
       fps_max_ui: "120",
       mat_viewportscale: "1.0",
+      r_dota_fsr_upsample: "0",
       r_fullscreen_gamma: "2.2",
       dota_portrait_animate: "1",
       r_deferred_additive_pass: "1",
@@ -643,9 +669,12 @@ export const PRESETS: Record<PresetName, CvarValues> = {
       cl_smooth: "1",
    },
    competitive: {
+      amt_remove_foliage: "1",
+      amt_remove_props: "0",
       fps_max: "0",
       fps_max_ui: "60",
       mat_viewportscale: "0.81",
+      r_dota_fsr_upsample: "1",
       r_fullscreen_gamma: "2.2",
       dota_portrait_animate: "0",
       r_deferred_additive_pass: "0",

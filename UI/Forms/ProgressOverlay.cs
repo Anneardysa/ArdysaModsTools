@@ -225,6 +225,7 @@ namespace ArdysaModsTools.UI.Forms
         public async Task UpdateSubstatusAsync(string substatus)
         {
             if (!_initialized || _webView?.CoreWebView2 == null) return;
+            substatus = Core.Services.LogRedaction.Apply(substatus);
             if (substatus == _lastSubstatus) return;
 
             _lastSubstatus = substatus;

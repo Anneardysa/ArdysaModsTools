@@ -1,12 +1,12 @@
 import { createStore } from "../../bridge/store";
-import { PRESETS, SETTINGS } from "./data";
+import { MAP_CLEANUP_DEFAULTS, PRESETS, SETTINGS } from "./data";
 import type { CfgBannerState, CvarValues, PresetName, Tab, ToastType } from "./types";
 
 const LS_LAUNCH_ENABLED = "amt_launch_enabled";
 const LS_LAUNCH_CUSTOM = "amt_launch_custom";
 
 function defaultValues(): CvarValues {
-   const values: CvarValues = {};
+   const values: CvarValues = { ...MAP_CLEANUP_DEFAULTS };
    for (const cat of Object.values(SETTINGS)) {
       for (const [cvar, cfg] of Object.entries(cat.cvars)) values[cvar] = cfg.default;
    }
@@ -45,8 +45,13 @@ export const store = createStore<{
 
    deleteArmed: boolean;
 
+   search: string;
+
    toast: { visible: boolean; message: string; type: ToastType };
    cfgBanner: { state: CfgBannerState; message: string };
+
+   mapCleanup: { mounted: boolean };
+   busy: boolean;
 }>({
    currentValues: defaultValues(),
    originalValues: {},
@@ -60,8 +65,13 @@ export const store = createStore<{
 
    deleteArmed: false,
 
+   search: "",
+
    toast: { visible: false, message: "", type: "info" },
    cfgBanner: { state: "hidden", message: "" },
+
+   mapCleanup: { mounted: true },
+   busy: false,
 });
 
 function saveLaunchOptions() {
@@ -109,6 +119,18 @@ export function resetAll() {
 
 export function toggleCategory(name: string) {
    store.set((s) => ({ collapsedCategories: { ...s.collapsedCategories, [name]: !s.collapsedCategories[name] } }));
+}
+
+export function setSearch(search: string) {
+   store.set({ search });
+}
+
+export function changedKeys(current: CvarValues, original: CvarValues): string[] {
+   return Object.keys(current).filter((k) => original[k] !== undefined && original[k] !== current[k]);
+}
+
+export function hasWrittenCfg(original: CvarValues): boolean {
+   return Object.keys(original).some((k) => !k.startsWith("amt_"));
 }
 
 export function switchTab(tab: Tab) {
@@ -172,6 +194,33 @@ export function loadSettings(json: string) {
    } catch (e) {
       console.error("loadSettings error:", e);
    }
+}
+
+export function setMapCleanupStatus(json: string) {
+   try {
+      const data = JSON.parse(json) as { foliage?: boolean; props?: boolean; mounted: boolean; sync?: boolean };
+      if (data.foliage === undefined || data.props === undefined) {
+         store.set({ mapCleanup: { mounted: data.mounted }, busy: false });
+         return;
+      }
+      const installed: CvarValues = { amt_remove_foliage: data.foliage ? "1" : "0", amt_remove_props: data.props ? "1" : "0" };
+      const s = store.get();
+      const currentValues = data.sync ? { ...s.currentValues, ...installed } : s.currentValues;
+      store.set({
+         mapCleanup: { mounted: data.mounted },
+         busy: false,
+         originalValues: { ...s.originalValues, ...installed },
+         currentValues,
+         activePreset: matchPreset(currentValues),
+      });
+   } catch (e) {
+      console.error("setMapCleanupStatus error:", e);
+      store.set({ busy: false });
+   }
+}
+
+export function setBusy() {
+   store.set({ busy: true });
 }
 
 export function getAllSettings(): string {

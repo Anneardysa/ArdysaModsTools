@@ -30,6 +30,94 @@ namespace ArdysaModsTools.Tests.Services
         #region MapFromSummaries Tests
 
         [Test]
+        public void MapFromSummaries_CarriesSetNamesAndIncompatibleThrough()
+        {
+            var summary = new HeroSummary
+            {
+                Name = "Abaddon",
+                UsedByHeroes = "npc_dota_hero_abaddon",
+                Sets = new Dictionary<string, string[]>
+                {
+                    ["Set 1"] = new[] { "https://cdn/blightfall.zip" },
+                    ["Set 2"] = new[] { "https://cdn/item_weapon_mace.zip" }
+                },
+                SetNames = new Dictionary<string, string> { ["item_weapon_mace"] = "Mace of the Chosen" },
+                Incompatible = new List<SetIncompatibilityRule>
+                {
+                    new() { Sets = new[] { "blightfall" }, With = new[] { "item_weapon_mace" } }
+                }
+            };
+
+            var hero = HeroModelMapper.MapFromSummaries(new List<HeroSummary> { summary })[0];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.SetNames["item_weapon_mace"], Is.EqualTo("Mace of the Chosen"));
+                Assert.That(hero.Incompatible, Has.Count.EqualTo(1));
+            });
+
+            var map = SetCompatibilityResolver.BuildConflictMap(hero.Sets.ToList(), hero.Incompatible);
+            Assert.Multiple(() =>
+            {
+                Assert.That(map[0], Is.EqualTo(new[] { 1 }));
+                Assert.That(map[1], Is.EqualTo(new[] { 0 }));
+            });
+        }
+
+        [Test]
+        public void MapFromSummaries_CarriesNoticesThroughCaseInsensitively()
+        {
+            var summary = new HeroSummary
+            {
+                Name = "Abaddon",
+                UsedByHeroes = "npc_dota_hero_abaddon",
+                Sets = new Dictionary<string, string[]> { ["Set 1"] = new[] { "https://cdn/blightfall.zip" } },
+                Notices = new Dictionary<string, List<SetNotice>>
+                {
+                    ["blightfall"] = new() { new SetNotice(SetNotice.AnimDemoOnly) }
+                }
+            };
+
+            var hero = HeroModelMapper.MapFromSummaries(new List<HeroSummary> { summary })[0];
+
+            Assert.That(hero.Notices["BLIGHTFALL"], Is.EqualTo(new[] { new SetNotice(SetNotice.AnimDemoOnly) }));
+        }
+
+        [Test]
+        public void MapFromSummaries_CarriesBaseLocksThroughAsACopy()
+        {
+            var locks = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase) { ["base_arcana"] = new() { "head" } };
+            var summary = new HeroSummary
+            {
+                Name = "Zeus",
+                UsedByHeroes = "npc_dota_hero_zuus",
+                Sets = new Dictionary<string, string[]> { ["Set 1"] = new[] { "https://cdn/base_arcana.zip" } },
+                BaseLocks = locks
+            };
+
+            var hero = HeroModelMapper.MapFromSummaries(new List<HeroSummary> { summary })[0];
+            hero.BaseLocks["BASE_ARCANA"].Add("arms");
+
+            Assert.That(locks["base_arcana"], Is.EqualTo(new[] { "head" }), "the model must not alias the summary");
+        }
+
+        [Test]
+        public void ExtractArchiveStem_HandlesPlainSplitAndArchivelessSets()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(HeroModelMapper.ExtractArchiveStem(
+                    new List<string> { "https://cdn/Assets/models/Abaddon/item_weapon_mace.zip", "https://cdn/x.png" }),
+                    Is.EqualTo("item_weapon_mace"));
+                Assert.That(HeroModelMapper.ExtractArchiveStem(
+                    new List<string> { "https://cdn/Assets/models/Pudge/huge_set.zip.001" }),
+                    Is.EqualTo("huge_set"), "a split archive must not resolve to '<stem>.zip'");
+                Assert.That(HeroModelMapper.ExtractArchiveStem(new List<string> { "default_skin.vpk" }), Is.Null);
+                Assert.That(HeroModelMapper.ExtractArchiveStem(null), Is.Null);
+            });
+        }
+
+        [Test]
         public void MapFromSummaries_NullList_ReturnsEmpty()
         {
             var result = HeroModelMapper.MapFromSummaries(null!);
@@ -311,6 +399,43 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(Classify("base_antimage.zip"), Is.EqualTo(HeroModelMapper.SkinCategory.BaseHero));
             Assert.That(Classify("mix_arcana.zip"), Is.EqualTo(HeroModelMapper.SkinCategory.CustomSet));
             Assert.That(Classify("arcana_antimage.zip"), Is.EqualTo(HeroModelMapper.SkinCategory.LegacySet));
+            Assert.That(Classify("effect_ability2_vigil.zip"), Is.EqualTo(HeroModelMapper.SkinCategory.AbilityEffect));
+        }
+
+        [Test]
+        public void SetDisplayName_UsesSetNamesLabel_ElseTheKey()
+        {
+            var hero = new HeroModel
+            {
+                Sets = new Dictionary<string, List<string>>
+                {
+                    ["Set 11"] = new() { "https://cdn/Assets/models/Sven/item_weapon_shattered.zip" },
+                    ["Set 4"] = new() { "https://cdn/Assets/models/Sven/legacy.zip" },
+                },
+                SetNames = new Dictionary<string, string> { ["item_weapon_shattered"] = "Shattered Greatsword" },
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(HeroModelMapper.SetDisplayName(hero, "Set 11"), Is.EqualTo("Shattered Greatsword"));
+                Assert.That(HeroModelMapper.SetDisplayName(hero, "Set 4"), Is.EqualTo("Set 4"), "no label authored");
+                Assert.That(HeroModelMapper.SetDisplayName(hero, "Set 99"), Is.EqualTo("Set 99"), "unknown key");
+                Assert.That(HeroModelMapper.SetDisplayName(null, "Set 1"), Is.EqualTo("Set 1"));
+            });
+        }
+
+        [TestCase("effect_ability2_vigil.zip", "ability2")]
+        [TestCase("EFFECT_Ability4_vigil_odyssey.zip", "ability4")]
+        [TestCase("effect_weapon_vigil.zip", null)]
+        [TestCase("effect_ability10_vigil.zip", null)]
+        [TestCase("effect_.zip", null)]
+        [TestCase("item_weapon_vigil.zip", "weapon")]
+        [TestCase("base_sven.zip", null)]
+        public void ExtractItemTag_EffectArchive_OnlyYieldsAbilityTags(string archive, string? expected)
+        {
+            var urls = new List<string> { $"https://cdn.example.com/{archive}" };
+
+            Assert.That(HeroModelMapper.ExtractItemTag(urls), Is.EqualTo(expected));
         }
 
         #endregion

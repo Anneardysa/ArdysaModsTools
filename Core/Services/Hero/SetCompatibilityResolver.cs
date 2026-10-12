@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Models;
 
 namespace ArdysaModsTools.Core.Services;
@@ -78,6 +79,9 @@ public static class SetCompatibilityResolver
             var left = Resolve(rule.Sets);
             var right = Resolve(rule.With);
 
+            if (right.Count == 0 && rule.With != null && rule.With.Any(s => !string.IsNullOrWhiteSpace(s)))
+                continue;
+
             if (right.Count == 0)
             {
                 for (var i = 0; i < left.Count; i++)
@@ -104,5 +108,53 @@ public static class SetCompatibilityResolver
         }
 
         return result;
+    }
+
+    public static IReadOnlyList<int>[] BuildEffectCarriers(
+        IReadOnlyList<KeyValuePair<string, List<string>>>? orderedSets,
+        IReadOnlyDictionary<string, string>? setNames = null)
+    {
+        var count = orderedSets?.Count ?? 0;
+        var result = new IReadOnlyList<int>[count];
+        for (var i = 0; i < count; i++) result[i] = None;
+        if (count == 0) return result;
+
+        string? LabelOf(string? stem) =>
+            stem != null && setNames != null && setNames.TryGetValue(stem, out var l) && !string.IsNullOrWhiteSpace(l)
+                ? l.Trim() : null;
+
+        var byStem = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+        var byLabel = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < count; i++)
+        {
+            var urls = orderedSets![i].Value;
+            var category = HeroModelMapper.ClassifySet(urls);
+            if (category != HeroModelMapper.SkinCategory.Item
+                || HeroModelMapper.ExtractArchiveStem(urls) is not string stem)
+                continue;
+            Add(byStem, stem, i);
+            if (LabelOf(stem) is string label)
+                Add(byLabel, label, i);
+        }
+
+        for (var i = 0; i < count; i++)
+        {
+            var urls = orderedSets![i].Value;
+            if (HeroModelMapper.ClassifySet(urls) != HeroModelMapper.SkinCategory.AbilityEffect) continue;
+            var stem = HeroModelMapper.ExtractArchiveStem(urls);
+            var hits = new SortedSet<int>();
+            if (AbilityEffectGuard.CarrierStem(stem) is string carrier && byStem.TryGetValue(carrier, out var s))
+                hits.UnionWith(s);
+            if (LabelOf(stem) is string label && byLabel.TryGetValue(label, out var l))
+                hits.UnionWith(l);
+            if (hits.Count > 0) result[i] = hits.ToList();
+        }
+        return result;
+
+        static void Add(Dictionary<string, List<int>> map, string key, int index)
+        {
+            if (!map.TryGetValue(key, out var list)) map[key] = list = new List<int>();
+            list.Add(index);
+        }
     }
 }

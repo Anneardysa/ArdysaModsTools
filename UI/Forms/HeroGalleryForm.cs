@@ -23,6 +23,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using ArdysaModsTools.Helpers;
@@ -82,6 +83,13 @@ namespace ArdysaModsTools.UI.Forms
             WriteIndented = false
         };
 
+        private static readonly JsonSerializerOptions _heroPayloadJsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            WriteIndented = false,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
         public HeroGalleryForm(IConfigService configService)
         {
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -108,7 +116,7 @@ namespace ArdysaModsTools.UI.Forms
             this.SuspendLayout();
             this.AutoScaleDimensions = new SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.None;
-            this.ClientSize = new Size(1440, 900);
+            this.ClientSize = new Size(1732, 1032);
             this.Name = "HeroGalleryForm";
             this.Text = "Select Hero Sets - AMT 2.0";
             this.ResumeLayout(false);
@@ -179,7 +187,6 @@ namespace ArdysaModsTools.UI.Forms
                 await WebViewNavigation.NavigateAndWaitReadyAsync(
                     _webView.CoreWebView2, Helpers.WebViewTheming.Apply(html), GalleryLoadTimeout);
 
-                await Task.Delay(200);
                 _initialized = true;
 
                 if (Loc.Service != null)
@@ -191,6 +198,9 @@ namespace ArdysaModsTools.UI.Forms
                 await _webView.CoreWebView2.ExecuteScriptAsync($"setVersion('{version}')");
 
                 OnExtensionsReady();
+#if DEBUG
+                await EnableDebugCardAsync();
+#endif
 
                 await LoadHeroDataAsync();
                 await _presenter.SyncCooldownStatusAsync();
@@ -223,46 +233,34 @@ namespace ArdysaModsTools.UI.Forms
             {
                 await UpdateStatusAsync("Loading heroes...");
 
+                var setUpdatesTask = _heroService.LoadSetUpdatesAsync();
+
                 var heroSummaries = await _heroService.LoadHeroesAsync();
                 if (heroSummaries == null || heroSummaries.Count == 0)
                 {
                     await UpdateStatusAsync("No heroes found");
+                    await ExecuteScriptAsync("heroesFailed()");
                     return;
                 }
 
-                _heroes = HeroModelMapper.MapFromSummaries(heroSummaries);
-
-                var jsHeroes = _heroes.Select(h => new
-                {
-                    id = h.Id,
-                    name = h.Name,
-                    displayName = h.DisplayName,
-                    attribute = h.PrimaryAttribute ?? "universal",
-                    thumbnail = GetHeroThumbnail(h),
-                    sets = h.Sets?.Select((kvp, idx) => new
+                var heroes = HeroModelMapper.MapFromSummaries(heroSummaries);
+                var json = await Task.Run(() => BuildHeroPayloadJson(heroes));
+                _heroes = heroes;
+                var particlesJson = JsonSerializer.Serialize(
+                    Core.Data.HeroParticleCatalog.All.Select(p => new
                     {
-                        name = kvp.Key,
-                        index = idx,
-                        isCustom = HeroModelMapper.IsCustomSet(kvp.Value),
-                        category = HeroModelMapper.ClassifySet(kvp.Value).ToString().ToLowerInvariant(),
-                        tag = HeroModelMapper.ExtractItemTag(kvp.Value),
-                        styleGroup = h.SetStyles != null && h.SetStyles.TryGetValue(kvp.Key, out var si) ? si.Group : null,
-                        styleLabel = h.SetStyles != null && h.SetStyles.TryGetValue(kvp.Key, out var sl) ? sl.Label : null,
-                        styleGroupThumbnail = h.SetStyles != null && h.SetStyles.TryGetValue(kvp.Key, out var sg) ? sg.GroupThumbnail : null,
-                        thumbnailUrl = kvp.Value?.FirstOrDefault(u =>
-                            u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
-                            u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
-                            u.EndsWith(".webp", StringComparison.OrdinalIgnoreCase))
-                    }).ToList()
-                }).ToList();
-
-                var json = JsonSerializer.Serialize(jsHeroes, _jsonOptions);
+                        id = p.Id, name = p.Name, source = p.Source, fit = p.Fit, courier = p.Courier, pools = p.Pools,
+                        thumbnail = Core.Data.HeroParticleCatalog.WithPreview.Contains(p.Id)
+                            ? EnvironmentConfig.BuildRawUrl($"{Core.Constants.CdnConfig.ParticleThumbsPath}/{p.Id}.gif")
+                            : null,
+                    }), _jsonOptions);
+                await ExecuteScriptAsync($"loadParticles({particlesJson})");
                 await ExecuteScriptAsync($"loadHeroes({json})");
-                
+
                 var favoritesJson = JsonSerializer.Serialize(_favorites.ToList(), _jsonOptions);
                 await ExecuteScriptAsync($"loadFavorites({favoritesJson})");
 
-                await LoadSetUpdatesAsync();
+                await LoadSetUpdatesAsync(await setUpdatesTask);
 
                 await UpdateStatusAsync($"Loaded {_heroes.Count} heroes");
 
@@ -272,14 +270,68 @@ namespace ArdysaModsTools.UI.Forms
             {
                 System.Diagnostics.Debug.WriteLine($"LoadHeroDataAsync error: {ex}");
                 await UpdateStatusAsync($"Error loading heroes: {ex.Message}");
+                if (_heroes.Count == 0) await ExecuteScriptAsync("heroesFailed()");
             }
         }
 
-        private async Task LoadSetUpdatesAsync()
+        private static string BuildHeroPayloadJson(List<HeroModel> heroes)
+        {
+                var jsHeroes = heroes.Select(h =>
+                {
+                    var orderedSets = h.Sets?.ToList() ?? new List<KeyValuePair<string, List<string>>>();
+                    var conflicts = SetCompatibilityResolver.BuildConflictMap(
+                        orderedSets,
+                        h.Incompatible,
+                        msg => Core.Services.FallbackLogger.LogFileOnly($"[skinselector] {h.DisplayName}: {msg}"));
+                    var carriers = SetCompatibilityResolver.BuildEffectCarriers(orderedSets, h.SetNames);
+                    var notices = SetNoticeResolver.Resolve(
+                        orderedSets,
+                        h.Notices,
+                        msg => Core.Services.FallbackLogger.LogFileOnly($"[skinselector] {h.DisplayName}: {msg}"));
+
+                    return new
+                    {
+                        id = h.Id,
+                        name = h.Name,
+                        displayName = h.DisplayName,
+                        attribute = h.PrimaryAttribute ?? "universal",
+                        thumbnail = GetHeroThumbnail(h),
+                        abilityNames = h.AbilityNames is { Count: > 0 } names ? names : null,
+                        abilityIcons = h.AbilityIcons is { Count: > 0 } icons ? icons : null,
+                        particleHosts = Core.Data.HeroParticleCatalog.HostsFor(h) is { Count: > 0 } hosts
+                            ? hosts.Select(x => new { id = x.Id, label = x.Label }).ToList()
+                            : null,
+                        sets = orderedSets.Select((kvp, idx) => new
+                        {
+                            name = kvp.Key,
+                            index = idx,
+                            isCustom = HeroModelMapper.IsCustomSet(kvp.Value),
+                            category = HeroModelMapper.ClassifySet(kvp.Value).ToString().ToLowerInvariant(),
+                            tag = HeroModelMapper.ExtractItemTag(kvp.Value),
+                            styleGroup = h.SetStyles != null && h.SetStyles.TryGetValue(kvp.Key, out var si) ? si.Group : null,
+                            styleLabel = h.SetStyles != null && h.SetStyles.TryGetValue(kvp.Key, out var sl) ? sl.Label : null,
+                            styleGroupThumbnail = h.SetStyles != null && h.SetStyles.TryGetValue(kvp.Key, out var sg) ? sg.GroupThumbnail : null,
+                            thumbnailUrl = kvp.Value?.FirstOrDefault(u =>
+                                u.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                                u.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                                u.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)),
+                            displayName = ResolveSetDisplayName(h, kvp.Value),
+                            abilityIconUrl = ResolveEffectIconUrl(h, kvp.Value),
+                            conflicts = conflicts[idx].Count > 0 ? conflicts[idx] : null,
+                            carriedBy = carriers[idx].Count > 0 ? carriers[idx] : null,
+                            notices = notices[idx],
+                            locks = BaseSlotLock.SlotsFor(h, kvp.Key) is { Count: > 0 } locked ? locked : null
+                        }).ToList()
+                    };
+                }).ToList();
+
+                return JsonSerializer.Serialize(jsHeroes, _heroPayloadJsonOptions);
+        }
+
+        private async Task LoadSetUpdatesAsync(SetUpdatesData updatesData)
         {
             try
             {
-                var updatesData = await _heroService.LoadSetUpdatesAsync();
                 _lastSetUpdatesData = updatesData;
                 
                 if (updatesData.Updates.Count == 0)
@@ -314,6 +366,24 @@ namespace ArdysaModsTools.UI.Forms
 
         private static string GetHeroThumbnail(HeroModel hero) => SetUpdateResolver.HeroPortraitUrl(hero);
 
+        private static string? ResolveEffectIconUrl(HeroModel hero, List<string>? assetUrls)
+        {
+            if (hero.EffectIcons is not { Count: > 0 }) return null;
+            var stem = HeroModelMapper.ExtractArchiveStem(assetUrls);
+            return stem != null && hero.EffectIcons.TryGetValue(stem, out var url) ? url : null;
+        }
+
+        private static string? ResolveSetDisplayName(HeroModel hero, List<string>? assetUrls)
+        {
+            if (hero.SetNames == null || hero.SetNames.Count == 0)
+                return null;
+
+            var stem = HeroModelMapper.ExtractArchiveStem(assetUrls);
+            return !string.IsNullOrEmpty(stem) && hero.SetNames.TryGetValue(stem!, out var display)
+                ? display
+                : null;
+        }
+
         private async Task PreloadThumbnailsAsync(List<HeroModel> heroes)
         {
             var cacheService = AssetCacheService.Instance;
@@ -325,18 +395,20 @@ namespace ArdysaModsTools.UI.Forms
                 return;
             }
 
-            InvalidateChangedSetThumbnails(cacheService, heroes);
+            var notCached = await Task.Run(() =>
+            {
+                InvalidateChangedSetThumbnails(cacheService, heroes);
 
-            var notCached = allUrls
-                .Where(u => !cacheService.IsCached(u) && !cacheService.IsKnownMissing(u, MissingThumbnailTtl))
-                .ToList();
+                return allUrls
+                    .Where(u => !cacheService.IsCached(u) && !cacheService.IsKnownMissing(u, MissingThumbnailTtl))
+                    .ToList();
+            });
 
-            System.Diagnostics.Debug.WriteLine(
+            Core.Services.FallbackLogger.LogFileOnly(
                 $"[HeroGallery] Thumbnails: {allUrls.Count - notCached.Count} cached, {notCached.Count} missing");
 
             if (notCached.Count == 0)
             {
-                System.Diagnostics.Debug.WriteLine("[HeroGallery] All thumbnails cached — skipping overlay");
                 await ExecuteScriptAsync("hideCachingOverlay()");
                 return;
             }
@@ -350,16 +422,15 @@ namespace ArdysaModsTools.UI.Forms
             if (updatesData == null || string.IsNullOrEmpty(updatesData.Version))
                 return;
 
-            var urls = SetUpdateResolver.Resolve(heroes, updatesData.GetAllUpdates())
-                .Select(c => c.SetThumbnail)
-                .Where(u => !string.IsNullOrEmpty(u));
-
-            cacheService.InvalidateOnEpochChange("hero-set-update", updatesData.Version, urls);
+            cacheService.InvalidateOnEpochChange("hero-set-update", updatesData.ThumbnailEpoch,
+                lastSeen => SetUpdateResolver.Resolve(heroes, updatesData.GetUpdatesSinceEpoch(lastSeen))
+                    .Select(c => c.SetThumbnail)
+                    .Where(u => !string.IsNullOrEmpty(u)));
         }
 
         private static readonly TimeSpan MissingThumbnailTtl = TimeSpan.FromDays(7);
 
-        private static List<string> CollectThumbnailUrls(List<HeroModel> heroes)
+        internal static List<string> CollectThumbnailUrls(List<HeroModel> heroes)
         {
             var urls = new List<string>();
 
@@ -389,6 +460,11 @@ namespace ArdysaModsTools.UI.Forms
                 }
             }
 
+            foreach (var hero in heroes)
+                foreach (var icon in hero.AbilityIcons.Values.Concat(hero.EffectIcons.Values))
+                    if (covers.Add(icon))
+                        urls.Add(icon);
+
             return urls;
         }
 
@@ -408,7 +484,7 @@ namespace ArdysaModsTools.UI.Forms
                 var work = DownloadThumbnailsCoreAsync(cacheService, notCached);
                 if (await Task.WhenAny(work, Task.Delay(ThumbnailOverlayCap)) != work)
                 {
-                    System.Diagnostics.Debug.WriteLine(
+                    Core.Services.FallbackLogger.LogFileOnly(
                         "[HeroGallery] Thumbnail preload exceeded overlay cap — releasing UI, downloads continue in background");
                 }
             }
@@ -423,26 +499,31 @@ namespace ArdysaModsTools.UI.Forms
         {
             try
             {
+                var status = JsonSerializer.Serialize(Loc.T("common.updatingAssets"));
                 await ExecuteScriptAsync(
-                    "document.getElementById('cachingStatus').textContent = 'Downloading thumbnails...'");
+                    $"(function(){{var e=document.getElementById('cachingStatus');if(e)e.textContent={status};}})()");
                 await ExecuteScriptAsync($"updateCachingProgress(0, {notCached.Count})");
 
+                int lastPct = -1;
                 var downloadProgress = new Progress<(int current, int total, string url)>(async p =>
                 {
+                    var pct = p.current * 100 / Math.Max(1, p.total);
+                    if (pct == lastPct && p.current != p.total) return;
+                    lastPct = pct;
                     try { await ExecuteScriptAsync($"updateCachingProgress({p.current}, {p.total})"); }
                     catch { }
                 });
 
                 var downloadResult = await cacheService.PreloadAssetsWithProgressAsync(notCached, downloadProgress);
 
-                System.Diagnostics.Debug.WriteLine(
-                    $"[HeroGallery] Download complete: " +
+                Core.Services.FallbackLogger.LogFileOnly(
+                    $"[HeroGallery] Thumbnail download complete: " +
                     $"{downloadResult.downloaded} downloaded, " +
                     $"{downloadResult.skipped} skipped, {downloadResult.failed} failed");
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[HeroGallery] Thumbnail preload error: {ex.Message}");
+                Core.Services.FallbackLogger.LogFileOnly($"[HeroGallery] Thumbnail preload error: {ex.Message}");
             }
         }
 
@@ -538,6 +619,12 @@ namespace ArdysaModsTools.UI.Forms
                         }
                         break;
 
+                    case "particleSlots":
+                        if (message.TryGetProperty("heroId", out var psHero) && psHero.ValueKind == JsonValueKind.String
+                            && message.TryGetProperty("setIndex", out var psIdx) && psIdx.ValueKind == JsonValueKind.Number && psIdx.TryGetInt32(out var setIdx))
+                            await _presenter.LoadParticleSlotsAsync(_heroes, psHero.GetString()!, setIdx);
+                        break;
+
                     case "baseNoSetConfirmed":
                         if (message.TryGetProperty("confirmed", out var confirmedEl) && confirmedEl.ValueKind == JsonValueKind.True)
                         {
@@ -550,6 +637,10 @@ namespace ArdysaModsTools.UI.Forms
                         break;
 
                     default:
+#if DEBUG
+                        if (HandleDebugMessage(type, message))
+                            break;
+#endif
                         OnExtensionMessage(type, message);
                         break;
                 }
@@ -624,6 +715,7 @@ namespace ArdysaModsTools.UI.Forms
 
                 if (sfd.ShowDialog(this) == DialogResult.OK)
                 {
+                    HeroGalleryPresenter.AttachStems(_heroes, _selections);
                     var json = JsonSerializer.Serialize(_selections, new JsonSerializerOptions { WriteIndented = true });
                     await File.WriteAllTextAsync(sfd.FileName, json);
                     await UpdateStatusAsync($"Saved {_selections.Count} selection(s)");
@@ -654,10 +746,16 @@ namespace ArdysaModsTools.UI.Forms
 
                     if (loadedSelections != null && loadedSelections.Count > 0)
                     {
+                        var missing = HeroGalleryPresenter.ResolveStems(_heroes, loadedSelections);
+                        if (missing.Count > 0)
+                            Core.Services.FallbackLogger.LogFileOnly(
+                                $"[skinselector] preset picks no longer in heroes.json: {string.Join(", ", missing)}");
                         _selections = loadedSelections;
 
                         var selectionsJson = JsonSerializer.Serialize(_selections, _jsonOptions);
                         await ExecuteScriptAsync($"applyLoadedSelections({selectionsJson})");
+                        if (missing.Count > 0)
+                            await UpdateStatusAsync($"{missing.Count} preset pick(s) are no longer available, skipped");
                     }
                     else
                     {
@@ -684,6 +782,7 @@ namespace ArdysaModsTools.UI.Forms
             var completed = await Task.WhenAny(_confirmBaseNoSet.Task, Task.Delay(DialogCallbackTimeout));
             if (completed != _confirmBaseNoSet.Task)
             {
+                await ExecuteScriptAsync("hideConfirmBaseNoSet()");
                 return false;
             }
 
@@ -772,6 +871,11 @@ namespace ArdysaModsTools.UI.Forms
 
         public Task ShowDetectionAsync(bool found, int count) =>
             ExecuteScriptAsync($"showDetection({(found ? "true" : "false")}, {count})");
+
+        public Task ShowDetectionFailedAsync() => ExecuteScriptAsync("showDetectionFailed()");
+
+        public Task ShowParticleSlotsAsync(string heroId, int setIndex, Core.Data.ParticleSlots? slots) =>
+            ExecuteScriptAsync($"particleSlotsLoaded({JsonSerializer.Serialize(new { heroId, setIndex, slots }, _jsonOptions)})");
 
         public void StoreResult(ModGenerationResult result) => GenerationResult = result;
 

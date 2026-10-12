@@ -41,7 +41,6 @@ namespace ArdysaModsTools.UI.Forms
         public StyledMessageDialog(string title, string message, StyledMessageType type = StyledMessageType.Success)
         {
             InitializeComponent(title, message, type);
-            UI.FontHelper.ApplyToForm(this);
         }
 
         public static DialogResult ShowSuccess(IWin32Window? owner, string title, string message)
@@ -125,7 +124,7 @@ namespace ArdysaModsTools.UI.Forms
             var titleLabel = new Label
             {
                 Text = title,
-                Font = new Font("JetBrains Mono", 12f, FontStyle.Bold),
+                Font = FontHelper.Create(12f, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
                 Location = new Point(85, 35),
@@ -136,7 +135,7 @@ namespace ArdysaModsTools.UI.Forms
             var messageLabel = new Label
             {
                 Text = message,
-                Font = new Font("JetBrains Mono", 9f),
+                Font = FontHelper.Create(9f),
                 ForeColor = Color.FromArgb(180, 180, 180),
                 AutoSize = false,
                 Size = new Size(300, 40),
@@ -153,7 +152,7 @@ namespace ArdysaModsTools.UI.Forms
                 BackColor = Color.FromArgb(48, 48, 48),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("JetBrains Mono", 10F, FontStyle.Bold),
+                Font = FontHelper.Create(10F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 BorderRadius = 8,
                 BorderColor = BorderColor,

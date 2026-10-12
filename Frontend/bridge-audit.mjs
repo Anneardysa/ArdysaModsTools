@@ -23,6 +23,7 @@ const HOSTS = {
    misc_form: ["UI/Forms/MiscFormWebView.cs"],
    hero_gallery: ["UI/Forms/HeroGalleryForm.cs"],
    dota2_performance: ["UI/Forms/Dota2PerformanceForm.cs"],
+   utilities: ["UI/Forms/UtilitiesFormWebView.cs"],
    main_shell: ["UI/Forms/MainFormWebView.cs", "UI/Forms/MainFormWebView.View.cs"],
 };
 

@@ -52,51 +52,51 @@ namespace ArdysaModsTools.Core.Services
             string tempRoot, Action<string> log, CancellationToken ct = default,
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null)
         {
-            _logger?.Log("=== VPK RECOMPILATION DIAGNOSTICS ===");
-            _logger?.Log($"  vpkToolPath: {vpkToolPath}");
-            _logger?.Log($"  extractDir: {extractDir}");
-            _logger?.Log($"  buildDir: {buildDir}");
-            _logger?.Log($"  tempRoot: {tempRoot}");
+            _logger?.LogDebug("=== VPK RECOMPILATION DIAGNOSTICS ===");
+            _logger?.LogDebug($"  vpkToolPath: {vpkToolPath}");
+            _logger?.LogDebug($"  extractDir: {extractDir}");
+            _logger?.LogDebug($"  buildDir: {buildDir}");
+            _logger?.LogDebug($"  tempRoot: {tempRoot}");
             
             if (string.IsNullOrWhiteSpace(vpkToolPath))
             {
                 log("[Recompile] vpk.exe path is empty or null.");
-                _logger?.Log("ERROR: vpkToolPath is null or empty");
+                _logger?.LogDebug("ERROR: vpkToolPath is null or empty");
                 return null;
             }
             
             if (!File.Exists(vpkToolPath))
             {
                 log("[Recompile] vpk.exe not found.");
-                _logger?.Log($"ERROR: vpk.exe not found at: {vpkToolPath}");
+                _logger?.LogDebug($"ERROR: vpk.exe not found at: {vpkToolPath}");
                 
                 string vpkDir = Path.GetDirectoryName(vpkToolPath) ?? "";
                 if (Directory.Exists(vpkDir))
                 {
                     var filesInDir = Directory.GetFiles(vpkDir, "*.exe");
-                    _logger?.Log($"  Files in vpk directory ({vpkDir}):");
+                    _logger?.LogDebug($"  Files in vpk directory ({vpkDir}):");
                     foreach (var f in filesInDir.Take(10))
                     {
-                        _logger?.Log($"    - {Path.GetFileName(f)}");
+                        _logger?.LogDebug($"    - {Path.GetFileName(f)}");
                     }
                 }
                 else
                 {
-                    _logger?.Log($"  Directory does not exist: {vpkDir}");
+                    _logger?.LogDebug($"  Directory does not exist: {vpkDir}");
                 }
                 return null;
             }
             
-            _logger?.Log($"  vpk.exe EXISTS: {new FileInfo(vpkToolPath).Length} bytes");
+            _logger?.LogDebug($"  vpk.exe EXISTS: {new FileInfo(vpkToolPath).Length} bytes");
             
             string vpkDirectory = Path.GetDirectoryName(vpkToolPath) ?? "";
             string[] requiredDlls = { "filesystem_stdio.dll", "tier0.dll", "tier0_s.dll", "vstdlib.dll", "vstdlib_s.dll" };
-            _logger?.Log("  Checking required DLLs:");
+            _logger?.LogDebug("  Checking required DLLs:");
             foreach (var dll in requiredDlls)
             {
                 string dllPath = Path.Combine(vpkDirectory, dll);
                 bool exists = File.Exists(dllPath);
-                _logger?.Log($"    {dll}: {(exists ? "OK" : "MISSING")}");
+                _logger?.LogDebug($"    {dll}: {(exists ? "OK" : "MISSING")}");
                 if (!exists)
                 {
                     log($"[Recompile] Missing required DLL: {dll}");
@@ -106,7 +106,7 @@ namespace ArdysaModsTools.Core.Services
             if (!Directory.Exists(extractDir))
             {
                 log("[Recompile] Source folder not found.");
-                _logger?.Log($"ERROR: extractDir does not exist: {extractDir}");
+                _logger?.LogDebug($"ERROR: extractDir does not exist: {extractDir}");
                 return null;
             }
 
@@ -116,15 +116,15 @@ namespace ArdysaModsTools.Core.Services
             if (fileCount == 0)
             {
                 log("[Recompile] Source folder is empty.");
-                _logger?.Log($"ERROR: extractDir is empty: {extractDir}");
+                _logger?.LogDebug($"ERROR: extractDir is empty: {extractDir}");
                 return null;
             }
 
-            _logger?.Log($"  Source folder: {fileCount} files, {dirCount} subdirectories");
+            _logger?.LogDebug($"  Source folder: {fileCount} files, {dirCount} subdirectories");
 
             if (!Directory.Exists(buildDir))
             {
-                _logger?.Log($"  Creating buildDir: {buildDir}");
+                _logger?.LogDebug($"  Creating buildDir: {buildDir}");
                 try
                 {
                     Directory.CreateDirectory(buildDir);
@@ -132,11 +132,11 @@ namespace ArdysaModsTools.Core.Services
                 catch (Exception ex)
                 {
                     log($"[Recompile] Cannot create build directory: {ex.Message}");
-                    _logger?.Log($"ERROR: Failed to create buildDir: {ex.Message}");
+                    _logger?.LogDebug($"ERROR: Failed to create buildDir: {ex.Message}");
                     return null;
                 }
             }
-            _logger?.Log($"  buildDir exists: {Directory.Exists(buildDir)}");
+            _logger?.LogDebug($"  buildDir exists: {Directory.Exists(buildDir)}");
 
             string parentDir = Path.GetDirectoryName(extractDir) ?? "";
             string expectedVpkName = Path.GetFileName(extractDir) + ".vpk";
@@ -144,7 +144,7 @@ namespace ArdysaModsTools.Core.Services
             
             if (File.Exists(expectedVpkPath))
             {
-                _logger?.Log($"  Deleting existing VPK: {expectedVpkPath}");
+                _logger?.LogDebug($"  Deleting existing VPK: {expectedVpkPath}");
                 try
                 {
                     File.Delete(expectedVpkPath);
@@ -152,7 +152,7 @@ namespace ArdysaModsTools.Core.Services
                 catch (Exception ex)
                 {
                     log($"[Recompile] Warning: Could not delete existing VPK: {ex.Message}");
-                    _logger?.Log($"  Warning: Could not delete existing VPK: {ex.Message}");
+                    _logger?.LogDebug($"  Warning: Could not delete existing VPK: {ex.Message}");
                 }
             }
 
@@ -167,8 +167,8 @@ namespace ArdysaModsTools.Core.Services
                 CreateNoWindow = true
             };
 
-            _logger?.Log($"  Process command: \"{vpkToolPath}\" \"{extractDir}\"");
-            _logger?.Log($"  Working directory: {buildDir}");
+            _logger?.LogDebug($"  Process command: \"{vpkToolPath}\" \"{extractDir}\"");
+            _logger?.LogDebug($"  Working directory: {buildDir}");
 
             var startTime = DateTime.UtcNow;
             var errorOutput = new List<string>();
@@ -183,7 +183,7 @@ namespace ArdysaModsTools.Core.Services
                     if (!string.IsNullOrEmpty(e.Data))
                     {
                         standardOutput.Add(e.Data);
-                        _logger?.Log($"[vpk.exe stdout] {e.Data}");
+                        _logger?.LogDebug($"[vpk.exe stdout] {e.Data}");
                     }
                 };
                 proc.ErrorDataReceived += (s, e) => 
@@ -191,20 +191,20 @@ namespace ArdysaModsTools.Core.Services
                     if (!string.IsNullOrEmpty(e.Data))
                     {
                         errorOutput.Add(e.Data);
-                        _logger?.Log($"[vpk.exe stderr] {e.Data}"); 
+                        _logger?.LogDebug($"[vpk.exe stderr] {e.Data}"); 
                     }
                 };
 
-                _logger?.Log("  Starting vpk.exe process...");
+                _logger?.LogDebug("  Starting vpk.exe process...");
                 
                 if (!proc.Start())
                 {
                     log("[Recompile] Failed to start vpk.exe process.");
-                    _logger?.Log("ERROR: Process.Start() returned false");
+                    _logger?.LogDebug("ERROR: Process.Start() returned false");
                     return null;
                 }
 
-                _logger?.Log($"  Process started with PID: {proc.Id}");
+                _logger?.LogDebug($"  Process started with PID: {proc.Id}");
 
                 proc.BeginOutputReadLine();
                 proc.BeginErrorReadLine();
@@ -225,24 +225,24 @@ namespace ArdysaModsTools.Core.Services
                     {
                         try { if (!proc.HasExited) proc.Kill(); } catch { }
                         log($"[Recompile] vpk.exe timed out after {VpkProcessTimeoutMinutes} minutes");
-                        _logger?.Log($"ERROR: vpk.exe timed out after {VpkProcessTimeoutMinutes} minutes");
+                        _logger?.LogDebug($"ERROR: vpk.exe timed out after {VpkProcessTimeoutMinutes} minutes");
                         return null;
                     }
                 }
 
-                _logger?.Log($"  Process exited with code: {proc.ExitCode}");
-                _logger?.Log($"  Stdout lines: {standardOutput.Count}");
-                _logger?.Log($"  Stderr lines: {errorOutput.Count}");
+                _logger?.LogDebug($"  Process exited with code: {proc.ExitCode}");
+                _logger?.LogDebug($"  Stdout lines: {standardOutput.Count}");
+                _logger?.LogDebug($"  Stderr lines: {errorOutput.Count}");
 
                 if (proc.ExitCode != 0)
                 {
                     var errorMsg = errorOutput.Count > 0 ? string.Join("; ", errorOutput) : "No error output captured";
                     log($"[Recompile] vpk.exe failed (code {proc.ExitCode})");
-                    _logger?.Log($"ERROR: vpk.exe exited with code {proc.ExitCode}");
-                    _logger?.Log($"  Error output: {errorMsg}");
+                    _logger?.LogDebug($"ERROR: vpk.exe exited with code {proc.ExitCode}");
+                    _logger?.LogDebug($"  Error output: {errorMsg}");
                     if (standardOutput.Count > 0)
                     {
-                        _logger?.Log($"  Standard output: {string.Join("; ", standardOutput)}");
+                        _logger?.LogDebug($"  Standard output: {string.Join("; ", standardOutput)}");
                     }
                     return null;
                 }
@@ -250,22 +250,22 @@ namespace ArdysaModsTools.Core.Services
             catch (System.ComponentModel.Win32Exception win32Ex)
             {
                 log($"[Recompile] Windows error: {win32Ex.Message}");
-                _logger?.Log($"ERROR: Win32Exception - {win32Ex.Message}");
-                _logger?.Log($"  NativeErrorCode: {win32Ex.NativeErrorCode}");
-                _logger?.Log($"  This may indicate vpk.exe is blocked by antivirus or missing dependencies");
+                _logger?.LogDebug($"ERROR: Win32Exception - {win32Ex.Message}");
+                _logger?.LogDebug($"  NativeErrorCode: {win32Ex.NativeErrorCode}");
+                _logger?.LogDebug($"  This may indicate vpk.exe is blocked by antivirus or missing dependencies");
                 return null;
             }
             catch (OperationCanceledException)
             {
-                _logger?.Log("VPK recompilation cancelled by user");
+                _logger?.LogDebug("VPK recompilation cancelled by user");
                 return null;
             }
             catch (Exception ex)
             {
                 log($"[Recompile] Error: {ex.Message}");
-                _logger?.Log($"ERROR: Exception during recompilation: {ex.GetType().Name}");
-                _logger?.Log($"  Message: {ex.Message}");
-                _logger?.Log($"  StackTrace: {ex.StackTrace}");
+                _logger?.LogDebug($"ERROR: Exception during recompilation: {ex.GetType().Name}");
+                _logger?.LogDebug($"  Message: {ex.Message}");
+                _logger?.LogDebug($"  StackTrace: {ex.StackTrace}");
                 return null;
             }
 
@@ -279,7 +279,7 @@ namespace ArdysaModsTools.Core.Services
                 return null;
             }
 
-            _logger?.Log($"VPK created successfully: {newVpk}");
+            _logger?.LogDebug($"VPK created successfully: {newVpk}");
 
             await WaitForFileReadyAsync(newVpk, ct).ConfigureAwait(false);
             
@@ -302,28 +302,28 @@ namespace ArdysaModsTools.Core.Services
             string expectedVpkName = Path.GetFileName(extractDir) + ".vpk";
             string expectedVpkPath = Path.Combine(parentDir, expectedVpkName);
             
-            _logger?.Log($"[VPK-Search] Expected: {expectedVpkPath}");
-            _logger?.Log($"  Start time: {startTime:O}");
+            _logger?.LogDebug($"[VPK-Search] Expected: {expectedVpkPath}");
+            _logger?.LogDebug($"  Start time: {startTime:O}");
 
             if (File.Exists(expectedVpkPath))
             {
                 var vpkWriteTime = File.GetLastWriteTimeUtc(expectedVpkPath);
                 var timeDiff = (DateTime.UtcNow - vpkWriteTime).TotalSeconds;
-                _logger?.Log($"[VPK-Search] Found VPK, age: {timeDiff:F1}s");
+                _logger?.LogDebug($"[VPK-Search] Found VPK, age: {timeDiff:F1}s");
                 
                 if (vpkWriteTime >= startTime.AddSeconds(-5))
                 {
-                    _logger?.Log($"[VPK-Search] VPK valid, using: {Path.GetFileName(expectedVpkPath)}");
+                    _logger?.LogDebug($"[VPK-Search] VPK valid, using: {Path.GetFileName(expectedVpkPath)}");
                     return expectedVpkPath;
                 }
                 else
                 {
-                    _logger?.Log($"[VPK-Search] VPK too old (created {timeDiff:F0}s ago)");
+                    _logger?.LogDebug($"[VPK-Search] VPK too old (created {timeDiff:F0}s ago)");
                 }
             }
             else
             {
-                _logger?.Log($"[VPK-Search] Expected VPK not found at: {expectedVpkPath}");
+                _logger?.LogDebug($"[VPK-Search] Expected VPK not found at: {expectedVpkPath}");
             }
 
             string[] searchDirs = { buildDir, parentDir, extractDir, tempRoot };
@@ -343,7 +343,7 @@ namespace ArdysaModsTools.Core.Services
                         
                         if (found != null)
                         {
-                            _logger?.Log($"[VPK-Search] Found: {found}");
+                            _logger?.LogDebug($"[VPK-Search] Found: {found}");
                             return found;
                         }
                     }
@@ -353,7 +353,7 @@ namespace ArdysaModsTools.Core.Services
                 await Task.Delay(VpkSearchIntervalMs, ct).ConfigureAwait(false);
             }
 
-            _logger?.Log($"[VPK-Search] FAILED after {VpkSearchMaxRetries} retries");
+            _logger?.LogDebug($"[VPK-Search] FAILED after {VpkSearchMaxRetries} retries");
             foreach (var dir in searchDirs)
             {
                 if (Directory.Exists(dir))
@@ -363,18 +363,18 @@ namespace ArdysaModsTools.Core.Services
                         var vpkFiles = Directory.GetFiles(dir, "*.vpk", SearchOption.TopDirectoryOnly);
                         if (vpkFiles.Length > 0)
                         {
-                            _logger?.Log($"[VPK-Search] {Path.GetFileName(dir)}/: {vpkFiles.Length} VPK(s)");
+                            _logger?.LogDebug($"[VPK-Search] {Path.GetFileName(dir)}/: {vpkFiles.Length} VPK(s)");
                             foreach (var f in vpkFiles.Take(3))
                             {
                                 var writeTime = File.GetLastWriteTimeUtc(f);
                                 var age = (DateTime.UtcNow - writeTime).TotalSeconds;
-                                _logger?.Log($"[VPK-Search]   {Path.GetFileName(f)} ({age:F0}s old)");
+                                _logger?.LogDebug($"[VPK-Search]   {Path.GetFileName(f)} ({age:F0}s old)");
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger?.Log($"[VPK-Search] Error reading {dir}: {ex.Message}");
+                        _logger?.LogDebug($"[VPK-Search] Error reading {dir}: {ex.Message}");
                     }
                 }
             }

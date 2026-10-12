@@ -1,9 +1,10 @@
+import { memo } from "react";
 import { T, useLocale } from "../../bridge/i18n";
 import { getSelectionSummary, hasAnySelection, customSetCount } from "./helpers";
 import type { Hero, Selections } from "./types";
 import css from "./gallery.module.css";
 
-function HeroCard({
+const HeroCard = memo(function HeroCard({
    hero,
    index,
    selected,
@@ -17,8 +18,8 @@ function HeroCard({
    selected: boolean;
    favorite: boolean;
    summary: string | null;
-   onOpen: () => void;
-   onToggleFavorite: () => void;
+   onOpen: (heroId: string) => void;
+   onToggleFavorite: (heroId: string) => void;
 }) {
    const { t } = useLocale();
    const setCount = customSetCount(hero);
@@ -37,14 +38,15 @@ function HeroCard({
             role={locked ? undefined : "button"}
             tabIndex={locked ? undefined : 0}
             aria-label={locked ? undefined : name}
-            onClick={locked ? undefined : onOpen}
+            onClick={locked ? undefined : () => onOpen(hero.id)}
             onKeyDown={
                locked
                   ? undefined
                   : (e) => {
+                       if (e.target !== e.currentTarget) return;
                        if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          onOpen();
+                          onOpen(hero.id);
                        }
                     }
             }
@@ -54,6 +56,8 @@ function HeroCard({
                   className={css.hcImg}
                   src={hero.thumbnail || ""}
                   alt={name}
+                  loading="lazy"
+                  decoding="async"
                   onError={(e) => {
                      e.currentTarget.src =
                         "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23111' width='100' height='100'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='%23333' font-size='12'%3E?%3C/text%3E%3C/svg%3E";
@@ -77,11 +81,11 @@ function HeroCard({
                         type="button"
                         data-no-drag
                         className={`${css.hcFav} ${favorite ? css.on : ""}`}
-                        aria-label={favorite ? "Remove from favorites" : "Add to favorites"}
+                        aria-label={favorite ? t("heroGallery.favRemove", "Remove from favorites") : t("heroGallery.favAdd", "Add to favorites")}
                         aria-pressed={favorite}
                         onClick={(e) => {
                            e.stopPropagation();
-                           onToggleFavorite();
+                           onToggleFavorite(hero.id);
                         }}
                      >
                         {favorite ? "★" : "☆"}
@@ -104,33 +108,52 @@ function HeroCard({
          </div>
       </div>
    );
-}
+});
 
-export function HeroGrid({
+export const HeroGrid = memo(function HeroGrid({
    heroes,
    selections,
    favorites,
    onOpen,
    onToggleFavorite,
+   loadState,
 }: {
    heroes: Hero[];
    selections: Selections;
    favorites: Set<string>;
    onOpen: (heroId: string) => void;
    onToggleFavorite: (heroId: string) => void;
+   loadState: "loading" | "ready" | "failed";
 }) {
    if (heroes.length === 0) {
       return (
-         <div id="emptyState" className={`${css.flex} ${css.emptyState}`}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-               <path d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className={css.esTitle}>
-               <T k="progress.preview.empty">No heroes found</T>
-            </p>
-            <p className={css.esSub}>
-               <T k="heroGallery.noHeroesSub">Try adjusting your search or filters</T>
-            </p>
+         <div id="emptyState" className={`${css.flex} ${css.emptyState}`} role="status" aria-busy={loadState === "loading"}>
+            {loadState === "loading" ? (
+               <p className={css.esTitle}>
+                  <T k="heroGallery.loadingHeroes">Loading heroes…</T>
+               </p>
+            ) : loadState === "failed" ? (
+               <>
+                  <p className={css.esTitle}>
+                     <T k="heroGallery.heroesFailed">Could not load the hero list</T>
+                  </p>
+                  <p className={css.esSub}>
+                     <T k="heroGallery.heroesFailedSub">Check your connection, then close and reopen the Skin Selector.</T>
+                  </p>
+               </>
+            ) : (
+               <>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                     <path d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className={css.esTitle}>
+                     <T k="progress.preview.empty">No heroes found</T>
+                  </p>
+                  <p className={css.esSub}>
+                     <T k="heroGallery.noHeroesSub">Try adjusting your search or filters</T>
+                  </p>
+               </>
+            )}
          </div>
       );
    }
@@ -147,11 +170,11 @@ export function HeroGrid({
                   selected={hasAnySelection(sel)}
                   favorite={favorites.has(hero.id)}
                   summary={getSelectionSummary(hero, sel)}
-                  onOpen={() => onOpen(hero.id)}
-                  onToggleFavorite={() => onToggleFavorite(hero.id)}
+                  onOpen={onOpen}
+                  onToggleFavorite={onToggleFavorite}
                />
             );
          })}
       </div>
    );
-}
+});

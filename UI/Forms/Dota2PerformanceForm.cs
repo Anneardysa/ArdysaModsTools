@@ -73,8 +73,8 @@ namespace ArdysaModsTools.UI.Forms
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.None;
 
-            this.ClientSize = new System.Drawing.Size(1320, 780);
-            this.MinimumSize = new System.Drawing.Size(1040, 640);
+            this.ClientSize = new System.Drawing.Size(1732, 1032);
+            this.MinimumSize = new System.Drawing.Size(800, 600);
 
             this.Name = "Dota2PerformanceForm";
             this.Text = "Dota 2 Performance Tweak - AMT 2.0";
@@ -219,6 +219,11 @@ namespace ArdysaModsTools.UI.Forms
         public async Task ShowCfgBannerAsync(string message, string state)
         {
             await ExecuteScriptAsync($"showCfgBanner({JsonSerializer.Serialize(message)}, {JsonSerializer.Serialize(state)})");
+        }
+
+        public async Task SetMapCleanupStatusAsync(string json)
+        {
+            await ExecuteScriptAsync($"setMapCleanupStatus({JsonSerializer.Serialize(json)})");
         }
 
         private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Ardysa
  *
  * This program is free software: you can redistribute it and/or modify
@@ -41,7 +41,7 @@ namespace ArdysaModsTools.Core.Helpers
         }
 
         public static MergeResult Merge(string? vanillaItemsGame, string? moddedItemsGame,
-            IReadOnlyCollection<string>? patchedIds = null)
+            IReadOnlyCollection<string>? patchedIds = null, IReadOnlySet<string>? verbatimIds = null)
         {
             if (string.IsNullOrWhiteSpace(vanillaItemsGame))
                 throw new ArgumentException("Vanilla item data is required as the merge base.", nameof(vanillaItemsGame));
@@ -60,7 +60,8 @@ namespace ArdysaModsTools.Core.Helpers
                 ? new HashSet<string>(patchedIds, StringComparer.OrdinalIgnoreCase)
                 : null;
 
-            var result = MergeInto(basis, moddedNormalized, moddedBlocks, scope, out int applied, out int matched);
+            var result = MergeInto(basis, moddedNormalized, moddedBlocks, scope,
+                verbatimIds ?? Constants.MiscItemIds.Defaults, out int applied, out int matched);
 
             int moddedItems = 0;
             foreach (var kvp in moddedBlocks)
@@ -72,7 +73,7 @@ namespace ArdysaModsTools.Core.Helpers
 
         private static string MergeInto(string basis, string moddedNormalized,
             IReadOnlyDictionary<string, (int Start, int Length)> moddedBlocks,
-            HashSet<string>? scope, out int applied, out int matched)
+            HashSet<string>? scope, IReadOnlySet<string> verbatimIds, out int applied, out int matched)
         {
             applied = 0;
             matched = 0;
@@ -109,7 +110,7 @@ namespace ArdysaModsTools.Core.Helpers
 
                 if (scope != null && !scope.Contains(token)) continue;
 
-                int blockStart = KeyValuesBlockHelper.FindLineStart(basis, q1);
+                int blockStart = KeyValuesBlockHelper.FindBlockStart(basis, q1);
 
                 var vanillaSpan = basis.AsSpan(blockStart, braceEnd - blockStart);
 
@@ -119,9 +120,11 @@ namespace ArdysaModsTools.Core.Helpers
 
                 if (ItemsGameBlockIndex.CanonicalEquals(vanillaSpan, moddedBlock)) continue;
 
-                string overlaid = KeyValuesBlockHelper.OverlayBlockKeepingVanillaLayout(
-                    basis.Substring(blockStart, braceEnd - blockStart),
-                    moddedNormalized.Substring(moddedAt.Start, moddedAt.Length));
+                string moddedText = moddedNormalized.Substring(moddedAt.Start, moddedAt.Length);
+                string overlaid = verbatimIds.Contains(token)
+                    ? moddedText
+                    : KeyValuesBlockHelper.OverlayBlockKeepingVanillaLayout(
+                        basis.Substring(blockStart, braceEnd - blockStart), moddedText);
 
                 sb.Append(basis, copiedTo, blockStart - copiedTo);
                 sb.Append(overlaid.TrimEnd()).Append('\n');

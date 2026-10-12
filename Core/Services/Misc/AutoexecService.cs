@@ -85,7 +85,7 @@ namespace ArdysaModsTools.Core.Services.Misc
             var autoexecPath = Path.Combine(cfgDir, "autoexec.cfg");
             if (!File.Exists(autoexecPath))
             {
-                _logService.Log("[AutoexecService] No autoexec.cfg found. Returning empty settings.");
+                _logService.LogDebug("[AutoexecService] No autoexec.cfg found. Returning empty settings.");
                 return new Dictionary<string, string>();
             }
 
@@ -115,14 +115,14 @@ namespace ArdysaModsTools.Core.Services.Misc
             using var transaction = new ArdysaModsTools.Core.Services.FileTransactions.FileTransaction(_logService, "ApplyAutoexec");
             try
             {
-                _logService.Log($"[AutoexecService] Applying autoexec.cfg via transaction to {autoexecPath}");
+                _logService.LogDebug($"[AutoexecService] Applying autoexec.cfg via transaction to {autoexecPath}");
 
                 transaction.AddOperation(new ArdysaModsTools.Core.Services.FileTransactions.WriteTextOperation(autoexecPath, content, Encoding.UTF8));
 
                 await transaction.ExecuteAsync(cancellationToken);
                 transaction.Commit();
 
-                _logService.Log("[AutoexecService] Successfully applied autoexec.cfg.");
+                _logService.Log("Successfully applied autoexec.cfg.");
             }
             catch (Exception ex)
             {
@@ -137,7 +137,7 @@ namespace ArdysaModsTools.Core.Services.Misc
             {
                 var content = GenerateAutoexecContent(settings);
                 await File.WriteAllTextAsync(exportPath, content, Encoding.UTF8, cancellationToken);
-                _logService.Log($"[AutoexecService] Exported autoexec.cfg to {exportPath}");
+                _logService.Log($"Exported autoexec.cfg to {exportPath}");
             }
             catch (Exception ex)
             {
@@ -153,19 +153,19 @@ namespace ArdysaModsTools.Core.Services.Misc
                 var cfgDir = GetCfgDirectory(gamePath);
                 if (string.IsNullOrEmpty(cfgDir))
                 {
-                    _logService.Log("[AutoexecService] No cfg folder found; nothing to delete.");
+                    _logService.LogDebug("[AutoexecService] No cfg folder found; nothing to delete.");
                     return Task.FromResult(false);
                 }
 
                 var autoexecPath = Path.Combine(cfgDir, "autoexec.cfg");
                 if (!File.Exists(autoexecPath))
                 {
-                    _logService.Log("[AutoexecService] No autoexec.cfg found; nothing to delete.");
+                    _logService.LogDebug("[AutoexecService] No autoexec.cfg found; nothing to delete.");
                     return Task.FromResult(false);
                 }
 
                 File.Delete(autoexecPath);
-                _logService.Log($"[AutoexecService] Deleted autoexec.cfg at {autoexecPath}");
+                _logService.Log($"Deleted autoexec.cfg at {autoexecPath}");
                 return Task.FromResult(true);
             }
             catch (Exception ex)
@@ -220,7 +220,7 @@ namespace ArdysaModsTools.Core.Services.Misc
 
             var categories = new (string Header, string[] Cvars)[]
             {
-                ("DISPLAY & FPS", new[] { "fps_max", "fps_max_ui", "mat_viewportscale", "r_fullscreen_gamma" }),
+                ("DISPLAY & FPS", new[] { "fps_max", "fps_max_ui", "mat_viewportscale", "r_dota_fsr_upsample", "r_fullscreen_gamma" }),
                 ("VISUAL TOGGLES", new[] {
                     "dota_portrait_animate", "r_deferred_additive_pass", "r_deferred_simple_light", "r_ssao",
                     "r_dota_normal_maps", "r_dota_allow_parallax_mapping", "dota_ambient_creatures", "dota_ambient_cloth",

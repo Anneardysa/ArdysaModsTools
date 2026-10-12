@@ -12,7 +12,7 @@ function MarqueeItem() {
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d={MARQUEE_ICON} />
          </svg>
-         <T k="heroGallery.marquee">Not all heroes have a set — sets will be updated gradually</T>
+         <T k="heroGallery.marquee">Not all heroes have a set yet. Sets are added gradually.</T>
          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d={MARQUEE_ICON} />
          </svg>

@@ -64,7 +64,7 @@ namespace ArdysaModsTools.Core.Helpers
             string message = ex.Message;
 
             _logger?.Log($"Error [{errorCode}]: {message}");
-            FallbackLogger.Log($"[{errorCode}] {message}\n{ex.StackTrace}");
+            FallbackLogger.LogFileOnly($"[{errorCode}] {message}\n{ex.StackTrace}");
 
             if (!showDialog) return true;
 
@@ -78,7 +78,7 @@ namespace ArdysaModsTools.Core.Helpers
         private static bool HandleGenericException(Exception ex, bool showDialog)
         {
             _logger?.Log($"Error: {ex.Message}");
-            FallbackLogger.Log($"[UNEXPECTED] {ex.Message}\n{ex.StackTrace}");
+            FallbackLogger.LogFileOnly($"[UNEXPECTED] {ex.Message}\n{ex.StackTrace}");
 
             if (!showDialog) return true;
 

@@ -15,10 +15,15 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Security;
 
 namespace ArdysaModsTools.Core.Services.App
@@ -54,7 +59,7 @@ namespace ArdysaModsTools.Core.Services.App
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[GameSessionWatcher] Could not start the stub: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[GameSessionWatcher] Could not start the stub: {ex.Message}");
                 return false;
             }
         }
@@ -77,22 +82,22 @@ namespace ArdysaModsTools.Core.Services.App
                 only = new Mutex(true, StubMutexName, out bool createdNew);
                 if (!createdNew)
                 {
-                    FallbackLogger.Log("[GameSessionWatcher] Another stub is already waiting — exiting.");
+                    FallbackLogger.LogFileOnly("[GameSessionWatcher] Another stub is already waiting — exiting.");
                     return;
                 }
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[GameSessionWatcher] Stub mutex unavailable: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[GameSessionWatcher] Stub mutex unavailable: {ex.Message}");
             }
 
             ActiveProcessSentry? sentry = null;
+            var lockedPackages = new List<string>();
             try
             {
                 ProcessProtectionGuard.ProtectCurrentProcess();
 
-                var detector = new DetectionService();
-                string? dotaPath = detector.AutoDetectAsync().GetAwaiter().GetResult();
+                string? dotaPath = ResolveDotaPath(new MainConfigService(), new DetectionService());
 
                 if (!string.IsNullOrEmpty(dotaPath))
                 {
@@ -102,12 +107,18 @@ namespace ArdysaModsTools.Core.Services.App
                         return true;
                     });
                     sentry.Start(pollIntervalMs: 350);
+
+                    LockMountedPackages(dotaPath, lockedPackages);
                 }
 
                 WaitUntilGoneAsync(GameIsRunning, PollInterval, CancellationToken.None)
                     .GetAwaiter().GetResult();
 
                 try { sentry?.Stop(); } catch { }
+
+                foreach (var pkg in lockedPackages)
+                    try { FileSecurityGuard.ReleaseDaclLock(pkg); } catch { }
+                lockedPackages.Clear();
 
                 ProcessProtectionGuard.UnprotectCurrentProcess();
 
@@ -116,19 +127,73 @@ namespace ArdysaModsTools.Core.Services.App
                     : ResumedArgument;
 
                 if (!Spawn(args))
-                    FallbackLogger.Log("[GameSessionWatcher] No executable path — cannot relaunch.");
+                    FallbackLogger.LogFileOnly("[GameSessionWatcher] No executable path — cannot relaunch.");
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[GameSessionWatcher] Relaunch failed: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[GameSessionWatcher] Relaunch failed: {ex.Message}");
             }
             finally
             {
+                foreach (var pkg in lockedPackages)
+                    try { FileSecurityGuard.ReleaseDaclLock(pkg); } catch { }
+
                 ProcessProtectionGuard.UnprotectCurrentProcess();
                 sentry?.Dispose();
                 try { only?.Dispose(); } catch {  }
             }
         }
+
+        internal static string? ResolveDotaPath(IConfigService config, IDetectionService detection)
+        {
+            try
+            {
+                string? saved = config.GetLastTargetPath();
+                if (detection.ValidateDotaPath(saved))
+                    return saved;
+            }
+            catch (Exception ex)
+            {
+                FallbackLogger.LogFileOnly($"[GameSessionWatcher] Could not read the saved path: {ex.Message}");
+            }
+
+            try { return detection.AutoDetectAsync().GetAwaiter().GetResult(); }
+            catch (Exception ex)
+            {
+                FallbackLogger.LogFileOnly($"[GameSessionWatcher] Auto-detect failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static void LockMountedPackages(string dotaPath, List<string> locked)
+        {
+            var packages = new[]
+            {
+                Path.Combine(dotaPath, DotaPaths.ModsVpk.Replace('/', Path.DirectorySeparatorChar)),
+                ProtectedVpkStore.VpkPath(dotaPath),
+            };
+
+            foreach (var pkg in packages)
+            {
+                try
+                {
+                    if (!File.Exists(pkg)) continue;
+                    if (!FileSecurityGuard.WaitUntilHeldByAnotherProcess(
+                            pkg, HandleWaitTimeout, HandleWaitPoll, CancellationToken.None))
+                        continue;
+                    if (FileSecurityGuard.ApplyRuntimeDaclLock(pkg))
+                        locked.Add(pkg);
+                }
+                catch (Exception ex)
+                {
+                    FallbackLogger.LogFileOnly($"[GameSessionWatcher] Could not lock '{pkg}': {ex.Message}");
+                }
+            }
+        }
+
+        private static readonly TimeSpan HandleWaitTimeout = TimeSpan.FromMinutes(2);
+
+        private static readonly TimeSpan HandleWaitPoll = TimeSpan.FromSeconds(1);
 
         private static bool Spawn(string args)
         {

@@ -26,6 +26,22 @@ namespace ArdysaModsTools.Core.Models
 
         public long BytesDownloaded { get; init; }
 
+        public long BytesToStage { get; init; }
+
+        public long BytesStaged { get; init; }
+
+        public long BuildId { get; init; }
+
+        public long TargetBuildId { get; init; }
+
+        public long UpdateResult { get; init; }
+
+        public long ScheduledAutoUpdate { get; init; }
+
+        public long AutoUpdateBehavior { get; init; }
+
+        public string? Language { get; init; }
+
         private const long StateUpdateRequired = 2;
         private const long StateFullyInstalled = 4;
         private const long StateFilesMissing = 32;
@@ -39,14 +55,22 @@ namespace ArdysaModsTools.Core.Models
             StateUpdateRequired | StateFilesMissing | StateFilesCorrupt |
             StateUpdateRunning | StateUpdatePaused | StateUpdateStarted | StateReconfiguring;
 
-        public bool IsUpdatePending => ManifestFound && ((StateFlags & BusyMask) != 0 || BytesToDownload > BytesDownloaded);
+        public bool IsUpdatePending => ManifestFound &&
+            ((StateFlags & BusyMask) != 0 || (BytesToDownload > BytesDownloaded && !IsOnTargetBuild));
+
+        public bool IsPaused => ManifestFound && (StateFlags & StateUpdatePaused) != 0;
+
+        public bool IsOnTargetBuild => BuildId > 0 && BuildId == TargetBuildId;
 
         public bool IsSettled => ManifestFound && (StateFlags & StateFullyInstalled) != 0 && !IsUpdatePending;
 
-        public int? DownloadPercent =>
-            BytesToDownload > 0 && BytesDownloaded >= 0 && BytesDownloaded <= BytesToDownload
-                ? (int)(BytesDownloaded * 100 / BytesToDownload)
-                : null;
+        public int? UpdatePercent =>
+            BytesToDownload > 0 && BytesDownloaded < BytesToDownload ? Percent(BytesDownloaded, BytesToDownload)
+            : BytesToStage > 0 && BytesStaged < BytesToStage ? Percent(BytesStaged, BytesToStage)
+            : Percent(BytesDownloaded, BytesToDownload);
+
+        private static int? Percent(long done, long total) =>
+            total > 0 && done >= 0 && done <= total ? (int)(done * 100 / total) : null;
 
         public static SteamAppState Unknown { get; } = new();
     }

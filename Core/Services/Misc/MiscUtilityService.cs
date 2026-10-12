@@ -84,7 +84,10 @@ namespace ArdysaModsTools.Core.Services
                     
                     if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                         return null;
-                    
+
+                    if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                        throw Cdn.CdnAuthFailure.ToException(url);
+
                     response.EnsureSuccessStatusCode();
                     return response;
                 },

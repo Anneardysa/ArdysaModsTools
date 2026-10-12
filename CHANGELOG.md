@@ -9,11 +9,288 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 then at most three lines of why and how. Build number in brackets. No emoji in headings. Anything
 longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta keep their old shape.
 
-## [2.4.1-beta] (Builds 2364–2368)
+## [2.10.0-beta] (Builds 2443–2467)
+
+### Changed
+
+- **Play no longer waits forever on a Steam update that is not moving** (2443): The wait now notices a manifest that has stopped changing and Steam restarting on its own, instead of spinning or giving up on one missed reading. The progress bar follows the staging phase after the download, so it no longer sits at 100%. Stale byte counters no longer count as a pending update when Steam already reports the target build.
+- **The stalled-update panel offers Steam's Downloads page and Steam's own download cache clear** (2443): Both are Steam's actions, started from the panel; clearing the cache asks first because Steam restarts. The app deletes nothing of Steam's itself.
+- **The Play panel shows the Steam buttons and stacks its confirmation above itself** (2444): "Open Steam Downloads" and "Clear download cache" appear in the launch panel while an update is stalled, and the confirmation question for the cache clear now opens on top of the panel instead of behind it.
+- **The Rank Changer FAQ lists the pick-screen rank line among the places only you see** (2448): The answer to "who sees my rank?" now includes the rank line under your hero while picking.
+- **The Steam Downloads and cache-clear links are covered by the URL validation tests** (2449): `steam://open/downloads` and `steam://flushconfig` are checked as accepted launch targets.
+- **The Miscellaneous page is rebuilt as a sidebar with one pane of choices** (2452): Options are listed on the left with search; the selected option's choices, styles and ethereal effects fill the pane. Picking a choice that excludes another option resets that option on the spot, the tribute opens once per session before a special pick generates, and a failed option list shows an error with a retry. A test keeps the page's ethereal list identical to the one generation uses.
+- **The Performance page shows Map Cleanup, FSR and what APPLY will change** (2456): A Map Cleanup card, an FSR toggle, a status line that says whether anything is waiting to be applied (and that a Map Cleanup change takes a minute), and preset cards that list their frame cap, render scale and cleanup straight from the preset data. Presets keep a 60 FPS floor and enable FSR whenever the render scale is reduced; tests enforce both, and a small Node test runner (`npm test`) covers the page logic.
+- **Skin Selector sends particles to generation and tells a failed scan from an empty one** (2461): Particle picks from the page, a preset or a detected install are sanitized per hero and passed to generation, and the page can ask which slots a picked asset offers. A scan that cannot read the installed package now shows as failed instead of "nothing installed", a failed hero list shows an error, and a timed-out confirmation is taken down so a late click answers nothing.
+- **All eight languages carry the new Play, Performance, Miscellaneous and Skin Selector texts** (2463): Steam update panel, Map Cleanup and status lines, Miscellaneous status messages, and the particle picker are translated, and a few long dashes in English hints became plain sentences.
+- **A set's files for another hero no longer overwrite that hero's files in a Skin Selector build** (2466): Every hero of a build merges into one tree, so a stray file in another hero's folder (Lich's archive carried a Leshrac body) replaced the real one. Such files are now left out and listed in the run log, unless the set's own blocks for the hero name them. `HeroScopeGuard` decides it and has tests.
+- **The particle picker warns that unusual particles can lower FPS** (2466): A notice badge in the picker title and on the cart's particle entry, in all languages.
+- **Pull request policy and docs match the public mirror** (2466): The mirror's PR workflow now closes outside pull requests with a pointer to issues instead of building them; contributing docs, README and guides were reworded to match, with refreshed screenshots.
 
 ### Added
 
+- **The texture generator can draw the rank name shown under a hero during picking** (2445): The label is rendered at Valve's own size, top padding and gold-to-faded gradient, shrinks to fit instead of being cut, and falls back to a system font for CJK and Thai names that the game font lacks.
+- **The Rank Changer also changes the rank shown under your hero during picking** (2447): The label uses Valve's own rank names in the language Steam runs Dota in (read from the game's localization file, English per token when missing) and is skipped, with the medals still applied, if a Dota update moved its stylesheet. Choosing Uncalibrated hides the label the way Valve does for an unranked player.
+- **Ethereal effects now apply to wards, not only couriers** (2451): A ward with ethereal effects picked is generated with them, including the Default Ward, which is now tracked as a changed item. Courier and ward share one routine for replacing a block's particles, so they cannot drift apart.
+- **Map Cleanup can remove map foliage and props** (2453): Two groups, foliage and map props, are replaced by blank resources shipped with the app and installed in the mod's second package, which Dota mounts. The choice is remembered, so every rebuild of that package carries it along, and turning a group off from an extracted tree removes it again.
+- **Performance APPLY and DELETE manage Map Cleanup alongside the settings** (2454): Foliage and props ride the settings as two entries that are never written to `autoexec.cfg`; APPLY installs the requested groups (skipping the repack when nothing changed, and warning that it takes a while), DELETE turns both off, and the page shows what is actually installed. The window opens at the same size as the Skin Selector and Miscellaneous.
+- **FSR upscaling is a Performance setting** (2455): `r_dota_fsr_upsample` is written to `autoexec.cfg` in the Display & FPS group, so a reduced render scale can be sharpened instead of just blurrier.
+- **Skin Selector has a particle catalog and the groundwork to add particles to a hero's worn item** (2458): Up to two particles per hero are picked by id from a fixed catalog; the host item and the slot are checked against the set's own index before anything is written, so page input can never name a path. The preview thumbnails live on the CDN under their own folder, and a missing one shows "No preview yet" without a request.
+- **Generation adds the picked particles, and the ModsPack release is written to its own folder** (2459): Particles ride on the hero's other picks (never on their own, and dropped under a Persona) and are applied only to heroes whose layers built. The Debug card's ModsPack generation now packs the tree twice, a self-contained package installed for testing and a slim one written with `ModsPack.zip`, `ModsPack.hash` and `modspack_index.txt` into a new timestamped folder; both are checked before anything is written. Sets that are not freely downloadable no longer block it. The cloud index is also read for the slots a set offers to a particle.
+- **Debug builds of the Skin Tester can build into a throwaway sandbox while Dota stays open** (2460): A Live sandbox option installs into a copy of the Dota folder structure beside the real one, with the game's own packages hard-linked (read only) and the two files generation rewrites copied. After the build the real install is compared with a snapshot and any change is reported. Release builds contain none of it.
+- **The Skin Selector page lets you add particles to a hero and shows when the hero list fails to load** (2462): A Particles section in the cart opens a searchable picker with previews, the item slot the effect rides on, and fit hints (on model, ground, floats; courier effects flagged). The page reads the catalog before the heroes so presets are never checked against an empty one; the hero list shows loading and failure states, and favorites, selected tiles and the latest-updates carousel got a visual pass.
+
+### Refactor
+
+- **Panorama stylesheet edits for the Rank Changer share one patcher, and the picking-phase label gets its own rule** (2446): The whole-rule edit engine moved out of the hero-badge patcher into `PanoramaCssPatcher`, so both use the same exact-match checks. The new rule paints the rank text under a hero during picking, only for you in "Only my rank" mode. Real stylesheet fixtures in `Tests/Data/RankChanger/` catch a Dota update that moves a rule.
+
+### Fixed
+
+- **The picking-phase rank label reads "Rank N" for a leaderboard Immortal and "Not Calibrated" for Uncalibrated** (2467): Valve writes "Rank 2,691", not "Immortal", for an Immortal with a placing, and shows "Not Calibrated" rather than hiding the label, so a target of either kind now draws the same text in the game's language. The hidden-label path is gone, a placing its bracket cannot hold is refused, and a test walks every accepted request to check its label prints whole.
+- **Miscellaneous only generates picks the current options can apply** (2450): Selections from the page, a saved preset or `misc_selections.json` now pass one check that drops options and choices the option list no longer has and fixes the spelling of the rest. A pick the page no longer holds can no longer live on in the host and get installed, and a default choice no longer counts as a custom selection.
+- **Miscellaneous alerts and preset messages no longer break or go missing** (2450): Alerts are built in one place, so a newline, backslash or quote in an error message (or the log path) can no longer stop the alert from showing. Preset load, save and restore report in the status bar, and a failed option list shows an error instead of loading forever. The window opens at the same size as the Skin Selector.
+- **A colour overlay such as Prismatic no longer counts as a member of the hero's body company** (2457): Overlays carry no blocks of their own, so they rode along as a peer when the shared hero body was composed and no variant key could name them. The body now ships with the owner, as a prismatic colour of an arcana always intended.
+
+## [2.9.2-beta] (Build 2442)
+
+### Added
+
+- **Debug builds of the Skin Selector can generate the official ModsPack package** (2442): A Generate ModsPack button on the Debug card builds the gallery's current picks into one self-contained `pak01_dir.vpk` in `game/_ArdysaMods`, packaged the way Manual Install recognises an official release. The package is checked before it is installed; if it fails, the current mods stay untouched. No quota is used. Release builds contain none of it.
+
+## [2.9.1-beta] (Build 2441)
+
+### Changed
+
+- **Auto Install now checks the installed packages before calling it done** (2441): It runs the same check Manual Install already had: the item definitions can be read in mount order, every patched block is there, and the localization is in one of the two packages. A failure restores the previous install. "ModsPack up to date" now also needs the item definitions to actually be installed, not just the main package file.
+- **Both ModsPack install paths swap the two mod packages as one unit** (2441): The main package used to be copied straight over the old one, with no check and no undo. It now goes through the same validated, rename-in swap as a generation, and a main swap that fails puts the other package back.
+
+### Fixed
+
+- **Manual Install of an official ModsPack release no longer installs it without item definitions** (2441): A release pack carries the same marker file as a pack generated by the app, so it was installed as-is: slim, with no item data, and reported as a success. Install as-is now also requires the pack's own item data, and an as-is install that ends with none fails and puts the previous mods back.
+- **A failed install no longer loses the second mod package on rollback** (2441): The install's backup and the package swap's own backup used the same file name, so the swap consumed the install's backup. A later failure then restored the old main package with nothing defining its items.
+- **Installing the ModsPack keeps the second mod package hidden** (2441): Finalizing the packages cleared the file's attributes and never restored them.
+
+## [2.9.0-beta] (Build 2440)
+
+### Added
+
+- **Miscellaneous has a Tormentor option** (2440): Like the Kill Banner, the Tormentor slot has no default item, so every Tormentor block (10th Anniversary, Frostivus 2024, Obscene Eye Ball) ships with only the chosen one flagged, and `Default` ships them all vanilla. The ids live in `MiscItemIds.SlotExclusive`; an asset that misses a block or flags two is skipped with a warning instead of equipping two items at once, and an item Valve adds to the slot later is logged.
+
+### Changed
+
+- **A generation installs its two mod packages as one unit** (2440): A second package swap that fails, throws or is canceled now puts the first one back, so the game never loads new item definitions over the previous models. A new package is copied beside the old one and renamed in, so a half-written package is never live, and the old package's hidden state is restored on every path that keeps it.
+- **Shared-body notices in the Skin Selector go to the run log only** (2440): Which pick keeps a shared hero body is a merge note, not a skipped item, so it no longer shows in the skipped-items dialog.
+
+### Fixed
+
+- **A crash mid-install no longer throws away the previous mods** (2440): A leftover backup from an interrupted install was always deleted on the next run, even when it was the only copy. It now goes back when the live package is missing or unreadable, and is dropped only when the live one is good.
+- **Picking `Default` in Miscellaneous lets the next Dota update through** (2440): Restored vanilla blocks were still recorded as patched, so they stayed frozen at the old copy after Valve changed them. `Default Ancient` also no longer warns that its placeholder is "not a valid archive".
+- **Aberrant Back keeps its arcana look with an arcana body** (2440): The arcana copy of a worn mesh was swapped back for the regular-body one the same item also ships.
+
+## [2.8.1-beta] (Builds 2437–2439)
+
+### Added
+
+- **Debug builds of the Skin Selector have a Skin Tester for unpublished ModsPack zips** (2437): A Debug button in the header opens a card: add local zips, see which hero and layer each lands on, and Build + install them through the normal generation pipeline into `game/_ArdysaMods`. No quota is used and the gallery stays open; the result log shows which body won and which pre-combined body was applied. The same tool runs standalone with `--skin-tester`. Release builds contain neither.
+- **Skin presets remember picks by name, not only by position** (2439): A saved preset now also records each pick's archive name. When heroes.json adds or reorders entries, loading the preset still finds the same item or effect instead of whatever moved into its old slot. Picks that no longer exist are skipped and reported. Older presets load as before.
+
+### Changed
+
+- **The Skin Tester card shows each hero's build order before you build** (2438): Zips are listed per hero in the order the generation applies them, numbered from the first layer to the last, and the last one is marked Top because it wins every file and item id it shares. A chip shows whether that hero's Base goes first, last, or both (per-set methods in heroes.json). The order comes from the same function the build sorts by, so the preview cannot disagree with the result. Combinations the Skin Selector would refuse, like two Bases or a Persona with items, get a warning without blocking the build.
+- **An Ability Effect is refused while any style of its own item is picked** (2439): The rule used to match only the exact archive it was cut from, so Fin King's Charm of Eminent Revival in its other style still let the same effect be layered on top. Every item archive with the effect's name now counts.
+
+### Fixed
+
+- **Lion's Hex with the Fin King's Charm effect turns the target into a fish, not a frog** (2439): Ability Effects could only carry particles and the ability icon, so the hex model and summoned units an item changes stayed vanilla. An effect can now also carry the hex prop or summon model (Lion, Shadow Shaman, Weaver, Gyrocopter, Dark Willow, Templar Assassin, Visage, Techies) and the ability's own sound files. A fixed list of model paths and shared sound folders keeps an effect from replacing a hero body, a wearable, or a sound other heroes use.
+- **A refused Ability Effect no longer leaves a half-built hero behind** (2439): Effects were checked while their hero's layers were being copied, so a refused effect left that hero's other files, and the last effect, in the package. Every effect of a hero is now checked before any of its files are copied.
+- **The Skin Tester card no longer gets stuck on "Checking…"** (2438): A zip that was deleted, locked or not really a zip, or an unreadable heroes.json, used to stop the plan without an answer, so Build stayed disabled for good. Each problem now shows on its own zip's row, a zip whose name or folder no longer matches its published asset is caught before the build starts, and a zip that replaces a published set keeps that set's name so its heroes.json method still applies.
+- **Each style of an arcana now gets its own pre-combined body with an item that rebuilds the body** (2437): Juggernaut's Bladeform Legacy has two styles that both swap to the same arcana model, but their bodies differ, so one pre-combined body for Ancient Exile's weapon with the Odachi gem could only be right for one of them. An item pack can now carry a body per style (`variants/<body>.skin<N>/`), and the Skin Selector picks the one matching the arcana's style. Packs built before this keep working: their single combined body still applies to every style.
+
+## [2.8.0-beta] (Build 2436)
+
+### Added
+
+- **The Skin Selector has an Ability Effects rail: pick one item's ability particles without wearing the item** (2436): Like Dota's own "Ability Effects" loadout slot, an `effect_ability{N}_{item}.zip` entry swaps one ability's particles (and, when it changes one, its HUD icon) and nothing else. One effect per ability, applied after every other layer so the pick wins; a Persona clears them, and an effect is greyed out while the item that already carries it is picked. An archive that ships anything but hero particles and the ability icon, or two picks that write the same file, fails the hero instead of guessing. Labels and icons come from `ability_names` / `ability_icons` / `effect_icons` in the hero data; presets save the picks under `effects`.
+- **Miscellaneous has a Kill Banner option** (2436): The multikill banner has no default item, so both banner blocks (`10731`, `11548`) are patched whichever one is chosen, and `Default` restores both.
+
+### Changed
+
+- **A ModsPack upload only refreshes the thumbnails it actually changed** (2436): Any change to the set-update list used to re-download every set thumbnail it had ever listed (about 1,000). The cache now remembers the newest batch date it saw and only refreshes sets from that batch on. A thumbnail that was missing before the upload finished is checked again instead of staying hidden.
+- **The Skin Selector opens faster and stays responsive while loading** (2436): Hero data and the update list download in parallel, building the hero list and checking the thumbnail cache run off the UI thread, and hero cards and the Latest Updates strip no longer re-render every second while a cooldown ticks. Latest Updates shows each set's real name.
+
+## [2.7.1-beta] (Builds 2432–2435)
+
+### Added
+
+- **An arcana whose piece sits in the head slot now always keeps the head** (2432): With Zeus' arcana, a Legacy Set used to take over the head and its effects. The arcana now keeps the head's model, particles and animations; the set still supplies every other slot. Head items are greyed out while that arcana is picked, and the arcana tile's "!" badge explains why. The rule is switched on per arcana in the hero data (`base_locks`) for Zeus, Lina, Io, Spectre, Terrorblade, Wraith King and Faceless Void (`body_head`). It never overrides a Prismatic or another slot's pieces.
+
+### Changed
+
+- **A feature the server cannot be reached for now says so, with Retry and a fix** (2433): Install ModsPack, Skin Selector, Miscellaneous and Utilities used to show "Feature Unavailable" with Join Discord, which read as maintenance and told users who were online to connect to the internet. They now show "Can't Reach Server" with a Retry that continues the action once the check passes, plus a tip to turn on Cloudflare WARP when an ISP blocks the server. A feature switched off on purpose still gets the Join Discord notice.
+- **Test Connection names the real cause and the fix** (2433): Both servers failing showed "SSL/TLS handshake error" and a generic "check your internet, DNS, or firewall". The test now reads the underlying error: a connection cut mid-handshake points to an ISP block and Cloudflare WARP, a wrong PC clock and HTTPS scanning by an antivirus or proxy get their own messages, and when every server fails the same way the summary says which. Technical details go to the log file.
+- **The cached feature settings are tied to the Windows account and expire after 7 days** (2433): The last-known settings were a readable, editable file anyone could copy between PCs. They are now stored per Windows account in a hidden file, and a copy that is older than 7 days, dated in the future or not written by this account is ignored. The old `feature_access_cache.json` is deleted. See [ADR-0014](docs/adr/0014-asset-version-compatibility.md).
+
+### Fixed
+
+- **A preset can no longer generate combinations the Skin Selector refuses** (2432): Incompatible pairs and a Persona saved together with items or an arcana used to reach generation straight from a preset file. Both rules are now applied again at the moment you press Generate.
+- **Install ModsPack, Skin Selector and Miscellaneous no longer block a first run on a working network as "offline"** (2433): The feature check had 5 seconds for the whole server chain, so a slow first connection used them all on the first server and the backup server was never tried. A failed check then skipped the next minute of retries, so "try again" could not work. The check now gets 20 seconds with at most 7 per server, always retries when nothing is cached, and shares one request between startup and a click.
+- **Several items that rebuild the same hero body now keep all their pieces together** (2434): Life Stealer's golden head, back and claw each rebuild his one body file, so whichever was picked last won and the other two lost their mesh or animations without a word. An item pack can now carry a body pre-combined for the exact other items picked with it (`variants/<their packs, '+'-joined>/`), and that body is used. With no combined body, the Skin Selector warns and names the cosmetics that lost their piece.
+- **Shadow Fiend's Demon Eater with Arms of Desolation now runs with the desolation run in a public match** (2435): The Arms pack rebuilt the regular body, and with the arcana picked that body was set aside for the arcana's own, so the run stayed plain. The pack now carries the arcana body with the desolation run (`variants/shadow_fiend_arcana/`), used at the hero's body path and for an owner of the real arcana. That run is Valve's arm-spread variant: the other desolation run is the regular run, frame for frame. Tests pin the pairing in both merge orders.
+
+## [2.7.0-beta] (Builds 2417–2431)
+
+### Added
+
+- **Skin Selector tiles flag cosmetics with a known issue** (2421): A cosmetic can now carry notes in the hero data, such as "animation is bugged in Demo Mode only". The tile shows a "!" badge with the notes in its tooltip. For a style group, notes from every variant are shown, so a problem on one variant is not hidden behind the group's cover. A malformed or unknown note is skipped on its own and never hides the hero.
+
+### Changed
+
+- **Temporary work folders are removed as soon as the run that made them finishes** (2418): Folders a run unpacks into were only cleared by the sweep at the next app start, so a long session kept every one of them on the temp drive. A run now deletes its own folder on the way out, retrying briefly when an external tool still holds a file for a moment after it exits; the startup sweep remains as the safety net.
+- **Skin Selector thumbnails survive an app update** (2423): The post-update cleanup wiped the thumbnail cache with everything else, so every beta build re-downloaded about 1,500 images at launch. It now clears temp, WebView2 and config caches only; thumbnails are already refreshed per content version, and the Settings "Clear cache" button still removes them.
+- **Launch caching reports honest progress and counts failures as failures** (2423): The progress count jumped around because it reported whichever download started, not how many finished, and a failed download was counted as "skipped". Only a definite not-found is remembered across sessions, so a brief network drop no longer hides a thumbnail for good.
+- **The console only shows lines you can act on** (2424): Startup used to print button-state traces, watcher and updater internals and every caching step before anything useful, and a repack added 54 tool-diagnostic lines. Those now go to the log file only; failures still reach the console, without the internal class name in front. A test fails if a tagged diagnostic is sent to the console again.
+
+### Fixed
+
+- **A typo in the Skin Selector's compatibility rules no longer blocks a whole group of cosmetics** (2421): A rule whose "with" list matched nothing was read as "these cosmetics exclude each other", so every set it named was greyed out against the rest. Such a rule is now skipped.
+- **An arcana or persona combined with separate item packs keeps its body and animations in public matches** (2422): A body is one compiled model, so an item pack built for the regular body used to overwrite the arcana's and pub games fell back to the regular animations. The arcana/persona now owns the body files; an item pack can ship a body pre-combined for that owner, and without one its baked piece is left out with a note. Zeus' Righteous Thunderbolt keeps its wearable on the combined body, so the bolt stays in his hand.
+- **Disable Mods → Delete Permanently only reports success once both mod folders are really gone** (2429): A failure on the second folder was swallowed, so the restart prompt appeared while its files were still on disk, and a half-finished delete left them visible. The delete now lives in `ModInstallerService`, retries briefly past a momentary file lock, re-hides whatever survives, and shows "Files Not Removed" instead of the restart prompt when something is left.
+- **Delete Permanently refuses a folder that is not a disabled Dota 2 install** (2429): It now requires `dota.signatures`, a game config that no longer loads either mod folder, and an absolute path — an empty path used to resolve `game\mod` against the working directory. It also stops when Dota 2 was started while the confirmation dialog was open.
+- **Tiny's form sets no longer turn back into the base model next to Sword of the Colossus** (2430): The sword pack ships its own Tiny body at levels 1, 2 and 4 to keep the sword in his hand. Tiny's forms have no body-swap row, so nothing decided who owned that body, and whichever pack was picked last won. A body shipped by two packs with no body swap now goes to the pack that fills a slot with no model of its own (the form). A form pack can carry a body already combined with the sword under `variants/<sword pack>/`, which replaces it when both are picked.
+
+## [2.6.4-beta] (Builds 2409–2416)
+
+### Added
+
+- **The new Utilities window lets you override your client-side profile rank medal and tier stars** (2416): Added a dedicated Utilities window accessible from the sidebar. The Rank Changer module patches client-side Panorama UI assets so players can display any desired rank medal (from Herald up to Immortal with custom leaderboard ranks) locally without modifying server-side matchmaking data. Includes one-click restore and conflict-free mod integration.
+- **The install error card now has a "Send Report" button that opens Discord and an "Open Log Folder" button that reveals the log file** (2409): The previous release made `ardysa_fallback.log` complete, but reaching it still meant knowing where `%LocalAppData%` is. When an install fails, the card now shows a one-line prompt and two actions — Send Report opens the community Discord, and Open Log Folder opens Explorer with the log file already highlighted, so attaching it to a report takes one drag. The path is read from the logger's real target rather than guessed, so it is correct even when the default next-to-exe location was redirected at startup. Localized across all shipped languages.
+- **The Skin Selector now labels a cosmetic with its real in-game name and refuses combinations a hero cannot wear at once** (2410): Tiles were named `Set 7` — positional bookkeeping that means nothing to a player. Real item names now come from the dataset per hero and are used everywhere a set is named (tile, selection tray, hero summary), and a set that conflicts with something already picked is greyed out with the reason instead of quietly producing a broken model. The rule is also applied to selections the user did not just make — a loaded preset, or a scan of the installed package — because neither goes through a tile. The item catalog is grouped by slot on top of that, with the dataset's duplicate slot spellings (`arm`/`arms`, `offhand`/`offweapon`) merged into one heading.
+
+### Changed
+
+- **The main window steps aside while the Skin Selector or Miscellaneous window is open** (2411): Both open as full-size tools on top of the shell, so the app sat behind itself as two stacked windows. The shell now hides once the child window is actually on screen — late enough that the child can still centre itself on it — and comes back before anything that runs after the close, keeping its taskbar and Alt-Tab entry throughout.
+- **AMT's internal working paths no longer show up in the console, the log file or the error card** (2414): Messages meant for the user could name folders that are AMT's own bookkeeping and mean nothing to a player — including Windows' own file-error text, which carries a path whether or not the message was written to include one. These are now cleaned at the three points every line passes through on its way to the screen, the log file and the in-app page, rather than at each of the places that write them, so a newly added message cannot reintroduce it.
+
+### Fixed
+
+- **A cosmetic no longer goes missing in-game on an install whose game configuration predates the current package layout** (2412): Every build path moves part of the finished package into a second file, and the two halves of that move asked different questions — the item definitions checked whether the install actually reads the second file, while the set's own models and textures were moved regardless. On an older configuration the item stayed defined while its assets went where the game never looks, and nothing reported it. Both halves now answer a single check, shared by all five build paths.
+- **Miscellaneous rebuilds now refresh the mod's in-game text instead of repacking whatever the last run left behind** (2413): Both Misc modes rebuild the package, but neither re-fetched the localization files, so a Misc-only user never picked up a text update and a clean rebuild could ship with the text that happened to be in the base extraction. Both modes now refresh it and report progress while they do.
+- **A language that cannot be downloaded now falls back to the previously cached copy instead of being left out** (2413): A flaky minute on the delivery network used to drop that language's file from the package entirely, so item names went missing in-game until the next successful run. The cached copy is used instead, and the run reports it as a warning rather than failing the install — outdated text is a much smaller loss than none.
+
+## [2.6.3-beta] (Build 2408)
+
+### Fixed
+
+- **A failed install now says what actually went wrong instead of one sentence that fits every cause** (2408): The ModsPack rebuild already distinguished "the package is locked by another program", "the rebuilt package failed its check" and a plain disk error, but each was reported to the progress overlay and then replaced with a generic line on the failure card. The specific reason is now carried through to the card, with the generic wording kept only as a fallback.
+- **Every log line reaches `ardysa_fallback.log`, not just the debug ones** (2408): Only `LogDebug` was written to disk, so the `ERROR:` lines a user needs to send in lived in the in-app console and disappeared with the window. `Logger` now mirrors every line to the log file as well as the console, and the ModsPack rebuild passes `FileAppLogger` to its sub-services instead of discarding their diagnostics.
+- **Installing ModsPack checks for free disk space before downloading, not after rebuilding** (2408): The rebuild holds the unpacked tree, both rebuilt packages and a reshape copy at once — several GB on the temp drive, which is usually not the drive Dota 2 is on. Running out used to surface as a failed package swap at the very end. `ModsPackDataService.HasRoomToBuild` now checks up front and fails open when it cannot measure the drive.
+- **The background waiter that runs while Dota 2 is open now uses the game folder you selected** (2408): It re-detected a folder of its own instead of reading the configured path, so on a PC with more than one Steam library it could act on a different install than the app does — and the app's own cleanup, which reads the configured path, never covered it. `GameSessionWatcher.ResolveDotaPath` prefers the saved path and falls back to detection only when there is none.
+
+## [2.6.2-beta] (Build 2407)
+
+### Fixed
+
+- **Cosmetic couriers with alternate skins now render their distinctive visual appearance in-game instead of appearing as the default courier** (2407): Base courier entities (`npc_dota_courier`) in Source 2 hardcode `m_nSkin = 0` and ignore the `skin` property on item 595, rendering unskinned brown/grey models for Golden, Ice, Platinum, and Lava Baby Roshans despite particle effects working. Courier material group swaps are now cataloged and mapped over skin 0 target paths in the mod package via `CourierSkinCatalog`.
+
+## [2.6.1-beta] (Build 2404)
+
+### Fixed
+- **Remote configuration is now read from every delivery host and merged, instead of stopping at the first one to answer** (2404): A delivery edge can answer successfully while serving a copy it cached a long time ago, and a first-answer-wins read would then act on that copy even when another host was already serving the current one — so a configuration change could stay unnoticed for as long as the stale copy survived. Configuration is now requested from every host at once and combined into the strictest reading of the answers, and it carries a serial number so a copy older than the one AMT already holds is ignored rather than applied.
+- **Configuration that cannot be re-checked for a long time no longer stays in effect indefinitely** (2404): Falling back to the last known copy is right for a brief outage and wrong forever, because a PC that can never reach the delivery network would keep applying an old copy for good. AMT now stops relying on a copy it has been unable to confirm for a week, and picks it straight back up on the next successful check.
+
+## [2.6.0-beta] (Builds 2402-2403)
+
+### Added
+
+- **Asset requests now carry a short-lived signed header the delivery edge can check** (2402): Downloads of mod archives, per-set index data and Miscellaneous payloads attach a header that the delivery network verifies before serving. A build with no key configured sends no header at all rather than a wrong one, and the edge is set to serve everything until the rollout finishes, so nothing changes for anyone today. See ADR-0019.
+
+### Fixed
+
+- **Reinstalling an already-generated package through Manual Install no longer risks losing its item data** (2403): The install rebuilds two package files and used to swap the new main file into place without checking whether the second file actually finished — a failure there could leave the install with no item data anywhere, reported as a successful install. It now keeps the existing install untouched whenever that second file fails to build or deploy, and records why so it can be diagnosed afterwards.
+- **Leftover temporary work folders from an interrupted hero-set generation or install no longer accumulate on disk** (2403): A crash, a forced close, or a generation batch that stopped partway through used to leave its working folder behind permanently. AMT now clears out stale working folders left by a previous run on startup, without touching the cached vanilla game data that speeds up later runs.
+- **A single refused download no longer slows every other transfer for two minutes** (2402): Four download paths each walk the host list on their own, and every one of them read a refusal as a failing server, reporting each host to the shared health tracker. Three such reports trip a breaker that deprioritises that host for two minutes — including for thumbnails and the startup catalogue, which were never involved. All four now stop at the first refusal and report it under its own code instead of sweeping the whole chain to be told the same thing.
+- **A refused request is no longer filed away as a missing file** (2402): The cache remembers a genuinely absent asset for seven days so it stops re-requesting it. A refusal was close enough in shape to be recorded the same way, which would have hidden an asset long after an update made it reachable again. The match now keys on the full status text, so an asset whose name happens to contain those three digits is still cached correctly.
+- **A bad clock correction no longer sticks for the rest of the session** (2402): The delivery edge returns its own time when it turns a request away, so a PC whose clock is far out can correct itself and retry once. That correction was kept permanently even when the retry was refused too, so one bad value could lock every later request out for the whole session. A correction that does not actually get the request served is now rolled back, and parallel downloads can no longer clobber each other's.
+- **Miscellaneous downloads no longer retry a refusal three times and then call it missing** (2402): A turned-away request was classified as a transient network error, retried, and finally swallowed into "not found" — reporting an asset that exists as one that does not, after three pointless round trips.
+
+### Changed
+
+- **AMT now briefly restricts direct file access to the installed package folder while Dota 2 is running** (2403): The restriction is applied only after the game has the files open, is lifted the moment the game closes, and is also cleared unconditionally the next time AMT starts — so an interrupted session can never leave the folder locked.
+
+## [2.5.1-beta] (Builds 2393–2398)
+
+### Fixed
+
+- **Dialogs now render in the bundled JetBrains Mono instead of quietly falling back to a system face** (2398): The error, conflict, install-required and patch-required dialogs asked Windows for a font by name, which only resolves for someone who has that font installed system-wide — everyone else got a substitute with no error and no log line to say so. They now go through the helper that reads the copy shipped in `Assets/Fonts`, and startup writes a warning if that folder is missing from a build.
+- **The Skin Selector's server-time check now uses the active CDN instead of a retired host** (2396): The clock-anomaly guard confirmed the current time with a request to jsDelivr, which the app no longer fetches from; it now asks the primary R2 host like every other request, so the check keeps working where the old host is unreachable.
+- **Play Dota 2 now refuses to strand you when Steam is closed with an update waiting, and rebuilds your mod package if a game update lands while it is being repaired** (2395): Pressing Play while Dota 2 has a queued update but Steam is not open used to sit forever on a progress panel — only Steam can install that update, and nothing was there to install it; Play now stops and tells you to open Steam and let the update finish first. And if an update arrives *during* the package rebuild, the half-built package (made against item data the game no longer ships — the exact mismatch that opens as a FATAL ERROR) is discarded unused and the package is rebuilt against the new version before launch, up to a few times before giving up and asking you to let Steam settle.
+- **Installing the ModsPack right after Disable Mods or a Dota 2 update no longer builds a single, undivided package** (2394): The install decides whether to divide the mod data across the two packages by reading the game config that is on disk at that moment — but the install runs *before* the patch step that writes AMT's own config. Disable Mods and every Dota 2 update restore Valve's config, so the very next install saw one that mounts neither folder and put the whole dataset into the main package instead. The check now also accepts an untouched Valve config, where nothing of ours loads until you patch anyway, and still refuses on the one config layout the division would actually break.
+- **The post-update release notes now open once per version instead of on every beta build** (2393): The notes added in 2383 were scheduled whenever the build number changed, so each new beta build inside the same version re-opened them. They are now keyed to the version itself and open a single time when you move to a new one; a stale schedule left by the old behaviour is discarded on first run.
+
+## [2.5.0-beta] (Builds 2380–2392)
+
+### UI/UX
+
+- **Silenced internal package extractor diagnostic messages on the main console** (2391): Routed item definition probe and extraction progress logs in `GameItemsGameExtractorService` to debug severity so routine package inspection does not clutter the user console during mod installations.
+
+### Performance
+
+- **Optimized items_game merge indexing for single-line mod packages** (2386): Packaged items_game definitions formatted as a single line caused block span searches to scan from the beginning of the file for every entry. Replaced line-start scanning with block-indentation anchoring to eliminate quadratic merge latency during package repairs.
+
+### Fixed
+
+- **Completed the package header finalization introduced in 2388** (2389): That build wrote only the trailing metadata section, which the format leaves optional and most readers skip past without ever looking at it, so a finalized package was indistinguishable from an unfinalized one to anything that reads packages. Built packages now also carry the standard 48-byte checksum section — directory, entry-table and whole-file MD5s computed exactly as Valve's own packer computes them, verified byte-for-byte against the stock game packages. The archive-checksum section is deliberately left empty: Source 2 asserts its size is a multiple of the 28-byte entry it holds and refuses to launch otherwise.
+- **Hardened manual mod package verification and rollback integrity** (2387): Manual installation now verifies that patched item IDs and required localization files are present before committing the package, cleaning loose item data files and automatically rolling back on verification failure or cancellation.
+- **Fixed a cached hero set failing generation after the server rebuilt it** (2382): A set already in the download cache was checked against the server's current hash and, when the set had been rebuilt since, the whole generation stopped with a mismatch the user could only clear by emptying the cache by hand. A stale cached copy is now refetched once and re-verified through exactly the same check.
+- **Fixed Miscellaneous "Generate Only" losing mod item names after the first run** (2381): Generation patched the shared cached base files in place, so the first run moved the localization out of that cache for good and every later run built a package without it. Each run now works on a disposable copy of the cache, the way the Skin Selector already did.
+- **Fixed Cursor mods having no effect in game** (2380): The package repair that runs before Play Dota 2 rebuilt each modded item block by taking the game's own version of it and laying only the changed keys on top — correct for a hero item, wrong for a Miscellaneous one. A Miscellaneous asset ships the *whole* item definition, so every field it deliberately leaves out was being put back afterwards, and the cursor pack the user picked was written into the package with the default pack's fields glued underneath it. Cursor was the visible case; the same rewrite could reach any Miscellaneous category.
+- **Kept every Miscellaneous item definition exactly as authored through a package repair** (2380): Miscellaneous default items are now copied through the repair untouched, so what ends up in the installed package is byte-for-byte what the mod ships. Hero items keep the previous behaviour, which they rely on to fill in the definition the game holds.
+
+### Added
+
+- **The release notes for a new version now open by themselves the first time you run it** (2383): Updating used to leave the changelog somewhere you had to go looking for it. The app now shows the notes for the build you just received once, after the support prompt closes, and never again for that version. The flag that schedules it is persisted, so closing the app early or being offline postpones the notes to the next launch instead of losing them, and a version you have already updated past is dropped rather than shown late.
+- **Added a "Star on GitHub" action to the main window, Skin Selector and Miscellaneous title bars** (2383): A single shared control, in the one accent colour the otherwise monochrome chrome now allows, sitting left of the window buttons; it also appears as the primary action of the post-update notes. The Skin Selector marquee moved onto that same accent so its title bar carries one gold rather than two that almost match.
+- **The Skin Selector now shows which skins you already have installed** (2382): Opening the gallery reads the installed package itself and re-selects the sets it finds, with a banner reporting the count. Every generation writes a record of its picks into the package it builds, so detection survives a game reinstall, a Steam file verification, or a package copied in by hand — none of which a local file could survive.
+
+### Refactor
+
+- **Standardized package header formatting and metadata signature tagging** (2388): Applied automatic VPK v2 header normalization and metadata signature section tagging across hero, miscellaneous, and package data compilation pipelines.
+
+- **Moved the package's item definitions and mod text into the secondary package** (2381): The installed `_ArdysaMods` package no longer carries its own item definitions or the mod's localization files; both now live in the secondary `game/mod` package that the patched search paths already mount ahead of the game's own. Mount order is unchanged, so the game reads them exactly as before and no new game patch or re-verification is needed.
+- **Made the two packages install in a fail-safe order** (2381): The secondary package is now written before the main one in every generation path and in the ModsPack rebuild, and stale state is cleared before a rebuild instead of after it. A failed or interrupted install can no longer leave a new main package live against item definitions that no longer match it.
+- **Made package repair follow whichever package holds the item definitions** (2381): The repair that runs before Play Dota 2, and the Package Sync chip behind it, now resolve which of the two packages the game actually loads its item data from — in search-path order — and read and write that one. The verification record is bound to both packages, so a rebuild touching either one invalidates it.
+- **Moved the Miscellaneous default item ID list into the shared constants** (2380): The list of vanilla item IDs the Miscellaneous categories replace lived on the asset modifier and was read only by tests; it now sits in `Core/Constants/MiscItemIds.cs` as the single reference both the modifier and the package repair read.
+
+### Documentation
+
+- **Documented every user-facing feature added since 2.3.4-beta across the developer and user docs** (2392): Three new ADRs — the Skin Selector generation cooldown, the Package Sync watcher/repair split, and the game-session runtime lifecycle — with matching entries in the services reference, the architecture overview, and the internal knowledge base. Added user-guide and troubleshooting notes for the generation cooldown and the Settings "Repair App" card.
+
+### Build
+
+- **Bumped the version to 2.5.0-beta** (2384): Promoted the unreleased 2.4.4-beta line to the 2.5.0-beta release; project version and build tracking updated to match.
+
+## [2.4.3-beta] (Build 2379)
+
+### Performance
+
+- **Stopped the Skin Selector and Miscellaneous galleries from re-checking every cached thumbnail over HTTP HEAD** (2379): A freshness sweep ran every 10 minutes a gallery was open, sending one HEAD request per already-cached thumbnail — Cloudflare's edge never caches HEAD against the R2 CDN, so every sweep billed a cloud operation per thumbnail regardless of whether anything had changed. Replaced with a check against the hero/misc catalog version the app already fetches on open: an unchanged catalog costs nothing, and a changed one invalidates only the thumbnails that actually moved.
+- **Replaced remaining CDN metadata checks with a cache-friendly request** (2379): Connection tests, resumable-download resume checks, and the localization patcher's freshness check all used to HEAD the app's own CDN; now use a small ranged GET instead, since Cloudflare's edge only caches GET responses.
+- **Reduced the R2-to-B2 mirror to one pass a day** (2379): The mirror workflow ran a duplicate dry-run pass before every real sync; now runs once, compares content-addressed assets by size instead of full metadata, and runs daily instead of every six hours. A release still mirrors immediately regardless of this schedule.
+
+### Fixed
+
+- **Fixed new heroes and sets sometimes not reaching users without a manual cache purge** (2379): The asset sync pipeline stamped the hero catalog and set-update manifest with a one-year cache lifetime meant for binary assets, and the app's own cache-busting query string had no effect against the CDN's cache key. Manifests now get a short cache lifetime so catalog updates reach clients within minutes.
+
+## [2.4.1-beta] (Builds 2364–2377)
+
+### Added
+
+- **Added comprehensive App Repair utility in Settings** (2373): Introduced an automated self-healing and diagnostics service accessible from Settings to verify mod integrity, repair file permissions, clear corrupt staging caches, and restore clean game configuration state.
+- **Added UI thread synchronization helper** (2373): Added `UiThread` dispatching utilities to safely marshal WebView2 callbacks and background worker events onto the main UI thread.
 - **Added remote generation cooldown toggle via feature access configuration** (2368): Integrated remote on/off switch and custom duration support for Skin Selector generation cooldown via Cloudflare R2 feature access configuration.
+
+### Documentation
+
+- **Excluded scripts directory modifications from changelogs and release notes** (2370): Added explicit workspace rules and updated agent skill definitions to ensure internal scripts, developer utilities, and asset tools are strictly excluded from changelog tracking.
 
 ### Refactor
 
@@ -23,8 +300,13 @@ longer belongs in an ADR, linked from the bullet. Entries before 2.2.20-beta kee
 
 ### Fixed
 
+- **Fixed WebView2 thread marshaling and form disposal lifecycle** (2373): Hardened `HeroGalleryPresenter`, `MainFormWebView`, and `SettingsFormWebView` against cross-thread access exceptions and prevented lingering WebView2 instances on form close.
 - **Fixed Skin Selector and Miscellaneous mods not loading in-game** (2366): Resolved mod generation and packaging failures where selected hero sets, personas, items, and misc modifications failed to apply or appear during gameplay due to missing search path synchronization and staging extraction errors.
 - **Fixed update manifest caching and allowed manual delta update retry** (2364): Added cache-busting timestamp queries to update manifest fetches and reset previous delta failure suppression when explicitly checking for updates from Settings.
+- **Fixed inconsistent line endings in the package's item data causing launch failures** (2374): The game ships its item data with Windows-style line endings, which the engine rejects in a package mounted over it. Normalized every path that writes item data into a build — including blocks assembled by the courier and ward pipelines — and closed a gap where a legacy package could be reported as already up to date without actually being rebuilt.
+- **Fixed a package rebuild losing its up-to-date verification record** (2374): Fixed a cleanup step that deleted the record proving a package's item data matched the current game version, forcing every check afterward to fall back to a weaker comparison that can miss a game update.
+- **Fixed the secondary package folder losing its hidden state after a rebuild** (2375): A cleanup step run at the end of Install ModsPack and Manual Install stripped the folder's hidden attributes to allow removing stale content, but never restored them afterward — leaving the folder and any leftover files visible in the game directory until an unrelated later generation happened to hide it again.
+- **Fixed Miscellaneous "Add to Current" generation producing a package that fails to launch** (2377): Two gaps let a broken package reach the game directory — a legacy package with Windows-style line endings in its item data was rebuilt without ever being cleaned up, and a corrupted or incomplete download used for a mod's item data was spliced into the package instead of being rejected. Added a build-time check that reads a freshly built package's own directory and refuses to install it if any entry cannot be resolved, closing the gap for any future cause with the same shape.
 
 ## [2.4.0-beta] (Build 2363)
 

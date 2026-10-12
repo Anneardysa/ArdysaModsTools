@@ -17,7 +17,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
 using ArdysaModsTools.Core.Services.Misc;
@@ -78,27 +80,86 @@ public class AssetModifierServiceTests
     }
 
     [Test]
-    public void KnownMiscDefaultItemIds_ContainsAllBaseItems()
+    public void MiscItemIds_ContainsAllBaseItems()
     {
         Assert.Multiple(() =>
         {
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("202"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("555"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("586"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("587"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("588"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("590"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("595"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("596"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("660"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("661"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("677"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("678"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("801"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("11173"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("12970"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("34462"));
-            Assert.That(AssetModifierService.KnownMiscDefaultItemIds, Does.Contain("34463"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("202"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("555"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("586"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("587"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("588"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("590"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("595"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("596"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("660"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("661"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("677"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("678"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("801"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("11173"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("12970"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("34462"));
+            Assert.That(MiscItemIds.Defaults, Does.Contain("34463"));
+        });
+    }
+
+    [Test]
+    public void ResolveItemIdsForSelections_MultikillBanner_TracksBothBannerIds()
+    {
+        var picked = AssetModifierService.ResolveItemIdsForSelections(
+            new Dictionary<string, string> { { "multikill_banner", "Battle Glory" } });
+        var dflt = AssetModifierService.ResolveItemIdsForSelections(
+            new Dictionary<string, string> { { "multikill_banner", "Default Kill Banner" } });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(picked, Is.EquivalentTo(new[] { "10731", "11548" }));
+            Assert.That(dflt, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void ResolveItemIdsForSelections_DefaultWardWithEthereal_TracksDefaultWard()
+    {
+        var withEth = AssetModifierService.ResolveItemIdsForSelections(
+            new Dictionary<string, string> { { "Ward", "Default Ward" }, { "WardEthereal", "Sunfire" } });
+        var plain = AssetModifierService.ResolveItemIdsForSelections(
+            new Dictionary<string, string> { { "Ward", "Default Ward" } });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(withEth, Does.Contain("596"));
+            Assert.That(plain, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void ApplyEthereal_WardBlock_ReplacesParticlesWithPickedEffects()
+    {
+        const string ward = "\"596\"\n{\n\t\"prefab\"\t\"ward\"\n\t\"visuals\"\n\t{\n\t\t\"asset_modifier0\"\n\t\t{\n\t\t\t\"type\"\t\"particle_create\"\n\t\t\t\"modifier\"\t\"particles/old.vpcf\"\n\t\t}\n\t}\n}";
+
+        var result = AssetModifierService.ApplyEthereal(ward, "Sunfire, Unknown Effect", "Ward", _ => { }, out bool applied);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(applied, Is.True);
+            Assert.That(result, Does.Contain("courier_trail_05.vpcf"));
+            Assert.That(result, Does.Not.Contain("particles/old.vpcf"));
+        });
+    }
+
+    [Test]
+    public void ApplyEthereal_NoKnownEffect_LeavesBlockUntouched()
+    {
+        const string ward = "\"596\"\n{\n\t\"visuals\"\n\t{\n\t}\n}";
+
+        var result = AssetModifierService.ApplyEthereal(ward, "Nope", "Ward", _ => { }, out bool applied);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(applied, Is.False);
+            Assert.That(result, Is.EqualTo(ward));
         });
     }
 
@@ -313,8 +374,273 @@ public class AssetModifierServiceTests
         }
         finally
         {
+            RemoteMiscConfigService.InvalidateCache();
             try { Directory.Delete(tempDir, true); } catch { }
         }
+    }
+
+
+    private const string AnniversaryId = "29339";
+    private const string FrostivusId = "29588";
+    private const string ObsceneEyeBallId = "34576";
+    private static readonly string[] TormentorIds = { AnniversaryId, FrostivusId, ObsceneEyeBallId };
+
+    private static string Tormentors(string? flagged = null) =>
+        string.Concat(TormentorIds.Select(id => TormentorBlock(id, id == flagged)));
+
+    private static string TormentorBlock(string id, bool baseitem) =>
+        $"\"{id}\"\n{{\n\t\"name\"\t\t\"Tormentor {id}\"\n\t\"prefab\"\t\t\"tormentor\"\n" +
+        (baseitem ? "\t\"baseitem\"\t\t\"1\"\n" : "") +
+        $"\t\"item_name\"\t\t\"#DOTA_Item_Tormentor_{id}\"\n" +
+        "\t\"visuals\"\n\t{\n" +
+        "\t\t\"asset_modifier\"\n\t\t{\n\t\t\t\"type\"\t\t\"entity_clientside_model\"\n\t\t\t\"asset\"\t\t\"npc_dota_miniboss\"\n\t\t}\n" +
+        "\t\t\"skip_model_combine\"\t\t\"1\"\n" +
+        "\t\t\"asset_modifier\"\n\t\t{\n\t\t\t\"type\"\t\t\"particle\"\n\t\t\t\"asset\"\t\t\"particles/neutral_fx/miniboss_shield.vpcf\"\n\t\t}\n" +
+        "\t}\n}\n";
+
+    private static string ItemsGame(params string[] blocks) =>
+        "\"items_game\"\n{\n\t\"items\"\n\t{\n" + string.Concat(blocks) + "\t}\n}\n";
+
+    private static bool HasBaseitem(string itemsGame, string id)
+    {
+        var block = Core.Helpers.KeyValuesBlockHelper.ExtractBlockById(itemsGame, id);
+        Assert.That(block, Is.Not.Null, $"block {id} missing from items_game");
+        return Core.Helpers.KeyValuesBlockHelper.TryGetTopLevelValue(block!, "baseitem", out var v) && v == "1";
+    }
+
+    private static async Task<(AssetModifierService Service, string ItemsGame, Helpers.FakeHttpMessageHandler Http)> RunMiscAsync(
+        string optionId, string choice, string url, byte[] payload, string itemsGame, Core.Interfaces.IAppLogger? logger = null)
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "AmtMiscSlotTests_" + Guid.NewGuid().ToString("N"));
+        string extractDir = Path.Combine(tempDir, "extract");
+        string itemsGamePath = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
+        Directory.CreateDirectory(Path.GetDirectoryName(itemsGamePath)!);
+        await File.WriteAllTextAsync(itemsGamePath, itemsGame);
+
+        var http = new Helpers.FakeHttpMessageHandler((_, _) =>
+            new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new System.Net.Http.ByteArrayContent(payload)
+            });
+        var service = new AssetModifierService(new System.Net.Http.HttpClient(http), logger);
+
+        RemoteMiscConfigService.SetLoadedConfigForTesting(new RemoteMiscConfig
+        {
+            Options = new List<RemoteMiscOption>
+            {
+                new() { Id = optionId, Choices = new List<RemoteMiscChoice> { new() { Name = choice, Url = url } } }
+            }
+        });
+
+        try
+        {
+            bool ok = await service.ApplyModificationsAsync(
+                Path.Combine(tempDir, "game", "_ArdysaMods", "pak01_dir.vpk"),
+                extractDir,
+                new Dictionary<string, string> { { optionId, choice } },
+                _ => { });
+            Assert.That(ok, Is.True);
+            return (service, await File.ReadAllTextAsync(itemsGamePath), http);
+        }
+        finally
+        {
+            RemoteMiscConfigService.InvalidateCache();
+            try { Directory.Delete(tempDir, true); } catch { }
+        }
+    }
+
+    private static byte[] Utf8(string s) => System.Text.Encoding.UTF8.GetBytes(s);
+
+    private const string TormentorUrl = "https://cdn.example.com/Assets/misc/tormentor/unit_test_pick.txt";
+
+    [Test]
+    public void MiscItemIds_SlotExclusive_IsWellFormed()
+    {
+        var seen = new HashSet<string>();
+        foreach (var (category, (displayName, ids)) in MiscItemIds.SlotExclusive)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(displayName, Is.Not.Empty, category);
+                Assert.That(ids, Has.Length.GreaterThanOrEqualTo(2), $"{category}: a slot with one item needs no flip");
+                foreach (var id in ids)
+                {
+                    Assert.That(int.TryParse(id, out _), Is.True, $"{category}: '{id}' is not an item id");
+                    Assert.That(seen.Add(id), Is.True, $"{category}: id {id} belongs to two slots");
+                    Assert.That(MiscItemIds.Defaults, Does.Not.Contain(id),
+                        $"{category}: {id} must not be verbatim-merged — the overlay has to keep Valve's later keys");
+                }
+            });
+        }
+        Assert.That(MiscItemIds.SlotExclusive.Keys, Is.SupersetOf(new[] { "multikill_banner", "tormentor" }));
+    }
+
+    [Test]
+    public void ResolveItemIdsForSelections_Tormentor_TracksEveryTormentorId()
+    {
+        var picked = AssetModifierService.ResolveItemIdsForSelections(
+            new Dictionary<string, string> { { "tormentor", "Obscene Eye Ball" } });
+        var dflt = AssetModifierService.ResolveItemIdsForSelections(
+            new Dictionary<string, string> { { "tormentor", "Default Tormentor" } });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(picked, Is.EquivalentTo(TormentorIds));
+            Assert.That(dflt, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Tormentor_PickObsceneEyeBall_MovesBaseitemOffPreviousPick()
+    {
+        var (service, result, _) = await RunMiscAsync("tormentor", "Obscene Eye Ball", TormentorUrl,
+            Utf8(Tormentors(flagged: ObsceneEyeBallId)), ItemsGame(Tormentors(flagged: AnniversaryId)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(HasBaseitem(result, ObsceneEyeBallId), Is.True);
+            Assert.That(HasBaseitem(result, AnniversaryId), Is.False, "two baseitems in one slot");
+            Assert.That(HasBaseitem(result, FrostivusId), Is.False);
+            Assert.That(service.GetWarnings(), Is.Empty);
+            Assert.That(service.GetModifiedItemIds(), Is.EquivalentTo(TormentorIds));
+            Assert.That(service.GetUnpatchedItemIds(), Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Tormentor_AssetMissingSlotBlock_SkipsWholeCategory()
+    {
+        var before = ItemsGame(Tormentors(flagged: ObsceneEyeBallId));
+        var (service, result, _) = await RunMiscAsync("tormentor", "Frostivus 2024 Tormentor", TormentorUrl,
+            Utf8(TormentorBlock(AnniversaryId, false) + TormentorBlock(FrostivusId, true)), before);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.EqualTo(before));
+            Assert.That(service.GetWarnings(), Has.Some.Contains("Tormentor").And.Contains(ObsceneEyeBallId));
+        });
+    }
+
+    [Test]
+    public async Task Tormentor_AssetWithTwoBaseitems_SkipsWholeCategory()
+    {
+        var before = ItemsGame(Tormentors());
+        var asset = TormentorBlock(AnniversaryId, true) + TormentorBlock(FrostivusId, true) + TormentorBlock(ObsceneEyeBallId, false);
+        var (service, result, _) = await RunMiscAsync("tormentor", "Frostivus 2024 Tormentor", TormentorUrl, Utf8(asset), before);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.EqualTo(before));
+            Assert.That(service.GetWarnings(), Has.Some.Contains("Tormentor"));
+        });
+    }
+
+    [Test]
+    public async Task Tormentor_HtmlInsteadOfBlocks_LeavesPackageAndWarns()
+    {
+        var before = ItemsGame(Tormentors());
+        var (service, result, _) = await RunMiscAsync("tormentor", "Frostivus 2024 Tormentor", TormentorUrl,
+            Utf8("<html><head><script>challenge()</script></head><body>Just a moment...</body></html>"), before);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.EqualTo(before));
+            Assert.That(service.GetWarnings(), Has.Some.Contains("Tormentor"));
+        });
+    }
+
+    [Test]
+    public async Task Tormentor_PackageHasSlotItemTheTableLacks_LogsItForTheMaintainer()
+    {
+        const string unknownId = "39999";
+        var logger = new Moq.Mock<Core.Interfaces.IAppLogger>();
+        var (service, result, _) = await RunMiscAsync("tormentor", "Obscene Eye Ball", TormentorUrl,
+            Utf8(Tormentors(flagged: ObsceneEyeBallId)),
+            ItemsGame(Tormentors(), TormentorBlock(unknownId, false)), logger.Object);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(HasBaseitem(result, ObsceneEyeBallId), Is.True, "an unknown item must not block the pick");
+            Assert.That(service.GetWarnings(), Is.Empty, "nothing the user can act on");
+            logger.Verify(l => l.Log(Moq.It.Is<string>(m => m.Contains(unknownId) && m.Contains("SlotExclusive")),
+                Moq.It.IsAny<Core.Interfaces.LogLevel>()), Moq.Times.Once);
+        });
+    }
+
+    [Test]
+    public void FindSlotItemIds_ReturnsOnlyItemsWhoseOwnPrefabOrSlotMatches()
+    {
+        const string content =
+            "\"items_game\"\n{\n" +
+            "\t\"loadout_slots\"\n\t{\n\t\t\"29\"\t\t\"tormentor\"\n\t}\n" +
+            "\t\"prefabs\"\n\t{\n\t\t\"tormentor\"\n\t\t{\n\t\t\t\"item_slot\"\t\t\"tormentor\"\n\t\t}\n\t}\n" +
+            "\t\"items\"\n\t{\n" +
+            "\t\t\"29339\"\n\t\t{\n\t\t\t\"name\"\t\t\"a\"\n\t\t\t\"prefab\"\t\t\"tormentor\"\n\t\t}\n" +
+            "\t\t\"10731\"\n\t\t{\n\t\t\t\"prefab\"\t\t\"misc\"\n\t\t\t\"item_slot\"\t\t\"multikill_banner\"\n\t\t}\n" +
+            "\t\t\"500\"\n\t\t{\n\t\t\t\"visuals\"\n\t\t\t{\n\t\t\t\t\"x\"\t\t\"1\"\n\t\t\t}\n\t\t\t\"prefab\"\t\t\"tormentor\"\n\t\t}\n" +
+            "\t\t\"600\"\n\t\t{\n\t\t\t\"styles\"\n\t\t\t{\n\t\t\t\t\"prefab\"\t\t\"tormentor\"\n\t\t\t}\n\t\t}\n" +
+            "\t}\n}\n";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(AssetModifierService.FindSlotItemIds(content, "tormentor"), Is.EqualTo(new[] { "29339" }));
+            Assert.That(AssetModifierService.FindSlotItemIds(content, "multikill_banner"), Is.EqualTo(new[] { "10731" }));
+            Assert.That(AssetModifierService.FindSlotItemIds("", "tormentor"), Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task DefaultTormentor_RestoresEveryBlock_AndReportsThemUnpatched()
+    {
+        var (service, result, _) = await RunMiscAsync("tormentor", "Default Tormentor",
+            "https://cdn.example.com/Assets/misc/tormentor/unit_test_default.txt",
+            Utf8(Tormentors()), ItemsGame(Tormentors(flagged: FrostivusId)));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(TormentorIds.Where(id => HasBaseitem(result, id)), Is.Empty);
+            Assert.That(service.GetUnpatchedItemIds(), Is.EquivalentTo(TormentorIds),
+                "a restored block left 'patched' in the baseline keeps a stale copy after the next Dota patch");
+            Assert.That(service.GetModifiedItemIds(), Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task DefaultRoshanZip_ReportsRestoredBlockUnpatched()
+    {
+        const string vanilla = "\"801\"\n{\n\t\"name\"\t\t\"Default Roshan\"\n\t\"prefab\"\t\t\"roshan\"\n\t\"baseitem\"\t\t\"1\"\n}\n";
+        byte[] zip;
+        using (var ms = new MemoryStream())
+        {
+            using (var archive = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+            using (var sw = new StreamWriter(archive.CreateEntry("default.txt").Open()))
+                sw.Write(vanilla);
+            zip = ms.ToArray();
+        }
+
+        var (service, _, _) = await RunMiscAsync("roshan", "Default Roshan",
+            "https://cdn.example.com/Assets/misc/roshan/unit_test_default.zip", zip,
+            ItemsGame(vanilla.Replace("Default Roshan", "Cosmic Roshan")));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(service.GetUnpatchedItemIds(), Does.Contain("801"));
+            Assert.That(service.GetModifiedItemIds(), Does.Not.Contain("801"));
+        });
+    }
+
+    [Test]
+    public async Task DefaultAncient_PlaceholderUrl_DownloadsNothingAndWarnsNothing()
+    {
+        var (service, _, http) = await RunMiscAsync("ancient", "Default Ancient",
+            "https://cdn.example.com/Assets/misc/shader/Diretide/materials/dev/root.md",
+            Utf8("# placeholder"), ItemsGame());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(http.CallCount, Is.Zero);
+            Assert.That(service.GetWarnings(), Is.Empty);
+        });
     }
 }
 

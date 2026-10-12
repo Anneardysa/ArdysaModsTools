@@ -23,6 +23,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using ArdysaModsTools.Helpers;
 using ArdysaModsTools.Core.Controllers;
 using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Services.Localization;
@@ -50,6 +51,8 @@ namespace ArdysaModsTools.UI.Forms
         private readonly Action<string> _log;
         private readonly Action _disableButtons;
         private readonly Action _enableButtons;
+
+        private static readonly TimeSpan MiscLoadTimeout = TimeSpan.FromSeconds(30);
 
         private Dictionary<string, string> _selections = new(StringComparer.OrdinalIgnoreCase);
 
@@ -89,7 +92,7 @@ namespace ArdysaModsTools.UI.Forms
             this.SuspendLayout();
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = AutoScaleMode.None;
-            this.ClientSize = new System.Drawing.Size(1320, 780);
+            this.ClientSize = new System.Drawing.Size(1732, 1032);
             this.Name = "MiscFormWebView";
             this.Text = "Miscellaneous - AMT 2.0";
             this.ResumeLayout(false);
@@ -98,7 +101,7 @@ namespace ArdysaModsTools.UI.Forms
         private void SetupForm()
         {
             this.FormBorderStyle = FormBorderStyle.None;
-            this.MinimumSize = new System.Drawing.Size(1040, 640);
+            this.MinimumSize = new System.Drawing.Size(800, 600);
             this.BackColor = Theme.Canvas;
             this.StartPosition = FormStartPosition.Manual;
 
@@ -151,24 +154,12 @@ namespace ArdysaModsTools.UI.Forms
                 WebViewAssetInterceptor.Attach(_webView.CoreWebView2, env, EnvironmentConfig.ContentBase);
 
                 var htmlPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "Html", "misc_form.html");
-                if (File.Exists(htmlPath))
-                {
-                    var html = await File.ReadAllTextAsync(htmlPath);
-                    _webView.CoreWebView2.NavigateToString(Helpers.WebViewTheming.Apply(html));
-                }
-                else
-                {
+                if (!File.Exists(htmlPath))
                     throw new FileNotFoundException("misc_form.html not found");
-                }
 
-                var tcs = new TaskCompletionSource<bool>();
-                void handler(object? s, CoreWebView2NavigationCompletedEventArgs e)
-                {
-                    _webView.CoreWebView2.NavigationCompleted -= handler;
-                    tcs.SetResult(e.IsSuccess);
-                }
-                _webView.CoreWebView2.NavigationCompleted += handler;
-                await tcs.Task;
+                var html = await File.ReadAllTextAsync(htmlPath);
+                await WebViewNavigation.NavigateAndWaitReadyAsync(
+                    _webView.CoreWebView2, Helpers.WebViewTheming.Apply(html), MiscLoadTimeout);
 
                 await Task.Delay(100);
 
@@ -190,20 +181,32 @@ namespace ArdysaModsTools.UI.Forms
                 
                 await RestoreSelectionsAsync();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                StartupLog.Append($"Miscellaneous init failed: {ex}");
+                MessageBox.Show(this,
+                    Loc.T("form.webview.initFailed.body", new { error = ex.Message }),
+                    Loc.T("form.webview.initFailed.title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 this.DialogResult = DialogResult.Abort;
                 this.Close();
             }
         }
 
-        private async Task ExecuteScriptAsync(string script)
+        private readonly HashSet<string> _loggedScriptErrorTypes = new();
+
+        private Task ExecuteScriptAsync(string script) => UiThread.RunAsync(this, async () =>
         {
-            if (_webView?.CoreWebView2 != null)
+            if (_webView?.CoreWebView2 == null) return;
+            try
             {
                 await _webView.CoreWebView2.ExecuteScriptAsync(script);
             }
-        }
+            catch (Exception ex)
+            {
+                if (_loggedScriptErrorTypes.Add(ex.GetType().Name))
+                    StartupLog.Append($"Miscellaneous ExecuteScriptAsync failed ({ex.GetType().Name}): {ex.Message}");
+            }
+        });
 
         private async Task LoadOptionsAsync()
         {
@@ -242,11 +245,10 @@ namespace ArdysaModsTools.UI.Forms
             }
             catch (Exception ex)
             {
-                await AppendConsoleAsync($"Error loading options: {ex.Message}");
+                StartupLog.Append($"Miscellaneous option list failed: {ex}");
+                await ExecuteScriptAsync($"showLoadError('{EscapeJs(ex.Message)}')");
             }
         }
-
-        private static readonly TimeSpan RefreshCooldown = TimeSpan.FromMinutes(10);
 
         private static readonly TimeSpan MissingThumbnailTtl = TimeSpan.FromDays(7);
 
@@ -259,7 +261,7 @@ namespace ArdysaModsTools.UI.Forms
             foreach (var option in options)
             {
                 if (string.IsNullOrEmpty(option.ThumbnailUrlPattern)) continue;
-                
+
                 foreach (var choice in option.Choices)
                 {
                     var thumbUrl = option.GetThumbnailUrl(choice);
@@ -275,44 +277,26 @@ namespace ArdysaModsTools.UI.Forms
 
             try
             {
-                var cached = allUrls.Where(u => cacheService.IsCached(u)).ToList();
+                var config = ArdysaModsTools.Core.Services.Misc.RemoteMiscConfigService.CurrentConfig;
+                if (config != null && !string.IsNullOrEmpty(config.Version))
+                    cacheService.InvalidateOnEpochChange("misc-config", config.Version, allUrls);
+
                 var notCached = allUrls
                     .Where(u => !cacheService.IsCached(u) && !cacheService.IsKnownMissing(u, MissingThumbnailTtl))
                     .ToList();
-                
-                System.Diagnostics.Debug.WriteLine(
-                    $"[MiscForm] Thumbnails: {cached.Count} cached, {notCached.Count} missing");
 
-                if (notCached.Count == 0 && !cacheService.ShouldRefreshAssets(RefreshCooldown))
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        "[MiscForm] All cached, cooldown active — skipping overlay");
-                    return;
-                }
+                System.Diagnostics.Debug.WriteLine(
+                    $"[MiscForm] Thumbnails: {allUrls.Count - notCached.Count} cached, {notCached.Count} missing");
 
                 if (notCached.Count == 0)
                 {
-                    System.Diagnostics.Debug.WriteLine(
-                        "[MiscForm] All cached, cooldown expired — silent freshness check");
-                    
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await RunSilentRefreshAsync(cacheService, cached);
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine(
-                                $"[MiscForm] Background refresh error: {ex.Message}");
-                        }
-                    });
+                    System.Diagnostics.Debug.WriteLine("[MiscForm] All thumbnails cached — skipping overlay");
                     return;
                 }
 
                 async Task RunGuardedAsync()
                 {
-                    try { await RunDownloadWithOverlayAsync(cacheService, cached, notCached); }
+                    try { await RunDownloadWithOverlayAsync(cacheService, notCached); }
                     catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MiscForm] Thumbnail preload error: {ex.Message}"); }
                 }
                 var work = RunGuardedAsync();
@@ -328,36 +312,15 @@ namespace ArdysaModsTools.UI.Forms
             }
         }
 
-        private async Task RunSilentRefreshAsync(AssetCacheService cacheService, List<string> cachedUrls)
-        {
-            try
-            {
-                var result = await cacheService.RefreshStaleAssetsAsync(cachedUrls);
-                cacheService.MarkRefreshed();
-
-                System.Diagnostics.Debug.WriteLine(
-                    $"[MiscForm] Silent refresh complete: " +
-                    $"{result.refreshed} refreshed, {result.skipped} skipped, {result.failed} failed");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(
-                    $"[MiscForm] Silent refresh error: {ex.Message}");
-            }
-        }
-
         private static readonly TimeSpan ThumbnailOverlayCap = TimeSpan.FromSeconds(30);
 
-        private async Task RunDownloadWithOverlayAsync(
-            AssetCacheService cacheService,
-            List<string> cached,
-            List<string> notCached)
+        private async Task RunDownloadWithOverlayAsync(AssetCacheService cacheService, List<string> notCached)
         {
             int downloaded = 0;
 
             if (notCached.Count > 0)
             {
-                await UpdateCachingStatusAsync("Downloading thumbnails...", 0, notCached.Count);
+                await UpdateCachingStatusAsync(Loc.T("common.updatingAssets"), 0, notCached.Count);
 
                 var downloadProgress = new Progress<(int current, int total, string url)>(async p =>
                 {
@@ -367,26 +330,6 @@ namespace ArdysaModsTools.UI.Forms
 
                 var downloadResult = await cacheService.PreloadAssetsWithProgressAsync(notCached, downloadProgress);
                 downloaded = downloadResult.downloaded;
-            }
-
-            if (cached.Count > 0 && cacheService.ShouldRefreshAssets(RefreshCooldown))
-            {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await RunSilentRefreshAsync(cacheService, cached);
-                    }
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine(
-                            $"[MiscForm] Background refresh error: {ex.Message}");
-                    }
-                });
-            }
-            else
-            {
-                cacheService.MarkRefreshed();
             }
 
             if (downloaded > 0)
@@ -419,6 +362,32 @@ namespace ArdysaModsTools.UI.Forms
         private static string EscapeJs(string text)
         {
             return text.Replace("\\", "\\\\").Replace("'", "\\'").Replace("\n", "\\n").Replace("\r", "");
+        }
+
+        internal static string BuildAlertScript(string title, string message, string type) =>
+            $"showAlert('{EscapeJs(title)}', '{EscapeJs(message)}', '{EscapeJs(type)}')";
+
+        private Task SetStatusAsync(string text) => ExecuteScriptAsync($"setStatus('{EscapeJs(text)}')");
+
+        private static Dictionary<string, string> ReadSelections(JsonElement element)
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (element.ValueKind != JsonValueKind.Object) return map;
+            foreach (var prop in element.EnumerateObject())
+            {
+                if (prop.Value.ValueKind == JsonValueKind.String)
+                    map[prop.Name] = prop.Value.GetString() ?? "";
+            }
+            return map;
+        }
+
+        private async Task ApplySelectionsAsync(IReadOnlyDictionary<string, string>? raw, string statusText)
+        {
+            _selections = MiscSelectionGuard.Sanitize(MiscCategoryService.GetAllOptions(), raw, out var dropped);
+            await ExecuteScriptAsync($"loadSelections({JsonSerializer.Serialize(_selections, _jsonOptions)})");
+            if (dropped.Count > 0)
+                statusText += " / " + Loc.T("miscForm.status.skipped", new { count = dropped.Count });
+            await SetStatusAsync(statusText);
         }
 
         private async void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
@@ -460,6 +429,14 @@ namespace ArdysaModsTools.UI.Forms
 
                     case "close":
                         if (!_isGenerating) BeginInvoke(new Action(() => this.Close()));
+                        break;
+
+                    case "openUrl":
+                        if (message.TryGetProperty("url", out var linkUrl))
+                        {
+                            var target = linkUrl.GetString();
+                            BeginInvoke(new Action(() => UIHelpers.OpenUrlWithErrorDialog(target, "GitHub")));
+                        }
                         break;
 
                     case "startDrag":
@@ -555,22 +532,12 @@ namespace ArdysaModsTools.UI.Forms
         {
             if (_isGenerating || string.IsNullOrEmpty(_targetPath)) return;
 
-            try
-            {
-                if (message.TryGetProperty("selections", out var selectionsElement))
-                {
-                    foreach (var prop in selectionsElement.EnumerateObject())
-                    {
-                        _selections[prop.Name] = prop.Value.GetString() ?? "";
-                    }
-                }
-            }
-            catch { }
+            if (message.TryGetProperty("selections", out var selectionsElement))
+                _selections = MiscSelectionGuard.Sanitize(MiscCategoryService.GetAllOptions(), ReadSelections(selectionsElement), out _);
 
-            var hasCustomSelections = _selections.Values.Any(v => v != "default" && !string.IsNullOrEmpty(v));
-            if (!hasCustomSelections)
+            if (!MiscSelectionGuard.HasCustomSelections(_selections))
             {
-                await ExecuteScriptAsync("showAlert('No Changes', 'No custom options selected. All options are set to default.', 'info')");
+                await ExecuteScriptAsync(BuildAlertScript("No Changes", "No custom options selected. All options are set to default.", "info"));
                 return;
             }
 
@@ -580,8 +547,7 @@ namespace ArdysaModsTools.UI.Forms
                 _log($"Miscellaneous is unavailable: {access.BlockedMessage}");
                 var blockTitle = access.IsOutdated ? Loc.T("update.required.title") : Loc.T("common.error");
                 var blockBody = access.BlockedMessage ?? Loc.T("feature.blocked.offline");
-                await ExecuteScriptAsync(
-                    $"showAlert('{EscapeJs(blockTitle)}', '{EscapeJs(blockBody)}', 'warning')");
+                await ExecuteScriptAsync(BuildAlertScript(blockTitle, blockBody, "warning"));
                 return;
             }
 
@@ -701,11 +667,11 @@ namespace ArdysaModsTools.UI.Forms
                     string successMessage;
                     if (result.Warnings?.Count > 0)
                     {
-                        successMessage = $"Generation completed with {result.Warnings.Count} warning(s).\\n\\nSome options could not be downloaded and were skipped. Check the console log for details.";
+                        successMessage = $"Generation completed with {result.Warnings.Count} warning(s).\n\nSome options could not be downloaded and were skipped. Check the console log for details.";
                     }
                     else if (selectedMode == MiscGenerationMode.GenerateOnly)
                     {
-                        successMessage = "Miscellaneous mods generated successfully!\\n\\nNote: Previous mods have been replaced.";
+                        successMessage = "Miscellaneous mods generated successfully!\n\nNote: Previous mods have been replaced.";
                     }
                     else
                     {
@@ -714,7 +680,7 @@ namespace ArdysaModsTools.UI.Forms
 
                     _playRequestedFromAlert = false;
                     _alertDismissed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                    await ExecuteScriptAsync($"showAlert('Generation Complete', '{successMessage}', 'success')");
+                    await ExecuteScriptAsync(BuildAlertScript("Generation Complete", successMessage, "success"));
 
                     await Task.WhenAny(_alertDismissed.Task, Task.Delay(60000));
 
@@ -741,8 +707,7 @@ namespace ArdysaModsTools.UI.Forms
                         + (string.IsNullOrEmpty(result.ErrorCode) ? "" : $"\n\nError code: {result.ErrorCode}")
                         + "\n\nClick Show Log to review the step that failed. Full details were saved to"
                         + " %LocalAppData%\\ArdysaModsTools\\ardysa_fallback.log.";
-                    var errorMsg = detail.Replace("'", "\\'").Replace("\n", "\\n");
-                    await ExecuteScriptAsync($"showAlert('Generation Failed', '{errorMsg}', 'error')");
+                    await ExecuteScriptAsync(BuildAlertScript("Generation Failed", detail, "error"));
                 }
             }
             catch (Exception ex)
@@ -758,8 +723,7 @@ namespace ArdysaModsTools.UI.Forms
                 };
                 
                 await ExecuteScriptAsync("flashConsole('error')");
-                var errorMsg = ex.Message.Replace("'", "\\'");
-                await ExecuteScriptAsync($"showAlert('Error', '{errorMsg}', 'error')");
+                await ExecuteScriptAsync(BuildAlertScript("Error", ex.Message, "error"));
             }
             finally
             {
@@ -834,18 +798,14 @@ namespace ArdysaModsTools.UI.Forms
             try
             {
                 var json = await File.ReadAllTextAsync(open.FileName);
-                var preset = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-                if (preset != null)
-                {
-                    _selections = new Dictionary<string, string>(preset, StringComparer.OrdinalIgnoreCase);
-                    var selectionsJson = JsonSerializer.Serialize(_selections, _jsonOptions);
-                    await ExecuteScriptAsync($"loadSelections({selectionsJson})");
-                    await AppendConsoleAsync($"Preset loaded from {Path.GetFileName(open.FileName)}");
-                }
+                var preset = JsonSerializer.Deserialize<Dictionary<string, string>>(json)
+                    ?? throw new JsonException("empty preset");
+                await ApplySelectionsAsync(preset,
+                    Loc.T("miscForm.status.presetLoaded", new { file = Path.GetFileName(open.FileName) }));
             }
             catch (Exception ex)
             {
-                await AppendConsoleAsync($"Error loading preset: {ex.Message}");
+                await SetStatusAsync(Loc.T("miscForm.status.presetLoadFailed", new { error = ex.Message }));
             }
         }
 
@@ -865,20 +825,15 @@ namespace ArdysaModsTools.UI.Forms
             try
             {
                 if (message.TryGetProperty("selections", out var selectionsElement))
-                {
-                    foreach (var prop in selectionsElement.EnumerateObject())
-                    {
-                        _selections[prop.Name] = prop.Value.GetString() ?? "";
-                    }
-                }
+                    _selections = MiscSelectionGuard.Sanitize(MiscCategoryService.GetAllOptions(), ReadSelections(selectionsElement), out _);
 
                 var json = JsonSerializer.Serialize(_selections, new JsonSerializerOptions { WriteIndented = true });
                 await File.WriteAllTextAsync(save.FileName, json);
-                await AppendConsoleAsync($"Preset saved to {Path.GetFileName(save.FileName)}");
+                await SetStatusAsync(Loc.T("miscForm.status.presetSaved", new { file = Path.GetFileName(save.FileName) }));
             }
             catch (Exception ex)
             {
-                await AppendConsoleAsync($"Error saving preset: {ex.Message}");
+                await SetStatusAsync(Loc.T("miscForm.status.presetSaveFailed", new { error = ex.Message }));
             }
         }
 
@@ -905,13 +860,8 @@ namespace ArdysaModsTools.UI.Forms
                 {
                     var json = await File.ReadAllTextAsync(settingsPath);
                     var selections = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-                    if (selections != null)
-                    {
-                        _selections = new Dictionary<string, string>(selections, StringComparer.OrdinalIgnoreCase);
-                        var selectionsJson = JsonSerializer.Serialize(_selections, _jsonOptions);
-                        await ExecuteScriptAsync($"loadSelections({selectionsJson})");
-                        await AppendConsoleAsync("Previous selections restored.");
-                    }
+                    if (selections != null && selections.Count > 0)
+                        await ApplySelectionsAsync(selections, Loc.T("miscForm.status.restored"));
                 }
             }
             catch (Exception ex)

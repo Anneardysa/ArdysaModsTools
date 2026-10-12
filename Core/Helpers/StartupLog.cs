@@ -24,11 +24,16 @@ namespace ArdysaModsTools.Core.Helpers
         private static readonly string LogPath =
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "startup_log.txt");
 
+        private static readonly object WriteLock = new();
+
         public static void Append(string message)
         {
             try
             {
-                File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss.fff}] {message}\r\n");
+                lock (WriteLock)
+                {
+                    File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss.fff}] {message}\r\n");
+                }
             }
             catch {  }
         }

@@ -47,6 +47,7 @@ namespace ArdysaModsTools.Core.Data
                 "Cursor" or "cursor" => "cursor",
                 "Ancient" or "ancient" => "ancient",
                 "Roshan" or "roshan" => "roshan",
+                "Tormentor" or "tormentor" => "tormentor",
                 _ => category
             };
 

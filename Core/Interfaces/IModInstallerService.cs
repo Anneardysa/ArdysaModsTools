@@ -33,6 +33,8 @@ namespace ArdysaModsTools.Core.Interfaces
 
         Task<bool> DisableModsAsync(string dotaPath, CancellationToken ct = default);
 
+        Task<bool> DeleteModFilesPermanentlyAsync(string dotaPath, CancellationToken ct = default);
+
         Task<(bool Success, bool IsUpToDate)> InstallModsAsync(
             string targetPath,
             string appPath,
@@ -49,7 +51,8 @@ namespace ArdysaModsTools.Core.Interfaces
             CancellationToken cancellationToken = default,
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null,
             Action<string>? statusCallback = null,
-            bool rebuild = true);
+            bool rebuild = true,
+            VpkOrigin origin = VpkOrigin.Unofficial);
 
         Task<PatchResult> UpdatePatcherAsync(
             string dotaPath,

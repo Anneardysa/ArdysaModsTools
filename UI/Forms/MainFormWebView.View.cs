@@ -352,8 +352,16 @@ namespace ArdysaModsTools
 
             using var heroForm = new HeroGalleryForm(_configService);
             heroForm.StartPosition = FormStartPosition.CenterParent;
-            var result = heroForm.ShowDialog(this);
-            return (result, heroForm.GenerationResult);
+            HideShellWhileDialogIsOpen(heroForm);
+            try
+            {
+                var result = heroForm.ShowDialog(this);
+                return (result, heroForm.GenerationResult);
+            }
+            finally
+            {
+                RestoreShell();
+            }
         }
 
 
@@ -374,20 +382,40 @@ namespace ArdysaModsTools
                 EnableAllButtons);
 
             webViewForm.StartPosition = FormStartPosition.CenterParent;
-            var result = webViewForm.ShowDialog(this);
+            HideShellWhileDialogIsOpen(webViewForm);
+
+            DialogResult result;
+            try
+            {
+                result = webViewForm.ShowDialog(this);
+            }
+            finally
+            {
+                RestoreShell();
+            }
 
             if (result == DialogResult.Abort)
             {
                 _logger.Log("WebView2 MiscForm failed to initialize.");
-                ShowStyledMessage(
-                    "Miscellaneous Unavailable",
-                    "The Miscellaneous page requires the Microsoft Edge WebView2 runtime, which could not be initialized.\n\n" +
-                    "Please install or repair the WebView2 runtime, then try again.",
-                    StyledMessageType.Warning);
                 return (DialogResult.Cancel, null);
             }
 
             return (result, webViewForm.GenerationResult);
+        }
+
+        private void HideShellWhileDialogIsOpen(Form child)
+        {
+            child.Shown += (_, _) =>
+            {
+                if (!IsDisposed && Visible) Hide();
+            };
+        }
+
+        private void RestoreShell()
+        {
+            if (IsDisposed) return;
+            if (!Visible) Show();
+            Activate();
         }
 
         public async void ShowStatusDetails(ModStatusInfo status, Func<Task> patchAction)

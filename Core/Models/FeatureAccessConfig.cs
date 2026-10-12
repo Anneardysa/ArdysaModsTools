@@ -29,6 +29,9 @@ namespace ArdysaModsTools.Core.Models
         [JsonPropertyName("installModsPack")]
         public FeatureAccess InstallModsPack { get; set; } = new();
 
+        [JsonPropertyName("utilities")]
+        public FeatureAccess Utilities { get; set; } = new();
+
         public static FeatureAccessConfig CreateDefault() => new();
     }
 
@@ -36,6 +39,9 @@ namespace ArdysaModsTools.Core.Models
     {
         [JsonPropertyName("enabled")]
         public bool Enabled { get; set; } = true;
+
+        [JsonPropertyName("greyOut")]
+        public bool GreyOut { get; set; }
 
         [JsonPropertyName("disabledMessage")]
         public string? DisabledMessage { get; set; }

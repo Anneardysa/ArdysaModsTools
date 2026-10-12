@@ -33,6 +33,8 @@ namespace ArdysaModsTools.Core.Services
     {
         private static readonly string[] StaysWithPackage = { "scripts", "resource" };
 
+        private static readonly string[] PackageTextRoots = { "scripts/items/items_game.txt", "resource/localization" };
+
         public static string Dir(string targetPath)
             => Path.Combine(targetPath, "game", "mod");
 
@@ -46,16 +48,32 @@ namespace ArdysaModsTools.Core.Services
         internal static bool IsMountedBy(string? gameInfoText)
             => MountsSearchPath(gameInfoText, "mod");
 
-        public static bool IsMounted(string targetPath)
+        public static bool CanSplit(string targetPath)
         {
             try
             {
                 string gi = Path.Combine(targetPath, DotaPaths.GameInfo);
-                return File.Exists(gi) && IsMountedBy(File.ReadAllText(gi));
+                if (!File.Exists(gi))
+                {
+                    FallbackLogger.LogFileOnly($"ProtectedVpkStore.CanSplit: no gameinfo at {gi} — keeping the single-package layout.");
+                    return false;
+                }
+
+                string text = File.ReadAllText(gi);
+                if (IsMountedBy(text))
+                    return true;
+
+                if (MountsSearchPath(text, "_ArdysaMods"))
+                {
+                    FallbackLogger.LogFileOnly("ProtectedVpkStore.CanSplit: gameinfo mounts _ArdysaMods but not mod (legacy patch) — keeping the single-package layout.");
+                    return false;
+                }
+
+                return true;
             }
             catch (Exception ex)
             {
-                FallbackLogger.LogFileOnly($"ProtectedVpkStore.IsMounted failed: {ex.Message}");
+                FallbackLogger.LogFileOnly($"ProtectedVpkStore.CanSplit failed: {ex.Message}");
                 return false;
             }
         }
@@ -96,12 +114,13 @@ namespace ArdysaModsTools.Core.Services
                 if (Directory.Exists(protDir))
                 {
                     NormalizeAttributesRecursively(protDir);
+                    HideAttributesRecursively(protDir);
                 }
 
                 string tempDir = Path.Combine(targetPath, "game", "_ArdysaMods", "_temp");
                 if (Directory.Exists(tempDir))
                 {
-                    string[] logFiles = { "hero_extraction_log.json", "hero_selections.json", "itemsgame_baseline.json" };
+                    string[] logFiles = { "hero_extraction_log.json", "hero_selections.json" };
                     foreach (var file in logFiles)
                     {
                         string p = Path.Combine(tempDir, file);
@@ -136,20 +155,26 @@ namespace ArdysaModsTools.Core.Services
             if (string.IsNullOrWhiteSpace(targetPath)) return null;
             string root = PathUtility.NormalizeTargetPath(targetPath);
 
-            string modVpk = MainVpkPath(root);
-            if (File.Exists(modVpk))
-                return VpkStamp.Read(modVpk);
+            var main = VpkStamp.Read(MainVpkPath(root));
+            var prot = VpkStamp.Read(VpkPath(root));
 
-            string protVpk = VpkPath(root);
-            if (File.Exists(protVpk))
-                return VpkStamp.Read(protVpk);
+            if (main == null) return prot;
+            if (prot == null) return main;
 
-            return null;
+            return new VpkStamp(
+                main.Value.Length + prot.Value.Length,
+                main.Value.LastWriteUtc > prot.Value.LastWriteUtc ? main.Value.LastWriteUtc : prot.Value.LastWriteUtc);
         }
 
         public static async Task<bool> DeployAsync(string targetPath, string? newProtectedVpkPath,
             Action<string> log, CancellationToken ct = default, IAppLogger? logger = null)
         {
+            if (string.IsNullOrWhiteSpace(targetPath) || !Path.IsPathFullyQualified(targetPath))
+            {
+                FallbackLogger.LogFileOnly("ProtectedVpkStore.DeployAsync: refused an empty or relative target path.");
+                return false;
+            }
+
             Ensure(targetPath);
             bool success = await VpkReplacerService.DeployVpkAsync(
                 VpkPath(targetPath), newProtectedVpkPath, hideOutput: true, log, ct, logger).ConfigureAwait(false);
@@ -161,6 +186,44 @@ namespace ArdysaModsTools.Core.Services
 
             return success;
         }
+
+        public static async Task<bool> DeployPairAsync(string targetPath, string? newProtectedVpkPath,
+            Func<Task<bool>> deployMain, Action<string> log, IAppLogger? logger = null)
+        {
+            if (string.IsNullOrWhiteSpace(targetPath) || !Path.IsPathFullyQualified(targetPath))
+            {
+                FallbackLogger.LogFileOnly("ProtectedVpkStore.DeployPairAsync: refused an empty or relative target path.");
+                return false;
+            }
+
+            Ensure(targetPath);
+            string protVpk = VpkPath(targetPath);
+            if (!await VpkReplacerService.DeployVpkAsync(protVpk, newProtectedVpkPath, hideOutput: true, log,
+                    CancellationToken.None, logger, keepBackup: true).ConfigureAwait(false))
+                return false;
+
+            bool mainOk = false;
+            try
+            {
+                mainOk = await deployMain().ConfigureAwait(false);
+            }
+            finally
+            {
+                if (mainOk)
+                    VpkReplacerService.CommitBackup(protVpk);
+                else if (!VpkReplacerService.RollbackToBackup(protVpk, hideOutput: true, logger))
+                    log("Your previous mod package could not be put back yet — generate again to finish the install.");
+                try { SafeTempPathHelper.HideDirectory(Dir(targetPath)); } catch { }
+            }
+            return mainOk;
+        }
+
+        internal static Task<bool> DeployInstallPairAsync(string targetPath, string mainVpkPath,
+            string newMainVpkPath, string? newProtectedVpkPath, Action<string> log, IAppLogger? logger = null)
+            => DeployPairAsync(targetPath, newProtectedVpkPath,
+                () => VpkReplacerService.DeployVpkAsync(mainVpkPath, newMainVpkPath, hideOutput: false, log,
+                    CancellationToken.None, logger),
+                log, logger);
 
         public static bool IsProtectable(string relativePath)
         {
@@ -207,44 +270,79 @@ namespace ArdysaModsTools.Core.Services
             return moved;
         }
 
-        public static bool CopyItemsGame(string sourceExtractDir, string targetProtectedDir, IAppLogger? logger = null)
+        public static int MovePackageText(string extractDir, string protectedDir,
+            IAppLogger? logger = null, CancellationToken ct = default)
+            => MoveProtected(extractDir, protectedDir, ListPackageText(extractDir), logger, ct);
+
+        public static int Split(string targetPath, string extractDir, string protectedDir,
+            IReadOnlyCollection<string>? assetPaths = null,
+            IAppLogger? logger = null, CancellationToken ct = default)
         {
+            if (!CanSplit(targetPath))
+            {
+                FallbackLogger.LogFileOnly(
+                    $"ProtectedVpkStore.Split: skipped — package text and {assetPaths?.Count ?? 0} protected asset(s) stay in the main package.");
+                return 0;
+            }
+
+            Ensure(targetPath);
+            int moved = assetPaths is { Count: > 0 }
+                ? MoveProtected(extractDir, protectedDir, assetPaths, logger, ct)
+                : 0;
+            moved += MovePackageText(extractDir, protectedDir, logger, ct);
+            moved += Misc.MapCleanupService.ApplyTo(protectedDir, Misc.MapCleanupService.ReadEnabled(targetPath));
+            return moved;
+        }
+
+        public static int BorrowPackageText(string protectedDir, string extractDir,
+            IAppLogger? logger = null, CancellationToken ct = default)
+            => MoveProtected(protectedDir, extractDir, ListPackageText(protectedDir), logger, ct);
+
+        private static List<string> ListPackageText(string root)
+        {
+            var found = new List<string>();
+            foreach (var rel in PackageTextRoots)
+            {
+                string native = Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar));
+
+                if (File.Exists(native))
+                {
+                    found.Add(rel);
+                }
+                else if (Directory.Exists(native))
+                {
+                    foreach (var file in Directory.GetFiles(native, "*", SearchOption.AllDirectories))
+                        found.Add(Path.GetRelativePath(root, file).Replace('\\', '/'));
+                }
+            }
+            return found;
+        }
+
+        public static bool DeletePermanently(string targetPath, IAppLogger? logger = null)
+        {
+            if (string.IsNullOrWhiteSpace(targetPath) || !Path.IsPathFullyQualified(targetPath))
+            {
+                FallbackLogger.LogFileOnly("ProtectedVpkStore.DeletePermanently: refused an empty or relative target path.");
+                return false;
+            }
+
+            string dir = Dir(targetPath);
             try
             {
-                string src = Path.Combine(sourceExtractDir, "scripts", "items", "items_game.txt");
-                if (!File.Exists(src))
-                    return false;
+                if (!Directory.Exists(dir))
+                    return true;
 
-                string dest = Path.Combine(targetProtectedDir, "scripts", "items", "items_game.txt");
-                Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
-                File.Copy(src, dest, overwrite: true);
-                logger?.LogDebug("ProtectedVpkStore: copied items_game.txt into protected package tree.");
+                NormalizeAttributesRecursively(dir);
+                Directory.Delete(dir, true);
+                FallbackLogger.LogFileOnly($"ProtectedVpkStore: permanently deleted {dir}");
                 return true;
             }
             catch (Exception ex)
             {
-                logger?.Log($"ProtectedVpkStore: could not copy items_game.txt to protected folder: {ex.Message}");
-                FallbackLogger.LogFileOnly($"ProtectedVpkStore.CopyItemsGame failed: {ex.Message}");
-                return false;
-            }
-        }
-
-        public static void DeletePermanently(string targetPath, IAppLogger? logger = null)
-        {
-            try
-            {
-                string dir = Dir(targetPath);
-                if (Directory.Exists(dir))
-                {
-                    NormalizeAttributesRecursively(dir);
-                    Directory.Delete(dir, true);
-                    logger?.Log($"ProtectedVpkStore: permanently deleted {dir}");
-                }
-            }
-            catch (Exception ex)
-            {
+                HideAttributesRecursively(dir);
                 logger?.Log($"ProtectedVpkStore.DeletePermanently failed: {ex.Message}");
                 FallbackLogger.LogFileOnly($"ProtectedVpkStore.DeletePermanently error: {ex.Message}");
+                return false;
             }
         }
 
@@ -265,6 +363,29 @@ namespace ArdysaModsTools.Core.Services
                 {
                     try { subDir.Attributes = FileAttributes.Normal; } catch { }
                 }
+            }
+            catch { }
+        }
+
+        internal static void HideAttributesRecursively(string dir)
+        {
+            try
+            {
+                if (!Directory.Exists(dir)) return;
+                const FileAttributes hidden = FileAttributes.Hidden | FileAttributes.System;
+                var dirInfo = new DirectoryInfo(dir);
+
+                foreach (var file in dirInfo.GetFiles("*", SearchOption.AllDirectories))
+                {
+                    try { file.Attributes |= hidden; } catch { }
+                }
+
+                foreach (var subDir in dirInfo.GetDirectories("*", SearchOption.AllDirectories))
+                {
+                    try { subDir.Attributes |= hidden; } catch { }
+                }
+
+                try { dirInfo.Attributes |= hidden; } catch { }
             }
             catch { }
         }

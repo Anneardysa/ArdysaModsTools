@@ -33,7 +33,7 @@ namespace ArdysaModsTools.Core.Services
             Action<string> log, CancellationToken ct = default);
 
         Task<bool> ExtractItemsGameAsync(string vpkPath, string destFilePath,
-            Action<string>? log = null, CancellationToken ct = default);
+            Action<string>? log = null, CancellationToken ct = default, bool normalize = true);
 
         Task<bool> ExtractModItemsGameAsync(string targetPath, string destFilePath,
             Action<string>? log = null, CancellationToken ct = default);
@@ -65,7 +65,7 @@ namespace ArdysaModsTools.Core.Services
 
             if (string.IsNullOrWhiteSpace(extractDir))
             {
-                _logger?.Log("GameItemsGameExtractor: extractDir was empty.");
+                _logger?.LogDebug("GameItemsGameExtractor: extractDir was empty.");
                 return false;
             }
 
@@ -75,14 +75,18 @@ namespace ArdysaModsTools.Core.Services
             if (!File.Exists(gameVpkPath))
             {
                 log("Dota 2 game files (pak01_dir.vpk) not found — verify game files in Steam.");
-                _logger?.Log($"GameItemsGameExtractor: game VPK missing at {gameVpkPath}");
+                _logger?.LogDebug($"GameItemsGameExtractor: game VPK missing at {gameVpkPath}");
                 return false;
             }
 
             string dest = Path.Combine(extractDir, "scripts", "items", "items_game.txt");
-            if (!await ExtractItemsGameAsync(gameVpkPath, dest, log, ct).ConfigureAwait(false))
+
+            string? detail = null;
+            if (!await ExtractItemsGameAsync(gameVpkPath, dest,
+                    m => { detail = m; log(m); }, ct).ConfigureAwait(false))
             {
-                log("Could not read package from your Dota 2 installation.");
+                if (detail is null)
+                    log("Could not read package from your Dota 2 installation.");
                 return false;
             }
 
@@ -94,7 +98,7 @@ namespace ArdysaModsTools.Core.Services
         }
 
         public async Task<bool> ExtractItemsGameAsync(string vpkPath, string destFilePath,
-            Action<string>? log = null, CancellationToken ct = default)
+            Action<string>? log = null, CancellationToken ct = default, bool normalize = true)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -103,7 +107,7 @@ namespace ArdysaModsTools.Core.Services
 
             if (!File.Exists(vpkPath))
             {
-                _logger?.Log($"GameItemsGameExtractor: VPK missing at {vpkPath}");
+                _logger?.LogDebug($"GameItemsGameExtractor: VPK missing at {vpkPath}");
                 return false;
             }
 
@@ -111,7 +115,7 @@ namespace ArdysaModsTools.Core.Services
             if (!File.Exists(hlExtractPath))
             {
                 log?.Invoke("Extraction tool not found.");
-                _logger?.Log($"GameItemsGameExtractor: HLExtract.exe missing at {hlExtractPath}");
+                _logger?.LogDebug($"GameItemsGameExtractor: HLExtract.exe missing at {hlExtractPath}");
                 return false;
             }
 
@@ -137,7 +141,7 @@ namespace ArdysaModsTools.Core.Services
 
                 if (extracted is null)
                 {
-                    _logger?.Log($"GameItemsGameExtractor: items_game.txt not found in {vpkPath}");
+                    _logger?.LogDebug($"GameItemsGameExtractor: items_game.txt not found in {vpkPath}");
                     return false;
                 }
 
@@ -145,14 +149,17 @@ namespace ArdysaModsTools.Core.Services
                 if (size < MinItemsGameBytes)
                 {
                     log?.Invoke("Package data looks incomplete.");
-                    _logger?.Log($"GameItemsGameExtractor: extracted items_game.txt too small ({size} bytes) from {vpkPath}.");
+                    _logger?.LogDebug($"GameItemsGameExtractor: extracted items_game.txt too small ({size} bytes) from {vpkPath}.");
                     return false;
                 }
 
                 Directory.CreateDirectory(Path.GetDirectoryName(destFilePath)!);
-                File.Copy(extracted, destFilePath, overwrite: true);
+                if (normalize)
+                    await CopyForBuildAsync(extracted, destFilePath, ct).ConfigureAwait(false);
+                else
+                    File.Copy(extracted, destFilePath, overwrite: true);
 
-                _logger?.Log($"GameItemsGameExtractor: extracted items_game.txt ({size} bytes) from {vpkPath}");
+                _logger?.LogDebug($"GameItemsGameExtractor: extracted items_game.txt ({size} bytes) from {vpkPath}");
                 return true;
             }
             catch (OperationCanceledException)
@@ -161,13 +168,69 @@ namespace ArdysaModsTools.Core.Services
             }
             catch (Exception ex)
             {
-                _logger?.Log($"GameItemsGameExtractor error: {ex}");
+                _logger?.LogDebug($"GameItemsGameExtractor error: {ex}");
                 return false;
             }
             finally
             {
                 try { Directory.Delete(tempDir, true); } catch {  }
             }
+        }
+
+        internal static async Task CopyForBuildAsync(string source, string dest, CancellationToken ct)
+        {
+            const int BufferSize = 1 << 20;
+
+            using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read,
+                BufferSize, useAsync: true);
+            using var output = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None,
+                BufferSize, useAsync: true);
+
+            var buffer = new byte[BufferSize];
+            bool afterCr = false;
+            int read;
+            while ((read = await input.ReadAsync(buffer.AsMemory(0, BufferSize), ct).ConfigureAwait(false)) > 0)
+            {
+                int kept = 0;
+                for (int i = 0; i < read; i++)
+                {
+                    byte b = buffer[i];
+
+                    if (b == (byte)'\r')
+                    {
+                        buffer[kept++] = (byte)'\n';
+                        afterCr = true;
+                        continue;
+                    }
+
+                    bool swallow = afterCr && b == (byte)'\n';
+                    afterCr = false;
+                    if (!swallow) buffer[kept++] = b;
+                }
+
+                await output.WriteAsync(buffer.AsMemory(0, kept), ct).ConfigureAwait(false);
+            }
+        }
+
+        internal static async Task<bool> RepairLineEndingsInPlaceAsync(string path, CancellationToken ct)
+        {
+            if (!File.Exists(path) || !await ContainsCarriageReturnAsync(path, ct).ConfigureAwait(false))
+                return false;
+
+            string lf = path + ".lf";
+            await CopyForBuildAsync(path, lf, ct).ConfigureAwait(false);
+            File.Move(lf, path, overwrite: true);
+            return true;
+        }
+
+        private static async Task<bool> ContainsCarriageReturnAsync(string path, CancellationToken ct)
+        {
+            var buffer = new byte[1 << 20];
+            using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, buffer.Length, useAsync: true);
+            int read;
+            while ((read = await input.ReadAsync(buffer.AsMemory(), ct).ConfigureAwait(false)) > 0)
+                if (Array.IndexOf(buffer, (byte)'\r', 0, read) >= 0) return true;
+            return false;
         }
 
         public async Task<bool> ExtractModItemsGameAsync(string targetPath, string destFilePath,
@@ -240,7 +303,7 @@ namespace ArdysaModsTools.Core.Services
             {
                 var err = await proc.StandardError.ReadToEndAsync().ConfigureAwait(false);
                 if (!string.IsNullOrWhiteSpace(err))
-                    _logger?.Log($"HLExtract: {err.Trim()}");
+                    _logger?.LogDebug($"HLExtract: {err.Trim()}");
             });
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -259,7 +322,7 @@ namespace ArdysaModsTools.Core.Services
                 {
                     try { if (!proc.HasExited) proc.Kill(); } catch {  }
                     ct.ThrowIfCancellationRequested();
-                    _logger?.Log($"HLExtract.exe timed out after {ExtractTimeoutMinutes} minutes (items_game).");
+                    _logger?.LogDebug($"HLExtract.exe timed out after {ExtractTimeoutMinutes} minutes (items_game).");
                     return false;
                 }
             }
@@ -267,7 +330,7 @@ namespace ArdysaModsTools.Core.Services
             int exitCode = await tcs.Task.ConfigureAwait(false);
             if (exitCode != 0)
             {
-                _logger?.Log($"HLExtract.exe exited with code {exitCode} (items_game extraction).");
+                _logger?.LogDebug($"HLExtract.exe exited with code {exitCode} (items_game extraction).");
                 return false;
             }
 

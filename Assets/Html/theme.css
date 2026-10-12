@@ -36,6 +36,11 @@
    --warn-accent: #a8730a;
    --warn-glow: rgba(168, 115, 10, 0.22);
 
+   --gold: #8a5d00;
+   --gold-dim: rgba(138, 93, 0, 0.12);
+   --gold-line: rgba(138, 93, 0, 0.5);
+   --gold-glow: rgba(138, 93, 0, 0.28);
+
    --verify-ok: #157a3a;
    --verify-bad: #c62828;
    --verify-warn: #8a5d00;

@@ -18,6 +18,9 @@ expose({
    setConnectionTestProgress: (progress: any) => store.set({ connectionTestProgress: progress, connectionTestBusy: true, isConnectionModalOpen: true }),
    setConnectionTestResults: (report: any) => store.set({ connectionTestReport: report, connectionTestBusy: false, isConnectionModalOpen: true }),
    resetConnectionTestButton: () => store.set({ connectionTestBusy: false }),
+   setRepairProgress: (progress: any) => store.set({ repairProgress: progress, repairBusy: true }),
+   setRepairReport: (report: any) => store.set({ repairReport: report, repairBusy: false, repairConfirming: false }),
+   resetRepairButton: () => store.set({ repairBusy: false }),
 });
 
 createRoot(document.getElementById("root")!).render(<App />);

@@ -182,6 +182,13 @@ namespace ArdysaModsTools.Tests.Presenters
             presenter.Dispose();
         }
 
+        [Test]
+        public void RefreshButtonsVisibility_CanBeCalledOnView()
+        {
+            _viewMock.Object.RefreshButtonsVisibility();
+            _viewMock.Verify(v => v.RefreshButtonsVisibility(), Times.Once);
+        }
+
         #endregion
     }
 }

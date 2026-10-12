@@ -17,7 +17,8 @@ function NavButton({
    highlight,
    extraClass,
    chevron,
-   soonTag,
+   titleKey,
+   titleFallback,
 }: {
    id?: string;
    buttonKey?: ButtonKey;
@@ -28,29 +29,19 @@ function NavButton({
    highlight?: boolean;
    extraClass?: string;
    chevron?: boolean;
-   soonTag?: boolean;
+   titleKey?: string;
+   titleFallback?: string;
 }) {
+   const { t } = useLocale();
    const enabled = buttonKey ? store.use((s) => s.buttons[buttonKey] !== false) : true;
-
-   if (soonTag) {
-      return (
-         <button type="button" id={id} className={`${css.navBtn} ${css.isDisabled}`} disabled>
-            {icon}
-            <span>
-               <T k={labelKey}>{labelFallback}</T>
-            </span>
-            <span className={css.tagSoon}>
-               <T k="shell.tag.soon">SOON</T>
-            </span>
-         </button>
-      );
-   }
+   const title = !enabled && titleKey ? t(titleKey, titleFallback) : undefined;
 
    return (
       <button
          type="button"
          id={id}
          data-no-drag
+         title={title}
          className={`${css.navBtn} ${extraClass ?? ""} ${!enabled ? css.isDisabled : ""} ${highlight ? css.highlight : ""}`}
          onClick={(e) => {
             e.stopPropagation();
@@ -205,9 +196,12 @@ export function Sidebar() {
             />
             <NavButton
                id="btn-utilities"
-               soonTag
+               buttonKey="utilities"
+               messageType="utilities"
                labelKey="shell.nav.utilities"
                labelFallback="Utilities"
+               titleKey="shell.nav.utilitiesDisabledTip"
+               titleFallback="Install mods first (Modspack, Skin Selector, or Miscellaneous) to use Utilities"
                icon={
                   <svg className={css.ico} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                      <path d="M3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />

@@ -33,7 +33,15 @@ namespace ArdysaModsTools.UI.Presenters
     {
         private const string SteamLaunchUrl = "steam://rungameid/570";
 
-        private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
+        internal const string SteamDownloadsUrl = "steam://open/downloads";
+
+        internal const string SteamClearCacheUrl = "steam://flushconfig";
+
+        private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromSeconds(2);
+
+        private const int StallPolls = 23;
+
+        private const int SteamGonePolls = 15;
 
         private static readonly TimeSpan LaunchTimeout = TimeSpan.FromMinutes(5);
 
@@ -49,6 +57,10 @@ namespace ArdysaModsTools.UI.Presenters
 
         private readonly Func<bool> _steamRunning;
 
+        private readonly TimeSpan _pollInterval;
+
+        private volatile bool _steamActionsOffered;
+
         private CancellationTokenSource? _cts;
 
         private volatile bool _dotaRunning;
@@ -57,7 +69,7 @@ namespace ArdysaModsTools.UI.Presenters
 
         public LaunchPresenter(IMainFormView view, Logger logger,
             IItemsGameMergeService merge, IModInstallerService modInstaller, ISteamAppStateService steam,
-            Func<string, bool>? launcher = null, Func<bool>? steamRunning = null)
+            Func<string, bool>? launcher = null, Func<bool>? steamRunning = null, TimeSpan? pollInterval = null)
         {
             _view = view ?? throw new ArgumentNullException(nameof(view));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -66,6 +78,7 @@ namespace ArdysaModsTools.UI.Presenters
             _steam = steam ?? throw new ArgumentNullException(nameof(steam));
             _launcher = launcher ?? (url => UIHelpers.OpenUrl(url, _logger.Log));
             _steamRunning = steamRunning ?? (() => Process.GetProcessesByName("steam").Any());
+            _pollInterval = pollInterval ?? DefaultPollInterval;
         }
 
         public bool IsRunning => _cts != null;
@@ -80,6 +93,29 @@ namespace ArdysaModsTools.UI.Presenters
         }
 
         public void ConfirmLaunch() => _confirmWaiter?.TrySetResult(true);
+
+        public void OpenSteamDownloads()
+        {
+            if (_steamActionsOffered) _launcher(SteamDownloadsUrl);
+        }
+
+        public async Task ClearSteamDownloadCacheAsync()
+        {
+            if (!_steamActionsOffered) return;
+
+            bool ok = await _view.ShowShellConfirmAsync(
+                Loc.T("play.button"),
+                Loc.T("play.clearCache.heading"),
+                Loc.T("play.clearCache.body"),
+                confirmText: Loc.T("play.clearCache.confirm"),
+                cancelText: Loc.T("play.panel.cancel"),
+                accent: "warn").ConfigureAwait(false);
+
+            if (!ok || !_steamActionsOffered) return;
+
+            _logger.LogDebug("[STEAM] clearing Steam's download cache at the user's request");
+            _launcher(SteamClearCacheUrl);
+        }
 
         public void Cancel()
         {
@@ -206,7 +242,7 @@ namespace ArdysaModsTools.UI.Presenters
 
                 if (GameStartedWithoutUs(title)) return (false, updated);
 
-                if ((needsPatch || pass > 0) && !await PatchAsync(targetPath, ct).ConfigureAwait(false))
+                if ((needsPatch || updated) &&!await PatchAsync(targetPath, ct).ConfigureAwait(false))
                     return (false, updated);
 
                 var step = await RepairAsync(targetPath, ct).ConfigureAwait(false);
@@ -227,25 +263,87 @@ namespace ArdysaModsTools.UI.Presenters
             var state = _steam.Read(targetPath);
             if (!state.IsUpdatePending) return SteamWait.NoUpdate;
 
-            while (state.IsUpdatePending && !_dotaRunning)
+            var lastProgress = Progress(state);
+            int stillPolls = 0, steamGonePolls = 0;
+            bool announced = false;
+
+            try
             {
-                ct.ThrowIfCancellationRequested();
-
-                if (!_steamRunning())
+                while (state.IsUpdatePending && !_dotaRunning)
                 {
-                    ShowError("play.panel.steamClosed", "play.panel.steamClosedDetail");
-                    _view.ShowShellToast(Loc.T("play.panel.steamClosed"),
-                        Loc.T("play.panel.steamClosedDetail"), "warning");
-                    _logger.Log(Loc.T("play.panel.steamClosedDetail"));
-                    return SteamWait.SteamClosed;
-                }
+                    ct.ThrowIfCancellationRequested();
 
-                Show("play.panel.steamUpdating", "play.panel.steamUpdatingDetail", state.DownloadPercent);
-                await Task.Delay(PollInterval, ct).ConfigureAwait(false);
-                state = _steam.Read(targetPath);
+                    steamGonePolls = _steamRunning() ? 0 : steamGonePolls + 1;
+                    if (steamGonePolls >= SteamGonePolls)
+                    {
+                        ShowError("play.panel.steamClosed", "play.panel.steamClosedDetail");
+                        _view.ShowShellToast(Loc.T("play.panel.steamClosed"),
+                            Loc.T("play.panel.steamClosedDetail"), "warning");
+                        _logger.Log(Loc.T("play.panel.steamClosedDetail"));
+                        return SteamWait.SteamClosed;
+                    }
+
+                    var progress = Progress(state);
+                    stillPolls = progress == lastProgress ? stillPolls + 1 : 0;
+                    lastProgress = progress;
+
+                    if (state.IsPaused || stillPolls >= StallPolls)
+                    {
+                        ShowStalled(state);
+                        if (!announced)
+                        {
+                            announced = true;
+                            string detail = StalledDetail(state);
+                            _logger.Log(detail);
+                            _logger.LogDebug($"[STEAM] update not moving: {state}");
+                            _view.ShowShellToast(Loc.T(StalledHeadingKey(state)), detail, "warning");
+                        }
+                    }
+                    else
+                    {
+                        _steamActionsOffered = false;
+                        Show("play.panel.steamUpdating", "play.panel.steamUpdatingDetail", state.UpdatePercent);
+                    }
+
+                    await Task.Delay(_pollInterval, ct).ConfigureAwait(false);
+                    state = _steam.Read(targetPath);
+                }
+            }
+            finally
+            {
+                _steamActionsOffered = false;
             }
 
             return SteamWait.Updated;
+        }
+
+        private static (long, long, long, long) Progress(SteamAppState s) =>
+            (s.StateFlags, s.BytesDownloaded, s.BytesStaged, s.BuildId);
+
+        private static string StalledHeadingKey(SteamAppState s) =>
+            s.UpdateResult != 0 ? "play.panel.steamUpdateFailed" : "play.panel.steamStalled";
+
+        private static string StalledDetailKey(SteamAppState s) =>
+            s.UpdateResult != 0 ? "play.panel.steamUpdateFailedDetail" : "play.panel.steamStalledDetail";
+
+        private static object? StalledVars(SteamAppState s) =>
+            s.UpdateResult != 0 ? new { code = s.UpdateResult } : null;
+
+        private static string StalledDetail(SteamAppState s) =>
+            StalledVars(s) is { } vars ? Loc.T(StalledDetailKey(s), vars) : Loc.T(StalledDetailKey(s));
+
+        private void ShowStalled(SteamAppState s)
+        {
+            _steamActionsOffered = true;
+            _view.SetLaunchPanel(new LaunchPanelState
+            {
+                HeadingKey = StalledHeadingKey(s),
+                DetailKey = StalledDetailKey(s),
+                DetailVars = StalledVars(s),
+                Percent = s.UpdatePercent,
+                CanCancel = true,
+                ShowSteamActions = true
+            });
         }
 
         private bool GameStartedWithoutUs(string title)
@@ -392,7 +490,7 @@ namespace ArdysaModsTools.UI.Presenters
                 }
 
                 Show("play.panel.waiting", "play.panel.waitingDetail", percent: null, canCancel: true);
-                await Task.Delay(PollInterval, ct).ConfigureAwait(false);
+                await Task.Delay(_pollInterval, ct).ConfigureAwait(false);
             }
 
             ShowError("play.panel.timeout", "play.panel.timeoutDetail");

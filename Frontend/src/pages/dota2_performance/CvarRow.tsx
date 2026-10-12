@@ -44,11 +44,9 @@ export function CvarRow({ cvar, cfg, value, isModified }: { cvar: string; cfg: C
             <div className="text-xs text-amt-text-dim mt-1 truncate" title={tip}>
                // {tip}
             </div>
+            <div className="text-[11px] text-amt-text-dim mt-1 truncate">{cvar}</div>
          </div>
-         <div className="flex items-center gap-3">
-            <span className="text-xs text-amt-text-dim">{cvar}</span>
-            {control}
-         </div>
+         <div className="flex items-center flex-shrink-0">{control}</div>
       </div>
    );
 }

@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import { expose } from "../../bridge/host";
 import { translate } from "../../bridge/i18n";
 import "../../design/base.css";
-import { applyResetOption, store, type AlertType, type MiscOption, type Selections } from "./store";
+import { applyResetOption, optionsLoaded, store, type AlertType, type MiscOption, type Selections } from "./store";
 import { App } from "./App";
 
 function parseJson<T>(value: T | string): T {
@@ -12,12 +12,8 @@ function parseJson<T>(value: T | string): T {
 expose({
    setDefaultThumb: (url: string) => store.set({ defaultThumb: url }),
 
-   loadOptions: (json: MiscOption[] | string) =>
-      store.set({
-         options: parseJson(json),
-         cachingVisible: false,
-         status: translate("hero.status.ready", "Ready"),
-      }),
+   loadOptions: (json: MiscOption[] | string) => optionsLoaded(parseJson(json)),
+   showLoadError: (message: string) => store.set({ loadError: message ?? "", cachingVisible: false }),
    loadSelections: (json: Selections | string) => store.set({ selections: parseJson(json) }),
 
    setStatus: (text: string) => store.set({ status: text }),
@@ -28,7 +24,7 @@ expose({
       store.set({ cachingStatus: { current, total } });
       if (current >= total && total > 0) {
          const el = document.getElementById("cachingStatus");
-         if (el) el.textContent = "Complete!";
+         if (el) el.textContent = translate("common.complete", "Complete");
       }
    },
    hideCachingOverlay: () => store.set({ cachingVisible: false }),

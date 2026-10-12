@@ -68,7 +68,7 @@ namespace ArdysaModsTools.Core.Helpers
             }
         }
 
-        private static bool TryResetUserDataFolder()
+        public static bool TryResetUserDataFolder()
         {
             try
             {

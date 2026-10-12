@@ -46,6 +46,8 @@ namespace ArdysaModsTools.Core.Models
             if (string.IsNullOrEmpty(msg))
                 return msg;
 
+            msg = Core.Services.LogRedaction.Apply(msg);
+
             msg = UrlPattern.Replace(msg, m => "…/" + LastSegment(m.Value, '/'));
             msg = WindowsPathPattern.Replace(msg, m => @"…\" + LastSegment(m.Value, '\\', '/'));
             return msg;

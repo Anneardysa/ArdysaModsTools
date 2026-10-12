@@ -610,7 +610,8 @@
                "backdrop-filter: none"
             ]
          }
-      ]
+      ],
+      "utilities": []
    },
    "accepted": {
       "support": {
@@ -640,7 +641,7 @@
          ]
       },
       "hero_gallery": {
-         "reason": "verified against built HTML: marquee(4)+hc-meta/hc-fav(2) are correct — Vite's CSS minifier re-encodes rgba(...) as 8-digit hex (#e3b34133, #946e148c, #f6ecd200) or drops the leading zero (.1/.16), which the audit's normalize() doesn't canonicalize; log-line(6) is genuinely unreachable — setGenerationLog() renders plain lines with no .error/.warning/.progress/.notice + .msg sub-structure, same call made on other ported pages for this exact rule",
+         "reason": "verified against built HTML: marquee(4)+hc-meta/hc-fav(2) are correct — Vite's CSS minifier re-encodes rgba(...) as 8-digit hex (#e3b34133, #946e148c, #f6ecd200) or drops the leading zero (.1/.16), which the audit's normalize() doesn't canonicalize; log-line(6) is genuinely unreachable — setGenerationLog() renders plain lines with no .error/.warning/.progress/.notice + .msg sub-structure, same call made on other ported pages for this exact rule; marquee color: the port routes it through var(--gold), which theme.css sets to #8a5d00 in light mode — measured in the built page it computes to rgb(138,93,0) on rgb(243,233,207) = 4.74:1, so the original's #6f520d intent is met by a token instead of a restated hex, which normalize() cannot match",
          "declarations": [
             ".tb-marquee-inner -> background: rgba(227, 179, 65, 0.2)",
             ".tb-marquee-inner -> border-color: rgba(148, 110, 20, 0.55)",
@@ -653,7 +654,8 @@
             ".log-line -> border-color: rgba(154, 103, 0, 0.35)",
             ".log-line -> color: #7d5800",
             ".hc-meta, .hc-fav -> --accent-dim: rgba(255, 255, 255, 0.1)",
-            ".hc-meta, .hc-fav -> --primary-glow: rgba(255, 255, 255, 0.16)"
+            ".hc-meta, .hc-fav -> --primary-glow: rgba(255, 255, 255, 0.16)",
+            ".tb-marquee-inner -> color: #6f520d"
          ]
       },
       "dota2_performance": {

@@ -33,6 +33,38 @@ namespace ArdysaModsTools.Tests.Services.Misc
             }
         }
 
+        [Test]
+        public void EveryPreset_KeepsFpsCapsAtOrAbove60()
+        {
+            foreach (var (name, cvars) in ExtractPresets(File.ReadAllText(FindPerformanceDataTs())))
+            {
+                var fps = int.Parse(cvars["fps_max"]);
+                Assert.That(fps == 0 || fps >= 60, Is.True, $"Preset '{name}' caps fps_max at {fps} (< 60).");
+                Assert.That(int.Parse(cvars["fps_max_ui"]), Is.GreaterThanOrEqualTo(60), $"Preset '{name}' caps fps_max_ui below 60.");
+            }
+        }
+
+        [Test]
+        public void EveryPreset_WithReducedRenderScale_EnablesFsr()
+        {
+            foreach (var (name, cvars) in ExtractPresets(File.ReadAllText(FindPerformanceDataTs())))
+            {
+                var scale = double.Parse(cvars["mat_viewportscale"], System.Globalization.CultureInfo.InvariantCulture);
+                var expected = scale < 1.0 ? "1" : "0";
+                Assert.That(cvars.TryGetValue("r_dota_fsr_upsample", out var fsr) ? fsr : null, Is.EqualTo(expected),
+                    $"Preset '{name}' has mat_viewportscale={scale}; r_dota_fsr_upsample must be {expected}.");
+            }
+        }
+
+        [Test]
+        public void EveryPreset_DefinesTheSameCvars()
+        {
+            var presets = ExtractPresets(File.ReadAllText(FindPerformanceDataTs()));
+            var reference = presets[0].Cvars.Keys;
+            foreach (var (name, cvars) in presets)
+                Assert.That(cvars.Keys, Is.EquivalentTo(reference), $"Preset '{name}' defines a different cvar set than '{presets[0].Name}'.");
+        }
+
         private static IReadOnlyList<(string Name, Dictionary<string, string> Cvars)> ExtractPresets(string source)
         {
             var body = ExtractBraceBlock(source, "const PRESETS");

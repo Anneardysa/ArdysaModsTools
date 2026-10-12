@@ -49,7 +49,7 @@ namespace ArdysaModsTools.Tests.Services
             catch { }
         }
 
-        private void WriteManifest(long stateFlags, long toDownload = 0, long downloaded = 0) =>
+        private void WriteManifest(long stateFlags, long toDownload = 0, long downloaded = 0, string extra = "") =>
             File.WriteAllText(Path.Combine(_steamapps, "appmanifest_570.acf"), $@"""AppState""
 {{
 	""appid""		""570""
@@ -58,7 +58,92 @@ namespace ArdysaModsTools.Tests.Services
 	""installdir""		""dota 2 beta""
 	""BytesToDownload""		""{toDownload}""
 	""BytesDownloaded""		""{downloaded}""
+{extra}
+	""InstalledDepots""
+	{{
+		""373301""
+		{{
+			""manifest""		""1234""
+			""size""		""999""
+		}}
+	}}
 }}");
+
+        [Test]
+        public void Read_OnTargetBuildWithStaleBytes_IsNotPending()
+        {
+            WriteManifest(4, toDownload: 5000, downloaded: 0,
+                extra: "\t\"buildid\"\t\t\"777\"\n\t\"TargetBuildID\"\t\t\"777\"");
+
+            var state = _service.Read(_dotaRoot);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(state.IsOnTargetBuild, Is.True);
+                Assert.That(state.IsUpdatePending, Is.False);
+                Assert.That(state.IsSettled, Is.True);
+            });
+        }
+
+        [Test]
+        public void Read_StaleBytesTowardsANewBuild_StillPending()
+        {
+            WriteManifest(4, toDownload: 5000, downloaded: 0,
+                extra: "\t\"buildid\"\t\t\"777\"\n\t\"TargetBuildID\"\t\t\"778\"");
+
+            Assert.That(_service.Read(_dotaRoot).IsUpdatePending, Is.True);
+        }
+
+        [Test]
+        public void Read_ParsesBuildIdsResultStagingAndSchedule()
+        {
+            WriteManifest(1030, toDownload: 10, downloaded: 10, extra:
+                "\t\"buildid\"\t\t\"111\"\n\t\"TargetBuildID\"\t\t\"222\"\n\t\"UpdateResult\"\t\t\"12\"\n" +
+                "\t\"BytesToStage\"\t\t\"400\"\n\t\"BytesStaged\"\t\t\"100\"\n" +
+                "\t\"ScheduledAutoUpdate\"\t\t\"1700000000\"\n\t\"AutoUpdateBehavior\"\t\t\"1\"");
+
+            var s = _service.Read(_dotaRoot);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(s.BuildId, Is.EqualTo(111), "buildid must not pick up TargetBuildID");
+                Assert.That(s.TargetBuildId, Is.EqualTo(222));
+                Assert.That(s.UpdateResult, Is.EqualTo(12));
+                Assert.That(s.BytesToStage, Is.EqualTo(400));
+                Assert.That(s.BytesStaged, Is.EqualTo(100));
+                Assert.That(s.ScheduledAutoUpdate, Is.EqualTo(1700000000));
+                Assert.That(s.AutoUpdateBehavior, Is.EqualTo(1));
+                Assert.That(s.IsUpdatePending, Is.True);
+            });
+        }
+
+        [Test]
+        public void Read_PausedUpdate_IsPausedAndPending()
+        {
+            WriteManifest(1542, toDownload: 1000, downloaded: 300);
+
+            var s = _service.Read(_dotaRoot);
+
+            Assert.That(s.IsPaused, Is.True);
+            Assert.That(s.IsUpdatePending, Is.True);
+        }
+
+        [Test]
+        public void UpdatePercent_SwitchesToStagingOnceDownloadCompletes()
+        {
+            var downloading = new SteamAppState { ManifestFound = true, StateFlags = 1030,
+                BytesToDownload = 1000, BytesDownloaded = 500, BytesToStage = 2000 };
+            var staging = downloading with { BytesDownloaded = 1000, BytesStaged = 500 };
+            var done = staging with { BytesStaged = 2000 };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(downloading.UpdatePercent, Is.EqualTo(50));
+                Assert.That(staging.UpdatePercent, Is.EqualTo(25));
+                Assert.That(done.UpdatePercent, Is.EqualTo(100));
+                Assert.That(new SteamAppState { ManifestFound = true, StateFlags = 6 }.UpdatePercent, Is.Null);
+            });
+        }
 
         [Test]
         public void Read_FullyInstalled_IsSettledAndNotPending()
@@ -96,7 +181,7 @@ namespace ArdysaModsTools.Tests.Services
             Assert.Multiple(() =>
             {
                 Assert.That(state.IsUpdatePending, Is.True);
-                Assert.That(state.DownloadPercent, Is.EqualTo(25));
+                Assert.That(state.UpdatePercent, Is.EqualTo(25));
             });
         }
 
@@ -165,6 +250,32 @@ namespace ArdysaModsTools.Tests.Services
             {
                 using var fs = new FileStream(manifest, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
             });
+        }
+
+        [Test]
+        public void Read_UserConfigLanguage_IsTheGameLanguage()
+        {
+            WriteManifest(4, extra: "\t\"UserConfig\"\n\t{\n\t\t\"language\"\t\t\"russian\"\n\t}\n\t\"MountedConfig\"\n\t{\n\t\t\"language\"\t\t\"english\"\n\t}");
+
+            Assert.That(_service.Read(_dotaRoot).Language, Is.EqualTo("russian"));
+        }
+
+        [Test]
+        public void Read_NoLanguage_IsNull()
+        {
+            WriteManifest(4);
+
+            Assert.That(_service.Read(_dotaRoot).Language, Is.Null);
+        }
+
+        [TestCase("../../x")]
+        [TestCase("english\\\" -e \\\"x")]
+        [TestCase("")]
+        public void Read_LanguageThatIsNotAPlainWord_IsNull(string value)
+        {
+            WriteManifest(4, extra: $"\t\"UserConfig\"\n\t{{\n\t\t\"language\"\t\t\"{value}\"\n\t}}");
+
+            Assert.That(_service.Read(_dotaRoot).Language, Is.Null);
         }
     }
 }

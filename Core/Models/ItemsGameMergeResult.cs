@@ -24,7 +24,9 @@ namespace ArdysaModsTools.Core.Models
 
         NothingToMerge,
 
-        Failed
+        Failed,
+
+        GameChanged
     }
 
     public record ItemsGameMergeResult

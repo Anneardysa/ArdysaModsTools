@@ -25,9 +25,11 @@ using ArdysaModsTools.Core.DependencyInjection;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Localization;
 using ArdysaModsTools.Core.Services.Mods;
+using ArdysaModsTools.Core.Services.Security;
 using ArdysaModsTools.Core.Services.Update;
 using System.Net.Http;
 using ArdysaModsTools.Helpers;
@@ -167,6 +169,7 @@ namespace ArdysaModsTools.UI.Presenters
                 }
 
                 await UpdateVersionAsync();
+                _ = RefreshUtilitiesGreyOutAsync();
 
                 if (!string.IsNullOrEmpty(_targetPath))
                 {
@@ -213,6 +216,19 @@ namespace ArdysaModsTools.UI.Presenters
         private void SyncTargetPath(string? path)
         {
             _navigationPresenter.TargetPath = path;
+            ReleaseStaleSessionLocks(path);
+        }
+
+        private void ReleaseStaleSessionLocks(string? path)
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            try
+            {
+                FileSecurityGuard.ReleaseDaclLock(
+                    Path.Combine(path, DotaPaths.ModsVpk.Replace('/', Path.DirectorySeparatorChar)), _logger);
+                FileSecurityGuard.ReleaseDaclLock(ProtectedVpkStore.VpkPath(path), _logger);
+            }
+            catch {  }
         }
         
         private void SyncCurrentStatus(ModStatusInfo? status)
@@ -397,9 +413,9 @@ namespace ArdysaModsTools.UI.Presenters
 
             var installAccess = await FeatureAccessService.CheckFeatureAsync(
                 FeatureAccessService.InstallModsPackFeature);
-            if (!installAccess.IsAllowed)
+            if (!installAccess.IsAllowed &&
+                !await UIHelpers.ShowFeatureBlockedAsync(_view, installAccess, _updater, _logger.Log))
             {
-                await UIHelpers.ShowFeatureBlockedAsync(_view, installAccess, _updater, _logger.Log);
                 return false;
             }
             if (installAccess.IsDevModeBypass)
@@ -610,7 +626,24 @@ namespace ArdysaModsTools.UI.Presenters
                 return false;
             }
 
-            var (origin, needsRebuild) = await _modInstaller.ClassifyVpkAsync(vpkPath);
+            (VpkOrigin origin, bool needsRebuild) classification;
+            try
+            {
+                using var classifyCts = CancellationTokenSource.CreateLinkedTokenSource(_lifetimeCts.Token);
+                classifyCts.CancelAfter(TimeSpan.FromSeconds(30));
+                classification = await _modInstaller.ClassifyVpkAsync(vpkPath, classifyCts.Token).ConfigureAwait(true);
+            }
+            catch (OperationCanceledException) when (_lifetimeCts.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"VPK classification error or timeout: {ex.Message}");
+                classification = (VpkOrigin.Unreadable, false);
+            }
+
+            var (origin, needsRebuild) = classification;
             if (origin == VpkOrigin.Unreadable)
             {
                 _view.ShowStyledMessage(
@@ -656,7 +689,8 @@ namespace ArdysaModsTools.UI.Presenters
                     var opSuccess = await _modInstaller.ManualInstallModsAsync(
                         _targetPath!, vpkPath, ctx.Progress, ctx.Token, speedProgress: ctx.Speed,
                         statusCallback: s => ctx.Status.Report(s),
-                        rebuild: needsRebuild
+                        rebuild: needsRebuild,
+                        origin: origin
                     ).ConfigureAwait(false);
 
                     if (opSuccess) success = true;
@@ -755,6 +789,12 @@ namespace ArdysaModsTools.UI.Presenters
                     return;
             }
 
+            if (_dotaRunning)
+            {
+                _logger.Log("Dota 2 is running — close the game and try again.");
+                return;
+            }
+
             var cts = StartOperation();
             var token = cts.Token;
 
@@ -769,31 +809,18 @@ namespace ArdysaModsTools.UI.Presenters
                 }
                 else if (deletePermanently)
                 {
-                    string modsFolder = Path.Combine(_targetPath, "game", "_ArdysaMods");
-                    bool folderRemoved = true;
-                    if (Directory.Exists(modsFolder))
-                    {
-                        try
-                        {
-                            ProtectedVpkStore.NormalizeAttributesRecursively(modsFolder);
-                            Directory.Delete(modsFolder, true);
-                            _logger.LogLocalized("default", LogSegment.T("log.disable.folderDeleted"));
-                        }
-                        catch (Exception ex)
-                        {
-                            folderRemoved = false;
-                            _logger.Log($"Failed to delete mod folder: {ex.Message}");
-                            _view.ShowShellToast(Loc.T("disable.toast.deleteFailed.title"),
-                                Loc.T("disable.toast.deleteFailed.body"), "error", 6000);
-                        }
-                    }
-
-                    ProtectedVpkStore.DeletePermanently(_targetPath, _logger);
-
+                    bool folderRemoved = await _modInstaller.DeleteModFilesPermanentlyAsync(_targetPath, token);
                     ClearTempFolder();
 
-                    if (folderRemoved)
+                    if (!folderRemoved)
                     {
+                        _view.ShowShellToast(Loc.T("disable.toast.deleteFailed.title"),
+                            Loc.T("disable.toast.deleteFailed.body"), "error", 6000);
+                    }
+                    else
+                    {
+                        _logger.LogLocalized("default", LogSegment.T("log.disable.folderDeleted"));
+
                         var restart = await _view.ShowShellConfirmAsync(
                             Loc.T("disable.restart.eyebrow"),
                             Loc.T("disable.restart.heading"),
@@ -955,6 +982,10 @@ namespace ArdysaModsTools.UI.Presenters
                     {
                         _view.EnableDetectionButtonsOnly();
                     }
+                    else
+                    {
+                        _view.RefreshButtonsVisibility();
+                    }
                 });
             }
             catch (Exception ex)
@@ -1075,6 +1106,11 @@ namespace ArdysaModsTools.UI.Presenters
 
         public void ConfirmLaunch() => _launchPresenter?.ConfirmLaunch();
 
+        public void OpenSteamDownloads() => _launchPresenter?.OpenSteamDownloads();
+
+        public Task ClearSteamDownloadCacheAsync() =>
+            _launchPresenter?.ClearSteamDownloadCacheAsync() ?? Task.CompletedTask;
+
         public async Task RepairPackageAsync()
         {
             if (string.IsNullOrEmpty(_targetPath) || _launchPresenter == null)
@@ -1150,6 +1186,7 @@ namespace ArdysaModsTools.UI.Presenters
         public async Task RefreshStatusAsync()
         {
             await CheckModsStatusAsync();
+            await RefreshUtilitiesGreyOutAsync();
         }
 
         private async Task UpdateVersionAsync()
@@ -1277,7 +1314,7 @@ namespace ArdysaModsTools.UI.Presenters
             }
             catch (Exception ex)
             {
-                _logger.Log($"[PatchWatcher] Failed to start: {ex.Message}");
+                _logger.LogWarning($"[PatchWatcher] Failed to start: {ex.Message}");
             }
         }
 
@@ -1285,7 +1322,7 @@ namespace ArdysaModsTools.UI.Presenters
         {
             try
             {
-                _logger.Log($"[PatchWatcher] Dota 2 update detected: {args.ChangeSummary}");
+                _logger.LogDebug($"[PatchWatcher] Dota 2 update detected: {args.ChangeSummary}");
 
                 _view.InvokeOnUIThread(() =>
                 {
@@ -1297,7 +1334,7 @@ namespace ArdysaModsTools.UI.Presenters
             }
             catch (Exception ex)
             {
-                _logger.Log($"[PatchWatcher] Error handling patch: {ex.Message}");
+                _logger.LogWarning($"[PatchWatcher] Error handling patch: {ex.Message}");
             }
         }
 
@@ -1317,7 +1354,7 @@ namespace ArdysaModsTools.UI.Presenters
             }
             catch (Exception ex)
             {
-                _logger.Log($"[PatchWatcher] Notification failed: {ex.Message}");
+                _logger.LogWarning($"[PatchWatcher] Notification failed: {ex.Message}");
             }
         }
 
@@ -1592,15 +1629,44 @@ namespace ArdysaModsTools.UI.Presenters
             }
         }
 
+        public async Task RefreshUtilitiesGreyOutAsync()
+        {
+            try
+            {
+                _view.SetUtilitiesGreyedOut(
+                    await FeatureAccessService.IsGreyedOutAsync(FeatureAccessService.UtilitiesFeature));
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Utilities grey-out check failed: {ex.Message}");
+            }
+        }
+
+        public async Task<bool> CheckUtilitiesAccessAsync()
+        {
+            var access = await FeatureAccessService.CheckFeatureAsync(
+                FeatureAccessService.UtilitiesFeature);
+            if (!access.IsAllowed &&
+                !await UIHelpers.ShowFeatureBlockedAsync(_view, access, _updater, _logger.Log))
+            {
+                return false;
+            }
+            if (access.IsDevModeBypass)
+            {
+                _logger.Log($"[DEV] Bypassed feature gate: {access.FeatureDisplayName}");
+            }
+            return true;
+        }
+
         public async Task OpenMiscellaneousAsync()
         {
             if (string.IsNullOrEmpty(_targetPath)) return;
 
             var miscAccess = await FeatureAccessService.CheckFeatureAsync(
                 FeatureAccessService.MiscellaneousFeature);
-            if (!miscAccess.IsAllowed)
+            if (!miscAccess.IsAllowed &&
+                !await UIHelpers.ShowFeatureBlockedAsync(_view, miscAccess, _updater, _logger.Log))
             {
-                await UIHelpers.ShowFeatureBlockedAsync(_view, miscAccess, _updater, _logger.Log);
                 return;
             }
             if (miscAccess.IsDevModeBypass)
@@ -1616,7 +1682,8 @@ namespace ArdysaModsTools.UI.Presenters
             if (result == DialogResult.OK)
             {
                 await CheckModsStatusAsync();
-                
+                _view.RefreshButtonsVisibility();
+                 
                 if (generationResult != null && generationResult.Success)
                 {
                     await Task.Delay(500);
@@ -1637,9 +1704,9 @@ namespace ArdysaModsTools.UI.Presenters
 
             var skinAccess = await FeatureAccessService.CheckFeatureAsync(
                 FeatureAccessService.SkinSelectorFeature);
-            if (!skinAccess.IsAllowed)
+            if (!skinAccess.IsAllowed &&
+                !await UIHelpers.ShowFeatureBlockedAsync(_view, skinAccess, _updater, _logger.Log))
             {
-                await UIHelpers.ShowFeatureBlockedAsync(_view, skinAccess, _updater, _logger.Log);
                 return;
             }
             if (skinAccess.IsDevModeBypass)
@@ -1684,11 +1751,6 @@ namespace ArdysaModsTools.UI.Presenters
             if (dialogResult == DialogResult.Abort)
             {
                 _logger.Log("WebView2 failed to initialize.");
-                _view.ShowStyledMessage(
-                    "Skin Selector Unavailable",
-                    "The Skin Selector requires the Microsoft Edge WebView2 runtime, which could not be initialized.\n\n" +
-                    "Please install or repair the WebView2 runtime, then try again.",
-                    Forms.StyledMessageType.Warning);
                 dialogResult = DialogResult.Cancel;
             }
             
@@ -1696,6 +1758,7 @@ namespace ArdysaModsTools.UI.Presenters
                 LogGenerationOutcome(generationResult);
 
             await CheckModsStatusAsync();
+            _view.RefreshButtonsVisibility();
             
             if (dialogResult == DialogResult.OK)
             {
@@ -1729,15 +1792,14 @@ namespace ArdysaModsTools.UI.Presenters
                 try
                 {
                     using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-                    using var request = new HttpRequestMessage(HttpMethod.Head, url);
-                    using var response = await client.SendAsync(request, cts.Token);
-                    
-                    if (response.IsSuccessStatusCode)
+                    var probe = await CdnProbe.ProbeAsync(client, url, cts.Token).ConfigureAwait(false);
+
+                    if (probe.Success)
                     {
                         return true;
                     }
-                    
-                    _logger.Log($"[NET] Server returned {(int)response.StatusCode} for {url}");
+
+                    _logger.Log($"[NET] Server returned {(int)probe.StatusCode} for {url}");
                 }
                 catch (TaskCanceledException)
                 {

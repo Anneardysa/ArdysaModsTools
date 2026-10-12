@@ -21,13 +21,14 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Helpers;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Helpers;
 
 namespace ArdysaModsTools.Core.Services
 {
-    public sealed class ModsPackDataService
+    public class ModsPackDataService
     {
         private const string IndexRepoPath = "remote/modspack_index.txt";
         private const int ExtractTimeoutMinutes = 20;
@@ -42,13 +43,13 @@ namespace ArdysaModsTools.Core.Services
             IHeroSetPatcher? patcher = null,
             IVpkRecompiler? recompiler = null)
         {
-            _itemsGameExtractor = itemsGameExtractor ?? new GameItemsGameExtractorService();
-            _patcher = patcher ?? new HeroSetPatcherService();
-            _recompiler = recompiler ?? new VpkRecompilerService();
+            _itemsGameExtractor = itemsGameExtractor ?? new GameItemsGameExtractorService(FileAppLogger.Instance);
+            _patcher = patcher ?? new HeroSetPatcherService(FileAppLogger.Instance);
+            _recompiler = recompiler ?? new VpkRecompilerService(FileAppLogger.Instance);
             _localizationPatcher = new LocalizationPatcherService();
         }
 
-        public async Task<bool> RebuildVpkAsync(
+        public virtual async Task<bool> RebuildVpkAsync(
             string targetPath,
             string vpkPath,
             Action<string> status,
@@ -74,6 +75,14 @@ namespace ArdysaModsTools.Core.Services
                 $"ArdysaModsPack_{Guid.NewGuid():N}");
             string buildDir = Path.Combine(tempRoot, "build");
             string extractDir = Path.Combine(tempRoot, "root");
+
+            if (!HasRoomToBuild(tempRoot, vpkPath, out string spaceError))
+            {
+                status("Not enough free disk space.");
+                FallbackLogger.LogFileOnly($"ModsPackData: {spaceError}");
+                InstallReport.Fail(spaceError);
+                return false;
+            }
 
             try
             {
@@ -103,10 +112,13 @@ namespace ArdysaModsTools.Core.Services
                 ct.ThrowIfCancellationRequested();
                 percent?.Report(15);
 
-                if (!await _itemsGameExtractor.RefreshFromGameAsync(targetPath, extractDir, status, ct).ConfigureAwait(false))
+                string? readReason = null;
+                if (!await _itemsGameExtractor.RefreshFromGameAsync(
+                        targetPath, extractDir, m => { readReason = m; status(m); }, ct).ConfigureAwait(false))
                 {
                     status("Could not read the package from your Dota 2 installation.");
-                    InstallReport.Fail("Could not read game data from your Dota 2 installation — verify game files in Steam.");
+                    InstallReport.Fail(readReason
+                        ?? "Could not read game data from your Dota 2 installation — verify game files in Steam.");
                     return false;
                 }
                 InstallReport.Ok("Game data loaded from your Dota 2 installation.");
@@ -166,6 +178,10 @@ namespace ArdysaModsTools.Core.Services
                 ct.ThrowIfCancellationRequested();
                 percent?.Report(90);
 
+                string protectedDir = Path.Combine(tempRoot, "protected");
+                int protectedMoved = ProtectedVpkStore.Split(
+                    targetPath, extractDir, protectedDir, assetPaths: null, logger: null, ct);
+
                 status("Building VPK...");
                 string? newVpkPath = await _recompiler.RecompileAsync(
                     vpkToolPath, extractDir, buildDir, tempRoot, status, ct).ConfigureAwait(false);
@@ -175,20 +191,34 @@ namespace ArdysaModsTools.Core.Services
                     InstallReport.Fail("Could not build the final package.");
                     return false;
                 }
+                VpkSignatureSection.TryApply(newVpkPath);
+
+                string? newProtectedVpkPath = null;
+                if (protectedMoved > 0)
+                {
+                    newProtectedVpkPath = await _recompiler.RecompileAsync(
+                        vpkToolPath, protectedDir, buildDir, tempRoot, status, ct).ConfigureAwait(false);
+
+                    if (string.IsNullOrWhiteSpace(newProtectedVpkPath) ||
+                        string.Equals(newProtectedVpkPath, newVpkPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        status("VPK build failed.");
+                        InstallReport.Fail("Could not build the protected package.");
+                        return false;
+                    }
+                    VpkSignatureSection.TryApply(newProtectedVpkPath);
+                }
 
                 percent?.Report(98);
                 status("Installing...");
-                if (File.Exists(vpkPath))
+
+                string? deployReason = null;
+                if (!await ProtectedVpkStore.DeployInstallPairAsync(targetPath, vpkPath, newVpkPath, newProtectedVpkPath,
+                        m => { deployReason = m; status(m); }, FileAppLogger.Instance).ConfigureAwait(false))
                 {
-                    try { File.SetAttributes(vpkPath, FileAttributes.Normal); } catch { }
+                    InstallReport.Fail(deployReason ?? "Could not install the mod packages.");
+                    return false;
                 }
-                string destDir = Path.GetDirectoryName(vpkPath)!;
-                if (Directory.Exists(destDir))
-                {
-                    try { new DirectoryInfo(destDir).Attributes = FileAttributes.Normal; } catch { }
-                }
-                File.Copy(newVpkPath, vpkPath, overwrite: true);
-                try { File.SetAttributes(vpkPath, FileAttributes.Normal); } catch { }
 
                 await ItemsGameBaselineStore.CommitAsync(targetPath, mergedBlocks.Keys, ct).ConfigureAwait(false);
 
@@ -213,6 +243,33 @@ namespace ArdysaModsTools.Core.Services
                 catch (Exception ex) { FallbackLogger.LogFileOnly($"ModsPackData: temp cleanup failed: {ex.Message}"); }
 
                 Core.Helpers.LargeWorkMemory.Release();
+            }
+        }
+
+        private const int BuildSpaceMultiplier = 4;
+
+        internal static bool HasRoomToBuild(string tempRoot, string vpkPath, out string error)
+        {
+            error = string.Empty;
+            try
+            {
+                string? root = Path.GetPathRoot(tempRoot);
+                if (string.IsNullOrEmpty(root)) return true;
+
+                var drive = new DriveInfo(root);
+                if (!drive.IsReady) return true;
+
+                long needed = new FileInfo(vpkPath).Length * BuildSpaceMultiplier;
+                if (drive.AvailableFreeSpace >= needed) return true;
+
+                error = $"Not enough free disk space on drive {drive.Name} — the rebuild needs about "
+                      + $"{needed / 1073741824.0:F1} GB free and only {drive.AvailableFreeSpace / 1073741824.0:F1} GB is left.";
+                return false;
+            }
+            catch (Exception ex)
+            {
+                FallbackLogger.LogFileOnly($"ModsPackData: free-space check skipped: {ex.Message}");
+                return true;
             }
         }
 

@@ -40,7 +40,19 @@ namespace ArdysaModsTools.Core.Interfaces
             IProgress<(int current, int total, string heroName)>? progress = null,
             IProgress<(int percent, string stage)>? stageProgress = null,
             IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null,
+            IReadOnlyDictionary<string, IReadOnlyList<ParticlePick>>? particles = null,
             CancellationToken ct = default);
+
+        Task<OperationResult> GenerateModsPackAsync(
+            string targetPath,
+            IReadOnlyList<(HeroModel hero, string setName)> heroSets,
+            string releaseDir,
+            Action<string> log,
+            IProgress<(int percent, string stage)>? stageProgress = null,
+            IProgress<ArdysaModsTools.Core.Models.SpeedMetrics>? speedProgress = null,
+            CancellationToken ct = default);
+
+        Task<Data.ParticleSlots?> GetParticleSlotsAsync(HeroModel hero, string setName, CancellationToken ct = default);
     }
 }
 

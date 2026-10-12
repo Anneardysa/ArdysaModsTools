@@ -139,7 +139,7 @@ namespace ArdysaModsTools.Core.Services
                     };
                     await ManifestCache.WriteAsync(HeroService.HeroesManifestName, remote.Value.Json, newMeta, ct)
                         .ConfigureAwait(false);
-                    _logger?.Log($"[HeroDatabaseService] Hero database persisted at {remote.Value.SetCount} sets (changed={contentDiffers}).");
+                    _logger?.LogDebug($"[HeroDatabaseService] Hero database persisted at {remote.Value.SetCount} sets (changed={contentDiffers}).");
                 }
 
                 return new HeroDatabaseUpdateResult

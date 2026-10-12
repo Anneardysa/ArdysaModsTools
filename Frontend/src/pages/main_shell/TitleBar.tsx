@@ -1,6 +1,7 @@
 import { send } from "../../bridge/host";
 import { useLocale } from "../../bridge/i18n";
 import { BrandGlyph, BrandSprite } from "../../ui/BrandMark";
+import { StarOnGitHub } from "../../ui/StarOnGitHub";
 import css from "./shell.module.css";
 
 export function TitleBar() {
@@ -11,7 +12,8 @@ export function TitleBar() {
          id="titlebar"
          className={css.titlebar}
          onMouseDown={(e) => {
-            if ((e.target as HTMLElement).closest(`.${css.winBtn}`)) return;
+            const el = e.target as HTMLElement;
+            if (el.closest(`.${css.winBtn}`) || el.closest("[data-no-drag]")) return;
             send("startDrag");
          }}
       >
@@ -24,6 +26,9 @@ export function TitleBar() {
             <span className={css.bTag}>Dota 2</span>
          </div>
          <div className={css.winControls}>
+            <span className={css.starSlot}>
+               <StarOnGitHub />
+            </span>
             <button type="button" id="btn-about" className={`${css.winBtn} ${css.about}`} title={t("shell.titlebar.about", "About")} onClick={() => send("about")}>
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <circle cx="12" cy="12" r="10" />

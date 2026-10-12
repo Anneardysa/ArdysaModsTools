@@ -58,12 +58,10 @@ namespace ArdysaModsTools.Core.Services
 
             string root = PathUtility.NormalizeTargetPath(targetPath);
             string gameVpk = Path.Combine(root, ToNative(DotaPaths.GameVpk));
-            string modVpk = Path.Combine(root, ToNative(DotaPaths.ModsVpk));
-
             var vanillaStamp = VpkStamp.Read(gameVpk);
             var modStamp = ProtectedVpkStore.GetActiveModVpkStamp(root);
 
-            if (modStamp == null || !File.Exists(modVpk))
+            if (modStamp == null)
             {
                 return PublishTransient(Unknown("verify.sync.unknown", "mod package not installed"));
             }
@@ -82,7 +80,7 @@ namespace ArdysaModsTools.Core.Services
                     string.Equals(_evaluatedPath, root, StringComparison.OrdinalIgnoreCase))
                     return _current;
 
-                var verdict = await EvaluateAsync(root, gameVpk, modVpk, vanillaStamp.Value, ct)
+                var verdict = await EvaluateAsync(root, gameVpk, vanillaStamp.Value, ct)
                     .ConfigureAwait(false);
 
                 _evaluatedVanilla = vanillaStamp;
@@ -107,7 +105,7 @@ namespace ArdysaModsTools.Core.Services
         }
 
         private async Task<ItemsGameSyncVerdict> EvaluateAsync(
-            string root, string gameVpk, string modVpk, VpkStamp vanillaStamp, CancellationToken ct)
+            string root, string gameVpk, VpkStamp vanillaStamp, CancellationToken ct)
         {
             var baseline = await ItemsGameBaselineStore.ReadAsync(root, ct).ConfigureAwait(false);
 
@@ -262,7 +260,6 @@ namespace ArdysaModsTools.Core.Services
 
             string root = PathUtility.NormalizeTargetPath(targetPath);
             string gameVpk = Path.Combine(root, ToNative(DotaPaths.GameVpk));
-            string modVpk = Path.Combine(root, ToNative(DotaPaths.ModsVpk));
 
             if (!File.Exists(gameVpk))
             {
@@ -274,7 +271,7 @@ namespace ArdysaModsTools.Core.Services
                 };
             }
 
-            if (!File.Exists(modVpk))
+            if (ProtectedVpkStore.GetActiveModVpkStamp(root) == null)
             {
                 return new SyncDetailsReport
                 {
@@ -424,7 +421,7 @@ namespace ArdysaModsTools.Core.Services
             return match.Success ? match.Groups[1].Value : "";
         }
 
-        private static string DetermineCategory(string id, string name, string slot, string block = "")
+        internal static string DetermineCategory(string id, string name, string slot, string block = "")
         {
             if (HeroDefaultItemRegistry.TryGetItem(id, out var heroDefault))
             {
@@ -446,6 +443,8 @@ namespace ArdysaModsTools.Core.Services
             if (id == "660" || id == "661") return "Creeps";
             if (id == "677" || id == "678") return "Towers";
             if (id == "34462" || id == "34463") return "Siege";
+            foreach (var (displayName, ids) in MiscItemIds.SlotExclusive.Values)
+                if (Array.IndexOf(ids, id) >= 0) return displayName;
 
             if (!string.IsNullOrEmpty(block))
             {

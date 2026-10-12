@@ -27,3 +27,5 @@ export type ToastType = "success" | "error" | "warning" | "info";
 export type CfgBannerState = "warning" | "success" | "ok" | "hidden" | "";
 
 export type Tab = "cvars" | "launch";
+
+export type MapCleanupKey = "amt_remove_foliage" | "amt_remove_props";

@@ -1,0 +1,81 @@
+.star {
+   flex-shrink: 0;
+   display: inline-flex;
+   align-items: center;
+   gap: 7px;
+   font-family: var(--sans);
+   font-weight: 700;
+   text-transform: uppercase;
+   white-space: nowrap;
+   cursor: pointer;
+   border-radius: var(--r-sm);
+   transition: var(--transition);
+}
+.star svg {
+   flex-shrink: 0;
+}
+
+.chip {
+   height: 26px;
+   padding: 0 10px;
+   font-size: 10px;
+   letter-spacing: 1.2px;
+   color: var(--gold);
+   background: var(--gold-dim);
+   border: 1px solid var(--gold-line);
+}
+.chip svg {
+   width: 12px;
+   height: 12px;
+}
+.chip:hover {
+   color: var(--gold-ink);
+   background: var(--gold-fill);
+   border-color: var(--gold-fill);
+   box-shadow: 0 2px 14px var(--gold-glow);
+}
+.chip:active {
+   transform: translateY(1px);
+   box-shadow: none;
+}
+
+.cta {
+   padding: 8px 16px;
+   font-size: 11px;
+   font-weight: 600;
+   letter-spacing: 1px;
+   color: var(--gold-ink);
+   background: var(--gold-fill);
+   border: 1px solid var(--gold-fill);
+}
+.cta svg {
+   width: 13px;
+   height: 13px;
+}
+.cta:hover {
+   box-shadow: 0 2px 18px var(--gold-glow);
+}
+.cta:active {
+   transform: translateY(1px);
+   box-shadow: none;
+}
+
+.star:focus-visible {
+   outline: 2px solid var(--gold);
+   outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+   .chip {
+      padding: 0 7px;
+   }
+   .chip .label {
+      display: none;
+   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+   .star:active {
+      transform: none;
+   }
+}

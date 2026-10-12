@@ -752,6 +752,7 @@
   "heroGallery.cartEmpty": "Noch nichts ausgewählt; wähle ein Set, Item oder eine Base aus dem Katalog.",
   "heroGallery.cartRemove": "Aus der Auswahl entfernen",
   "heroGallery.particles.title": "Partikel",
+  "heroGallery.particles.fpsNotice": "Unusual-Partikel können deine FPS senken.",
   "heroGallery.particles.kind": "Partikel",
   "heroGallery.particles.persona": "⚠ Partikel sind deaktiviert, solange eine Persona aktiv ist",
   "heroGallery.particles.needLayer": "⚠ Wähle zuerst ein Set, Item oder Arcana. Partikel sitzen auf einem getragenen Item.",

@@ -165,6 +165,12 @@ namespace ArdysaModsTools.Core.Services.Cdn
                         lastError = ex.Message;
                         Debug.WriteLine($"[ResumableDL] {cdnName} failed: {ex.Message}");
 
+                        if (CdnAuthFailure.IsUnauthorized(ex))
+                        {
+                            try { if (File.Exists(partialPath)) File.Delete(partialPath); } catch { }
+                            throw CdnAuthFailure.ToException(url);
+                        }
+
                         if (reportCdnHealth)
                             SmartCdnSelector.Instance.ReportFailure(cdnBase);
 
@@ -210,22 +216,16 @@ namespace ArdysaModsTools.Core.Services.Cdn
 
             if (existingBytes > 0)
             {
-                try
+                var probe = await CdnProbe.ProbeAsync(client, url, cdnCts.Token).ConfigureAwait(false);
+                if (probe.Success)
                 {
-                    using var headReq = new HttpRequestMessage(HttpMethod.Head, url);
-                    using var headResp = await client.SendAsync(headReq, cdnCts.Token).ConfigureAwait(false);
-
-                    if (!headResp.IsSuccessStatusCode)
-                        throw new HttpRequestException($"HTTP {(int)headResp.StatusCode} {headResp.StatusCode}");
-
-                    totalBytes = headResp.Content.Headers.ContentLength ?? -1;
-                    supportsRange = headResp.Headers.AcceptRanges?.Contains("bytes") == true;
-
-                    Debug.WriteLine($"[ResumableDL] HEAD {url}: {totalBytes} bytes, Range={supportsRange}");
+                    totalBytes = probe.TotalBytes;
+                    supportsRange = probe.SupportsRange;
+                    Debug.WriteLine($"[ResumableDL] Probe {url}: {totalBytes} bytes, Range={supportsRange}");
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                else
                 {
-                    Debug.WriteLine($"[ResumableDL] HEAD failed ({ex.Message}), falling back to GET");
+                    Debug.WriteLine($"[ResumableDL] Probe failed, falling back to GET");
                     supportsRange = false;
                 }
             }

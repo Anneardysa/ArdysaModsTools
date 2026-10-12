@@ -51,7 +51,8 @@ namespace ArdysaModsTools.Core.Helpers
             ISet<string> slotModelFiles,
             Func<string, string>? label = null,
             Func<string, string?>? defaultModelOf = null,
-            Func<string, string?>? stemOf = null)
+            Func<string, string?>? stemOf = null,
+            ISet<string>? overlays = null)
         {
             string L(string layer) => label?.Invoke(layer) ?? layer;
             var result = new Result();
@@ -67,7 +68,7 @@ namespace ArdysaModsTools.Core.Helpers
             if (swaps.Count == 0)
             {
                 if (defaultModelOf != null)
-                    ModellessOwners(result, finalBlocks, layerFiles, layerVariants, fileOwner, slotModelFiles, L, defaultModelOf, stemOf);
+                    ModellessOwners(result, finalBlocks, layerFiles, layerVariants, fileOwner, slotModelFiles, L, defaultModelOf, stemOf, overlays);
                 return result;
             }
 
@@ -170,7 +171,8 @@ namespace ArdysaModsTools.Core.Helpers
             ISet<string> slotModelFiles,
             Func<string, string> L,
             Func<string, string?> defaultModelOf,
-            Func<string, string?>? stemOf)
+            Func<string, string?>? stemOf,
+            ISet<string>? overlays)
         {
             var modelless = new HashSet<string>(
                 finalBlocks.Where(kv => defaultModelOf(kv.Key) is string d && d.Trim().Length == 0).Select(kv => kv.Value.Layer),
@@ -200,7 +202,8 @@ namespace ArdysaModsTools.Core.Helpers
                 var company = layers.Concat(carriers.TryGetValue(body, out var cs) ? cs : new List<string>())
                                     .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
-                if (company.Count >= 2 && PeerVariant(body, company, layerVariants, stemOf) is var (carrier, key, variant))
+                var members = overlays == null ? company : company.Where(l => !overlays.Contains(l)).ToList();
+                if (members.Count >= 2 && PeerVariant(body, members, layerVariants, stemOf) is var (carrier, key, variant))
                 {
                     foreach (var p in variant)
                         if (!lastWriter.TryGetValue(p, out var last) ||

@@ -100,6 +100,8 @@ namespace ArdysaModsTools.Core.Services
 
                 ct.ThrowIfCancellationRequested();
 
+                var gameVpkStamp = VpkStamp.Read(gameVpk);
+
                 string vanillaSha = await AssetHashVerifier.ComputeSha256Async(vanillaPath, ct).ConfigureAwait(false);
                 var record = await ItemsGameBaselineStore.ReadAsync(root, ct).ConfigureAwait(false);
                 var modStamp = ProtectedVpkStore.GetActiveModVpkStamp(root);
@@ -224,6 +226,13 @@ namespace ArdysaModsTools.Core.Services
                 ct.ThrowIfCancellationRequested();
                 percent?.Report(90);
                 status?.Report("play.merge.installing");
+
+                var stampNow = VpkStamp.Read(gameVpk);
+                if (gameVpkStamp != null && stampNow != null && !stampNow.Value.Equals(gameVpkStamp.Value))
+                {
+                    _logger?.Log("[MERGE] Dota 2 changed while the package was being rebuilt — discarding this rebuild and reading the new item data.");
+                    return new ItemsGameMergeResult { Outcome = ItemsGameMergeOutcome.GameChanged };
+                }
 
                 bool installed = string.Equals(activeModVpk, protVpk, StringComparison.OrdinalIgnoreCase)
                     ? await ProtectedVpkStore.DeployAsync(root, newVpk,

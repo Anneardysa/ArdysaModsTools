@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { send } from "../../bridge/host";
 import { T, useLocale } from "../../bridge/i18n";
+import { trapTab } from "./a11y";
 import type { AlertType } from "./types";
 import css from "./gallery.module.css";
 
@@ -31,7 +32,7 @@ export function AlertModal({
    return (
       <div id="alertModal" className={css.ov}>
          <div className={css.ovScrim} onClick={onClose} />
-         <div className={css.dialog}>
+         <div className={css.dialog} role="dialog" aria-modal="true" aria-labelledby="alertTitle" aria-describedby="alertMessage" onKeyDown={trapTab}>
             <div className={css.dialogBody}>
                <div className={css.dialogIco}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -63,7 +64,7 @@ export function AlertModal({
                      <T k="hero.log.button">Show Log</T>
                   </button>
                )}
-               <button type="button" data-no-drag id="alertOkButton" className={`${css.btn} ${showPlay ? css.ghost : css.primary}`} onClick={onClose}>
+               <button type="button" data-no-drag autoFocus id="alertOkButton" className={`${css.btn} ${showPlay ? css.ghost : css.primary}`} onClick={onClose}>
                   <T k="common.ok">OK</T>
                </button>
             </div>
@@ -87,10 +88,10 @@ export function LogModal({ lines, onClose }: { lines: string[]; onClose: () => v
    return (
       <div id="logModal" className={css.ov} style={{ zIndex: 250 }}>
          <div className={css.ovScrim} onClick={onClose} />
-         <div className={`${css.dialog} ${css.logDialog}`}>
+         <div className={`${css.dialog} ${css.logDialog}`} role="dialog" aria-modal="true" aria-labelledby="logModalTitle" onKeyDown={trapTab}>
             <div className={css.dialogBody}>
                <div className={css.dialogMain}>
-                  <h3 className={css.dialogTitle}>
+                  <h3 id="logModalTitle" className={css.dialogTitle}>
                      <T k="hero.log.title">Generation Log</T>
                   </h3>
                   <div id="logModalConsole" className={`${css.retroTerminal} ${css.logModalConsole}`}>
@@ -112,7 +113,7 @@ export function LogModal({ lines, onClose }: { lines: string[]; onClose: () => v
                <button type="button" data-no-drag className={`${css.btn} ${css.ghost}`} onClick={copy}>
                   {copied ? t("common.copied", "Copied") : t("miscForm.copyLog", "Copy")}
                </button>
-               <button type="button" data-no-drag className={`${css.btn} ${css.primary}`} onClick={onClose}>
+               <button type="button" data-no-drag autoFocus className={`${css.btn} ${css.primary}`} onClick={onClose}>
                   <T k="common.close">Close</T>
                </button>
             </div>

@@ -86,7 +86,8 @@ namespace ArdysaModsTools.Tests.Services
             TimeSpan? duration = null,
             int maxDaily = 0,
             Func<bool>? isDevMode = null,
-            Func<ArdysaModsTools.Core.Models.FeatureAccessConfig?>? remoteConfig = null)
+            Func<ArdysaModsTools.Core.Models.FeatureAccessConfig?>? remoteConfig = null,
+            Func<bool>? isExempt = null)
         {
             return new SkinSelectorCooldownService(
                 _config.Object,
@@ -98,7 +99,8 @@ namespace ArdysaModsTools.Tests.Services
                 cooldownDuration: duration,
                 maxDailyGenerations: maxDaily,
                 isDevMode: isDevMode,
-                remoteConfigProvider: remoteConfig);
+                remoteConfigProvider: remoteConfig,
+                isExempt: isExempt);
         }
 
         #region Cooldown Duration Tests (10 Minutes)
@@ -433,5 +435,89 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         #endregion
+
+        #region External Exemption Tests
+
+        [Test]
+        public void IsOnCooldown_ExemptionActive_IsNeverBlocked()
+        {
+            var service = CreateService(isExempt: () => true);
+            service.RecordGeneration();
+
+            var blocked = service.IsOnCooldown(out var remaining, out var reason);
+
+            Assert.That(blocked, Is.False);
+            Assert.That(remaining, Is.EqualTo(TimeSpan.Zero));
+            Assert.That(reason, Is.EqualTo(SkinSelectorLockReason.None));
+        }
+
+        [Test]
+        public void IsOnCooldown_ExemptionWithdrawnMidSession_BlocksOnTheNextCheck()
+        {
+            var exempt = true;
+            var service = CreateService(isExempt: () => exempt);
+            service.RecordGeneration();
+            Assume.That(service.IsOnCooldown(out _, out _), Is.False);
+
+            exempt = false;
+
+            Assert.That(service.IsOnCooldown(out _, out var reason), Is.True);
+            Assert.That(reason, Is.EqualTo(SkinSelectorLockReason.Cooldown));
+        }
+
+        [Test]
+        public void IsOnCooldown_ExemptionActiveWithTamperedStore_IsStillNotBlocked()
+        {
+            var service = CreateService(isExempt: () => true);
+            service.RecordGeneration();
+            File.Delete(_shadowFile);
+            File.WriteAllText(_shadowFile,
+                "{\"DateUtc\":\"2026-08-21\",\"DailyCount\":1," +
+                "\"TimestampUtc\":\"2026-08-21T12:00:00Z\",\"Signature\":\"FORGED\"}");
+
+            var blocked = service.IsOnCooldown(out _, out var reason);
+
+            Assert.That(blocked, Is.False);
+            Assert.That(reason, Is.EqualTo(SkinSelectorLockReason.None));
+        }
+
+        [Test]
+        public void RecordGeneration_WhileExempt_StillPersists_SoRevocationBitesImmediately()
+        {
+            var exempt = CreateService(isExempt: () => true);
+            exempt.RecordGeneration();
+
+            var afterRevocation = CreateService(isExempt: () => false);
+
+            Assert.That(afterRevocation.IsOnCooldown(out var remaining, out var reason), Is.True);
+            Assert.That(reason, Is.EqualTo(SkinSelectorLockReason.Cooldown));
+            Assert.That(remaining, Is.GreaterThan(TimeSpan.Zero));
+        }
+
+        [Test]
+        public void GetStatus_ExemptionActive_ReportsNoActiveCooldown()
+        {
+            var service = CreateService(isExempt: () => true);
+            service.RecordGeneration();
+
+            var status = service.GetStatus();
+
+            Assert.That(status.IsActive, Is.False);
+            Assert.That(status.Remaining, Is.EqualTo(TimeSpan.Zero));
+            Assert.That(status.LockReason, Is.EqualTo(SkinSelectorLockReason.None));
+        }
+
+        [Test]
+        public void IsOnCooldown_NoExemptionHook_KeepsTheOriginalBehaviour()
+        {
+            var service = CreateService();
+            service.RecordGeneration();
+
+            Assert.That(service.IsOnCooldown(out _, out var reason), Is.True);
+            Assert.That(reason, Is.EqualTo(SkinSelectorLockReason.Cooldown));
+        }
+
+        #endregion
+
     }
 }

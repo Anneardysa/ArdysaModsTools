@@ -30,6 +30,8 @@ namespace ArdysaModsTools.Core.Models
 
         public string? ConfirmKey { get; init; }
 
+        public bool ShowSteamActions { get; init; }
+
         public bool IsError { get; init; }
     }
 }

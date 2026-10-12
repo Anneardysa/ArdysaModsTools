@@ -17,6 +17,7 @@
 using System.Linq;
 using NUnit.Framework;
 using ArdysaModsTools.Core.Services;
+using ArdysaModsTools.Models;
 
 namespace ArdysaModsTools.Tests.Services
 {
@@ -193,6 +194,405 @@ namespace ArdysaModsTools.Tests.Services
             Assert.That(hero.Sets["Frost Avalanche"],
                 Is.EqualTo(new[] { "https://cdn/fa.zip", "https://cdn/fa.jpg" }));
             Assert.That(hero.SetStyles, Is.Empty);
+        }
+
+        #endregion
+
+        #region "set_names" / "incompatible" parsing
+
+        [Test]
+        public void ParseHeroesJson_SetNamesAndIncompatible_AreRead()
+        {
+            const string json = @"
+            [
+              {
+                ""name"": ""abaddon"",
+                ""sets"": {
+                  ""Set 1"": [""https://cdn/blightfall.zip""],
+                  ""Set 2"": [""https://cdn/item_weapon_mace.zip""]
+                },
+                ""set_names"": {
+                  ""blightfall"": ""Blightfall"",
+                  ""item_weapon_mace"": ""Mace of the Chosen""
+                },
+                ""incompatible"": [
+                  { ""sets"": [""blightfall""], ""with"": [""item_weapon_mace""] },
+                  { ""sets"": [""a"", ""b""] }
+                ]
+              }
+            ]";
+
+            var hero = HeroService.ParseHeroesJson(json)[0];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.SetNames["blightfall"], Is.EqualTo("Blightfall"));
+                Assert.That(hero.SetNames["item_weapon_mace"], Is.EqualTo("Mace of the Chosen"));
+                Assert.That(hero.Incompatible, Has.Count.EqualTo(2));
+                Assert.That(hero.Incompatible[0].Sets, Is.EqualTo(new[] { "blightfall" }));
+                Assert.That(hero.Incompatible[0].With, Is.EqualTo(new[] { "item_weapon_mace" }));
+                Assert.That(hero.Incompatible[1].Sets, Is.EqualTo(new[] { "a", "b" }));
+                Assert.That(hero.Incompatible[1].With, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_WithoutTheNewFields_StillParses()
+        {
+            const string json = @"
+            [
+              { ""name"": ""abaddon"", ""sets"": { ""Set 1"": [""https://cdn/a.zip""] } }
+            ]";
+
+            var hero = HeroService.ParseHeroesJson(json)[0];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.SetNames, Is.Empty);
+                Assert.That(hero.Incompatible, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_MalformedNewFields_AreSkippedWithoutLosingTheHero()
+        {
+            const string json = @"
+            [
+              {
+                ""name"": ""abaddon"",
+                ""sets"": { ""Set 1"": [""https://cdn/a.zip""] },
+                ""set_names"": { ""good"": ""Good Name"", ""bad"": 12345, ""blank"": ""   "" },
+                ""incompatible"": [
+                  ""not-an-object"",
+                  { ""with"": [""only-a-right-hand-side""] },
+                  { ""sets"": [""x"", """", null], ""with"": ""not-an-array"" }
+                ]
+              }
+            ]";
+
+            var hero = HeroService.ParseHeroesJson(json)[0];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.Name, Is.EqualTo("abaddon"), "a malformed optional field must not drop the hero");
+                Assert.That(hero.SetNames.Keys, Is.EquivalentTo(new[] { "good" }));
+                Assert.That(hero.Incompatible, Has.Count.EqualTo(1));
+                Assert.That(hero.Incompatible[0].Sets, Is.EqualTo(new[] { "x" }));
+                Assert.That(hero.Incompatible[0].With, Is.Empty);
+            });
+        }
+
+        #endregion
+
+        #region "notices" parsing
+
+        private static HeroSummary ParseWithNotices(string noticesJson) =>
+            HeroService.ParseHeroesJson(@"[ { ""name"": ""abaddon"", ""sets"": { ""Set 1"": [""https://cdn/a.zip""] }, ""notices"": " + noticesJson + " } ]")[0];
+
+        [Test]
+        public void ParseHeroesJson_Notices_ShorthandAndObjectFormsAreRead()
+        {
+            var hero = ParseWithNotices(@"{
+                ""blightfall"": [""anim_demo_only"", { ""type"": ""anim_bug"", ""anim"": ""Idle"" }],
+                ""item_weapon_mace"": [{ ""type"": ""custom"", ""text"": ""  Particles differ slightly  "" }]
+            }");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.Notices["blightfall"], Is.EqualTo(new[]
+                {
+                    new SetNotice(SetNotice.AnimDemoOnly),
+                    new SetNotice(SetNotice.AnimBug, Anim: "Idle")
+                }));
+                Assert.That(hero.Notices["item_weapon_mace"], Is.EqualTo(new[]
+                {
+                    new SetNotice(SetNotice.Custom, Text: "Particles differ slightly")
+                }));
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_Notices_TypeIsCaseInsensitiveAndStemLookupIgnoresCase()
+        {
+            var hero = ParseWithNotices(@"{ ""Blightfall"": ["" ANIM_Demo_Only ""] }");
+
+            Assert.That(hero.Notices["blightfall"], Is.EqualTo(new[] { new SetNotice(SetNotice.AnimDemoOnly) }));
+        }
+
+        [Test]
+        public void ParseHeroesJson_Notices_UnknownTypeFallsBackToItsTextOrIsDropped()
+        {
+            var hero = ParseWithNotices(@"{
+                ""a"": [{ ""type"": ""sound_bug"", ""text"": ""Voice lines missing"" }, ""sound_bug""]
+            }");
+
+            Assert.That(hero.Notices["a"], Is.EqualTo(new[] { new SetNotice(SetNotice.Custom, Text: "Voice lines missing") }));
+        }
+
+        [Test]
+        public void ParseHeroesJson_Notices_AnimBugIgnoresTextAndCustomNeedsText()
+        {
+            var hero = ParseWithNotices(@"{
+                ""a"": [{ ""type"": ""anim_bug"" }, { ""type"": ""custom"" }, { ""type"": ""custom"", ""text"": ""  "" }]
+            }");
+
+            Assert.That(hero.Notices["a"], Is.EqualTo(new[] { new SetNotice(SetNotice.AnimBug) }));
+        }
+
+        [Test]
+        public void ParseHeroesJson_Notices_MalformedPiecesAreSkippedWithoutLosingTheHero()
+        {
+            var hero = ParseWithNotices(@"{
+                ""good"": [42, null, [""anim_bug""], {}, { ""type"": 7 }, """", ""anim_demo_only""],
+                ""not-an-array"": ""anim_bug"",
+                ""   "": [""anim_bug""],
+                ""all-bad"": [42]
+            }");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.Name, Is.EqualTo("abaddon"), "a malformed notice must not drop the hero");
+                Assert.That(hero.Sets, Has.Count.EqualTo(1));
+                Assert.That(hero.Notices.Keys, Is.EquivalentTo(new[] { "good" }));
+                Assert.That(hero.Notices["good"], Is.EqualTo(new[] { new SetNotice(SetNotice.AnimDemoOnly) }));
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_Notices_NotAnObject_IsIgnored()
+        {
+            var hero = ParseWithNotices(@"[""anim_bug""]");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.Name, Is.EqualTo("abaddon"));
+                Assert.That(hero.Notices, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_Notices_DuplicatesDroppedCountAndLengthCapped()
+        {
+            var longText = new string('x', HeroService.MaxNoticeTextLength + 50);
+            var hero = ParseWithNotices(@"{
+                ""a"": [""anim_demo_only"", ""anim_demo_only"",
+                        { ""type"": ""anim_bug"", ""anim"": ""Idle"" }, { ""type"": ""anim_bug"", ""anim"": ""Idle"" },
+                        { ""type"": ""custom"", ""text"": """ + longText + @""" },
+                        { ""type"": ""anim_bug"", ""anim"": ""Run"" },
+                        { ""type"": ""anim_bug"", ""anim"": ""Attack"" }]
+            }");
+
+            var list = hero.Notices["a"];
+            Assert.Multiple(() =>
+            {
+                Assert.That(list, Has.Count.EqualTo(HeroService.MaxNoticesPerSet));
+                Assert.That(list, Is.Unique);
+                Assert.That(list[2].Text, Has.Length.EqualTo(HeroService.MaxNoticeTextLength));
+                Assert.That(list.Select(n => n.Anim), Does.Not.Contain("Attack"), "past the cap");
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_WithoutNotices_HasEmptyNotices()
+        {
+            var hero = HeroService.ParseHeroesJson(@"[ { ""name"": ""abaddon"", ""sets"": { ""Set 1"": [""https://cdn/a.zip""] } } ]")[0];
+
+            Assert.That(hero.Notices, Is.Empty);
+        }
+
+        #endregion
+
+        #region "base_locks" parsing
+
+        private static HeroSummary ParseWithLocks(string locksJson) =>
+            HeroService.ParseHeroesJson(@"[ { ""name"": ""zeus"", ""sets"": { ""Set 1"": [""https://cdn/base_arcana.zip""] }, ""base_locks"": " + locksJson + " } ]")[0];
+
+        [Test]
+        public void ParseHeroesJson_BaseLocks_ArrayAndShorthandAreRead_LowercasedAndDeduped()
+        {
+            var hero = ParseWithLocks(@"{ ""base_arcana"": ["" Head "", ""head"", ""ARMS""], ""base_persona"": ""head"" }");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.BaseLocks["BASE_ARCANA"], Is.EqualTo(new[] { "head", "arms" }));
+                Assert.That(hero.BaseLocks["base_persona"], Is.EqualTo(new[] { "head" }));
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_BaseLocks_NonBaseStemsAndMalformedPiecesAreSkipped()
+        {
+            var hero = ParseWithLocks(@"{
+                ""storm_set"": [""head""],
+                ""item_head_crown"": [""head""],
+                ""base_bad"": 7,
+                ""base_empty"": ["""", 3, null],
+                ""base_arcana"": [""head"", { ""x"": 1 }]
+            }");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.Name, Is.EqualTo("zeus"), "a malformed lock must never drop the hero");
+                Assert.That(hero.BaseLocks.Keys, Is.EquivalentTo(new[] { "base_arcana" }));
+                Assert.That(hero.BaseLocks["base_arcana"], Is.EqualTo(new[] { "head" }));
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_BaseLocks_CappedPerBase()
+        {
+            var slots = string.Join(",", Enumerable.Range(0, 20).Select(i => $"\"s{i}\""));
+            var hero = ParseWithLocks($"{{ \"base_arcana\": [{slots}] }}");
+
+            Assert.That(hero.BaseLocks["base_arcana"], Has.Count.EqualTo(HeroService.MaxLockedSlotsPerBase));
+        }
+
+        [Test]
+        public void ParseHeroesJson_BaseLocks_NotAnObjectOrAbsent_IsEmpty()
+        {
+            Assert.That(ParseWithLocks(@"[""head""]").BaseLocks, Is.Empty);
+            Assert.That(HeroService.ParseHeroesJson(@"[ { ""name"": ""zeus"" } ]")[0].BaseLocks, Is.Empty);
+        }
+
+        #endregion
+
+        #region "ability_names" parsing
+
+        private static HeroSummary ParseWithAbilityNames(string namesJson) =>
+            HeroService.ParseHeroesJson(@"[ { ""name"": ""sven"", ""sets"": { ""Set 1"": [""https://cdn/effect_ability2_vigil.zip""] }, ""ability_names"": " + namesJson + " } ]")[0];
+
+        [Test]
+        public void ParseHeroesJson_AbilityNames_ValidTagsAreRead_Trimmed()
+        {
+            var hero = ParseWithAbilityNames(@"{ ""ability2"": "" Great Cleave "", ""ABILITY3"": ""Warcry"" }");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.AbilityNames["ability2"], Is.EqualTo("Great Cleave"));
+                Assert.That(hero.AbilityNames["ability3"], Is.EqualTo("Warcry"));
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_AbilityNames_BadTagsAndValuesAreSkipped_HeroKept()
+        {
+            var longName = new string('x', HeroService.MaxAbilityNameLength + 10);
+            var hero = ParseWithAbilityNames(@"{
+                ""weapon"": ""Sword"", ""ability0"": ""Zero"", ""ability1"": 5,
+                ""ability2"": """", ""ability3"": null, ""ability4"": """ + longName + @"""
+            }");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.Name, Is.EqualTo("sven"), "a malformed label must never drop the hero");
+                Assert.That(hero.AbilityNames.Keys, Is.EquivalentTo(new[] { "ability4" }));
+                Assert.That(hero.AbilityNames["ability4"], Has.Length.EqualTo(HeroService.MaxAbilityNameLength));
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_AbilityNames_NotAnObjectOrAbsent_IsEmpty()
+        {
+            Assert.That(ParseWithAbilityNames(@"[""Great Cleave""]").AbilityNames, Is.Empty);
+            Assert.That(HeroService.ParseHeroesJson(@"[ { ""name"": ""sven"" } ]")[0].AbilityNames, Is.Empty);
+        }
+
+        [Test]
+        public void MapFromSummaries_AbilityNames_ReachHeroModel()
+        {
+            var hero = HeroModelMapper.MapFromSummaries(new List<HeroSummary>
+            {
+                ParseWithAbilityNames(@"{ ""ability2"": ""Great Cleave"" }")
+            })[0];
+
+            Assert.That(hero.AbilityNames["ABILITY2"], Is.EqualTo("Great Cleave"));
+        }
+
+        #endregion
+
+        #region "ability_icons" / "effect_icons" parsing
+
+        private const string Img = "https://cdn.ardysamods.my.id/Assets/image/Invoker/abilities/";
+
+        private static HeroSummary ParseWithIcons(string abilityIcons, string effectIcons) =>
+            HeroService.ParseHeroesJson(@"[ { ""name"": ""invoker"", ""sets"": { ""Set 1"": [""https://cdn/effect_ability1_head_apex.zip""] }, ""ability_icons"": "
+                + abilityIcons + @", ""effect_icons"": " + effectIcons + " } ]")[0];
+
+        [Test]
+        public void ParseHeroesJson_Icons_ValidEntriesAreRead_KeysLowercased()
+        {
+            var hero = ParseWithIcons(
+                @"{ ""ABILITY1"": """ + Img + @"invoker_quas.png"" }",
+                @"{ "" effect_ability1_head_apex "": """ + Img + @"invoker_magus_apex_invoker_quas.webp"" }");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.AbilityIcons["ability1"], Is.EqualTo(Img + "invoker_quas.png"));
+                Assert.That(hero.EffectIcons["effect_ability1_head_apex"], Is.EqualTo(Img + "invoker_magus_apex_invoker_quas.webp"));
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_Icons_BadKeysAndUrlsAreSkipped_HeroKept()
+        {
+            var hero = ParseWithIcons(
+                @"{ ""ability0"": """ + Img + @"a.png"", ""weapon"": """ + Img + @"b.png"",
+                    ""ability2"": ""Assets/image/x.png"", ""ability3"": ""javascript:alert(1)//x.png"",
+                    ""ability4"": ""file:///C:/x.png"", ""ability5"": """ + Img + @"x.zip"",
+                    ""ability6"": 7, ""ability7"": """ + Img + @"invoker_tornado.png"" }",
+                @"{ ""item_head_apex"": """ + Img + @"a.png"", ""effect_"": """ + Img + @"b.png"",
+                    ""effect_ability2_head_apex"": null }");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.Name, Is.EqualTo("invoker"), "a malformed icon must never drop the hero");
+                Assert.That(hero.AbilityIcons.Keys, Is.EquivalentTo(new[] { "ability7" }));
+                Assert.That(hero.EffectIcons, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void ParseHeroesJson_Icons_NotAnObjectOrAbsent_IsEmpty()
+        {
+            var hero = ParseWithIcons(@"[""x.png""]", @"""x.png""");
+            var bare = HeroService.ParseHeroesJson(@"[ { ""name"": ""invoker"" } ]")[0];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.AbilityIcons, Is.Empty);
+                Assert.That(hero.EffectIcons, Is.Empty);
+                Assert.That(bare.AbilityIcons, Is.Empty);
+                Assert.That(bare.EffectIcons, Is.Empty);
+            });
+        }
+
+        [Test]
+        public void MapFromSummaries_Icons_ReachHeroModel_CaseInsensitive()
+        {
+            var hero = HeroModelMapper.MapFromSummaries(new List<HeroSummary>
+            {
+                ParseWithIcons(@"{ ""ability1"": """ + Img + @"q.png"" }", @"{ ""effect_ability1_head_apex"": """ + Img + @"a.png"" }")
+            })[0];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(hero.AbilityIcons["ABILITY1"], Is.EqualTo(Img + "q.png"));
+                Assert.That(hero.EffectIcons["Effect_Ability1_Head_Apex"], Is.EqualTo(Img + "a.png"));
+            });
+        }
+
+        [Test]
+        public void CollectThumbnailUrls_IncludesAbilityIcons_OncePerUrl()
+        {
+            var hero = HeroModelMapper.MapFromSummaries(new List<HeroSummary>
+            {
+                ParseWithIcons(@"{ ""ability1"": """ + Img + @"q.png"", ""ability2"": """ + Img + @"w.png"" }",
+                    @"{ ""effect_ability1_head_apex"": """ + Img + @"apex_q.png"", ""effect_ability1_back_artistry_cape"": """ + Img + @"q.png"" }")
+            });
+
+            var urls = ArdysaModsTools.UI.Forms.HeroGalleryForm.CollectThumbnailUrls(hero);
+
+            Assert.That(urls.Where(u => u.StartsWith(Img)), Is.EquivalentTo(new[] { Img + "q.png", Img + "w.png", Img + "apex_q.png" }));
         }
 
         #endregion

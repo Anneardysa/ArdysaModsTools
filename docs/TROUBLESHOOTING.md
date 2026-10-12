@@ -211,8 +211,7 @@ game archives, and some scanners flag any tool that writes into game files.
 
 1. Add an exception for your AMT installation folder.
 2. Download only from [official releases](https://github.com/Anneardysa/ArdysaModsTools/releases)
-   or [ardysamods.my.id](https://ardysamods.my.id). Releases are Authenticode-signed by the
-   SignPath Foundation — check the publisher on the UAC prompt.
+   or [ardysamods.my.id](https://ardysamods.my.id).
 3. If your AV already stripped a file, reinstall rather than patching around it.
 
 > [!NOTE]

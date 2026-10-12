@@ -95,7 +95,7 @@ public static class FileSecurityGuard
         }
         catch (Exception ex)
         {
-            logger?.Log($"FileSecurityGuard: Failed to apply DACL lock to '{filePath}': {ex.Message}");
+            logger?.LogDebug($"FileSecurityGuard: Failed to apply DACL lock to '{filePath}': {ex.Message}");
             return false;
         }
     }
@@ -137,7 +137,7 @@ public static class FileSecurityGuard
         }
         catch (Exception ex)
         {
-            logger?.Log($"FileSecurityGuard: Failed to release DACL lock on '{filePath}': {ex.Message}");
+            logger?.LogDebug($"FileSecurityGuard: Failed to release DACL lock on '{filePath}': {ex.Message}");
             return false;
         }
     }

@@ -108,7 +108,8 @@ namespace ArdysaModsTools
         private int _confirmSeq;
         private readonly Dictionary<int, TaskCompletionSource<bool>> _confirmWaiters = new();
 
-        private bool _bAuto, _bManual, _bInstall, _bDisable, _bPatch, _bMisc, _bHero, _bTweak, _bHighlight;
+        private bool _bAuto, _bManual, _bInstall, _bDisable, _bPatch, _bMisc, _bHero, _bTweak, _bUtilities, _bHighlight;
+        private bool _utilitiesGreyedOut;
 
         private static readonly JsonSerializerOptions _jsonOptions = new()
         {
@@ -530,7 +531,7 @@ namespace ArdysaModsTools
                     if (percent >= _lastPreloadLoggedPercent + 10 || p.Current == p.Total)
                     {
                         _lastPreloadLoggedPercent = percent - (percent % 10);
-                        _logger.Log($"Launching State: caching assets… {p.Current}/{p.Total} ({percent}%)");
+                        _logger.LogDebug($"Launching State: caching assets… {p.Current}/{p.Total} ({percent}%)");
                     }
                     break;
 
@@ -776,6 +777,9 @@ namespace ArdysaModsTools
                     case "tweak":
                         OpenPerformanceTweak();
                         break;
+                    case "utilities":
+                        await OpenUtilitiesAsync();
+                        break;
                     case "whatsnew":
                         OpenWhatsNewDialog();
                         break;
@@ -831,6 +835,12 @@ namespace ArdysaModsTools
                     case "confirmLaunch":
                         _presenter.ConfirmLaunch();
                         break;
+                    case "steamDownloads":
+                        _presenter.OpenSteamDownloads();
+                        break;
+                    case "steamClearCache":
+                        await _presenter.ClearSteamDownloadCacheAsync();
+                        break;
                     case "fixPackageSync":
                         await _presenter.RepairPackageAsync();
                         break;
@@ -847,6 +857,9 @@ namespace ArdysaModsTools
                     case "openUrl":
                         if (!string.IsNullOrEmpty(url))
                             UIHelpers.OpenUrlWithErrorDialog(url, "Link", _logger.Log);
+                        break;
+                    case "openLogFolder":
+                        RevealFallbackLog();
                         break;
 
                     case "shellModalResult":
@@ -874,6 +887,34 @@ namespace ArdysaModsTools
                 _confirmWaiters.Remove(id);
             }
             tcs?.TrySetResult(ok);
+        }
+
+        private void RevealFallbackLog()
+        {
+            try
+            {
+                string path = Core.Services.FallbackLogger.LogFilePath;
+                if (File.Exists(path))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"/select,\"{path}\"",
+                        UseShellExecute = true
+                    });
+                    return;
+                }
+
+                string? dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                    Process.Start(new ProcessStartInfo { FileName = dir, UseShellExecute = true });
+                else
+                    _logger.Log("Log file not found yet — it is created after the first logged event.");
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Could not open the log folder: {ex.Message}");
+            }
         }
 
         private void HandleCopyConsole(string? text)
@@ -907,6 +948,35 @@ namespace ArdysaModsTools
             catch (Exception ex)
             {
                 _logger.Log($"Failed to open Performance Tweak: {ex.Message}");
+            }
+        }
+
+        private async Task OpenUtilitiesAsync()
+        {
+            if (string.IsNullOrEmpty(targetPath))
+            {
+                _logger.Log("Detect your Dota 2 path first to use Utilities.");
+                return;
+            }
+
+            if (!IsRequiredModFilePresent())
+            {
+                _logger.Log("Install mods first (Modspack, Skin Selector, or Miscellaneous) to use Utilities.");
+                ShowShellToast("Utilities", "Install mods first (Modspack, Skin Selector, or Miscellaneous) to use Utilities.", "warning");
+                return;
+            }
+
+            if (!await _presenter.CheckUtilitiesAccessAsync()) return;
+
+            try
+            {
+                using var utilities = ActivatorUtilities.CreateInstance<UI.Forms.UtilitiesFormWebView>(
+                    _serviceProvider, targetPath, Core.Services.FileAppLogger.Instance);
+                utilities.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                _logger.Log($"Failed to open Utilities: {ex.Message}");
             }
         }
 
@@ -1044,8 +1114,9 @@ namespace ArdysaModsTools
             Js("status", $"setStatus({json})");
         }
 
-        private void PushButtons()
+        private void PushButtons([System.Runtime.CompilerServices.CallerMemberName] string caller = "")
         {
+            _logger.LogDebug($"[DIAG-BTN] {caller}: patch={_bPatch} utilities={_bUtilities} greyedOut={_utilitiesGreyedOut} webReady={_webReady} path={(targetPath != null)}");
             var json = JsonSerializer.Serialize(new
             {
                 autoDetect = _bAuto,
@@ -1056,6 +1127,7 @@ namespace ArdysaModsTools
                 misc = _bMisc,
                 hero = _bHero,
                 tweak = _bTweak,
+                utilities = _bUtilities && !_utilitiesGreyedOut,
                 detectHighlight = _bHighlight
             }, _jsonOptions);
             Js("buttons", $"setButtonStates({json})");
@@ -1189,7 +1261,10 @@ namespace ArdysaModsTools
                 cancelLabel = Loc.T(state.IsError ? "play.panel.dismiss"
                                   : state.ConfirmKey != null ? "play.panel.notNow"
                                   : "play.panel.cancel"),
-                confirmLabel = state.ConfirmKey != null ? Loc.T(state.ConfirmKey) : null
+                confirmLabel = state.ConfirmKey != null ? Loc.T(state.ConfirmKey) : null,
+                steamActions = state.ShowSteamActions
+                    ? new { downloads = Loc.T("play.panel.openDownloads"), clearCache = Loc.T("play.panel.clearCache") }
+                    : null
             }, _jsonOptions);
 
             Js("launch", $"setLaunchPanel({payload})");
@@ -1260,7 +1335,7 @@ namespace ArdysaModsTools
 
         public void DisableAllButtons()
         {
-            _bAuto = _bManual = _bInstall = _bDisable = _bPatch = _bMisc = _bHero = _bTweak = false;
+            _bAuto = _bManual = _bInstall = _bDisable = _bPatch = _bMisc = _bHero = _bTweak = _bUtilities = false;
             _bHighlight = false;
             PushButtons();
         }
@@ -1268,7 +1343,7 @@ namespace ArdysaModsTools
         public void EnableDetectionButtonsOnly()
         {
             _bAuto = _bManual = true;
-            _bInstall = _bDisable = _bPatch = _bMisc = _bHero = _bTweak = false;
+            _bInstall = _bDisable = _bPatch = _bMisc = _bHero = _bTweak = _bUtilities = false;
             _bHighlight = true;
             PushButtons();
         }
@@ -1284,6 +1359,7 @@ namespace ArdysaModsTools
             _bHero = hasPath;
             _bTweak = hasPath;
             _bPatch = hasPath && IsRequiredModFilePresent();
+            _bUtilities = _bPatch;
             _bHighlight = false;
             PushButtons();
         }
@@ -1304,8 +1380,24 @@ namespace ArdysaModsTools
                 case "hero": _bHero = enabled; break;
                 case "performancetweak":
                 case "tweak": _bTweak = enabled; break;
+                case "utilities": _bUtilities = enabled; break;
                 default: return;
             }
+            PushButtons();
+        }
+
+        public void RefreshButtonsVisibility()
+        {
+            bool hasPath = !string.IsNullOrEmpty(targetPath);
+            bool modsInstalled = hasPath && IsRequiredModFilePresent();
+            _bPatch = modsInstalled;
+            _bUtilities = modsInstalled;
+            PushButtons();
+        }
+
+        public void SetUtilitiesGreyedOut(bool greyedOut)
+        {
+            _utilitiesGreyedOut = greyedOut;
             PushButtons();
         }
 
@@ -1314,12 +1406,11 @@ namespace ArdysaModsTools
             if (string.IsNullOrEmpty(targetPath))
                 return false;
 
-            string requiredFilePath = Path.Combine(targetPath, ArdysaModsTools.Core.Constants.DotaPaths.ModsVpk);
-            bool fileExists = File.Exists(requiredFilePath);
+            bool fileExists = PathUtility.IsModInstalled(targetPath);
 
             if (!fileExists && !_modFileWarningLogged)
             {
-                _logger.Log("Required mod file 'ArdysaMods/pak01_dir.vpk' not found. Please install mods first.");
+                _logger.Log("Required mod file not found in 'game/_ArdysaMods' or 'game/mod'. Please install mods first.");
                 _modFileWarningLogged = true;
             }
             else if (fileExists)

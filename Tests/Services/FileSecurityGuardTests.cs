@@ -16,6 +16,7 @@
  */
 using System;
 using System.IO;
+using System.Threading;
 using ArdysaModsTools.Core.Services.Security;
 using NUnit.Framework;
 
@@ -96,5 +97,49 @@ public class FileSecurityGuardTests
         int read = dotaHandle.Read(buffer, 0, buffer.Length);
         Assert.That(read, Is.EqualTo(5));
         Assert.That(buffer, Is.EqualTo(new byte[] { 1, 2, 3, 4, 5 }));
+    }
+
+    [Test]
+    public void WaitUntilHeldByAnotherProcess_ReturnsTrue_WhenHandleIsHeld()
+    {
+        if (!OperatingSystem.IsWindows())
+            Assert.Ignore("File-sharing semantics differ off Windows.");
+
+        using var gameHandle = new FileStream(_testFile, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+        bool held = FileSecurityGuard.WaitUntilHeldByAnotherProcess(
+            _testFile, TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(50), CancellationToken.None);
+
+        Assert.That(held, Is.True, "a file another process holds open must be detected as held");
+    }
+
+    [Test]
+    public void WaitUntilHeldByAnotherProcess_TimesOut_WhenNobodyHoldsIt()
+    {
+        if (!OperatingSystem.IsWindows())
+            Assert.Ignore("File-sharing semantics differ off Windows.");
+
+        var start = DateTime.UtcNow;
+        bool held = FileSecurityGuard.WaitUntilHeldByAnotherProcess(
+            _testFile, TimeSpan.FromMilliseconds(300), TimeSpan.FromMilliseconds(50), CancellationToken.None);
+
+        Assert.That(held, Is.False, "a free file must not be reported as held");
+        Assert.That(DateTime.UtcNow - start, Is.GreaterThanOrEqualTo(TimeSpan.FromMilliseconds(250)),
+            "it must actually wait out the timeout, not return early");
+    }
+
+    [Test]
+    public void WaitUntilHeldByAnotherProcess_ReturnsFalse_WhenCancelled()
+    {
+        if (!OperatingSystem.IsWindows())
+            Assert.Ignore("File-sharing semantics differ off Windows.");
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        bool held = FileSecurityGuard.WaitUntilHeldByAnotherProcess(
+            _testFile, TimeSpan.FromSeconds(30), TimeSpan.FromMilliseconds(50), cts.Token);
+
+        Assert.That(held, Is.False, "a cancelled wait must not lock and must not block for the full timeout");
     }
 }

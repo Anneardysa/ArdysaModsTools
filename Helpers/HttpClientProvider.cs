@@ -18,6 +18,9 @@ using System;
 using System.Net;
 using System.Net.Http;
 using System.Security.Authentication;
+using System.Threading;
+using ArdysaModsTools.Core.Constants;
+using ArdysaModsTools.Core.Services.Cdn;
 using ArdysaModsTools.Core.Services.Config;
 using ArdysaModsTools.Core.Services.Update.Models;
 
@@ -81,6 +84,138 @@ namespace ArdysaModsTools.Helpers
         }
     }
 
+    public class CdnAuthHandler : DelegatingHandler
+    {
+        private static long _clockOffsetSeconds;
+
+        public CdnAuthHandler(HttpMessageHandler innerHandler) : base(innerHandler)
+        {
+        }
+
+        protected override async System.Threading.Tasks.Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, System.Threading.CancellationToken cancellationToken)
+        {
+            if (!TrySign(request))
+                return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+            var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+
+            if (response.StatusCode != HttpStatusCode.Unauthorized)
+                return response;
+
+            long previousOffset = Interlocked.Read(ref _clockOffsetSeconds);
+
+            if (!TryAdoptServerClock(response, out long adoptedOffset))
+                return response;
+
+            var retry = CloneForRetry(request);
+            if (retry == null || !TrySign(retry))
+            {
+                RollBackClock(previousOffset, adoptedOffset);
+                return response;
+            }
+
+            var corrected = await base.SendAsync(retry, cancellationToken).ConfigureAwait(false);
+
+            if (corrected.StatusCode == HttpStatusCode.Unauthorized)
+            {
+                RollBackClock(previousOffset, adoptedOffset);
+                corrected.Dispose();
+                return response;
+            }
+
+            response.Dispose();
+            return corrected;
+        }
+
+        private static void RollBackClock(long previousOffset, long adoptedOffset) =>
+            Interlocked.CompareExchange(ref _clockOffsetSeconds, previousOffset, adoptedOffset);
+
+        private static bool TrySign(HttpRequestMessage request)
+        {
+            var uri = request.RequestUri;
+            if (uri == null || !IsOurCdn(uri))
+                return false;
+
+            var key = CdnSigningKey.Key;
+            if (key == null)
+                return false;
+
+            string path = Uri.UnescapeDataString(uri.AbsolutePath).TrimStart('/');
+            if (!CdnConfig.IsProtectedPath(path))
+                return false;
+
+            long expiry = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                + Interlocked.Read(ref _clockOffsetSeconds)
+                + CdnRequestSigner.LifetimeSeconds;
+
+            request.Headers.Remove(CdnRequestSigner.HeaderName);
+            request.Headers.TryAddWithoutValidation(
+                CdnRequestSigner.HeaderName,
+                CdnRequestSigner.BuildHeaderValue(key, path, expiry));
+
+            return true;
+        }
+
+        private static bool IsOurCdn(Uri uri)
+        {
+            foreach (var baseUrl in CdnConfig.GetCdnBaseUrls())
+            {
+                if (Uri.TryCreate(baseUrl, UriKind.Absolute, out var baseUri) &&
+                    string.Equals(baseUri.Host, uri.Host, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static bool TryAdoptServerClock(HttpResponseMessage response, out long adoptedOffset)
+        {
+            adoptedOffset = 0;
+
+            if (!response.Headers.TryGetValues(CdnRequestSigner.ServerTimeHeaderName, out var values))
+                return false;
+
+            foreach (var value in values)
+            {
+                if (!long.TryParse(value, System.Globalization.NumberStyles.Integer,
+                        System.Globalization.CultureInfo.InvariantCulture, out long serverNow))
+                    continue;
+
+                long offset = serverNow - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+                if (Math.Abs(offset - Interlocked.Read(ref _clockOffsetSeconds)) < 2)
+                    return false;
+
+                Interlocked.Exchange(ref _clockOffsetSeconds, offset);
+                adoptedOffset = offset;
+                return true;
+            }
+
+            return false;
+        }
+
+        private static HttpRequestMessage? CloneForRetry(HttpRequestMessage request)
+        {
+            if (request.Content != null || request.RequestUri == null)
+                return null;
+
+            var clone = new HttpRequestMessage(request.Method, request.RequestUri)
+            {
+                Version = request.Version
+            };
+
+            foreach (var header in request.Headers)
+            {
+                if (string.Equals(header.Key, CdnRequestSigner.HeaderName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+
+            return clone;
+        }
+    }
+
     public static class HttpClientProvider
     {
         public static string UserAgent { get; } = BuildUserAgent();
@@ -104,9 +239,9 @@ namespace ArdysaModsTools.Helpers
                 DefaultProxyCredentials = CredentialCache.DefaultCredentials,
             };
 
-            var gitHubHandler = new GitHubTokenHandler(handler);
+            var cdnHandler = new CdnAuthHandler(new GitHubTokenHandler(handler));
 
-            var c = new HttpClient(gitHubHandler, disposeHandler: true)
+            var c = new HttpClient(cdnHandler, disposeHandler: true)
             {
                 Timeout = TimeSpan.FromMinutes(5)
             };

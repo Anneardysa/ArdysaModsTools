@@ -16,6 +16,8 @@
  */
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 
 namespace ArdysaModsTools.Core.Models
 {
@@ -45,7 +47,7 @@ namespace ArdysaModsTools.Core.Models
         {
             var cutoff = DateTime.Now.AddDays(-daysBack);
             var result = new List<(string, string, DateTime)>();
-            
+
             foreach (var batch in Updates)
             {
                 if (batch.Date >= cutoff)
@@ -56,7 +58,42 @@ namespace ArdysaModsTools.Core.Models
                     }
                 }
             }
-            
+
+            return result;
+        }
+
+        public string ThumbnailEpoch => $"{Version}|{NewestBatchDate?.ToString("yyyy-MM-dd") ?? ""}";
+
+        public List<(string HeroId, string SetName, DateTime AddedDate)> GetUpdatesSinceEpoch(string? lastSeenEpoch)
+        {
+            var newest = NewestBatchDate;
+            if (newest == null) return new();
+
+            var sep = lastSeenEpoch?.LastIndexOf('|') ?? -1;
+            var since = sep >= 0 && DateTime.TryParseExact(lastSeenEpoch![(sep + 1)..], "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)
+                ? parsed
+                : newest.Value;
+
+            return BatchesSince(since);
+        }
+
+        private DateTime? NewestBatchDate =>
+            Updates.Count == 0 ? null : Updates.Max(b => b.Date.Date);
+
+        private List<(string HeroId, string SetName, DateTime AddedDate)> BatchesSince(DateTime since)
+        {
+            var result = new List<(string, string, DateTime)>();
+
+            foreach (var batch in Updates)
+            {
+                if (batch.Date.Date < since) continue;
+                foreach (var entry in batch.Sets)
+                {
+                    result.Add((entry.HeroId, entry.SetName, batch.Date));
+                }
+            }
+
             return result;
         }
     }

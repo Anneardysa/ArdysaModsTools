@@ -22,6 +22,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Constants;
 using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Models;
 using ArdysaModsTools.Core.Services.Config;
@@ -41,6 +42,7 @@ namespace ArdysaModsTools.Core.Services.Hero
         private readonly Func<DateTime> _clock;
         private readonly Func<long> _tickCountProvider;
         private readonly Func<bool> _isDevMode;
+        private readonly Func<bool> _isExempt;
         private readonly Func<FeatureAccessConfig?> _remoteConfigProvider;
         private readonly string _shadowFilePath;
         private readonly string _dpapiFilePath;
@@ -52,6 +54,10 @@ namespace ArdysaModsTools.Core.Services.Hero
         private static TimeSpan _serverTimeOffset = TimeSpan.Zero;
         private static DateTime _lastServerTimeSyncUtc = DateTime.MinValue;
         private static readonly TimeSpan ServerSyncInterval = TimeSpan.FromMinutes(15);
+
+        internal static TimeSpan ServerTimeOffset => _serverTimeOffset;
+
+        internal static Func<bool>? BypassHook { get; set; }
 
         private long? _lastGenerationSessionTick;
         private int _sessionGenerationCount = 0;
@@ -71,7 +77,8 @@ namespace ArdysaModsTools.Core.Services.Hero
             TimeSpan? cooldownDuration = null,
             int maxDailyGenerations = DefaultMaxDailyGenerations,
             Func<bool>? isDevMode = null,
-            Func<FeatureAccessConfig?>? remoteConfigProvider = null)
+            Func<FeatureAccessConfig?>? remoteConfigProvider = null,
+            Func<bool>? isExempt = null)
         {
             _configService = configService ?? throw new ArgumentNullException(nameof(configService));
             _clock = clock ?? (() => DateTime.UtcNow + _serverTimeOffset);
@@ -79,6 +86,7 @@ namespace ArdysaModsTools.Core.Services.Hero
             _cooldownDuration = cooldownDuration ?? DefaultCooldownDuration;
             _maxDailyGenerations = maxDailyGenerations > 0 ? maxDailyGenerations : 0;
             _isDevMode = isDevMode != null ? isDevMode : () => EnvironmentConfig.IsDevMode;
+            _isExempt = isExempt ?? (() => BypassHook?.Invoke() ?? false);
             _remoteConfigProvider = remoteConfigProvider ?? (() => FeatureAccessService.CurrentConfig);
             _registrySubKey = registrySubKey ?? RegistrySubKey;
 
@@ -131,6 +139,13 @@ namespace ArdysaModsTools.Core.Services.Hero
             lock (_lock)
             {
                 if (_isDevMode())
+                {
+                    remaining = TimeSpan.Zero;
+                    reason = SkinSelectorLockReason.None;
+                    return false;
+                }
+
+                if (_isExempt())
                 {
                     remaining = TimeSpan.Zero;
                     reason = SkinSelectorLockReason.None;
@@ -330,7 +345,7 @@ namespace ArdysaModsTools.Core.Services.Hero
                 cts.CancelAfter(TimeSpan.FromSeconds(3));
 
                 var client = httpClient ?? ArdysaModsTools.Helpers.HttpClientProvider.Client;
-                using var request = new HttpRequestMessage(HttpMethod.Head, "https://cdn.jsdelivr.net/");
+                using var request = new HttpRequestMessage(HttpMethod.Head, CdnConfig.R2BaseUrl + "/");
                 using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token).ConfigureAwait(false);
 
                 if (response.Headers.Date.HasValue)

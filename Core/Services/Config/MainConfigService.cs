@@ -226,7 +226,7 @@ namespace ArdysaModsTools.Core.Services.Config
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[MainConfigService] Failed to save config: {ex.Message}");
+                FallbackLogger.Log($"Could not save settings: {ex.Message}");
             }
         }
 

@@ -268,5 +268,115 @@ namespace ArdysaModsTools.Tests.Services
         }
 
         #endregion
+
+        #region Failure classification (inner-exception chain)
+
+        private static HttpRequestException TlsFailure(Exception inner) =>
+            new("The SSL connection could not be established, see inner exception.", inner);
+
+        private static HttpRequestException IspReset() => TlsFailure(
+            new System.IO.IOException("Unable to read data from the transport connection: An existing connection was forcibly closed by the remote host.",
+                new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionReset)));
+
+        [Test]
+        public void Classify_HandshakeResetByIsp_RecommendsWarp()
+        {
+            string msg = ConnectionTestService.ClassifyHttpError(IspReset());
+
+            Assert.That(msg, Is.EqualTo(ConnectionTestService.IspBlockMessage));
+            Assert.That(msg, Does.Contain("Cloudflare WARP"));
+        }
+
+        [Test]
+        public void Classify_TransportClosedDuringAuthentication_IsIspBlock()
+        {
+            var ex = TlsFailure(new System.Security.Authentication.AuthenticationException(
+                "Authentication failed because the remote party has closed the transport stream."));
+
+            Assert.That(ConnectionTestService.ClassifyHttpError(ex), Is.EqualTo(ConnectionTestService.IspBlockMessage));
+        }
+
+        [Test]
+        public void Classify_CertificateNotTimeValid_PointsAtThePcClock()
+        {
+            var ex = TlsFailure(new System.Security.Authentication.AuthenticationException(
+                "The remote certificate is invalid because of errors in the certificate chain: NotTimeValid"));
+
+            Assert.That(ConnectionTestService.ClassifyHttpError(ex), Is.EqualTo(ConnectionTestService.ClockMessage));
+        }
+
+        [Test]
+        public void Classify_CertificateUntrustedRoot_PointsAtInterception()
+        {
+            var ex = TlsFailure(new System.Security.Authentication.AuthenticationException(
+                "The remote certificate is invalid because of errors in the certificate chain: UntrustedRoot"));
+
+            Assert.That(ConnectionTestService.ClassifyHttpError(ex), Is.EqualTo(ConnectionTestService.InterceptMessage));
+        }
+
+        [Test]
+        public void Classify_DnsFailure_StaysDns()
+        {
+            var ex = new HttpRequestException("No such host is known. (cdn.ardysamods.my.id:443)",
+                new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.HostNotFound));
+
+            Assert.That(ConnectionTestService.ClassifyHttpError(ex), Does.StartWith("DNS resolution failed"));
+        }
+
+        [Test]
+        public void Classify_ConnectTimeout_StaysTimeout()
+        {
+            var ex = new HttpRequestException("A connection attempt failed",
+                new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.TimedOut));
+
+            Assert.That(ConnectionTestService.ClassifyHttpError(ex), Does.StartWith("Connection timed out"));
+        }
+
+        [Test]
+        public void Classify_UnknownFailure_ReportsTheDeepestCause_NeverSeeInnerException()
+        {
+            var ex = new HttpRequestException("Something failed, see inner exception.",
+                new InvalidOperationException("The actual reason."));
+
+            string msg = ConnectionTestService.ClassifyHttpError(ex);
+
+            Assert.That(msg, Is.EqualTo("The actual reason."));
+            Assert.That(msg, Does.Not.Contain("see inner exception"));
+        }
+
+        [Test]
+        public async Task RunBenchmarkAsync_WhenIspResetsEveryHost_DiagnosisRecommendsWarp()
+        {
+            var fakeHandler = new FakeHttpMessageHandler { Handler = _ => throw IspReset() };
+            using var client = new HttpClient(fakeHandler);
+            var service = new ConnectionTestService(client);
+
+            var report = await service.RunBenchmarkAsync(null, CancellationToken.None);
+
+            Assert.That(report.Servers, Has.All.Property(nameof(ServerConnectionResult.ErrorDetail))
+                .EqualTo(ConnectionTestService.IspBlockMessage));
+            Assert.That(report.DiagnosticSeverity, Is.EqualTo("error"));
+            Assert.That(report.DiagnosticMessage, Does.Contain("unreachable").And.Contain("Cloudflare WARP"));
+            Assert.That(report.DiagnosticMessage, Does.Contain("Install ModsPack"));
+        }
+
+        [Test]
+        public async Task RunBenchmarkAsync_WhenHostsFailDifferently_KeepsTheGenericDiagnosis()
+        {
+            var fakeHandler = new FakeHttpMessageHandler
+            {
+                Handler = req => req.RequestUri!.Host.StartsWith("cdn2")
+                    ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+                    : throw IspReset()
+            };
+            using var client = new HttpClient(fakeHandler);
+            var service = new ConnectionTestService(client);
+
+            var report = await service.RunBenchmarkAsync(null, CancellationToken.None);
+
+            Assert.That(report.DiagnosticMessage, Does.Contain("check your internet connection"));
+        }
+
+        #endregion
     }
 }

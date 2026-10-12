@@ -25,6 +25,13 @@ using ArdysaModsTools.Core.Services.Misc;
 
 namespace ArdysaModsTools.Core.Services.App
 {
+    public enum CacheClearScope
+    {
+        Everything,
+
+        AppUpdate,
+    }
+
     public class CacheCleaningService
     {
         private const string AppCachePrefix = "Ardysa";
@@ -46,14 +53,14 @@ namespace ArdysaModsTools.Core.Services.App
             public List<string> Errors { get; } = new();
         }
 
-        public async Task<CleaningResult> ClearAllCacheAsync()
+        public async Task<CleaningResult> ClearAllCacheAsync(CacheClearScope scope = CacheClearScope.Everything)
         {
             var result = new CleaningResult { Success = true };
 
             try
             {
-                var cacheFolders = GetCacheFolders();
-                
+                var cacheFolders = GetCacheFolders(scope);
+
                 await Task.Run(() =>
                 {
                     foreach (var folder in cacheFolders)
@@ -61,7 +68,8 @@ namespace ArdysaModsTools.Core.Services.App
                         CleanDirectory(folder, result, deleteRoot: folder.DeleteRoot);
                     }
 
-                    AssetCacheService.Instance.ClearCache();
+                    if (scope == CacheClearScope.Everything)
+                        AssetCacheService.Instance.ClearCache();
 
                     long configFreed = RemoteMiscConfigService.DeleteCache();
                     if (configFreed > 0)
@@ -71,7 +79,7 @@ namespace ArdysaModsTools.Core.Services.App
                     }
                 });
 
-                FallbackLogger.Log($"[CacheCleaningService] Cleaned {result.FilesDeleted} files, " +
+                FallbackLogger.LogFileOnly($"[CacheCleaningService] Cleaned {result.FilesDeleted} files, " +
                     $"{result.DirectoriesDeleted} directories, freed {FormatBytes(result.BytesFreed)}");
             }
             catch (Exception ex)
@@ -79,7 +87,7 @@ namespace ArdysaModsTools.Core.Services.App
                 result.Success = false;
                 result.ErrorMessage = ex.Message;
                 result.Errors.Add(ex.Message);
-                FallbackLogger.Log($"[CacheCleaningService] ClearAllCacheAsync failed: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[CacheCleaningService] ClearAllCacheAsync failed: {ex.Message}");
             }
 
             return result;
@@ -89,7 +97,7 @@ namespace ArdysaModsTools.Core.Services.App
             => !string.IsNullOrWhiteSpace(lastRunVersion) &&
                !string.Equals(lastRunVersion, runningVersion, StringComparison.Ordinal);
 
-        private List<CacheFolder> GetCacheFolders()
+        internal List<CacheFolder> GetCacheFolders(CacheClearScope scope = CacheClearScope.Everything)
         {
             var folders = new List<CacheFolder>();
             string systemTemp = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -112,20 +120,20 @@ namespace ArdysaModsTools.Core.Services.App
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[CacheCleaningService] Error scanning temp: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[CacheCleaningService] Error scanning temp: {ex.Message}");
             }
 
             try
             {
                 string assetCacheDir = AssetCacheService.Instance.CacheDirectory;
-                if (Directory.Exists(assetCacheDir))
+                if (scope == CacheClearScope.Everything && Directory.Exists(assetCacheDir))
                 {
                     folders.Add(new CacheFolder(assetCacheDir, "Asset Cache", deleteRoot: false));
                 }
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[CacheCleaningService] Error accessing AssetCacheService: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[CacheCleaningService] Error accessing AssetCacheService: {ex.Message}");
             }
 
             try
@@ -137,7 +145,7 @@ namespace ArdysaModsTools.Core.Services.App
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[CacheCleaningService] Error accessing WebView2 folder: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[CacheCleaningService] Error accessing WebView2 folder: {ex.Message}");
             }
 
             return folders;
@@ -150,7 +158,7 @@ namespace ArdysaModsTools.Core.Services.App
 
             if (folder.IsProtected)
             {
-                FallbackLogger.Log($"[CacheCleaningService] Skipping protected folder: {folder.Name}");
+                FallbackLogger.LogFileOnly($"[CacheCleaningService] Skipping protected folder: {folder.Name}");
                 return;
             }
 
@@ -212,7 +220,7 @@ namespace ArdysaModsTools.Core.Services.App
             catch (Exception ex)
             {
                 result.Errors.Add($"Error cleaning {folder.Name}: {ex.Message}");
-                FallbackLogger.Log($"[CacheCleaningService] CleanDirectory error for {folder.FolderPath}: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[CacheCleaningService] CleanDirectory error for {folder.FolderPath}: {ex.Message}");
             }
         }
 
@@ -258,7 +266,7 @@ namespace ArdysaModsTools.Core.Services.App
             }
             catch (Exception ex)
             {
-                FallbackLogger.Log($"[CacheCleaningService] GetCacheSizeBytes error: {ex.Message}");
+                FallbackLogger.LogFileOnly($"[CacheCleaningService] GetCacheSizeBytes error: {ex.Message}");
             }
 
             return totalSize;
@@ -304,7 +312,7 @@ namespace ArdysaModsTools.Core.Services.App
             return $"{size:F1} {suffixes[suffixIndex]}";
         }
 
-        private class CacheFolder
+        internal sealed class CacheFolder
         {
             public string FolderPath { get; }
             public string Name { get; }

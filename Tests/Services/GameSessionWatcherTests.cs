@@ -17,7 +17,9 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using ArdysaModsTools.Core.Interfaces;
 using ArdysaModsTools.Core.Services.App;
+using Moq;
 using NUnit.Framework;
 
 namespace ArdysaModsTools.Tests.Services
@@ -113,6 +115,49 @@ namespace ArdysaModsTools.Tests.Services
             Assert.ThrowsAsync<TaskCanceledException>(() =>
                 GameSessionWatcher.WaitUntilGoneAsync(
                     () => true, TimeSpan.FromMilliseconds(10), cts.Token));
+        }
+
+        [Test]
+        public void ResolveDotaPath_PrefersTheConfiguredInstallOverAutoDetect()
+        {
+            var config = new Mock<IConfigService>();
+            config.Setup(c => c.GetLastTargetPath()).Returns(@"D:\Library\dota 2 beta");
+
+            var detection = new Mock<IDetectionService>();
+            detection.Setup(d => d.ValidateDotaPath(@"D:\Library\dota 2 beta")).Returns(true);
+            detection.Setup(d => d.AutoDetectAsync())
+                     .ReturnsAsync(@"C:\Steam\steamapps\common\dota 2 beta");
+
+            Assert.That(GameSessionWatcher.ResolveDotaPath(config.Object, detection.Object),
+                Is.EqualTo(@"D:\Library\dota 2 beta"));
+            detection.Verify(d => d.AutoDetectAsync(), Times.Never);
+        }
+
+        [Test]
+        public void ResolveDotaPath_FallsBackToAutoDetect_WhenTheSavedPathIsGone()
+        {
+            var config = new Mock<IConfigService>();
+            config.Setup(c => c.GetLastTargetPath()).Returns(@"E:\moved away\dota 2 beta");
+
+            var detection = new Mock<IDetectionService>();
+            detection.Setup(d => d.ValidateDotaPath(It.IsAny<string?>())).Returns(false);
+            detection.Setup(d => d.AutoDetectAsync())
+                     .ReturnsAsync(@"C:\Steam\steamapps\common\dota 2 beta");
+
+            Assert.That(GameSessionWatcher.ResolveDotaPath(config.Object, detection.Object),
+                Is.EqualTo(@"C:\Steam\steamapps\common\dota 2 beta"));
+        }
+
+        [Test]
+        public void ResolveDotaPath_WhenNothingResolves_ReturnsNull()
+        {
+            var config = new Mock<IConfigService>();
+            config.Setup(c => c.GetLastTargetPath()).Throws(new InvalidOperationException("no config"));
+
+            var detection = new Mock<IDetectionService>();
+            detection.Setup(d => d.AutoDetectAsync()).ReturnsAsync((string?)null);
+
+            Assert.That(GameSessionWatcher.ResolveDotaPath(config.Object, detection.Object), Is.Null);
         }
     }
 }

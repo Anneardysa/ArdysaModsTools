@@ -58,6 +58,10 @@ namespace ArdysaModsTools.Core.Exceptions
 
         public const string DL_ASSET_INCOMPATIBLE = "DL_009";
 
+        public const string DL_NO_HASH = "DL_010";
+
+        public const string DL_CDN_UNAUTHORIZED = "DL_011";
+
         #endregion
 
         #region Patch Errors (PATCH_XXX) - File patching operations

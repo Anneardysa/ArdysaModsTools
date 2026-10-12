@@ -129,5 +129,21 @@ namespace ArdysaModsTools.Tests.DependencyInjection
             Assert.That(verification, Is.Not.Null);
             Assert.That(_provider.GetRequiredService<IItemsGameSyncService>(), Is.SameAs(shared));
         }
+
+        [Test]
+        public void UtilitiesServices_LogToTheFile_NotIntoNullLogger()
+        {
+            foreach (object service in new object[]
+                     {
+                         _provider.GetRequiredService<IHeroBadgeService>(),
+                         _provider.GetRequiredService<IRankChangerService>(),
+                     })
+            {
+                var logger = service.GetType()
+                    .GetField("_logger", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                    .GetValue(service);
+                Assert.That(logger, Is.SameAs(FileAppLogger.Instance), service.GetType().Name);
+            }
+        }
     }
 }

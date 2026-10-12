@@ -18,7 +18,7 @@ Documentation hub for AMT. Start with the guide that matches what you're trying 
 
 | Guide                                          | Description                              |
 | ---------------------------------------------- | ---------------------------------------- |
-| **[Contributing](../.github/CONTRIBUTING.md)** | How to report, request, and send patches |
+| **[Contributing](../.github/CONTRIBUTING.md)** | How to report bugs and request mods |
 | **[Security Policy](../.github/SECURITY.md)**  | Reporting vulnerabilities privately      |
 | **[Code of Conduct](../.github/CODE_OF_CONDUCT.md)** | Ground rules for participation     |
 | **[Privacy Policy](../PRIVACY.md)**            | What leaves your machine (and what doesn't) |

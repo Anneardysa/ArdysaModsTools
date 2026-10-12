@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (C) 2026 Ardysa
  *
  * This program is free software: you can redistribute it and/or modify
@@ -66,7 +66,7 @@ namespace ArdysaModsTools.Core.Helpers
 
                 if (hasItemsSection && (q1 < itemsStart || q1 >= itemsEnd)) continue;
 
-                int start = KeyValuesBlockHelper.FindLineStart(text, q1);
+                int start = KeyValuesBlockHelper.FindBlockStart(text, q1);
                 var blockSpan = text.AsSpan(start, braceEnd - start);
 
                 if (ItemsGameMerger.IsCosmeticItem(blockSpan))

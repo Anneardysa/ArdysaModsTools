@@ -311,7 +311,7 @@ jobs:
               echo "Uploading manifest to R2..."
               rclone copyto updated_manifest.json "r2:${{ env.R2_BUCKET }}/${RELEASES_PATH}/releases.json" \
                 --header-upload "Content-Type: application/json" \
-                --header-upload "Cache-Control: public, max-age=300" \
+                --header-upload "Cache-Control: public, max-age=300, stale-while-revalidate=86400" \
                 -v
 
               echo "✅ Manifest updated successfully!"
@@ -346,7 +346,7 @@ jobs:
               # WhatsNewFeedUrl default the app reads first).
               rclone copyto whatsnew.json "r2:${{ env.R2_BUCKET }}/config/whatsnew.json" \
                 --header-upload "Content-Type: application/json" \
-                --header-upload "Cache-Control: public, max-age=300" \
+                --header-upload "Cache-Control: public, max-age=300, stale-while-revalidate=86400" \
                 -v
 
               echo "✅ whatsnew.json published"

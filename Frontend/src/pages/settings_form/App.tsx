@@ -3,6 +3,7 @@ import { send, startDragUnlessInteractive } from "../../bridge/host";
 import { T, translate, useLocale } from "../../bridge/i18n";
 import { store, type Settings } from "./store";
 import { ConnectionTestModal } from "./ConnectionTestModal";
+import { RepairModal } from "./RepairModal";
 import css from "./settings.module.css";
 
 
@@ -42,6 +43,9 @@ const ShowGuideIcon = () => (
       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
       <line x1="12" y1="17" x2="12.01" y2="17" />
    </>
+);
+const RepairIcon = () => (
+   <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
 );
 
 function Toggle({ active, label, onToggle }: { active: boolean; label: string; onToggle: () => void }) {
@@ -184,6 +188,8 @@ export function App() {
    const clearCacheBusy = store.use((s) => s.clearCacheBusy);
    const connectionTestBusy = store.use((s) => s.connectionTestBusy);
    const connectionTestReport = store.use((s) => s.connectionTestReport);
+   const repairBusy = store.use((s) => s.repairBusy);
+   const repairReport = store.use((s) => s.repairReport);
 
    const close = () => send("close");
 
@@ -224,6 +230,13 @@ export function App() {
       if (!connectionTestReport && !connectionTestBusy) {
          store.set({ connectionTestBusy: true, connectionTestProgress: null });
          send("testConnection");
+      }
+   };
+   const openRepairModal = () => {
+      store.set({ isRepairModalOpen: true });
+      if (!repairReport && !repairBusy) {
+         store.set({ repairBusy: true, repairProgress: null });
+         send("runRepairScan");
       }
    };
 
@@ -493,6 +506,57 @@ export function App() {
                         </span>
                      </div>
                   </div>
+
+                  <div className={css.section}>
+                     <div className={css.sectionHeader}>
+                        <span className={css.sectionTitle}>
+                           <T k="settings.section.repair">Repair</T>
+                        </span>
+                        <div className={css.sectionLine} />
+                     </div>
+                     <div className={`${css.settingsCard} panel`}>
+                        <div className={css.connectionTestRow}>
+                           <div className={css.toggleInfo}>
+                              <span className={css.toggleLabel}>
+                                 <T k="settings.repair.title">Repair App</T>
+                              </span>
+                              <span className={css.toggleDesc}>
+                                 {repairReport ? (
+                                    repairReport.hasFailures ? (
+                                       <T k="settings.repair.issuesFound">A few things could use a fix.</T>
+                                    ) : (
+                                       <T k="settings.repair.allHealthy">Everything checks out.</T>
+                                    )
+                                 ) : (
+                                    <T k="settings.repair.subtitle">
+                                       Scans the WebView2 runtime and app folders for common problems and fixes what it can.
+                                    </T>
+                                 )}
+                              </span>
+                           </div>
+                           <button
+                              type="button"
+                              data-no-drag
+                              className={css.testConnBtn}
+                              disabled={repairBusy}
+                              onClick={openRepairModal}
+                           >
+                              {repairBusy ? (
+                                 <span className={css.spinner} aria-hidden="true" />
+                              ) : (
+                                 <>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                       <RepairIcon />
+                                    </svg>
+                                    <span>
+                                       <T k="settings.repair.btn">Repair App</T>
+                                    </span>
+                                 </>
+                              )}
+                           </button>
+                        </div>
+                     </div>
+                  </div>
                </div>
             </div>
          </div>
@@ -507,6 +571,7 @@ export function App() {
          </div>
 
          <ConnectionTestModal />
+         <RepairModal />
          <Toast />
       </>
    );

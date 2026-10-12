@@ -146,6 +146,31 @@ namespace ArdysaModsTools.Core.Services
             return _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
         }
 
+        public static bool ShouldArmChangelog(string? lastChangelogVersion, string? runningVersion)
+            => !string.IsNullOrWhiteSpace(lastChangelogVersion)
+               && !string.IsNullOrWhiteSpace(runningVersion)
+               && !string.Equals(lastChangelogVersion, runningVersion, StringComparison.Ordinal);
+
+        public static ReleaseNote? SelectForVersion(IReadOnlyList<ReleaseNote>? releases, string? version)
+        {
+            if (releases == null || releases.Count == 0)
+                return null;
+
+            var wanted = NormalizeTag(version);
+            if (wanted.Length > 0)
+            {
+                foreach (var release in releases)
+                {
+                    if (release != null && NormalizeTag(release.Tag) == wanted)
+                        return release;
+                }
+            }
+
+            return releases[0];
+        }
+
+        private static string NormalizeTag(string? tag) => (tag ?? "").Trim().TrimStart('v', 'V');
+
         public static List<ReleaseNote>? Parse(string? json)
         {
             if (string.IsNullOrWhiteSpace(json))
