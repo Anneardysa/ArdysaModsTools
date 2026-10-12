@@ -1,5 +1,7 @@
 import { T, useLocale } from "../../bridge/i18n";
-import { getActiveStyleIndex, getHeroSelection } from "./helpers";
+import { getActiveStyleIndex, getBlockedIndices, getHeroSelection, getSetDisplayName, getSetNoticeLines } from "./helpers";
+import { trapTab } from "./a11y";
+import { NoticeBadge } from "./SetTile";
 import { closeStylePreview, deselectStylePreview, selectStyleFromPreview, store } from "./store";
 import css from "./gallery.module.css";
 
@@ -16,8 +18,10 @@ export function StylePreviewModal() {
    const { tileType, groupIndices, group, groupCover } = stylePreview;
    const heroSel = getHeroSelection(selections, hero.id);
    const activeIdx = getActiveStyleIndex(groupIndices, heroSel, tileType);
+   const blocked = getBlockedIndices(hero, heroSel);
 
    const entries = groupIndices.map((idx) => ({ idx, set: hero.sets[idx]! }));
+   const firstOpen = entries.find((e) => !blocked.has(e.idx))?.idx ?? null;
    const active = activeIdx !== null ? entries.find((e) => e.idx === activeIdx) : entries[0];
    const headThumb = activeIdx !== null ? active?.set.thumbnailUrl || groupCover || hero.thumbnail : groupCover || active?.set.thumbnailUrl || hero.thumbnail;
 
@@ -27,7 +31,14 @@ export function StylePreviewModal() {
          className={css.stylePreviewBackdrop}
          onClick={closeStylePreview}
       >
-         <div className={css.stylePreviewPanel} onClick={(e) => e.stopPropagation()}>
+         <div
+            className={css.stylePreviewPanel}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stylePreviewTitle"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={trapTab}
+         >
             <div className={css.stylePreviewHeader}>
                <div className={css.stylePreviewHeaderThumb}>
                   <img id="stylePreviewThumb" src={headThumb} alt="" />
@@ -50,21 +61,46 @@ export function StylePreviewModal() {
             <div id="stylePreviewGrid" className={css.stylePreviewGrid}>
                {entries.map((e) => {
                   const isActive = e.idx === activeIdx;
+                  const isBlocked = blocked.has(e.idx);
                   const label = e.set.styleLabel || e.set.name || `Style ${e.idx + 1}`;
+                  const blocker = isBlocked
+                     ? (e.set.conflicts ?? [])
+                          .filter((i) => heroSel.set === i || heroSel.base === i || heroSel.prismatic === i || heroSel.items.includes(i) || (heroSel.effects?.includes(i) ?? false))
+                          .map((i) => getSetDisplayName(hero.sets[i], i))[0] ?? null
+                     : null;
+                  const notices = getSetNoticeLines(hero, [e.idx]);
+                  const pick = () => {
+                     if (!isBlocked) selectStyleFromPreview(hero, e.idx);
+                  };
                   return (
                      <div
                         key={e.idx}
-                        className={`${css.stylePreviewTile} ${isActive ? css.active : ""}`}
-                        onClick={() => selectStyleFromPreview(hero, e.idx)}
+                        role="button"
+                        tabIndex={isBlocked ? -1 : 0}
+                        autoFocus={e.idx === (activeIdx ?? firstOpen)}
+                        aria-pressed={isActive}
+                        className={`${css.stylePreviewTile} ${isActive ? css.active : ""} ${isBlocked ? css.blocked : ""}`}
+                        title={[isBlocked && blocker ? `${label}: cannot be combined with ${blocker}` : label, ...notices.map((n) => `⚠ ${n}`)].join("\n")}
+                        aria-disabled={isBlocked || undefined}
+                        onClick={pick}
+                        onKeyDown={(ev) => {
+                           if (ev.key === "Enter" || ev.key === " ") {
+                              ev.preventDefault();
+                              pick();
+                           }
+                        }}
                      >
                         <div className={css.stylePreviewTileImg}>
                            <img
                               src={e.set.thumbnailUrl || hero.thumbnail}
                               alt={label}
+                              loading="lazy"
+                              decoding="async"
                               onError={(ev) => {
                                  ev.currentTarget.src = hero.thumbnail;
                               }}
                            />
+                           <NoticeBadge lines={notices} />
                         </div>
                         <div className={css.stylePreviewTileCheck}>
                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
