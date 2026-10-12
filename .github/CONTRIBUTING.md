@@ -4,8 +4,8 @@ Thanks for wanting to help. This project runs on an **issues-first** model: ever
 feature, and mod addition starts life as an issue, and the issue is where the whole
 conversation lives until it ships.
 
-Read the short section below on how this repository works first — it explains why pull
-requests are handled differently here than on most projects.
+Read the short section below on how this repository works first. It explains why this project
+does not take pull requests.
 
 ---
 
@@ -22,8 +22,8 @@ That has two consequences you need to know about:
 2. **Source comments are stripped** from `.cs` files during publishing. The code is complete and
    compiles, but you will not find explanatory comments in it.
 
-So: **we do not merge pull requests on GitHub.** See
-[Sending code](#sending-code) below for what to do instead.
+So: **we do not take pull requests or patches.** See
+[Code from outside the project](#code-from-outside-the-project) below.
 
 ---
 
@@ -89,21 +89,14 @@ Most reports are one of these, and all three are self-serve:
 
 ---
 
-## Sending code
+## Code from outside the project
 
-You're welcome to fix things — the flow is just unusual, because a merge here would be undone
-by the next mirror sync.
+AMT does not accept code from outside the project. That covers pull requests, patches pasted
+into issues, and requests to become a collaborator. A pull request opened here is closed
+automatically.
 
-1. Open an issue describing the bug or change (or comment on the existing one).
-2. Make your fix in a fork.
-3. **Paste the patch into the issue** — `git format-patch` output, or a diff in a fenced code
-   block. Small fixes can just be "in `X.cs`, change A to B".
-4. A maintainer applies it upstream, credits you in the commit, and the issue closes when the
-   fix ships in a release.
-
-If you'd rather open a pull request anyway so the diff renders nicely, that's fine — a bot will
-post the same explanation, and we'll treat the PR as the patch. It just won't be merged with the
-green button.
+If you found a bug, or you know where the fix is, open an issue and describe it. Name the file
+and method and say what goes wrong. A precise report gets fixed fastest.
 
 ### Building from source
 
@@ -117,21 +110,8 @@ Requires the .NET 8 SDK on Windows. Both commands work on a fresh clone of this 
 One caveat: the bundled VPK binaries (`vpk.exe`, `HLExtract.exe` and their runtime DLLs) are
 third-party and are **not** published to this mirror. The project compiles and the test suite
 passes without them — tests that need a real VPK skip themselves — but the app cannot actually
-pack or extract game files from a mirror-only build. That's enough to read the code, reproduce
-logic bugs, and verify a fix compiles; it is not enough to run AMT end-to-end.
-
-### If you do write code
-
-- **Architecture is MVP and it's enforced.** Forms wire up UI events only; UI logic lives in a
-  presenter; business logic lives in a service behind an interface. No business logic in a Form.
-- **Dependency injection only.** Constructor injection — no `new ConcreteService()`, no service
-  locator in business logic.
-- **Every new public service method gets a test.** NUnit 4 + Moq, one happy path and one error
-  or edge case. Follow the nearest existing test file.
-- **All I/O is `async`/`await` with a `CancellationToken`.** No `Thread.Sleep`.
-- **Anything that writes into the Dota 2 folder goes through the file-transaction service** —
-  extract to temp, verify SHA-256, atomic swap, roll back on any failure. Never copy or move a
-  file straight into the game directory. A mistake here corrupts someone's Dota 2 install.
+pack or extract game files from a mirror-only build. That's enough to read the code and
+reproduce logic bugs for a report; it is not enough to run AMT end-to-end.
 
 ---
 
@@ -163,6 +143,5 @@ especially people who are new or writing in their second language.
 
 ## Licensing
 
-AMT is licensed under **GPL-3.0**. By contributing code, you agree that your contribution is
-licensed under the same terms. Note the trademark and brand reservations in
-[NOTICE](../NOTICE) — the code is free, the name and logo are not.
+AMT is licensed under **GPL-3.0**. Note the trademark and brand reservations in
+[NOTICE](../NOTICE): the code is free, the name and logo are not.
