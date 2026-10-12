@@ -10,7 +10,7 @@
 **Cosmetic mod manager for Dota 2 on Windows.**
 Install hero sets, terrains, HUDs, couriers and effects that only you can see, and switch back to the vanilla game whenever you want.
 
-[![Version](https://img.shields.io/github/v/release/Anneardysa/ArdysaModsTools?include_prereleases&style=flat-square&logo=github&logoColor=white&label=Version&color=00d4ff)](https://github.com/Anneardysa/ArdysaModsTools/releases) ![Platform](https://img.shields.io/badge/Windows-10%201809%2B%20%7C%2011%20x64-0078D6?style=flat-square&logo=windows&logoColor=white) ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white) [![License](https://img.shields.io/badge/License-GPL%20v3-blue?style=flat-square)](LICENSE) [![Downloads](https://img.shields.io/github/downloads/Anneardysa/ArdysaModsTools/total?style=flat-square&color=FF6B6B&logo=github&logoColor=white&label=Downloads)](https://github.com/Anneardysa/ArdysaModsTools/releases) [![Stars](https://img.shields.io/github/stars/Anneardysa/ArdysaModsTools?style=flat-square&color=yellow&logo=github&logoColor=black)](https://github.com/Anneardysa/ArdysaModsTools/stargazers)
+[![Version](https://img.shields.io/github/v/release/Anneardysa/ArdysaModsTools?include_prereleases&style=flat-square&logo=github&logoColor=white&label=Version&color=00d4ff)](https://github.com/Anneardysa/ArdysaModsTools/releases) ![Platform](https://img.shields.io/badge/Windows-10%201809%2B%20%7C%2011%20x64-0078D6?style=flat-square&logo=windows&logoColor=white) ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white) [![License](https://img.shields.io/badge/License-Proprietary-555555?style=flat-square)](NOTICE) [![Downloads](https://img.shields.io/github/downloads/Anneardysa/ArdysaModsTools/total?style=flat-square&color=FF6B6B&logo=github&logoColor=white&label=Downloads)](https://github.com/Anneardysa/ArdysaModsTools/releases) [![Stars](https://img.shields.io/github/stars/Anneardysa/ArdysaModsTools?style=flat-square&color=yellow&logo=github&logoColor=black)](https://github.com/Anneardysa/ArdysaModsTools/stargazers)
 
 [Features](#features) · [Install](#install) · [Quick start](#quick-start) · [Safety](#safety) · [Docs](#documentation) · [Report a problem](#report-a-problem) · [Website](https://ardysamods.my.id)
 
@@ -172,7 +172,9 @@ Issues stay open to everyone. Bug reports, mod and set requests, feature ideas a
 
 ## License and trademarks
 
-Source code is licensed under the **GNU General Public License v3.0**. See [LICENSE](LICENSE).
+From build 2468, ArdysaModsTools is **proprietary software**: free to use, but not to copy, modify, redistribute, reverse-engineer, or feed to AI tools for analysis or reimplementation. Its terms ship with the app as the `LICENSE` file.
+
+Versions up to and including build 2467 (v2.10.0-beta) remain under the **GNU General Public License v3.0**. Their source stays on GitHub as a frozen snapshot, under that license.
 
 The names **"ArdysaMods"**, **"ArdysaModsTools"** and **"AMT"**, the logo, the visual identity and the domains (`ardysamods.my.id`, `cdn.ardysamods.my.id`) are **excluded** from the license. Derivative work must use a distinct name, logo, and its own update and CDN endpoints. See [NOTICE](NOTICE).
 

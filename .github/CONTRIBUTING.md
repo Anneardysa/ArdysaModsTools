@@ -11,16 +11,16 @@ does not take pull requests.
 
 ## How this repository works
 
-AMT is developed in a private upstream repository. **This GitHub repository is a published
-mirror of it**, updated automatically every time work lands upstream.
+AMT is developed in a private upstream repository. **The source in this GitHub repository is a
+frozen snapshot** of build 2467 (v2.10.0-beta), the last GPL-3.0 release. It no longer receives
+code; from build 2468 on, AMT is proprietary. Issues, releases and documentation still live here.
 
 That has two consequences you need to know about:
 
-1. **The mirror is one-way and it is rewritten on every publish.** Any branch or merge commit
-   created here is discarded by the next sync. This is not a policy choice we can bend — it's
-   how the publishing mechanism works.
-2. **Source comments are stripped** from `.cs` files during publishing. The code is complete and
-   compiles, but you will not find explanatory comments in it.
+1. **The snapshot is read-only.** It is not where AMT is developed, so nothing merged here would
+   ever reach the app.
+2. **Source comments were stripped** from `.cs` files when it was published. The code is complete
+   and compiles, but you will not find explanatory comments in it.
 
 So: **we do not take pull requests or patches.** See
 [Code from outside the project](#code-from-outside-the-project) below.
@@ -143,5 +143,6 @@ especially people who are new or writing in their second language.
 
 ## Licensing
 
-AMT is licensed under **GPL-3.0**. Note the trademark and brand reservations in
-[NOTICE](../NOTICE): the code is free, the name and logo are not.
+From build 2468, AMT is **proprietary**; its terms ship with the app as the `LICENSE` file. Builds
+up to and including 2467, and the source snapshot here, remain under **GPL-3.0**. Note the trademark and brand reservations in
+[NOTICE](../NOTICE): they apply to every version.

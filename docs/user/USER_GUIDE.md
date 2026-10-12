@@ -793,17 +793,19 @@ If Valve changes their policy:
 
 #### ❓ Is AMT open-source? Can I trust it?
 
-Yes, under the **GNU General Public License v3.0** — the source is published at
-[GitHub](https://github.com/Anneardysa/ArdysaModsTools) and you can read and audit all of it.
+Not any more. Versions up to and including build 2467 (v2.10.0-beta) were released under the
+**GNU General Public License v3.0**, and their source stays on
+[GitHub](https://github.com/Anneardysa/ArdysaModsTools) as a frozen snapshot you can read and
+audit. From build 2468 on, AMT is **proprietary**: free to use, but its source is not published.
+See LICENSE and NOTICE. What AMT does with your data is described in PRIVACY.md.
 
-Two honest caveats about that repository:
+Two honest caveats about that snapshot:
 
-- It is a **published mirror** of a private development repo, updated automatically on every
-  change. It is one-way and does not accept code from outside the project, so pull requests are
-  closed. See
+- It **no longer receives updates** and does not accept code from outside the project, so pull
+  requests are closed. See
   [CONTRIBUTING.md](https://github.com/Anneardysa/ArdysaModsTools/blob/main/.github/CONTRIBUTING.md).
-- **Source comments are stripped** from `.cs` files when publishing. The code is complete and
-  compiles; it just isn't annotated.
+- **Source comments were stripped** from `.cs` files when it was published. The code is complete
+  and compiles; it just isn't annotated.
 
 ---
 
@@ -1200,8 +1202,9 @@ template instead. For "how do I…" questions, Discord is faster.
 
 ### License
 
-This software is licensed under the **GNU General Public License v3.0**.  
-See LICENSE for full details.
+From build 2468, this software is **proprietary**. Versions up to and including build 2467
+remain under the **GNU General Public License v3.0**.  
+See LICENSE and NOTICE for full details.
 
 ### Third-Party Tools
 

@@ -37,11 +37,10 @@ Diagnostic logs (`ardysa_fallback.log`, generation reports) are also written loc
 **never uploaded** — if you attach one to a bug report, that is you choosing to share it.
 Nothing is synced to any cloud service.
 
-## 4. Open Source Transparency
-ArdysaModsTools is licensed under GPL-v3 and its source is published, so you can inspect it and
-verify that no data is collected:
+## 4. Source Availability
+Versions up to and including build 2467 (v2.10.0-beta) were released under GPL-v3, and their
+source remains public as a frozen snapshot, so you can inspect how those versions handle data:
 [https://github.com/Anneardysa/ArdysaModsTools](https://github.com/Anneardysa/ArdysaModsTools)
 
-That repository is an automatically-updated public mirror of a private development repository,
-and source comments are stripped from `.cs` files when publishing. The code itself is complete
-and auditable.
+From build 2468 on, ArdysaModsTools is proprietary and its source is no longer published. This
+policy continues to describe how every version handles your data.

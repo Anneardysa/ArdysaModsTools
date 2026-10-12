@@ -5,17 +5,18 @@ Copyright (C) 2024-2026 Ardysa (@Anneardysa)
 1. SOFTWARE LICENSE (the code)
 ================================================================================
 
-Released versions of this software up to and including the last version tagged
-under GPL-3.0 are licensed under the GNU General Public License v3.0. See the
-LICENSE file for the full text. You may copy, modify, and redistribute those
-versions under the terms of that license, which (among other obligations)
-requires that you preserve this copyright notice and make your modified source
-available under the same license.
+Versions up to and including build 2467 (v2.10.0-beta) were released under the
+GNU General Public License v3.0 (https://www.gnu.org/licenses/gpl-3.0.txt) and
+remain under it. Their source is the frozen snapshot in the public GitHub
+repository. You may copy, modify, and redistribute those versions under the
+terms of that license, which (among other obligations) requires that you
+preserve this copyright notice and make your modified source available under
+the same license.
 
-Future versions may be released under different terms. The copyright holder
-(Ardysa) reserves the right to relicense new versions, as permitted for the
-sole author of the work. Relicensing of future versions does NOT retroactively
-change the license of versions already published under GPL-3.0.
+Build 2468 and every later version is PROPRIETARY software, relicensed by its
+sole author. Its terms are in the LICENSE file shipped with it; no part of it is
+licensed under GPL-3.0. Relicensing does NOT retroactively change the license of
+the versions already published under GPL-3.0.
 
 ================================================================================
 2. TRADEMARKS & BRAND IDENTITY (NOT covered by the software license)

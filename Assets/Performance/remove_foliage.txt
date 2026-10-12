@@ -9,6 +9,7 @@ maps/jungle_assets/bushes/bush_jungle_01.vmdl_c
 maps/jungle_assets/bushes/bush_palm_01.vmdl_c
 maps/summer_assets/bushes/bush_dire_summer_01.vmdl_c
 maps/summer_assets/bushes/bush_dire_summer_02.vmdl_c
+maps/summer_assets/bushes/bush_dire_summer_07c.vmdl_c
 materials/models/props_gameplay/fountain_of_life/fountain_of_life_algae.vmat_c
 materials/models/props_gameplay/fountain_of_life/fountain_of_life_plants_dire.vmat_c
 materials/models/props_gameplay/fountain_of_life/fountain_of_life_plants_radiant.vmat_c

@@ -10,6 +10,7 @@ materials/models/effects/water_edges_mod_00.vmat_c
 materials/models/effects/waterfall_00.vmat_c
 materials/models/effects/waterfall_mod_000a.vmat_c
 materials/models/props_bones/badside_bones001.vmat_c
+materials/models/props_bones/badside_bones014b.vmat_c
 materials/models/props_bones/bones_tintable_001.vmat_c
 materials/models/props_bones/bones_tintable_002.vmat_c
 materials/models/props_bones/whale_skeleton.vmat_c
